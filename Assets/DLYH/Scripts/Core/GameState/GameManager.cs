@@ -1,5 +1,6 @@
 using UnityEngine;
 using Sirenix.OdinInspector;
+using TecVooDoo.DontLoseYourHead.Core.GameState;
 
 namespace TecVooDoo.DontLoseYourHead.Core
 {
@@ -12,6 +13,9 @@ namespace TecVooDoo.DontLoseYourHead.Core
         [Required]
         [SerializeField] private IntVariableSO _missCount;
 
+        [Required]
+        [SerializeField] private TurnManager _turnManager;
+
         [Title("Game State")]
         [ReadOnly]
         [ShowInInspector]
@@ -21,13 +25,9 @@ namespace TecVooDoo.DontLoseYourHead.Core
         [ShowInInspector]
         private Grid _opponentGrid;
 
-        [ReadOnly]
-        [ShowInInspector]
-        private bool _isPlayerTurn = true;
-
         public Grid PlayerGrid => _playerGrid;
         public Grid OpponentGrid => _opponentGrid;
-        public bool IsPlayerTurn => _isPlayerTurn;
+        public int CurrentPlayerIndex => _turnManager.CurrentPlayerIndex;
         public int MaxMisses => _difficulty.MissLimit;
 
         private void Awake()
@@ -41,13 +41,26 @@ namespace TecVooDoo.DontLoseYourHead.Core
             _playerGrid = new Grid(_difficulty.GridSize);
             _opponentGrid = new Grid(_difficulty.GridSize);
             _missCount.Value = 0;
-            _isPlayerTurn = true;
 
             Debug.Log($"Game initialized with {_difficulty.DifficultyName} difficulty: {_difficulty.GridSize}x{_difficulty.GridSize} grid, {_difficulty.MissLimit} miss limit");
         }
 
-        public bool ProcessLetterGuess(Grid targetGrid, char letter)
+        /// <summary>
+        /// Process a letter guess for the specified player against target grid
+        /// </summary>
+        /// <param name="playerIndex">Index of player making the guess (0 or 1)</param>
+        /// <param name="targetGrid">Grid being guessed against</param>
+        /// <param name="letter">Letter being guessed</param>
+        /// <returns>True if letter was found, false if miss</returns>
+        public bool ProcessLetterGuess(int playerIndex, Grid targetGrid, char letter)
         {
+            // Validate it's this player's turn
+            if (!_turnManager.CanTakeAction(playerIndex))
+            {
+                Debug.LogWarning($"[GameManager] Player {playerIndex} cannot guess - not their turn!");
+                return false;
+            }
+
             bool foundLetter = false;
 
             foreach (var word in targetGrid.PlacedWords)
@@ -62,29 +75,62 @@ namespace TecVooDoo.DontLoseYourHead.Core
             if (!foundLetter)
             {
                 _missCount.Add(1);
+                Debug.Log($"[GameManager] Player {playerIndex} guessed '{letter}' - MISS! ({_missCount.Value}/{MaxMisses})");
             }
+            else
+            {
+                Debug.Log($"[GameManager] Player {playerIndex} guessed '{letter}' - HIT!");
+            }
+
+            // End turn after processing guess
+            _turnManager.EndTurn();
 
             return foundLetter;
         }
 
-        public bool ProcessCoordinateGuess(Grid targetGrid, Vector2Int coordinate)
+        /// <summary>
+        /// Process a coordinate guess for the specified player against target grid
+        /// </summary>
+        /// <param name="playerIndex">Index of player making the guess (0 or 1)</param>
+        /// <param name="targetGrid">Grid being guessed against</param>
+        /// <param name="coordinate">Coordinate being guessed</param>
+        /// <returns>True if hit a letter, false if miss</returns>
+        public bool ProcessCoordinateGuess(int playerIndex, Grid targetGrid, Vector2Int coordinate)
         {
+            // Validate it's this player's turn
+            if (!_turnManager.CanTakeAction(playerIndex))
+            {
+                Debug.LogWarning($"[GameManager] Player {playerIndex} cannot guess - not their turn!");
+                return false;
+            }
+
             GridCell cell = targetGrid.GetCell(coordinate);
 
             if (cell == null)
             {
+                Debug.LogWarning($"[GameManager] Invalid coordinate: {coordinate}");
                 return false;
             }
+
+            bool isHit = false;
 
             if (cell.IsEmpty)
             {
                 cell.SetState(CellState.Miss);
                 _missCount.Add(1);
-                return false;
+                Debug.Log($"[GameManager] Player {playerIndex} guessed {coordinate} - MISS! ({_missCount.Value}/{MaxMisses})");
+            }
+            else
+            {
+                cell.SetState(CellState.PartiallyKnown);
+                isHit = true;
+                Debug.Log($"[GameManager] Player {playerIndex} guessed {coordinate} - HIT!");
             }
 
-            cell.SetState(CellState.PartiallyKnown);
-            return true;
+            // End turn after processing guess
+            _turnManager.EndTurn();
+
+            return isHit;
         }
 
         public bool CheckWinCondition(Grid targetGrid)
@@ -105,11 +151,6 @@ namespace TecVooDoo.DontLoseYourHead.Core
         public bool CheckLoseCondition()
         {
             return _missCount.Value >= _difficulty.MissLimit;
-        }
-
-        public void SwitchTurn()
-        {
-            _isPlayerTurn = !_isPlayerTurn;
         }
     }
 }

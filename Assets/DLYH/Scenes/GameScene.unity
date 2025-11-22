@@ -119,6 +119,57 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &75395242
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 75395244}
+  - component: {fileID: 75395243}
+  m_Layer: 0
+  m_Name: TurnManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &75395243
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 75395242}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aaeb2d509513a0f4d91409ea6e20df5a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TecVooDoo.DontLoseYourHead.Core.GameState.TurnManager
+  _currentPlayerTurn: {fileID: 11400000, guid: aeb88fc71de90b74585ffb913a180188, type: 2}
+  _onTurnStarted: {fileID: 11400000, guid: 22ef65d9d89b1b646b06209c65b11fd2, type: 2}
+  _onTurnEnded: {fileID: 11400000, guid: 82fb7e1e64fc8ed478f1508e4f3c1135, type: 2}
+  _onTurnChanged: {fileID: 11400000, guid: a073a7566b9bd7b4ead133f610c6117e, type: 2}
+  _player1Index: 0
+  _player2Index: 1
+  _turnDelaySeconds: 0.5
+--- !u!4 &75395244
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 75395242}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &374801781
 GameObject:
   m_ObjectHideFlags: 0
@@ -174,6 +225,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1077455764}
   - component: {fileID: 1077455763}
+  - component: {fileID: 1077455765}
   m_Layer: 0
   m_Name: WordPlacementTest
   m_TagString: Untagged
@@ -212,6 +264,19 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1077455765
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1077455762}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f2f6f0612653bd4419bb5e6a11ee8a3e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TecVooDoo.DontLoseYourHead.Core.SimpleTurnTest
+  _gameManager: {fileID: 1680601024}
 --- !u!1 &1680601023
 GameObject:
   m_ObjectHideFlags: 0
@@ -243,6 +308,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TecVooDoo.DontLoseYourHead.Core.GameManager
   _difficulty: {fileID: 11400000, guid: 892cfbb1970d94041baf987c8f996e90, type: 2}
   _missCount: {fileID: 11400000, guid: 078b98d5d4482904787e26a36371e41d, type: 2}
+  _turnManager: {fileID: 75395243}
 --- !u!4 &1680601025
 Transform:
   m_ObjectHideFlags: 0
@@ -403,3 +469,4 @@ SceneRoots:
   - {fileID: 374801783}
   - {fileID: 1680601025}
   - {fileID: 1077455764}
+  - {fileID: 75395244}
