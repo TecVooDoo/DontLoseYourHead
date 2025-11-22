@@ -35,11 +35,18 @@ MonoBehaviour:
     referenceMode: 2
     serializationDepthLimit: 64
     assemblyNames:
+    - AllIn1SpriteShaderAssembly
     - Assembly-CSharp
     - Assembly-CSharp-firstpass
+    - CodeMonkeyToolkit
     - Kamgam.UIToolkitTextAutoSize
     - Kamgam.UIToolkitTextAutoSize.UIDocumentFinder
+    - Lofelt.NiceVibrations
+    - Lofelt.NiceVibrations.Demo
     - MCPForUnity.Runtime
+    - MoreMountains.Tools
+    - Obious.Soap.Example
+    - Obvious.Soap
     showAdvancedSettings: 0
   addMgrToSceneAutomatically: 0
   autoUpdateReferences: 1
