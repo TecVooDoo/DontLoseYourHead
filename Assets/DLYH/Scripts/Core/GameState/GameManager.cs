@@ -16,6 +16,12 @@ namespace TecVooDoo.DontLoseYourHead.Core
         [Required]
         [SerializeField] private TurnManager _turnManager;
 
+        [Required]
+        [SerializeField] private GameStateMachine _stateMachine;
+
+        [Required]
+        [SerializeField] private PlayerManager _playerManager;
+
         [Title("Game State")]
         [ReadOnly]
         [ShowInInspector]
@@ -54,6 +60,13 @@ namespace TecVooDoo.DontLoseYourHead.Core
         /// <returns>True if letter was found, false if miss</returns>
         public bool ProcessLetterGuess(int playerIndex, Grid targetGrid, char letter)
         {
+            // Check if game is in active gameplay phase
+            if (!_stateMachine.IsInGameplay)
+            {
+                Debug.LogWarning($"[GameManager] Cannot process guess - game is not in gameplay phase!");
+                return false;
+            }
+
             // Validate it's this player's turn
             if (!_turnManager.CanTakeAction(playerIndex))
             {
@@ -82,6 +95,20 @@ namespace TecVooDoo.DontLoseYourHead.Core
                 Debug.Log($"[GameManager] Player {playerIndex} guessed '{letter}' - HIT!");
             }
 
+            // Check for lose condition
+            if (CheckLoseCondition())
+            {
+                HandleGameOver(GetOpponentIndex(playerIndex));
+                return foundLetter;
+            }
+
+            // Check for win condition
+            if (CheckWinCondition(targetGrid))
+            {
+                HandleGameOver(playerIndex);
+                return foundLetter;
+            }
+
             // End turn after processing guess
             _turnManager.EndTurn();
 
@@ -97,6 +124,13 @@ namespace TecVooDoo.DontLoseYourHead.Core
         /// <returns>True if hit a letter, false if miss</returns>
         public bool ProcessCoordinateGuess(int playerIndex, Grid targetGrid, Vector2Int coordinate)
         {
+            // Check if game is in active gameplay phase
+            if (!_stateMachine.IsInGameplay)
+            {
+                Debug.LogWarning($"[GameManager] Cannot process guess - game is not in gameplay phase!");
+                return false;
+            }
+
             // Validate it's this player's turn
             if (!_turnManager.CanTakeAction(playerIndex))
             {
@@ -127,6 +161,20 @@ namespace TecVooDoo.DontLoseYourHead.Core
                 Debug.Log($"[GameManager] Player {playerIndex} guessed {coordinate} - HIT!");
             }
 
+            // Check for lose condition
+            if (CheckLoseCondition())
+            {
+                HandleGameOver(GetOpponentIndex(playerIndex));
+                return isHit;
+            }
+
+            // Check for win condition
+            if (CheckWinCondition(targetGrid))
+            {
+                HandleGameOver(playerIndex);
+                return isHit;
+            }
+
             // End turn after processing guess
             _turnManager.EndTurn();
 
@@ -151,6 +199,18 @@ namespace TecVooDoo.DontLoseYourHead.Core
         public bool CheckLoseCondition()
         {
             return _missCount.Value >= _difficulty.MissLimit;
+        }
+
+        private void HandleGameOver(int winnerIndex)
+        {
+            string winnerName = _playerManager.GetPlayerName(winnerIndex);
+            Debug.Log($"[GameManager] Game Over! Winner: {winnerName}");
+            _stateMachine.EndGame(winnerName);
+        }
+
+        private int GetOpponentIndex(int playerIndex)
+        {
+            return playerIndex == 0 ? 1 : 0;
         }
     }
 }

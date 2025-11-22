@@ -1056,7 +1056,7 @@ namespace UIAssistant
         {
             if (GUILayout.Button(UpdateLocalizablesContent, GUILayout.Height(ContentLibrary.RowHeight)))
             {
-                List<ILocalizable> localizers = new(FindObjectsOfType<MonoBehaviour>().OfType<ILocalizable>());
+                List<ILocalizable> localizers = new(Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None).OfType<ILocalizable>());
 
                 for (int i = 0; i < localizers.Count; i++)
                 {

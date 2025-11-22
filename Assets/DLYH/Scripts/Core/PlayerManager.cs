@@ -48,13 +48,13 @@ namespace TecVooDoo.DontLoseYourHead.Core
         }
 
         /// <summary>
-        /// Get the opponent of a specific player
+        /// Get player name by index (0 or 1)
         /// </summary>
-        public PlayerSO GetOpponent(PlayerSO player)
+        public string GetPlayerName(int index)
         {
-            return player == _player1 ? _player2 : _player1;
+            PlayerSO player = GetPlayer(index);
+            return player != null ? player.PlayerName : $"Player {index + 1}";
         }
-
         /// <summary>
         /// Get the opponent of a player by index
         /// </summary>

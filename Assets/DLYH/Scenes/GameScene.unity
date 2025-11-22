@@ -325,6 +325,55 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TecVooDoo.DontLoseYourHead.Core.SimpleTurnTest
   _gameManager: {fileID: 1680601024}
+--- !u!1 &1286652519
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1286652521}
+  - component: {fileID: 1286652520}
+  m_Layer: 0
+  m_Name: GameStateMachine
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1286652520
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1286652519}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 49a4fadfa5e47d744969eb3be8469713, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TecVooDoo.DontLoseYourHead.Core.GameStateMachine
+  _onGameStart: {fileID: 11400000, guid: 0ef5bdd5f8697ad428569cf42195e27a, type: 2}
+  _onSetupComplete: {fileID: 11400000, guid: d380c5b42f7b93b4a9d3a4d036e179c5, type: 2}
+  _onGameplayStart: {fileID: 11400000, guid: ae05efae512712744b869e17fd18d189, type: 2}
+  _onGameOver: {fileID: 11400000, guid: 1e6ccbc652d92aa49a3ba6ac5a518030, type: 2}
+  _turnManager: {fileID: 75395243}
+--- !u!4 &1286652521
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1286652519}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1680601023
 GameObject:
   m_ObjectHideFlags: 0
@@ -357,6 +406,8 @@ MonoBehaviour:
   _difficulty: {fileID: 11400000, guid: 892cfbb1970d94041baf987c8f996e90, type: 2}
   _missCount: {fileID: 11400000, guid: 078b98d5d4482904787e26a36371e41d, type: 2}
   _turnManager: {fileID: 75395243}
+  _stateMachine: {fileID: 1286652520}
+  _playerManager: {fileID: 995572634}
 --- !u!4 &1680601025
 Transform:
   m_ObjectHideFlags: 0
@@ -509,6 +560,52 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
+--- !u!1 &2063880412
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2063880414}
+  - component: {fileID: 2063880413}
+  m_Layer: 0
+  m_Name: GameFlowTester
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2063880413
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2063880412}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c38befbd3a64f3548a44301cb17d3574, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TecVooDoo.DontLoseYourHead.Core.GameFlowTester
+  _gameManager: {fileID: 1680601024}
+  _stateMachine: {fileID: 1286652520}
+--- !u!4 &2063880414
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2063880412}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -519,3 +616,5 @@ SceneRoots:
   - {fileID: 1077455764}
   - {fileID: 75395244}
   - {fileID: 995572635}
+  - {fileID: 1286652521}
+  - {fileID: 2063880414}

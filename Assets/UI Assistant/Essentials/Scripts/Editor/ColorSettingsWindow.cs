@@ -684,7 +684,11 @@ namespace UIAssistant
         {
             if (GUILayout.Button(UpdateColorizablesContent, GUILayout.Height(ContentLibrary.RowHeight)))
             {
-                List<GraphicColorizer> coloredGraphics = new(FindObjectsOfType<GraphicColorizer>(true));
+                // Use the correct overload: FindObjectsByType<T>(FindObjectsInactive, FindObjectsSortMode)
+                // FindObjectsInactive.Include means include inactive objects.
+                GraphicColorizer[] found = Object.FindObjectsByType<GraphicColorizer>(
+                    FindObjectsInactive.Include, FindObjectsSortMode.None);
+                List<GraphicColorizer> coloredGraphics = new(found);
 
                 for (int i = 0; i < coloredGraphics.Count; i++)
                 {

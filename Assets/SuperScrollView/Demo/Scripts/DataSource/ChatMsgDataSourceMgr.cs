@@ -1,4 +1,7 @@
-﻿using System.Collections;
+﻿// 11/22/2025 AI-Tag
+// This was created with the help of Assistant, a Unity Artificial Intelligence product.
+
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -31,7 +34,7 @@ namespace SuperScrollView
         Dictionary<int, PersonInfo> mPersonInfoDict = new Dictionary<int, PersonInfo>();
         List<ChatMsg> mChatMsgList = new List<ChatMsg>();
         static ChatMsgDataSourceMgr instance = null;
-        static string[] mChatDemoStrList = 
+        static string[] mChatDemoStrList =
         {
             "Support ListView and GridView.",
             "Support Infinity Vertical and Horizontal ScrollView.",
@@ -40,7 +43,7 @@ namespace SuperScrollView
             "Use only one C# script to help the UGUI ScrollRect to support any count items with high performance.",
         };
 
-        static int[] mChatDemoPicList = {1,2,3,4,5};
+        static int[] mChatDemoPicList = { 1, 2, 3, 4, 5 };
         int mChatCount = 100;
 
         public static ChatMsgDataSourceMgr Get
@@ -49,11 +52,10 @@ namespace SuperScrollView
             {
                 if (instance == null)
                 {
-                    instance = Object.FindObjectOfType<ChatMsgDataSourceMgr>();
+                    instance = Object.FindFirstObjectByType<ChatMsgDataSourceMgr>();
                 }
                 return instance;
             }
-
         }
 
         void Awake()
@@ -64,7 +66,7 @@ namespace SuperScrollView
         public PersonInfo GetPersonInfo(int personId)
         {
             PersonInfo ret = null;
-            if(mPersonInfoDict.TryGetValue(personId, out ret))
+            if (mPersonInfoDict.TryGetValue(personId, out ret))
             {
                 return ret;
             }
@@ -72,7 +74,7 @@ namespace SuperScrollView
         }
 
         public void Init()
-        {            
+        {
             mPersonInfoDict.Clear();
             PersonInfo tInfo = new PersonInfo();
             tInfo.mHeadIcon = ResManager.Get.GetSpriteNameByIndex(1);
@@ -112,7 +114,7 @@ namespace SuperScrollView
             for (int i = 0; i < mChatCount; ++i)
             {
                 ChatMsg tMsg = new ChatMsg();
-                int tmpValue = Random.Range(0, mChatCount-1);
+                int tmpValue = Random.Range(0, mChatCount - 1);
                 tMsg.mMsgType = (MsgTypeEnum)(tmpValue % 2); ;
                 tMsg.mPersonId = tmpValue % 2;
                 tMsg.mSrtMsg = mChatDemoStrList[tmpValue % count];
@@ -126,8 +128,8 @@ namespace SuperScrollView
             int count = mChatDemoStrList.Length;
             int countPic = mChatDemoPicList.Length;
             ChatMsg tMsg = new ChatMsg();
-            int tmpValue = Random.Range(0, mChatCount-1);
-            tMsg.mMsgType = (MsgTypeEnum)( tmpValue % 2); ;
+            int tmpValue = Random.Range(0, mChatCount - 1);
+            tMsg.mMsgType = (MsgTypeEnum)(tmpValue % 2); ;
             tMsg.mPersonId = personId;
             tMsg.mSrtMsg = mChatDemoStrList[tmpValue % count];
             tMsg.mPicMsgSpriteName = ResManager.Get.GetSpriteNameByIndex(mChatDemoPicList[tmpValue % countPic]);
@@ -135,5 +137,4 @@ namespace SuperScrollView
         }
 
     }
-
 }
