@@ -39,6 +39,7 @@ namespace LunaWolfStudiosEditor.ScriptableSheets
 		private Object m_MainAsset;
 		private int m_SelectedMainAssetIndex;
 		private GoogleSheetsImporter m_GoogleSheetsImporter;
+		private bool m_IsGoogleSheetDownloading;
 
 		private List<Object> m_SortedObjects = new List<Object>();
 		private Type m_SelectedType;
@@ -231,7 +232,7 @@ namespace LunaWolfStudiosEditor.ScriptableSheets
 			}
 
 			// Handle table nav and smart paste inputs up front to prevent the events being used.
-			if (m_TableNav.UpdateFocusedCoordinate(m_PropertyTable, IsScriptableObject()))
+			if (m_TableNav.UpdateFocusedCoordinate(m_PropertyTable, IsScriptableObject(), m_Settings.UserInterface.ShowReadOnly))
 			{
 				// Repaint if there was keyboard navigation to force column highlighting for non text fields.
 				if (m_TableNav.WasKeyboardNav)
@@ -489,6 +490,7 @@ namespace LunaWolfStudiosEditor.ScriptableSheets
 					if (confirmed)
 					{
 						AssetDatabase.StartAssetEditing();
+						ScriptableObject lastCreatedObject = null;
 						for (var i = 0; i < m_NewAmount; i++)
 						{
 							var selectedTypeName = m_SelectedType.Name;
@@ -551,6 +553,7 @@ namespace LunaWolfStudiosEditor.ScriptableSheets
 								AssetDatabase.CreateAsset(newScriptableObject, uniqueAssetPath);
 							}
 							m_Scanner.ObjectsByType[m_SelectedType].Add(newScriptableObject);
+							lastCreatedObject = newScriptableObject;
 						}
 						AssetDatabase.StopAssetEditing();
 						AssetDatabase.SaveAssets();
@@ -562,6 +565,19 @@ namespace LunaWolfStudiosEditor.ScriptableSheets
 						if (!m_Paginator.IsOnLastPage())
 						{
 							m_Paginator.GoToLastPage();
+						}
+						if (lastCreatedObject != null)
+						{
+							EditorGUIUtility.PingObject(lastCreatedObject);
+							if (m_Settings.UserInterface.TableNav.AutoSelect)
+							{
+								// Workaround to wait for the Object on the next page to get auto selected before selecting the newly created Object.
+								EditorApplication.delayCall += () => EditorApplication.delayCall += () => Selection.activeObject = lastCreatedObject;
+							}
+							else
+							{
+								Selection.activeObject = lastCreatedObject;
+							}
 						}
 						return;
 					}
@@ -820,7 +836,7 @@ namespace LunaWolfStudiosEditor.ScriptableSheets
 					m_GoogleSheetsImporter = filteredImporters.FirstOrDefault(i => string.IsNullOrWhiteSpace(i.WindowName));
 				}
 			}
-			EditorGUI.BeginDisabledGroup(m_GoogleSheetsImporter == null);
+			EditorGUI.BeginDisabledGroup(m_GoogleSheetsImporter == null || m_IsGoogleSheetDownloading);
 			var googleSheetsImporterName = m_GoogleSheetsImporter == null ? string.Empty : m_GoogleSheetsImporter.name;
 			if (GUILayout.Button(SheetsContent.Button.GetGoogleSheetsImporterContent(googleSheetsImporterName), SheetLayout.InlineButton))
 			{
@@ -1187,7 +1203,8 @@ namespace LunaWolfStudiosEditor.ScriptableSheets
 					{
 						continue;
 					}
-					if (nextColumnIndex >= startingColumnIndex && (iterator.IsPropertyVisible(m_Settings.UserInterface.ShowArrays, m_Settings.UserInterface.ShowReadOnly, out bool isReadOnlyUnityField) || useAssetReferenceDrawer))
+					var showReadOnly = m_Settings.UserInterface.ShowReadOnly;
+					if (nextColumnIndex >= startingColumnIndex && (iterator.IsPropertyVisible(m_Settings.UserInterface.ShowArrays, showReadOnly, out bool isReadOnlyUnityField) || useAssetReferenceDrawer))
 					{
 						if (m_MultiColumnHeader.IsColumnVisible(nextColumnIndex))
 						{
@@ -1206,7 +1223,7 @@ namespace LunaWolfStudiosEditor.ScriptableSheets
 							}
 							else
 							{
-								iterator.DrawProperty(propertyRect, rootObject, isCustomField, out bool arraySizeChanged, m_Settings.UserInterface.AssetPreview);
+								iterator.DrawProperty(propertyRect, rootObject, isCustomField, out bool arraySizeChanged, showReadOnly, m_Settings.UserInterface.AssetPreview, m_NewAssetPath, OnObjectCreated);
 								if (m_Settings.UserInterface.ShowArrays && isFirstFilteredObject && arraySizeChanged)
 								{
 									// The first filtered Object drives the column layout. One of its array sizes changed so the column layout gets refreshed.
@@ -1270,10 +1287,10 @@ namespace LunaWolfStudiosEditor.ScriptableSheets
 			// Handle file actions after property table is drawn.
 			if (m_TableAction != TableAction.None)
 			{
-				var TableAction = m_TableAction;
+				var tableAction = m_TableAction;
 				m_TableAction = TableAction.None;
 				var flatFileFormatSettings = GetFlatFileFormatSettings();
-				switch (TableAction)
+				switch (tableAction)
 				{
 					case TableAction.Copy:
 						EditorGUIUtility.systemCopyBuffer = m_PropertyTable.ToFlatFileFormat(flatFileFormatSettings);
@@ -1351,7 +1368,7 @@ namespace LunaWolfStudiosEditor.ScriptableSheets
 						break;
 
 					default:
-						Debug.LogWarning($"Unsupported {nameof(TableAction)} {TableAction}.");
+						Debug.LogWarning($"Unsupported {nameof(tableAction)} {tableAction}.");
 						break;
 				}
 			}
@@ -1497,6 +1514,11 @@ namespace LunaWolfStudiosEditor.ScriptableSheets
 
 		private void SetVisibleColumns(int[] visibleColumns)
 		{
+			// Avoid overwriting visible columns while a table action is in progress.
+			if (m_TableAction != TableAction.None)
+			{
+				return;
+			}
 			m_MultiColumnHeaderState.visibleColumns = visibleColumns;
 			CacheColumnLayout();
 		}
@@ -1587,7 +1609,9 @@ namespace LunaWolfStudiosEditor.ScriptableSheets
 			var mainAsset = m_MainAsset;
 			var sheetName = m_GoogleSheetsImporter.SheetName;
 			var downloadUrl = m_GoogleSheetsImporter.Url;
+			m_IsGoogleSheetDownloading = true;
 			m_ImportedFileContents = await m_GoogleSheetsImporter.GetCsvDataAsync();
+			m_IsGoogleSheetDownloading = false;
 			if (!string.IsNullOrEmpty(m_ImportedFileContents))
 			{
 				Debug.Log($"Successfully downloaded '{sheetName}' CSV data from '{downloadUrl}'. Using {nameof(GoogleSheetsImporter)} {m_GoogleSheetsImporter.name}.");
@@ -1733,6 +1757,23 @@ namespace LunaWolfStudiosEditor.ScriptableSheets
 			var anchoredRect = new Rect(position.position, PopupContent.Window.ColumnVisibilityMaxSize);
 			var columnLayoutPopupWindow = new ColumnVisibilityPopupWindowContent(anchoredRect, m_MultiColumnHeaderState, m_Settings.Workload.VisibleColumnLimit, SetVisibleColumns);
 			PopupWindow.Show(anchoredRect, columnLayoutPopupWindow);
+		}
+
+		// Special case when Objects are created from another Type other than the selected Type.
+		private void OnObjectCreated(Object newObject, Type objectType)
+		{
+			if (!IsScriptableObject())
+			{
+				return;
+			}
+			if (!m_Scanner.ObjectsByType.ContainsKey(objectType))
+			{
+				ScanObjects();
+			}
+			else
+			{
+				m_Scanner.ObjectsByType[objectType].Add(newObject);
+			}
 		}
 	}
 }

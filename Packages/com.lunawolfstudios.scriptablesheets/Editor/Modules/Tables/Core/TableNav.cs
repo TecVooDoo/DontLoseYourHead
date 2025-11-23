@@ -22,7 +22,7 @@ namespace LunaWolfStudiosEditor.ScriptableSheets.Tables
 		/// Attempts to find a coordinate within a specified property table using the name of the current focused control.
 		/// </summary>
 		/// <returns>True if the coordinate is parsed successfully and within the specified property table bounds.</returns>
-		public bool UpdateFocusedCoordinate(Table<T> propertyTable, bool isScriptableObject)
+		public bool UpdateFocusedCoordinate(Table<T> propertyTable, bool isScriptableObject, bool showReadOnly)
 		{
 			PreviousFocusedCoordinate = FocusedCoordinate;
 			FocusChanged = false;
@@ -56,7 +56,7 @@ namespace LunaWolfStudiosEditor.ScriptableSheets.Tables
 								case KeyCode.Return:
 									if (propertyTable.TryGet(coordinate, out T property))
 									{
-										if (property.IsInputFieldProperty(isScriptableObject))
+										if (property.IsInputFieldProperty(isScriptableObject) && (!property.IsUnityLocalizationProperty() || showReadOnly))
 										{
 											if (IsEditingTextField && (e.control || e.command))
 											{

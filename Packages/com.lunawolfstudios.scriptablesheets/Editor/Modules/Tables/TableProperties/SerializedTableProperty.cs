@@ -599,6 +599,11 @@ namespace LunaWolfStudiosEditor.ScriptableSheets.Tables
 			return property.IsInputFieldProperty(isScriptableObject);
 		}
 
+		public bool IsUnityLocalizationProperty()
+		{
+			return PropertyPath.EndsWith(UnityConstants.Field.TableReferenceCollectionName) || PropertyPath.EndsWith(UnityConstants.Field.TableEntryReferenceKeyId);
+		}
+
 		// Draw our own selected cell border for properties Unity doesn't automatically.
 		public bool NeedsSelectionBorder(bool lockNames = false)
 		{

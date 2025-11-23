@@ -54,6 +54,11 @@ namespace LunaWolfStudiosEditor.ScriptableSheets.Tables
 			return false;
 		}
 
+		public bool IsUnityLocalizationProperty()
+		{
+			return false;
+		}
+
 		public bool NeedsSelectionBorder(bool lockNames = false)
 		{
 			return true;

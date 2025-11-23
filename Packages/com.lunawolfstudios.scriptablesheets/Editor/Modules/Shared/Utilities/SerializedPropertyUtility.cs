@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -27,6 +27,10 @@ namespace LunaWolfStudiosEditor.ScriptableSheets.Shared
 
 		// Unity has a duplicate StaticEditorFlags value for ContributeGI and LightmapStatic so we remove one of them.
 		private static readonly string[] s_StaticEditorFlags = Enum.GetNames(typeof(StaticEditorFlags)).Where(name => name != "LightmapStatic").ToArray();
+		private static Type s_StringTableCollectionType;
+
+		private static readonly GUIContent s_CreateButtonContent = EditorGUIUtility.IconContent("Toolbar Plus");
+		private const float CreateButtonWidth = 20f;
 
 		static SerializedPropertyUtility()
 		{
@@ -34,7 +38,7 @@ namespace LunaWolfStudiosEditor.ScriptableSheets.Shared
 		}
 
 		// Draw our own fields to eliminate unwanted header and text attributes that property field uses by default.
-		public static void DrawProperty(this SerializedProperty property, Rect propertyRect, Object rootObject, bool isCustomField, out bool arraySizeChanged, AssetPreviewSettings previewSettings)
+		public static void DrawProperty(this SerializedProperty property, Rect propertyRect, Object rootObject, bool isCustomField, out bool arraySizeChanged, bool showReadOnly, AssetPreviewSettings previewSettings, string defaultNewAssetPath, Action<ScriptableObject, Type> onObjectCreated)
 		{
 			arraySizeChanged = false;
 			// There are some fields on other Unity Asset types that are inaccessible. So only draw our own custom fields.
@@ -51,7 +55,14 @@ namespace LunaWolfStudiosEditor.ScriptableSheets.Shared
 						}
 						else if (property.IsTypeLong())
 						{
-							property.longValue = EditorGUI.LongField(propertyRect, property.longValue);
+							if (!showReadOnly && property.propertyPath.EndsWith(UnityConstants.Field.TableEntryReferenceKeyId))
+							{
+								DrawTableEntryKeyDropdown(propertyRect, property);
+							}
+							else
+							{
+								property.longValue = EditorGUI.LongField(propertyRect, property.longValue);
+							}
 						}
 #if UNITY_2022_1_OR_NEWER
 						else if (property.IsTypeUInt())
@@ -101,7 +112,14 @@ namespace LunaWolfStudiosEditor.ScriptableSheets.Shared
 						break;
 
 					case SerializedPropertyType.String:
-						property.stringValue = EditorGUI.TextField(propertyRect, property.stringValue);
+						if (!showReadOnly && property.propertyPath.EndsWith(UnityConstants.Field.TableReferenceCollectionName))
+						{
+							DrawLocalizationTablePicker(propertyRect, property, previewSettings);
+						}
+						else
+						{
+							property.stringValue = EditorGUI.TextField(propertyRect, property.stringValue);
+						}
 						break;
 
 					case SerializedPropertyType.Color:
@@ -120,7 +138,43 @@ namespace LunaWolfStudiosEditor.ScriptableSheets.Shared
 							var objectType = ReflectionUtility.GetNestedFieldType(rootObject.GetType(), property.propertyPath);
 							if (objectType != null)
 							{
-								property.objectReferenceValue = EditorGUI.ObjectField(propertyRect, property.objectReferenceValue, objectType, false);
+								// If the Object is null and it's a ScriptableObject then give the option to create a new instance of it directly from here.
+								if (property.objectReferenceValue == null && typeof(ScriptableObject).IsAssignableFrom(objectType))
+								{
+									var objectRect = new Rect(propertyRect.x, propertyRect.y, propertyRect.width - CreateButtonWidth, propertyRect.height);
+									var plusRect = new Rect(objectRect.xMax, propertyRect.y, CreateButtonWidth, propertyRect.height);
+									property.objectReferenceValue = EditorGUI.ObjectField(objectRect, property.objectReferenceValue, objectType, false);
+									s_CreateButtonContent.tooltip = $"Create new {objectType.Name} and auto-assign";
+									if (GUI.Button(plusRect, s_CreateButtonContent))
+									{
+										var newObject = ScriptableObject.CreateInstance(objectType);
+										var guids = AssetDatabase.FindAssets($"t:{objectType.Name}");
+										var folderPath = defaultNewAssetPath;
+										// First check if any existing asset path exists.
+										if (guids != null && guids.Length > 0)
+										{
+											var fullPath = AssetDatabase.GUIDToAssetPath(guids[0]);
+											var newFolderPath = System.IO.Path.GetDirectoryName(fullPath);
+											// If they exist in a valid folder than use that. Otherwise use the default new asset path.
+											if (AssetDatabase.IsValidFolder(newFolderPath))
+											{
+												folderPath = newFolderPath;
+											}
+										}
+										var filename = $"New{objectType.Name}{UnityConstants.Extensions.Asset}";
+										var uniquePath = AssetDatabase.GenerateUniqueAssetPath($"{folderPath}/{filename}");
+										AssetDatabase.CreateAsset(newObject, uniquePath);
+										AssetDatabase.SaveAssets();
+										EditorGUIUtility.PingObject(newObject);
+										Selection.activeObject = newObject;
+										property.objectReferenceValue = newObject;
+										onObjectCreated?.Invoke(newObject, objectType);
+									}
+								}
+								else
+								{
+									property.objectReferenceValue = EditorGUI.ObjectField(propertyRect, property.objectReferenceValue, objectType, false);
+								}
 							}
 							else
 							{
@@ -628,6 +682,143 @@ namespace LunaWolfStudiosEditor.ScriptableSheets.Shared
 		private static bool IsAlignmentProperty(string propertyPath)
 		{
 			return propertyPath == UnityConstants.Field.HorizontalAlignment || propertyPath == UnityConstants.Field.VerticalAlignment || propertyPath == UnityConstants.Field.TextAlignment;
+		}
+
+		private static Type GetSharedTableCollectionType()
+		{
+			if (s_StringTableCollectionType == null)
+			{
+				s_StringTableCollectionType = Type.GetType($"{UnityConstants.Type.UnityLocalizationSharedTableData}, {UnityConstants.Type.UnityLocalization}");
+			}
+			return s_StringTableCollectionType;
+		}
+
+		// Get GUID from "GUID:xxxx" or return null.
+		private static string GetGuidFrom(string value)
+		{
+			if (string.IsNullOrEmpty(value))
+			{
+				return null;
+			}
+			if (!value.StartsWith(UnityConstants.Guid, StringComparison.OrdinalIgnoreCase))
+			{
+				return null;
+			}
+			return value.Substring(UnityConstants.Guid.Length);
+		}
+
+		private static void DrawLocalizationTablePicker(Rect rect, SerializedProperty property, AssetPreviewSettings previewSettings)
+		{
+			var sharedTableType = GetSharedTableCollectionType();
+
+			// If the localization package isn't installed then fallback to a simple text field.
+			if (sharedTableType == null)
+			{
+				property.stringValue = EditorGUI.TextField(rect, property.stringValue);
+				return;
+			}
+
+			Object currentValue = null;
+			var guid = GetGuidFrom(property.stringValue);
+			if (!string.IsNullOrEmpty(guid))
+			{
+				var path = AssetDatabase.GUIDToAssetPath(guid);
+				currentValue = AssetDatabase.LoadAssetAtPath(path, sharedTableType);
+			}
+
+			if (rect.height > EditorGUIUtility.singleLineHeight)
+			{
+				DrawUtility.TableAssetPreview(currentValue, rect, previewSettings);
+				rect.height = EditorGUIUtility.singleLineHeight;
+			}
+
+			var newValue = EditorGUI.ObjectField(rect, currentValue, sharedTableType, false);
+			if (currentValue != newValue)
+			{
+				if (newValue == null)
+				{
+					property.stringValue = string.Empty;
+				}
+				else
+				{
+					var path = AssetDatabase.GetAssetPath(newValue);
+					var newGuid = AssetDatabase.AssetPathToGUID(path);
+					property.stringValue = $"{UnityConstants.Guid}{newGuid}";
+				}
+			}
+		}
+
+		private static void DrawTableEntryKeyDropdown(Rect rect, SerializedProperty property)
+		{
+			var sharedTableType = GetSharedTableCollectionType();
+
+			// If the localization package isn't installed then fallback to a simple long field.
+			if (sharedTableType == null)
+			{
+				property.longValue = EditorGUI.LongField(rect, property.longValue);
+				return;
+			}
+
+			var tableRefPath = property.propertyPath.Replace(UnityConstants.Field.TableEntryReferenceKeyId, UnityConstants.Field.TableReferenceCollectionName);
+			var tableRefProp = property.serializedObject.FindProperty(tableRefPath);
+			var guid = GetGuidFrom(tableRefProp.stringValue);
+
+			if (string.IsNullOrEmpty(guid))
+			{
+				EditorGUI.LabelField(rect, "<No Table Selected>");
+				return;
+			}
+
+			var path = AssetDatabase.GUIDToAssetPath(guid);
+			var sharedTable = AssetDatabase.LoadAssetAtPath(path, sharedTableType);
+			if (sharedTable == null)
+			{
+				EditorGUI.LabelField(rect, "<Missing Table>");
+				return;
+			}
+
+			var sharedEntriesProp = sharedTableType.GetProperty(UnityConstants.Field.SharedTableDataEntries);
+			if (sharedEntriesProp == null)
+			{
+				EditorGUI.LabelField(rect, "<Entries Not Found>");
+				return;
+			}
+
+			var entries = sharedEntriesProp.GetValue(sharedTable) as IEnumerable<object>;
+			if (entries == null)
+			{
+				EditorGUI.LabelField(rect, "<No Entries>");
+				return;
+			}
+
+			var ids = new List<long>();
+			var labels = new List<string>();
+
+			var entryType = entries.GetType().GetGenericArguments()[0];
+			var idProp = entryType.GetProperty(UnityConstants.Field.SharedTableDataId);
+			var keyProp = entryType.GetProperty(UnityConstants.Field.SharedTableDataKey);
+
+			foreach (var entry in entries)
+			{
+				var id = (long) idProp.GetValue(entry);
+				ids.Add(id);
+
+				var key = (string) keyProp.GetValue(entry);
+				labels.Add(key);
+			}
+
+			if (ids.Count <= 0)
+			{
+				EditorGUI.LabelField(rect, "<Empty Table>");
+				return;
+			}
+
+			var currentIndex = ids.IndexOf(property.longValue);
+			var newIndex = EditorGUI.Popup(rect, currentIndex, labels.ToArray());
+			if (currentIndex != newIndex && newIndex >= 0 && newIndex < ids.Count)
+			{
+				property.longValue = ids[newIndex];
+			}
 		}
 	}
 }

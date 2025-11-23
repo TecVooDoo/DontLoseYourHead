@@ -4,20 +4,24 @@ using System.Collections.Generic;
 
 namespace TecVooDoo.DontLoseYourHead.Core
 {
-    [System.Serializable]
+    // REMOVED [System.Serializable] - this is runtime-only data
     public class Word
     {
         [ReadOnly]
-        [SerializeField] private string _text;
+        [ShowInInspector]
+        private string _text;
 
         [ReadOnly]
-        [SerializeField] private Vector2Int _startPosition;
+        [ShowInInspector]
+        private Vector2Int _startPosition;
 
         [ReadOnly]
-        [SerializeField] private WordDirection _direction;
+        [ShowInInspector]
+        private WordDirection _direction;
 
         [ReadOnly]
-        [SerializeField] private bool _isFullyRevealed;
+        [ShowInInspector]
+        private bool _isFullyRevealed;
 
         private List<GridCell> _occupiedCells = new List<GridCell>();
 

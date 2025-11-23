@@ -3,17 +3,20 @@ using Sirenix.OdinInspector;
 
 namespace TecVooDoo.DontLoseYourHead.Core
 {
-    [System.Serializable]
+    // REMOVED [System.Serializable] - this is runtime-only data
     public class GridCell
     {
         [ReadOnly]
-        [SerializeField] private Vector2Int _coordinate;
+        [ShowInInspector]
+        private Vector2Int _coordinate;
 
         [ReadOnly]
-        [SerializeField] private char? _letter;
+        [ShowInInspector]
+        private char? _letter;
 
         [ReadOnly]
-        [SerializeField] private CellState _state = CellState.Hidden;
+        [ShowInInspector]
+        private CellState _state = CellState.Hidden;
 
         private Word _belongsToWord;
 

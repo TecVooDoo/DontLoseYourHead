@@ -4,11 +4,12 @@ using System.Collections.Generic;
 
 namespace TecVooDoo.DontLoseYourHead.Core
 {
-    [System.Serializable]
+    // REMOVED [System.Serializable] - this is runtime-only data
     public class Grid
     {
         [ReadOnly]
-        [SerializeField] private int _size;
+        [ShowInInspector]
+        private int _size;
 
         private GridCell[,] _cells;
         private List<Word> _placedWords = new List<Word>();

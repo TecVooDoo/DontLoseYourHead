@@ -1460,6 +1460,11 @@ namespace LunaWolfStudiosEditor.ScriptableSheets.EditorTests
 				return false;
 			}
 
+			public bool IsUnityLocalizationProperty()
+			{
+				return false;
+			}
+
 			public bool NeedsSelectionBorder(bool lockNames = false)
 			{
 				return true;

@@ -10,6 +10,7 @@ namespace LunaWolfStudiosEditor.ScriptableSheets.Shared
 
 		public static readonly string ArrayPropertyPath = $".{Field.Array}.{Field.ArrayData}[";
 		public const string EnumPrefix = "Enum:";
+		public const string Guid = "GUID:";
 		public const string ObjectWrapperJSON = "UnityEditor.ObjectWrapperJSON:";
 
 		public static class Extensions
@@ -30,7 +31,13 @@ namespace LunaWolfStudiosEditor.ScriptableSheets.Shared
 			public const string Layer = "m_Layer";
 			public const string Name = "m_Name";
 			public const string Script = "m_Script";
+			public const string SharedTableDataEntries = "Entries";
+			public const string SharedTableDataId = "Id";
+			public const string SharedTableDataKey = "Key";
 			public const string StaticEditorFlags = "m_StaticEditorFlags";
+			public const string TableEntryReferenceKey = "m_TableEntryReference.m_Key"; // string
+			public const string TableEntryReferenceKeyId = "m_TableEntryReference.m_KeyId"; // long
+			public const string TableReferenceCollectionName = "m_TableReference.m_TableCollectionName"; // string
 			public const string Tag = "m_TagString";
 			public const string TextAlignment = "m_textAlignment";
 			public const string VerticalAlignment = "m_VerticalAlignment";
@@ -54,6 +61,8 @@ namespace LunaWolfStudiosEditor.ScriptableSheets.Shared
 			public const string UnityEngine = "UnityEngine";
 			public const string UnityEditorInternal = "UnityEditorInternal";
 			public const string UnityEngineUISlider = "UnityEngine.UI.Slider";
+			public const string UnityLocalization = "Unity.Localization";
+			public const string UnityLocalizationSharedTableData = "UnityEngine.Localization.Tables.SharedTableData";
 		}
 	}
 }

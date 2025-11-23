@@ -17,7 +17,7 @@ namespace LunaWolfStudiosEditor.ScriptableSheets.Layout
 
 		public static class DigitField
 		{
-			public static readonly GUIContent ArraySize = new GUIContent("Size", "Specify how many columns to display for arrays and other collections. Max 1000.");
+			public static readonly GUIContent ArraySize = new GUIContent("Size", "Specify how many columns to display for arrays and other collections.\n\nSupports up to 5000 entries per array, with an additional column limit determined by <b>Max Iterations</b> under Workload Settings.");
 			public static readonly GUIContent HighlightAlpha = new GUIContent("Highlight Alpha", "The highlight alpha for selected rows and columns.");
 			public static readonly GUIContent IndexPadding = new GUIContent("Index Padding", "Ensures the index value has a minimum number of digits by adding leading zeros as needed when using <b>{i}</b>.\n\nFor example setting this to 3 would ensure an index value with 3 digits like 001.");
 			public static readonly GUIContent MaxIterations = new GUIContent("Max Iterations", "Max number of properties to iterate over when generating the column layout. Raising this too high can cause hangs on large arrays or deeply nested Objects. This is in increments of 1000.");

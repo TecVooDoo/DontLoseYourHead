@@ -10,6 +10,8 @@ namespace LunaWolfStudiosEditor.ScriptableSheets
 	[System.Serializable]
 	public class UserInterfaceSettings : AbstractBaseSettings, IScriptableSettings
 	{
+		private const int MaxArraySize = 5000;
+
 		[SerializeField]
 		private SheetAsset m_DefaultSheetAssets;
 		public SheetAsset DefaultSheetAssets { get => m_DefaultSheetAssets; set => m_DefaultSheetAssets = value; }
@@ -140,7 +142,7 @@ namespace LunaWolfStudiosEditor.ScriptableSheets
 					if (m_OverrideArraySize)
 					{
 						SheetLayout.Indent();
-						m_ArraySize = Mathf.Clamp(EditorGUILayout.IntField(SettingsContent.DigitField.ArraySize, m_ArraySize), 0, 1000);
+						m_ArraySize = Mathf.Clamp(EditorGUILayout.IntField(SettingsContent.DigitField.ArraySize, m_ArraySize), 0, MaxArraySize);
 						SheetLayout.Unindent();
 					}
 					SheetLayout.Unindent();

@@ -44,7 +44,7 @@ namespace TecVooDoo.DontLoseYourHead.Core
         #region Properties
         public GamePhase CurrentPhase => _currentPhase;
         public bool IsInGameplay => _currentPhase == GamePhase.GameplayActive;
-        public bool IsInSetup => _currentPhase == GamePhase.WordSelection || 
+        public bool IsInSetup => _currentPhase == GamePhase.WordSelection ||
                                   _currentPhase == GamePhase.WordPlacement;
         #endregion
 
@@ -100,9 +100,9 @@ namespace TecVooDoo.DontLoseYourHead.Core
         }
 
         /// <summary>
-        /// Complete setup and begin gameplay
+        /// Complete setup and begin gameplay (called by TestController)
+        /// REMOVED [Button] - use TestController Step 3 instead
         /// </summary>
-        [Button("Complete Setup", ButtonSizes.Large)]
         public void CompleteSetup()
         {
             Debug.Log("[GameStateMachine] Setup complete, starting gameplay...");

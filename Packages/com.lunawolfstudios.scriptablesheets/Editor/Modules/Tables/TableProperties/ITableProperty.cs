@@ -16,6 +16,8 @@ namespace LunaWolfStudiosEditor.ScriptableSheets.Tables
 
 		bool IsInputFieldProperty(bool isScriptableObject);
 
+		bool IsUnityLocalizationProperty();
+
 		bool NeedsSelectionBorder(bool lockNames = false);
 	}
 }

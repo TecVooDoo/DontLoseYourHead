@@ -12,9 +12,6 @@ namespace TecVooDoo.DontLoseYourHead.Core
         [SerializeField] private DifficultySO _difficulty;
 
         [Required]
-        [SerializeField] private IntVariableSO _missCount;
-
-        [Required]
         [SerializeField] private TurnManager _turnManager;
 
         [Required]
@@ -32,9 +29,6 @@ namespace TecVooDoo.DontLoseYourHead.Core
         [ShowInInspector]
         private Grid _opponentGrid;
 
-        [Title("Word Guess Testing")]
-        [SerializeField] private string _testWordGuess = "CAT";
-
         public Grid PlayerGrid => _playerGrid;
         public Grid OpponentGrid => _opponentGrid;
         public int CurrentPlayerIndex => _turnManager.CurrentPlayerIndex;
@@ -50,7 +44,6 @@ namespace TecVooDoo.DontLoseYourHead.Core
         {
             _playerGrid = new Grid(_difficulty.GridSize);
             _opponentGrid = new Grid(_difficulty.GridSize);
-            _missCount.Value = 0;
 
             Debug.Log($"Game initialized with {_difficulty.DifficultyName} difficulty: {_difficulty.GridSize}x{_difficulty.GridSize} grid, {_difficulty.MissLimit} miss limit");
         }
@@ -91,10 +84,12 @@ namespace TecVooDoo.DontLoseYourHead.Core
                 }
             }
 
+            PlayerSO currentPlayer = _playerManager.GetPlayer(playerIndex);
+
             if (!foundLetter)
             {
-                _missCount.Add(1);
-                Debug.Log($"[GameManager] Player {playerIndex} guessed '{letter}' - MISS! ({_missCount.Value}/{MaxMisses})");
+                currentPlayer.MissCountVariable.Add(1);
+                Debug.Log($"[GameManager] Player {playerIndex} guessed '{letter}' - MISS! ({currentPlayer.MissCount}/{MaxMisses})");
             }
             else
             {
@@ -102,7 +97,7 @@ namespace TecVooDoo.DontLoseYourHead.Core
             }
 
             // Check for lose condition
-            if (CheckLoseCondition())
+            if (CheckLoseCondition(playerIndex))
             {
                 HandleGameOver(GetOpponentIndex(playerIndex));
                 return foundLetter;
@@ -157,12 +152,13 @@ namespace TecVooDoo.DontLoseYourHead.Core
             }
 
             bool isHit = false;
+            PlayerSO currentPlayer = _playerManager.GetPlayer(playerIndex);
 
             if (cell.IsEmpty)
             {
                 cell.SetState(CellState.Miss);
-                _missCount.Add(1);
-                Debug.Log($"[GameManager] Player {playerIndex} guessed {coordinate} - MISS! ({_missCount.Value}/{MaxMisses})");
+                currentPlayer.MissCountVariable.Add(1);
+                Debug.Log($"[GameManager] Player {playerIndex} guessed {coordinate} - MISS! ({currentPlayer.MissCount}/{MaxMisses})");
             }
             else
             {
@@ -172,7 +168,7 @@ namespace TecVooDoo.DontLoseYourHead.Core
             }
 
             // Check for lose condition
-            if (CheckLoseCondition())
+            if (CheckLoseCondition(playerIndex))
             {
                 HandleGameOver(GetOpponentIndex(playerIndex));
                 return isHit;
@@ -231,6 +227,8 @@ namespace TecVooDoo.DontLoseYourHead.Core
             // Check if the word matches any word in the target grid
             Word matchedWord = targetGrid.PlacedWords.FirstOrDefault(w => w.Text.ToUpper() == normalizedGuess);
 
+            PlayerSO currentPlayer = _playerManager.GetPlayer(playerIndex);
+
             if (matchedWord != null)
             {
                 // Correct word guess - reveal all letters of this word
@@ -251,11 +249,11 @@ namespace TecVooDoo.DontLoseYourHead.Core
             else
             {
                 // Wrong word guess - double penalty (2 misses)
-                _missCount.Add(2);
-                Debug.Log($"[GameManager] Player {playerIndex} guessed word '{normalizedGuess}' - WRONG! +2 misses ({_missCount.Value}/{MaxMisses})");
+                currentPlayer.MissCountVariable.Add(2);
+                Debug.Log($"[GameManager] Player {playerIndex} guessed word '{normalizedGuess}' - WRONG! +2 misses ({currentPlayer.MissCount}/{MaxMisses})");
 
                 // Check for lose condition
-                if (CheckLoseCondition())
+                if (CheckLoseCondition(playerIndex))
                 {
                     HandleGameOver(GetOpponentIndex(playerIndex));
                     return false;
@@ -306,9 +304,10 @@ namespace TecVooDoo.DontLoseYourHead.Core
             return targetGrid.PlacedWords.Count > 0;
         }
 
-        public bool CheckLoseCondition()
+        public bool CheckLoseCondition(int playerIndex)
         {
-            return _missCount.Value >= _difficulty.MissLimit;
+            PlayerSO player = _playerManager.GetPlayer(playerIndex);
+            return player.MissCount >= _difficulty.MissLimit;
         }
 
         private void HandleGameOver(int winnerIndex)
@@ -321,76 +320,6 @@ namespace TecVooDoo.DontLoseYourHead.Core
         private int GetOpponentIndex(int playerIndex)
         {
             return playerIndex == 0 ? 1 : 0;
-        }
-
-        #endregion
-
-        #region Inspector Testing Buttons
-
-        [Title("Testing - Word Guessing")]
-        [Button("Test Correct Word Guess", ButtonSizes.Large)]
-        [GUIColor(0.3f, 1f, 0.3f)]
-        private void TestCorrectWordGuess()
-        {
-            if (_opponentGrid == null || _opponentGrid.PlacedWords.Count == 0)
-            {
-                Debug.LogError("[Test] No words placed on opponent grid! Place words first.");
-                return;
-            }
-
-            // Get the first word from the opponent grid
-            Word firstWord = _opponentGrid.PlacedWords[0];
-            _testWordGuess = firstWord.Text;
-
-            Debug.Log($"[Test] Testing CORRECT word guess: '{_testWordGuess}'");
-            bool result = ProcessWordGuess(CurrentPlayerIndex, _opponentGrid, _testWordGuess);
-            Debug.Log($"[Test] Result: {(result ? "SUCCESS" : "FAILED")}");
-        }
-
-        [Button("Test Wrong Word Guess", ButtonSizes.Large)]
-        [GUIColor(1f, 0.3f, 0.3f)]
-        private void TestWrongWordGuess()
-        {
-            string wrongWord = "ZZZZZ"; // Guaranteed to be wrong
-            Debug.Log($"[Test] Testing WRONG word guess: '{wrongWord}' (should add 2 misses)");
-
-            int missesBefore = _missCount.Value;
-            bool result = ProcessWordGuess(CurrentPlayerIndex, _opponentGrid, wrongWord);
-            int missesAfter = _missCount.Value;
-
-            Debug.Log($"[Test] Result: {(result ? "UNEXPECTED SUCCESS" : "CORRECTLY FAILED")}");
-            Debug.Log($"[Test] Misses: {missesBefore} -> {missesAfter} (expected +2)");
-        }
-
-        [Button("Test Custom Word Guess")]
-        private void TestCustomWordGuess()
-        {
-            if (string.IsNullOrWhiteSpace(_testWordGuess))
-            {
-                Debug.LogError("[Test] Enter a word in 'Test Word Guess' field!");
-                return;
-            }
-
-            Debug.Log($"[Test] Testing custom word guess: '{_testWordGuess}'");
-            bool result = ProcessWordGuess(CurrentPlayerIndex, _opponentGrid, _testWordGuess);
-            Debug.Log($"[Test] Result: {(result ? "CORRECT" : "WRONG")}");
-        }
-
-        [Button("Show Opponent Words")]
-        private void ShowOpponentWords()
-        {
-            if (_opponentGrid == null || _opponentGrid.PlacedWords.Count == 0)
-            {
-                Debug.LogWarning("[Test] No words placed on opponent grid!");
-                return;
-            }
-
-            Debug.Log("[Test] Opponent's words:");
-            for (int i = 0; i < _opponentGrid.PlacedWords.Count; i++)
-            {
-                Word word = _opponentGrid.PlacedWords[i];
-                Debug.Log($"  {i + 1}. {word.Text} - Revealed: {word.IsFullyRevealed}");
-            }
         }
 
         #endregion
