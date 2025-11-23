@@ -44,6 +44,9 @@ namespace TecVooDoo.DontLoseYourHead.Core
             }
         }
 
+        /// <summary>
+        /// Check if all cells belonging to this word are revealed
+        /// </summary>
         public void CheckIfFullyRevealed()
         {
             _isFullyRevealed = true;
@@ -56,6 +59,23 @@ namespace TecVooDoo.DontLoseYourHead.Core
                     break;
                 }
             }
+        }
+
+        /// <summary>
+        /// Manually mark this word as fully revealed (used when word is guessed correctly)
+        /// </summary>
+        public void MarkAsFullyRevealed()
+        {
+            _isFullyRevealed = true;
+        }
+
+        /// <summary>
+        /// Get all cells occupied by this word
+        /// </summary>
+        /// <returns>List of GridCells that this word occupies</returns>
+        public List<GridCell> GetCells()
+        {
+            return _occupiedCells;
         }
     }
 }

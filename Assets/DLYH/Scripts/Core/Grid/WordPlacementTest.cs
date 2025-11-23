@@ -23,7 +23,7 @@ namespace TecVooDoo.DontLoseYourHead.Core
                 return;
             }
 
-            Grid testGrid = _gameManager.PlayerGrid;
+            Grid testGrid = _gameManager.OpponentGrid;
 
             if (testGrid == null)
             {

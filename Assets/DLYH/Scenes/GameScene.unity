@@ -215,6 +215,57 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &985792142
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 985792144}
+  - component: {fileID: 985792143}
+  m_Layer: 0
+  m_Name: TestController
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &985792143
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 985792142}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5b5cdb95a167d824284ae6e0b648548e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TecVooDoo.DontLoseYourHead.Core.TestController
+  _gameManager: {fileID: 1680601024}
+  _stateMachine: {fileID: 1286652520}
+  _turnManager: {fileID: 75395243}
+  _word1: CAT
+  _word2: DOGS
+  _word3: BIRDS
+  _customWordGuess: CAT
+--- !u!4 &985792144
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 985792142}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &995572633
 GameObject:
   m_ObjectHideFlags: 0
@@ -408,6 +459,7 @@ MonoBehaviour:
   _turnManager: {fileID: 75395243}
   _stateMachine: {fileID: 1286652520}
   _playerManager: {fileID: 995572634}
+  _testWordGuess: CAT
 --- !u!4 &1680601025
 Transform:
   m_ObjectHideFlags: 0
@@ -618,3 +670,4 @@ SceneRoots:
   - {fileID: 995572635}
   - {fileID: 1286652521}
   - {fileID: 2063880414}
+  - {fileID: 985792144}
