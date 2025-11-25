@@ -13,5 +13,6 @@ MonoBehaviour:
   m_Name: MediumDifficulty
   m_EditorClassIdentifier: Assembly-CSharp::TecVooDoo.DontLoseYourHead.Core.DifficultySO
   _difficultyName: Medium
-  _gridSize: 8
-  _missLimit: 10
+  _gridSizeOption: 8
+  _wordCountOption: 3
+  _forgiveness: 1

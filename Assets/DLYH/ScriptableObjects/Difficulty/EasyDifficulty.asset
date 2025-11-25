@@ -13,5 +13,6 @@ MonoBehaviour:
   m_Name: EasyDifficulty
   m_EditorClassIdentifier: Assembly-CSharp::TecVooDoo.DontLoseYourHead.Core.DifficultySO
   _difficultyName: Easy
-  _gridSize: 6
-  _missLimit: 8
+  _gridSizeOption: 6
+  _wordCountOption: 3
+  _forgiveness: 2

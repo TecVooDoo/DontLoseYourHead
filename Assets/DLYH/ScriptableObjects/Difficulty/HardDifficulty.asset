@@ -13,5 +13,6 @@ MonoBehaviour:
   m_Name: HardDifficulty
   m_EditorClassIdentifier: Assembly-CSharp::TecVooDoo.DontLoseYourHead.Core.DifficultySO
   _difficultyName: Hard
-  _gridSize: 10
-  _missLimit: 12
+  _gridSizeOption: 10
+  _wordCountOption: 3
+  _forgiveness: 0
