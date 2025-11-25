@@ -207,8 +207,8 @@ MonoBehaviour:
   _word2: DOGS
   _word3: BIRDS
   _customWordGuess: CAT
-  _testLetter: 114
-  _testCoordinate: {x: 3, y: 1}
+  _testLetter: 67
+  _testCoordinate: {x: 0, y: 0}
 --- !u!4 &985792144
 Transform:
   m_ObjectHideFlags: 0
