@@ -7,7 +7,7 @@ namespace TecVooDoo.DontLoseYourHead.Core
     /// <summary>
     /// ScriptableObject that holds all data for a single player
     /// </summary>
-    [CreateAssetMenu(fileName = "NewPlayer", menuName = "Game/Player")]
+    [CreateAssetMenu(fileName = "NewPlayer", menuName = "DLYH/Players/Player")]
     public class PlayerSO : ScriptableObject
     {
         #region Configuration

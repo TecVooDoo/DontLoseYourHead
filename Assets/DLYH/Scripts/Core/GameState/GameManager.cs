@@ -34,9 +34,10 @@ namespace TecVooDoo.DontLoseYourHead.Core
         public int CurrentPlayerIndex => _turnManager.CurrentPlayerIndex;
         public int MaxMisses => _difficulty.MissLimit;
 
+        // Removed automatic initialization to allow UI-driven difficulty selection
         private void Awake()
         {
-            InitializeGame();
+            // Intentionally left blank; call InitializeAfterDifficulty or InitializeGame explicitly
         }
 
         [Button("Initialize Game")]
@@ -45,8 +46,18 @@ namespace TecVooDoo.DontLoseYourHead.Core
             _playerGrid = new Grid(_difficulty.GridSize);
             _opponentGrid = new Grid(_difficulty.GridSize);
 
-            Debug.Log(string.Format("Game initialized with {0} difficulty: {1}x{1} grid, {2} miss limit", 
+            Debug.Log(string.Format("[GameManager] Game initialized with {0} difficulty: {1}x{1} grid, {2} miss limit", 
                 _difficulty.DifficultyName, _difficulty.GridSize, _difficulty.MissLimit));
+        }
+
+        /// <summary>
+        /// Initialize after difficulty has potentially been changed via UI.
+        /// Safe wrapper that just calls InitializeGame and logs context.
+        /// </summary>
+        public void InitializeAfterDifficulty()
+        {
+            Debug.Log("[GameManager] Initializing after difficulty selection...");
+            InitializeGame();
         }
 
         #region Letter Guessing
