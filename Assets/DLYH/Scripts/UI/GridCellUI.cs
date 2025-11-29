@@ -22,6 +22,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private int _row;
         private CellState _currentState = CellState.Empty;
         private bool _isHovered;
+        private bool _isHighlighted;
+        private Color _highlightColor;
+        private char _currentLetter;
         #endregion
 
         #region Events
@@ -34,6 +37,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         public int Column => _column;
         public int Row => _row;
         public CellState CurrentState => _currentState;
+        public bool IsHighlighted => _isHighlighted;
         #endregion
 
         #region Initialization
@@ -41,6 +45,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         {
             _column = column;
             _row = row;
+            _currentLetter = '\0';
             
             if (_button != null)
             {
@@ -55,19 +60,27 @@ namespace TecVooDoo.DontLoseYourHead.UI
         public void SetState(CellState state)
         {
             _currentState = state;
+            _isHighlighted = false;
             UpdateVisuals();
         }
 
         public void SetLetter(char letter)
         {
+            _currentLetter = letter;
             if (_letterText != null)
             {
                 _letterText.text = letter.ToString();
             }
         }
 
+        public char GetLetter()
+        {
+            return _currentLetter;
+        }
+
         public void ClearLetter()
         {
+            _currentLetter = '\0';
             if (_letterText != null)
             {
                 _letterText.text = "";
@@ -82,19 +95,50 @@ namespace TecVooDoo.DontLoseYourHead.UI
             }
         }
 
+        /// <summary>
+        /// Sets a highlight color overlay on the cell.
+        /// Used for placement mode preview (yellow/green/red).
+        /// </summary>
+        /// <param name="color">The highlight color to apply</param>
+        public void SetHighlightColor(Color color)
+        {
+            _isHighlighted = true;
+            _highlightColor = color;
+            
+            if (_background != null)
+            {
+                _background.color = color;
+            }
+        }
+
+        /// <summary>
+        /// Clears any highlight and returns to the current state's default color.
+        /// </summary>
+        public void ClearHighlight()
+        {
+            _isHighlighted = false;
+            UpdateVisuals();
+        }
+
         private void UpdateVisuals()
         {
             if (_background == null) return;
+
+            // If highlighted, don't override with state colors
+            if (_isHighlighted)
+            {
+                _background.color = _highlightColor;
+                return;
+            }
 
             switch (_currentState)
             {
                 case CellState.Empty:
                     _background.color = Color.white;
-                    ClearLetter();
                     break;
 
                 case CellState.Filled:
-                    _background.color = Color.gray;
+                    _background.color = new Color(0.8f, 0.8f, 0.8f, 1f);
                     break;
 
                 case CellState.Active:
