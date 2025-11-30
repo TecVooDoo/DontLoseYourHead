@@ -9,7 +9,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
 {
     /// <summary>
     /// Manages a single word pattern row in the UI.
-    /// Setup Mode: Shows word entry with accept/coordinate/delete buttons
+    /// Setup Mode: Shows word entry with select/coordinate/delete buttons
     /// Gameplay Mode: Shows word pattern with revealed letters
     /// Uses a single combined text field showing "1. _ _ _" format.
     /// Implements IPointerClickHandler to make the row selectable by clicking.
@@ -40,8 +40,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
         [SerializeField, Required, Tooltip("Single text field showing '1. _ _ _' format")]
         private TextMeshProUGUI _combinedText;
 
-        [SerializeField]
-        private Button _acceptButton;
+        [SerializeField, Tooltip("Button to select this row for input (was AcceptButton)")]
+        private Button _selectButton;
 
         [SerializeField]
         private Button _coordinateModeButton;
@@ -54,7 +54,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         [TitleGroup("Button Icons")]
         [SerializeField]
-        private Image _acceptButtonIcon;
+        private Image _selectButtonIcon;
 
         [SerializeField]
         private Image _coordinateModeIcon;
@@ -113,24 +113,24 @@ namespace TecVooDoo.DontLoseYourHead.UI
         public event Action<int> OnRowSelected;
 
         /// <summary>
-        /// Fired when accept button is clicked. Parameter: row number
-        /// </summary>
-        public event Action<int> OnAcceptClicked;
-
-        /// <summary>
         /// Fired when coordinate mode button is clicked. Parameter: row number
         /// </summary>
         public event Action<int> OnCoordinateModeClicked;
 
         /// <summary>
-        /// Fired when delete button is clicked. Parameter: row number
+        /// Fired when delete button is clicked. Parameter: row number, wasPlaced (true if word was on grid)
         /// </summary>
-        public event Action<int> OnDeleteClicked;
+        public event Action<int, bool> OnDeleteClicked;
 
         /// <summary>
         /// Fired when word entry changes. Parameters: row number, current text
         /// </summary>
         public event Action<int, string> OnWordTextChanged;
+
+        /// <summary>
+        /// Fired when a word is auto-accepted (reached correct length). Parameter: row number, word
+        /// </summary>
+        public event Action<int, string> OnWordAccepted;
         #endregion
 
         #region Properties
@@ -150,12 +150,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
         public RowState CurrentState => _currentState;
 
         /// <summary>
-        /// The confirmed word (after accept is clicked)
+        /// The confirmed word (after correct length is reached)
         /// </summary>
         public string CurrentWord => _currentWord;
 
         /// <summary>
-        /// Text currently being entered (before accept)
+        /// Text currently being entered
         /// </summary>
         public string EnteredText => _enteredText;
 
@@ -165,7 +165,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         public bool IsSelected => _isSelected;
 
         /// <summary>
-        /// Whether a valid word has been entered and accepted
+        /// Whether a valid word has been entered (correct length reached)
         /// </summary>
         public bool HasWord => !string.IsNullOrEmpty(_currentWord);
 
@@ -210,7 +210,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             // Don't select if already placed or in gameplay mode
             if (_currentState == RowState.Placed || _currentState == RowState.Gameplay) return;
 
-            Debug.Log($"[WordPatternRow] Row {_rowNumber} clicked");
+            Debug.Log($"[WordPatternRow] Row {_rowNumber} background clicked");
             OnRowSelected?.Invoke(_rowNumber);
         }
         #endregion
@@ -229,21 +229,48 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             SetState(RowState.Empty);
         }
+
+        /// <summary>
+        /// Sets the required word length for this row.
+        /// Resets the row to empty state.
+        /// </summary>
+        /// <param name="requiredLength">Required word length (3-6)</param>
+        public void SetRequiredLength(int requiredLength)
+        {
+            _requiredWordLength = Mathf.Clamp(requiredLength, 3, 6);
+            _revealedLetters = new bool[_requiredWordLength];
+            UpdateDisplay();
+        }
         #endregion
 
         #region Public Methods - Word Entry (Setup Mode)
         /// <summary>
         /// Adds a letter to the current entry.
+        /// Auto-accepts when correct length is reached.
         /// </summary>
         /// <param name="letter">Letter to add</param>
-        /// <returns>True if letter was added, false if at max length</returns>
+        /// <returns>True if letter was added, false if at max length or placed</returns>
         public bool AddLetter(char letter)
         {
             if (_currentState == RowState.Placed) return false;
+            if (_currentState == RowState.WordEntered) return false; // Already have a complete word
             if (_enteredText.Length >= _requiredWordLength) return false;
 
             _enteredText += char.ToUpper(letter);
-            SetState(RowState.Entering);
+
+            if (_enteredText.Length == _requiredWordLength)
+            {
+                // Auto-accept when word is complete
+                _currentWord = _enteredText.ToUpper();
+                SetState(RowState.WordEntered);
+                OnWordAccepted?.Invoke(_rowNumber, _currentWord);
+                Debug.Log($"[WordPatternRow] Row {_rowNumber}: Word auto-accepted: {_currentWord}");
+            }
+            else
+            {
+                SetState(RowState.Entering);
+            }
+
             UpdateDisplay();
             OnWordTextChanged?.Invoke(_rowNumber, _enteredText);
 
@@ -260,11 +287,23 @@ namespace TecVooDoo.DontLoseYourHead.UI
             if (_currentState == RowState.Placed) return false;
             if (_enteredText.Length == 0) return false;
 
+            // If we had a complete word, go back to entering state
+            bool wasComplete = (_currentState == RowState.WordEntered);
+
             _enteredText = _enteredText.Substring(0, _enteredText.Length - 1);
+
+            if (wasComplete)
+            {
+                _currentWord = ""; // Clear the accepted word
+            }
 
             if (_enteredText.Length == 0)
             {
                 SetState(RowState.Empty);
+            }
+            else
+            {
+                SetState(RowState.Entering);
             }
 
             UpdateDisplay();
@@ -275,6 +314,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         /// <summary>
         /// Sets the entered text directly (e.g., from autocomplete selection).
+        /// Auto-accepts if correct length.
         /// </summary>
         /// <param name="word">The word to set</param>
         public void SetEnteredText(string word)
@@ -290,10 +330,20 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             if (_enteredText.Length == 0)
             {
+                _currentWord = "";
                 SetState(RowState.Empty);
+            }
+            else if (_enteredText.Length == _requiredWordLength)
+            {
+                // Auto-accept when word is complete
+                _currentWord = _enteredText.ToUpper();
+                SetState(RowState.WordEntered);
+                OnWordAccepted?.Invoke(_rowNumber, _currentWord);
+                Debug.Log($"[WordPatternRow] Row {_rowNumber}: Word auto-accepted from autocomplete: {_currentWord}");
             }
             else
             {
+                _currentWord = "";
                 SetState(RowState.Entering);
             }
 
@@ -302,7 +352,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
         }
 
         /// <summary>
-        /// Accepts the current entry as the word for this row.
+        /// Manually accepts the current entry as the word for this row.
+        /// Usually not needed since words auto-accept at correct length.
         /// </summary>
         /// <returns>True if word was accepted (correct length)</returns>
         public bool AcceptWord()
@@ -338,6 +389,37 @@ namespace TecVooDoo.DontLoseYourHead.UI
             SetState(RowState.Placed);
             UpdateDisplay();
             UpdateButtonStates();
+        }
+
+        /// <summary>
+        /// Resets the row to empty state, clearing all word data.
+        /// Used when player wants to re-enter a word.
+        /// </summary>
+        public void ResetToEmpty()
+        {
+            _currentWord = "";
+            _enteredText = "";
+            ResetRevealedLetters();
+            SetState(RowState.Empty);
+            UpdateDisplay();
+            Debug.Log($"[WordPatternRow] Row {_rowNumber} reset to empty");
+        }
+
+        /// <summary>
+        /// Resets the row to WordEntered state, keeping the word but allowing re-placement.
+        /// Used when grid is cleared but words should be retained.
+        /// </summary>
+        public void ResetToWordEntered()
+        {
+            if (string.IsNullOrEmpty(_currentWord))
+            {
+                ResetToEmpty();
+                return;
+            }
+
+            SetState(RowState.WordEntered);
+            UpdateDisplay();
+            Debug.Log($"[WordPatternRow] Row {_rowNumber} reset to WordEntered (word: {_currentWord})");
         }
 
         /// <summary>
@@ -460,30 +542,31 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         private void UpdateButtonStates()
         {
-            // Accept button: enabled only when entering text of correct length
-            if (_acceptButton != null)
+            // Select button: visible unless placed or in gameplay
+            // Allows player to select any row at any time during entry
+            if (_selectButton != null)
             {
-                bool canAccept = _currentState == RowState.Entering &&
-                                 _enteredText.Length == _requiredWordLength;
-                _acceptButton.gameObject.SetActive(_currentState != RowState.Gameplay);
-                _acceptButton.interactable = canAccept;
+                bool showSelect = _currentState != RowState.Gameplay && _currentState != RowState.Placed;
+                _selectButton.gameObject.SetActive(showSelect);
+                _selectButton.interactable = showSelect;
             }
 
-            // Coordinate mode button: enabled only when word is entered but not placed
+            // Coordinate mode button: only VISIBLE when word is entered but not yet placed
+            // Hides completely when empty, entering, placed, or gameplay
             if (_coordinateModeButton != null)
             {
-                bool canPlaceCoordinates = _currentState == RowState.WordEntered;
-                _coordinateModeButton.gameObject.SetActive(_currentState != RowState.Gameplay);
-                _coordinateModeButton.interactable = canPlaceCoordinates;
+                bool showCoordinate = _currentState == RowState.WordEntered;
+                _coordinateModeButton.gameObject.SetActive(showCoordinate);
+                _coordinateModeButton.interactable = showCoordinate;
             }
 
-            // Delete button: enabled when there's something to delete
+            // Delete button: visible when there's any content (including placed words)
+            // Hidden only when empty or in gameplay
             if (_deleteButton != null)
             {
-                bool canDelete = _currentState != RowState.Empty &&
-                                 _currentState != RowState.Gameplay;
-                _deleteButton.gameObject.SetActive(_currentState != RowState.Gameplay);
-                _deleteButton.interactable = canDelete;
+                bool showDelete = _currentState != RowState.Empty && _currentState != RowState.Gameplay;
+                _deleteButton.gameObject.SetActive(showDelete);
+                _deleteButton.interactable = showDelete;
             }
         }
 
@@ -602,9 +685,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
         #region Private Methods - Button Events
         private void SubscribeToButtons()
         {
-            if (_acceptButton != null)
+            if (_selectButton != null)
             {
-                _acceptButton.onClick.AddListener(HandleAcceptClick);
+                _selectButton.onClick.AddListener(HandleSelectClick);
             }
 
             if (_coordinateModeButton != null)
@@ -620,9 +703,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         private void UnsubscribeFromButtons()
         {
-            if (_acceptButton != null)
+            if (_selectButton != null)
             {
-                _acceptButton.onClick.RemoveListener(HandleAcceptClick);
+                _selectButton.onClick.RemoveListener(HandleSelectClick);
             }
 
             if (_coordinateModeButton != null)
@@ -636,12 +719,11 @@ namespace TecVooDoo.DontLoseYourHead.UI
             }
         }
 
-        private void HandleAcceptClick()
+        private void HandleSelectClick()
         {
-            if (AcceptWord())
-            {
-                OnAcceptClicked?.Invoke(_rowNumber);
-            }
+            // Select button just selects this row - doesn't accept anything
+            Debug.Log($"[WordPatternRow] Row {_rowNumber} select button clicked");
+            OnRowSelected?.Invoke(_rowNumber);
         }
 
         private void HandleCoordinateModeClick()
@@ -651,8 +733,16 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         private void HandleDeleteClick()
         {
+            // Track if the word was placed (needs grid clearing)
+            bool wasPlaced = _currentState == RowState.Placed;
+
+            // Clear the row
             ClearWord();
-            OnDeleteClicked?.Invoke(_rowNumber);
+
+            // Fire event with wasPlaced flag so listeners know to clear the grid too
+            OnDeleteClicked?.Invoke(_rowNumber, wasPlaced);
+
+            Debug.Log($"[WordPatternRow] Row {_rowNumber} deleted (wasPlaced: {wasPlaced})");
         }
         #endregion
 
