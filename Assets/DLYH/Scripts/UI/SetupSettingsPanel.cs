@@ -4,63 +4,24 @@ using TMPro;
 using Sirenix.OdinInspector;
 using System;
 using System.Collections.Generic;
+using TecVooDoo.DontLoseYourHead.Core;
 
 namespace TecVooDoo.DontLoseYourHead.UI
 {
     /// <summary>
-    /// UI panel for player setup settings including name, color, difficulty options,
-    /// and random word selection. Works alongside PlayerGridPanel during Setup phase.
+    /// Manages the Setup Phase settings panel including:
+    /// - Difficulty settings (Grid Size, Word Count, Forgiveness)
+    /// - Player settings (Name, Color)
+    /// - Word validation setup
+    /// - Miss limit display
+    /// - Invalid word feedback (toast notifications)
+    /// - Letter tracker routing to player name input
     /// </summary>
     public class SetupSettingsPanel : MonoBehaviour
     {
-        #region Serialized Fields - References
-        [TitleGroup("References")]
-        [SerializeField, Required]
-        private PlayerGridPanel _playerGridPanel;
+        #region Serialized Fields
 
-        [SerializeField]
-        private Core.DifficultySO _difficultySO;
-
-        [TitleGroup("Word Lists")]
-        [SerializeField, Required]
-        private Core.WordListSO _threeLetterWords;
-
-        [SerializeField, Required]
-        private Core.WordListSO _fourLetterWords;
-
-        [SerializeField, Required]
-        private Core.WordListSO _fiveLetterWords;
-
-        [SerializeField]
-        private Core.WordListSO _sixLetterWords;
-        #endregion
-
-        #region Serialized Fields - Player Configuration UI
-        [TitleGroup("Player Configuration")]
-        [SerializeField, Required]
-        private TMP_InputField _playerNameInput;
-
-        [SerializeField, Required]
-        private Button _editNameButton;
-
-        [SerializeField, Required]
-        private Image _playerColorDisplay;
-
-        [SerializeField, Required]
-        private Button _colorPickerButton;
-
-        [SerializeField, Required]
-        private Button _randomWordsButton;
-
-        [SerializeField]
-        private GameObject _colorPickerPanel;
-
-        [SerializeField]
-        private List<Button> _colorOptionButtons = new List<Button>();
-        #endregion
-
-        #region Serialized Fields - Difficulty Settings UI
-        [TitleGroup("Difficulty Settings")]
+        [TitleGroup("UI References")]
         [SerializeField, Required]
         private TMP_Dropdown _gridSizeDropdown;
 
@@ -70,218 +31,203 @@ namespace TecVooDoo.DontLoseYourHead.UI
         [SerializeField, Required]
         private TMP_Dropdown _forgivenessDropdown;
 
-        [SerializeField]
-        private TextMeshProUGUI _missLimitText;
-        #endregion
+        [SerializeField, Required]
+        private TMP_InputField _playerNameInput;
 
-        #region Serialized Fields - Top Bar
-        [TitleGroup("Top Bar")]
-        [SerializeField]
-        private Button _mainMenuButton;
+        [SerializeField, Tooltip("Container holding individual color button choices")]
+        private Transform _colorButtonsContainer;
 
         [SerializeField]
-        private TextMeshProUGUI _phaseLabel;
+        private Button _pickRandomWordsButton;
 
         [SerializeField]
-        private Button _startButton;
-        #endregion
+        private TextMeshProUGUI _missLimitDisplay;
 
-        #region Serialized Fields - Color Options
-        [TitleGroup("Available Colors")]
+        [TitleGroup("Player Grid Reference")]
+        [SerializeField, Required]
+        private PlayerGridPanel _playerGridPanel;
+
+        [TitleGroup("Word Lists")]
+        [SerializeField, Required]
+        private WordListSO _threeLetterWords;
+
+        [SerializeField, Required]
+        private WordListSO _fourLetterWords;
+
+        [SerializeField, Required]
+        private WordListSO _fiveLetterWords;
+
         [SerializeField]
-        private List<Color> _availableColors = new List<Color>
+        private WordListSO _sixLetterWords;
+
+        [TitleGroup("Player Colors")]
+        [SerializeField]
+        private Color[] _availableColors = new Color[]
         {
-            new Color(0.2f, 0.6f, 1f, 1f),    // Blue
-            new Color(0.4f, 0.8f, 0.4f, 1f),  // Green
-            new Color(1f, 0.6f, 0.2f, 1f),    // Orange
-            new Color(0.8f, 0.4f, 0.8f, 1f),  // Purple
-            new Color(1f, 0.8f, 0.2f, 1f),    // Yellow
-            new Color(0.2f, 0.8f, 0.8f, 1f),  // Cyan
-            new Color(1f, 0.5f, 0.7f, 1f),    // Pink
-            new Color(0.6f, 0.4f, 0.2f, 1f)   // Brown
+            new Color(0.4f, 0.6f, 0.9f, 1f),   // Blue
+            new Color(0.9f, 0.5f, 0.7f, 1f),   // Pink
+            new Color(0.5f, 0.8f, 0.5f, 1f),   // Green
+            new Color(0.9f, 0.7f, 0.4f, 1f),   // Orange
+            new Color(0.7f, 0.5f, 0.9f, 1f),   // Purple
+            new Color(0.4f, 0.8f, 0.8f, 1f)    // Cyan
         };
+
+        [TitleGroup("Invalid Word Toast Settings")]
+        [SerializeField]
+        private float _toastDuration = 2.0f;
+
+        [SerializeField]
+        private string _invalidWordMessage = "'{0}' is not a valid word!";
+
         #endregion
 
         #region Private Fields
+
+        private int _gridSize = 8;
+        private WordCountOption _wordCount = WordCountOption.Four;
+        private ForgivenessSetting _forgiveness = ForgivenessSetting.Normal;
         private string _playerName = "PLAYER1";
         private Color _playerColor;
-        private int _gridSize = 8; // Now stores raw grid size (6-12)
-        private Core.WordCountOption _wordCount = Core.WordCountOption.Three;
-        private Core.ForgivenessSetting _forgiveness = Core.ForgivenessSetting.Normal;
+        private int _currentColorIndex = 0;
         private int _currentPlayerIndex = 0;
-        private bool _settingsLocked = false;
+        private bool _isNameInputFocused = false;
+
+        // Color button references (populated at runtime from container)
+        private List<Button> _colorButtons = new List<Button>();
+        private List<Outline> _colorButtonOutlines = new List<Outline>();
+
         #endregion
 
         #region Events
-        /// <summary>
-        /// Fired when player clicks Main Menu button
-        /// </summary>
-        public event Action OnMainMenuRequested;
 
-        /// <summary>
-        /// Fired when player clicks Start button (setup complete)
-        /// </summary>
-        public event Action OnStartRequested;
-
-        /// <summary>
-        /// Fired when grid size changes - PlayerGridPanel should respond
-        /// </summary>
+        /// <summary>Fired when grid size setting changes</summary>
         public event Action<int> OnGridSizeChanged;
 
-        /// <summary>
-        /// Fired when word count changes - affects required word rows
-        /// </summary>
-        public event Action<Core.WordCountOption> OnWordCountChanged;
+        /// <summary>Fired when word count setting changes</summary>
+        public event Action<WordCountOption> OnWordCountChanged;
 
-        /// <summary>
-        /// Fired when player settings change
-        /// </summary>
+        /// <summary>Fired when player name or color changes</summary>
         public event Action<string, Color> OnPlayerSettingsChanged;
-        #endregion
 
-        #region Properties
-        public string PlayerName => _playerName;
-        public Color PlayerColor => _playerColor;
-        public int GridSize => _gridSize;
-        public Core.WordCountOption WordCount => _wordCount;
-        public Core.ForgivenessSetting Forgiveness => _forgiveness;
-        public int CurrentPlayerIndex => _currentPlayerIndex;
-        public bool SettingsLocked => _settingsLocked;
         #endregion
 
         #region Unity Lifecycle
+
         private void Awake()
         {
-            // Set default color
-            if (_availableColors.Count > 0)
-            {
-                _playerColor = _availableColors[0];
-            }
+            ValidateReferences();
+            SetDefaultValues();
         }
 
         private void Start()
         {
             SetupDropdowns();
             SetupButtons();
-            UpdateUI();
+            SetupWordValidation();
+            SetupInvalidWordFeedback();
+            InitializeWordRows();
             UpdateMissLimitDisplay();
+
+            // Subscribe to letter input events for routing to name field
+            if (_playerGridPanel != null)
+            {
+                _playerGridPanel.OnLetterInput += OnLetterInputReceived;
+            }
         }
 
         private void OnDestroy()
         {
             RemoveListeners();
+
+            // Unsubscribe from letter input events
+            if (_playerGridPanel != null)
+            {
+                _playerGridPanel.OnLetterInput -= OnLetterInputReceived;
+            }
         }
+
         #endregion
 
         #region Public Methods
+
         /// <summary>
-        /// Initialize the panel for a specific player
+        /// Sets up the panel for a specific player
         /// </summary>
-        public void Initialize(int playerIndex, string defaultName = null)
+        public void SetupForPlayer(int playerIndex, PlayerSO playerData = null)
         {
             _currentPlayerIndex = playerIndex;
-            _playerName = defaultName ?? $"PLAYER{playerIndex + 1}";
-            _settingsLocked = false;
 
-            // Assign a default color based on player index
-            if (_availableColors.Count > playerIndex)
+            if (playerData != null)
             {
-                _playerColor = _availableColors[playerIndex];
+                _playerName = playerData.PlayerName;
+                // Note: PlayerSO doesn't have PlayerColor - use default color logic
+            }
+            else
+            {
+                _playerName = $"PLAYER{playerIndex + 1}";
+                _playerColor = _availableColors[playerIndex % _availableColors.Length];
+                _currentColorIndex = playerIndex % _availableColors.Length;
             }
 
             UpdateUI();
-            UpdateStartButtonState();
         }
 
         /// <summary>
-        /// Lock settings (called when player starts placing words)
+        /// Gets the current difficulty settings
         /// </summary>
-        public void LockGridAndWordSettings()
+        public (int gridSize, WordCountOption wordCount, ForgivenessSetting forgiveness) GetDifficultySettings()
         {
-            _settingsLocked = true;
-            UpdateDropdownInteractivity();
+            return (_gridSize, _wordCount, _forgiveness);
         }
 
         /// <summary>
-        /// Unlock settings (called if player wants to restart setup)
+        /// Gets the current player settings
         /// </summary>
-        public void UnlockSettings()
+        public (string name, Color color) GetPlayerSettings()
         {
-            _settingsLocked = false;
-            UpdateDropdownInteractivity();
+            return (_playerName, _playerColor);
         }
 
-        /// <summary>
-        /// Apply current settings to DifficultySO
-        /// </summary>
-        public void ApplySettingsToSO()
-        {
-            if (_difficultySO != null)
-            {
-                // Convert raw grid size to closest enum option for DifficultySO
-                Core.GridSizeOption gridSizeOption = _gridSize switch
-                {
-                    <= 6 => Core.GridSizeOption.Small,
-                    <= 8 => Core.GridSizeOption.Medium,
-                    _ => Core.GridSizeOption.Large
-                };
-
-                _difficultySO.SetConfiguration(gridSizeOption, _wordCount, _forgiveness);
-                Debug.Log($"[SetupSettingsPanel] Applied settings to DifficultySO: {_gridSize}x{_gridSize} -> {gridSizeOption}, {_wordCount}, {_forgiveness}");
-            }
-        }
-
-        /// <summary>
-        /// Check if Start button should be enabled
-        /// </summary>
-        public void UpdateStartButtonState()
-        {
-            if (_startButton == null) return;
-
-            bool canStart = _playerGridPanel != null && _playerGridPanel.AreAllWordsPlaced();
-            _startButton.interactable = canStart;
-        }
-
-        /// <summary>
-        /// Fill word rows with random valid words from word bank
-        /// </summary>
-        [Button("Pick Random Words")]
-        public void PickRandomWords()
-        {
-            if (_playerGridPanel == null)
-            {
-                Debug.LogError("[SetupSettingsPanel] PlayerGridPanel not assigned!");
-                return;
-            }
-
-            int[] wordLengths = Core.DifficultyCalculator.GetWordLengths(_wordCount);
-
-            for (int i = 0; i < wordLengths.Length && i < _playerGridPanel.WordRowCount; i++)
-            {
-                var row = _playerGridPanel.GetWordPatternRow(i);
-                if (row == null) continue;
-
-                // Skip rows that already have placed words
-                if (row.IsPlaced) continue;
-
-                string randomWord = GetRandomWordOfLength(wordLengths[i]);
-                if (!string.IsNullOrEmpty(randomWord))
-                {
-                    row.SetEnteredText(randomWord);
-                    Debug.Log($"[SetupSettingsPanel] Random word for row {i + 1}: {randomWord}");
-                }
-            }
-        }
         #endregion
 
-        #region Private Methods - Setup
+        #region Setup Methods
+
+        private void ValidateReferences()
+        {
+            if (_gridSizeDropdown == null)
+                Debug.LogError("[SetupSettingsPanel] Grid Size Dropdown is not assigned!");
+            if (_wordCountDropdown == null)
+                Debug.LogError("[SetupSettingsPanel] Word Count Dropdown is not assigned!");
+            if (_forgivenessDropdown == null)
+                Debug.LogError("[SetupSettingsPanel] Forgiveness Dropdown is not assigned!");
+            if (_playerNameInput == null)
+                Debug.LogError("[SetupSettingsPanel] Player Name Input is not assigned!");
+            if (_playerGridPanel == null)
+                Debug.LogError("[SetupSettingsPanel] Player Grid Panel is not assigned!");
+            if (_missLimitDisplay == null)
+                Debug.LogWarning("[SetupSettingsPanel] Miss Limit Display is not assigned - miss limit won't be shown!");
+            if (_pickRandomWordsButton == null)
+                Debug.LogWarning("[SetupSettingsPanel] Pick Random Words Button is not assigned!");
+            if (_colorButtonsContainer == null)
+                Debug.LogWarning("[SetupSettingsPanel] Color Buttons Container is not assigned - color selection won't work!");
+        }
+
+        private void SetDefaultValues()
+        {
+            _gridSize = 8;
+            _wordCount = WordCountOption.Four;
+            _forgiveness = ForgivenessSetting.Normal;
+            _playerName = "PLAYER1";
+            _playerColor = _availableColors.Length > 0 ? _availableColors[0] : Color.cyan;
+        }
+
         private void SetupDropdowns()
         {
-            // Grid Size dropdown - supports 6x6 through 12x12
+            // Grid Size Dropdown (6x6 through 12x12)
             if (_gridSizeDropdown != null)
             {
                 _gridSizeDropdown.ClearOptions();
-                _gridSizeDropdown.AddOptions(new List<string>
+                _gridSizeDropdown.AddOptions(new System.Collections.Generic.List<string>
                 {
                     "6x6",
                     "7x7",
@@ -295,24 +241,24 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _gridSizeDropdown.onValueChanged.AddListener(OnGridSizeDropdownChanged);
             }
 
-            // Word Count dropdown
+            // Word Count Dropdown
             if (_wordCountDropdown != null)
             {
                 _wordCountDropdown.ClearOptions();
-                _wordCountDropdown.AddOptions(new List<string>
+                _wordCountDropdown.AddOptions(new System.Collections.Generic.List<string>
                 {
                     "3 Words",
                     "4 Words"
                 });
-                _wordCountDropdown.value = 0; // Default to 3 words
+                _wordCountDropdown.value = 1; // Default to 4 words
                 _wordCountDropdown.onValueChanged.AddListener(OnWordCountDropdownChanged);
             }
 
-            // Forgiveness dropdown
+            // Forgiveness Dropdown
             if (_forgivenessDropdown != null)
             {
                 _forgivenessDropdown.ClearOptions();
-                _forgivenessDropdown.AddOptions(new List<string>
+                _forgivenessDropdown.AddOptions(new System.Collections.Generic.List<string>
                 {
                     "Strict",
                     "Normal",
@@ -325,102 +271,370 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         private void SetupButtons()
         {
-            if (_editNameButton != null)
-            {
-                _editNameButton.onClick.AddListener(OnEditNameClicked);
-            }
-
-            if (_colorPickerButton != null)
-            {
-                _colorPickerButton.onClick.AddListener(OnColorPickerClicked);
-            }
-
-            if (_randomWordsButton != null)
-            {
-                _randomWordsButton.onClick.AddListener(PickRandomWords);
-            }
-
-            if (_mainMenuButton != null)
-            {
-                _mainMenuButton.onClick.AddListener(OnMainMenuClicked);
-            }
-
-            if (_startButton != null)
-            {
-                _startButton.onClick.AddListener(OnStartClicked);
-            }
-
+            // Player Name Input
             if (_playerNameInput != null)
             {
+                _playerNameInput.onEndEdit.RemoveAllListeners();
                 _playerNameInput.onEndEdit.AddListener(OnPlayerNameChanged);
+
+                // Track focus state for letter routing (no longer disable buttons)
+                _playerNameInput.onSelect.AddListener(OnNameInputSelected);
+                _playerNameInput.onDeselect.AddListener(OnNameInputDeselected);
             }
 
-            // Setup color option buttons
-            for (int i = 0; i < _colorOptionButtons.Count && i < _availableColors.Count; i++)
+            // Setup Color Buttons from container
+            SetupColorButtons();
+
+            // Pick Random Words Button
+            if (_pickRandomWordsButton != null)
             {
-                int colorIndex = i; // Capture for lambda
-                var button = _colorOptionButtons[i];
+                _pickRandomWordsButton.onClick.RemoveAllListeners();
+                _pickRandomWordsButton.onClick.AddListener(PickRandomWords);
+            }
+        }
+
+        /// <summary>
+        /// Sets up color button click handlers from the ColorButtonsContainer
+        /// </summary>
+        private void SetupColorButtons()
+        {
+            _colorButtons.Clear();
+            _colorButtonOutlines.Clear();
+
+            if (_colorButtonsContainer == null)
+            {
+                Debug.LogWarning("[SetupSettingsPanel] Color buttons container not assigned!");
+                return;
+            }
+
+            // Get all buttons in the container
+            for (int i = 0; i < _colorButtonsContainer.childCount; i++)
+            {
+                var child = _colorButtonsContainer.GetChild(i);
+                var button = child.GetComponent<Button>();
+
                 if (button != null)
                 {
-                    // Set button color
-                    var buttonImage = button.GetComponent<Image>();
-                    if (buttonImage != null)
-                    {
-                        buttonImage.color = _availableColors[colorIndex];
-                    }
+                    _colorButtons.Add(button);
 
-                    button.onClick.AddListener(() => OnColorSelected(colorIndex));
+                    // Get or add outline component for selection highlight
+                    var outline = child.GetComponent<Outline>();
+                    if (outline == null)
+                    {
+                        outline = child.gameObject.AddComponent<Outline>();
+                    }
+                    outline.effectColor = Color.white;
+                    outline.effectDistance = new Vector2(3, 3);
+                    outline.enabled = false;
+                    _colorButtonOutlines.Add(outline);
+
+                    // Capture index for closure
+                    int colorIndex = i;
+                    button.onClick.RemoveAllListeners();
+                    button.onClick.AddListener(() => OnColorButtonClicked(colorIndex));
                 }
+            }
+
+            Debug.Log($"[SetupSettingsPanel] Set up {_colorButtons.Count} color buttons");
+
+            // Select initial color
+            if (_colorButtons.Count > 0)
+            {
+                OnColorButtonClicked(0);
+            }
+        }
+
+        /// <summary>
+        /// Sets up word validation by connecting the validator to PlayerGridPanel
+        /// </summary>
+        private void SetupWordValidation()
+        {
+            if (_playerGridPanel != null)
+            {
+                _playerGridPanel.SetWordValidator(ValidateWord);
+                Debug.Log("[SetupSettingsPanel] Word validation connected to PlayerGridPanel");
+            }
+        }
+
+        /// <summary>
+        /// Validates a word against the appropriate word list based on length
+        /// </summary>
+        /// <param name="word">The word to validate</param>
+        /// <param name="requiredLength">The required length for this word slot (passed by PlayerGridPanel)</param>
+        private bool ValidateWord(string word, int requiredLength)
+        {
+            if (string.IsNullOrEmpty(word))
+            {
+                Debug.Log("[SetupSettingsPanel] ValidateWord: Empty word rejected");
+                return false;
+            }
+
+            string upperWord = word.ToUpper();
+            int length = upperWord.Length;
+
+            // Check if word matches required length
+            if (length != requiredLength)
+            {
+                Debug.Log($"[SetupSettingsPanel] ValidateWord: '{upperWord}' length {length} != required {requiredLength}");
+                return false;
+            }
+
+            WordListSO wordList = GetWordListForLength(length);
+
+            if (wordList == null)
+            {
+                Debug.LogWarning($"[SetupSettingsPanel] No word list found for length {length}");
+                return false;
+            }
+
+            bool isValid = wordList.Contains(upperWord);
+            Debug.Log($"[SetupSettingsPanel] ValidateWord '{upperWord}' (length {length}): {(isValid ? "VALID" : "INVALID")}");
+
+            return isValid;
+        }
+
+        /// <summary>
+        /// Returns the appropriate WordListSO for the given word length
+        /// </summary>
+        private WordListSO GetWordListForLength(int length)
+        {
+            return length switch
+            {
+                3 => _threeLetterWords,
+                4 => _fourLetterWords,
+                5 => _fiveLetterWords,
+                6 => _sixLetterWords,
+                _ => null
+            };
+        }
+
+        /// <summary>
+        /// Fill word rows with random valid words from word bank
+        /// </summary>
+        [Button("Pick Random Words")]
+        public void PickRandomWords()
+        {
+            if (_playerGridPanel == null)
+            {
+                Debug.LogWarning("[SetupSettingsPanel] Cannot pick random words - PlayerGridPanel not assigned!");
+                return;
+            }
+
+            int[] wordLengths = DifficultyCalculator.GetWordLengths(_wordCount);
+
+            for (int i = 0; i < wordLengths.Length; i++)
+            {
+                string randomWord = GetRandomWordOfLength(wordLengths[i]);
+                if (!string.IsNullOrEmpty(randomWord))
+                {
+                    SetWordForRow(i, randomWord);
+                    Debug.Log($"[SetupSettingsPanel] Set word {i + 1}: {randomWord}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets a random word of the specified length from the word bank
+        /// </summary>
+        private string GetRandomWordOfLength(int length)
+        {
+            WordListSO wordList = GetWordListForLength(length);
+            if (wordList == null || wordList.Words == null || wordList.Words.Count == 0)
+            {
+                Debug.LogWarning($"[SetupSettingsPanel] No word list found for length {length}");
+                return null;
+            }
+
+            int randomIndex = UnityEngine.Random.Range(0, wordList.Words.Count);
+            return wordList.Words[randomIndex];
+        }
+
+        /// <summary>
+        /// Sets a word for a specific row by selecting it and adding letters.
+        /// </summary>
+        private void SetWordForRow(int rowIndex, string word)
+        {
+            if (_playerGridPanel == null || string.IsNullOrEmpty(word))
+                return;
+
+            // Get the word pattern row
+            var row = _playerGridPanel.GetWordPatternRow(rowIndex);
+            if (row == null || !row.gameObject.activeSelf)
+            {
+                Debug.LogWarning($"[SetupSettingsPanel] Row {rowIndex} is null or inactive");
+                return;
+            }
+
+            // Clear if already placed
+            if (row.IsPlaced)
+            {
+                _playerGridPanel.ClearPlacedWord(rowIndex);
+            }
+
+            // Select this row
+            _playerGridPanel.SelectWordRow(rowIndex);
+
+            // Reset the row to empty state
+            row.ResetToEmpty();
+
+            // Add each letter
+            string upperWord = word.ToUpper();
+            foreach (char letter in upperWord)
+            {
+                _playerGridPanel.AddLetterToSelectedRow(letter);
+            }
+
+            Debug.Log($"[SetupSettingsPanel] Set word for row {rowIndex + 1}: {upperWord}");
+        }
+
+        /// <summary>
+        /// Sets up invalid word feedback by subscribing to rejection events
+        /// </summary>
+        private void SetupInvalidWordFeedback()
+        {
+            if (_playerGridPanel == null) return;
+
+            // Subscribe to rejection events from all word pattern rows
+            var wordPatternRows = _playerGridPanel.GetWordPatternRows();
+            if (wordPatternRows != null)
+            {
+                foreach (var row in wordPatternRows)
+                {
+                    if (row != null)
+                    {
+                        row.OnInvalidWordRejected += OnInvalidWordRejected;
+                    }
+                }
+                Debug.Log($"[SetupSettingsPanel] Subscribed to {wordPatternRows.Length} WordPatternRow rejection events");
+            }
+        }
+
+        /// <summary>
+        /// Unsubscribes from invalid word rejection events
+        /// </summary>
+        private void UnsubscribeInvalidWordFeedback()
+        {
+            if (_playerGridPanel == null) return;
+
+            var wordPatternRows = _playerGridPanel.GetWordPatternRows();
+            if (wordPatternRows != null)
+            {
+                foreach (var row in wordPatternRows)
+                {
+                    if (row != null)
+                    {
+                        row.OnInvalidWordRejected -= OnInvalidWordRejected;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Called when an invalid word is rejected - shows toast notification
+        /// </summary>
+        /// <param name="rowNumber">The row number (1-based) where the invalid word was entered</param>
+        /// <param name="invalidWord">The word that was rejected</param>
+        private void OnInvalidWordRejected(int rowNumber, string invalidWord)
+        {
+            string message = string.Format(_invalidWordMessage, invalidWord);
+            ShowInvalidWordToast(message);
+            Debug.Log($"[SetupSettingsPanel] Invalid word rejected in row {rowNumber}: '{invalidWord}'");
+        }
+
+        /// <summary>
+        /// Shows a toast notification for invalid word
+        /// Uses Easy Popup System if available, falls back to Debug.Log
+        /// </summary>
+        private void ShowInvalidWordToast(string message)
+        {
+            // Try using Easy Popup System's EasyToast
+            try
+            {
+                // EasyPopupSystem.EasyToast.Create(message, _toastDuration);
+                // If EasyPopupSystem is not available or has different API,
+                // you can uncomment the line above and adjust as needed.
+
+                // For now, log a clear message that can be replaced with actual toast
+                Debug.LogWarning($"[TOAST] {message}");
+
+                // Alternative: Show a simple UI notification
+                ShowSimpleNotification(message);
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"[SetupSettingsPanel] Failed to show toast: {e.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Shows a simple notification (fallback when Easy Popup not configured)
+        /// You can replace this with your preferred notification system
+        /// </summary>
+        private void ShowSimpleNotification(string message)
+        {
+            // This is a placeholder - implement based on your notification system
+            // Options:
+            // 1. Use EasyPopupSystem.EasyToast.Create(message);
+            // 2. Show a floating TextMeshPro that fades out
+            // 3. Flash the input field red briefly
+            // 4. Play an error sound
+
+            // For now, we'll just ensure it's logged prominently
+            Debug.Log($"<color=red>[INVALID WORD]</color> {message}");
+        }
+
+        /// <summary>
+        /// Initializes word rows based on current word count setting
+        /// </summary>
+        private void InitializeWordRows()
+        {
+            if (_playerGridPanel != null)
+            {
+                int[] wordLengths = DifficultyCalculator.GetWordLengths(_wordCount);
+                _playerGridPanel.SetWordLengths(wordLengths);
+                Debug.Log($"[SetupSettingsPanel] Initialized word rows: {string.Join(", ", wordLengths)}");
             }
         }
 
         private void RemoveListeners()
         {
             if (_gridSizeDropdown != null)
-                _gridSizeDropdown.onValueChanged.RemoveListener(OnGridSizeDropdownChanged);
-
+                _gridSizeDropdown.onValueChanged.RemoveAllListeners();
             if (_wordCountDropdown != null)
-                _wordCountDropdown.onValueChanged.RemoveListener(OnWordCountDropdownChanged);
-
+                _wordCountDropdown.onValueChanged.RemoveAllListeners();
             if (_forgivenessDropdown != null)
-                _forgivenessDropdown.onValueChanged.RemoveListener(OnForgivenessDropdownChanged);
-
-            if (_editNameButton != null)
-                _editNameButton.onClick.RemoveListener(OnEditNameClicked);
-
-            if (_colorPickerButton != null)
-                _colorPickerButton.onClick.RemoveListener(OnColorPickerClicked);
-
-            if (_randomWordsButton != null)
-                _randomWordsButton.onClick.RemoveListener(PickRandomWords);
-
-            if (_mainMenuButton != null)
-                _mainMenuButton.onClick.RemoveListener(OnMainMenuClicked);
-
-            if (_startButton != null)
-                _startButton.onClick.RemoveListener(OnStartClicked);
-
+                _forgivenessDropdown.onValueChanged.RemoveAllListeners();
             if (_playerNameInput != null)
-                _playerNameInput.onEndEdit.RemoveListener(OnPlayerNameChanged);
+            {
+                _playerNameInput.onEndEdit.RemoveAllListeners();
+                _playerNameInput.onSelect.RemoveAllListeners();
+                _playerNameInput.onDeselect.RemoveAllListeners();
+            }
 
-            foreach (var button in _colorOptionButtons)
+            // Clean up color button listeners
+            foreach (var button in _colorButtons)
             {
                 if (button != null)
                     button.onClick.RemoveAllListeners();
             }
+
+            // Unsubscribe from invalid word events
+            UnsubscribeInvalidWordFeedback();
         }
+
         #endregion
 
-        #region Private Methods - Event Handlers
+        #region Event Handlers
+
         private void OnGridSizeDropdownChanged(int value)
         {
-            // Dropdown index 0-6 maps to grid sizes 6-12
+            // Direct mapping: index 0 = 6, index 1 = 7, ... index 6 = 12
             _gridSize = value + 6;
 
             UpdateMissLimitDisplay();
             OnGridSizeChanged?.Invoke(_gridSize);
 
-            // Update PlayerGridPanel grid size
+            // Update PlayerGridPanel
             if (_playerGridPanel != null)
             {
                 _playerGridPanel.SetGridSize(_gridSize);
@@ -433,9 +647,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
         {
             _wordCount = value switch
             {
-                0 => Core.WordCountOption.Three,
-                1 => Core.WordCountOption.Four,
-                _ => Core.WordCountOption.Three
+                0 => WordCountOption.Three,
+                1 => WordCountOption.Four,
+                _ => WordCountOption.Three
             };
 
             UpdateMissLimitDisplay();
@@ -444,8 +658,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
             // Update PlayerGridPanel word rows
             if (_playerGridPanel != null)
             {
-                int[] wordLengths = Core.DifficultyCalculator.GetWordLengths(_wordCount);
+                int[] wordLengths = DifficultyCalculator.GetWordLengths(_wordCount);
                 _playerGridPanel.SetWordLengths(wordLengths);
+
+                // Re-subscribe to new word rows for invalid word feedback
+                UnsubscribeInvalidWordFeedback();
+                SetupInvalidWordFeedback();
             }
 
             Debug.Log($"[SetupSettingsPanel] Word count changed to: {_wordCount}");
@@ -455,24 +673,14 @@ namespace TecVooDoo.DontLoseYourHead.UI
         {
             _forgiveness = value switch
             {
-                0 => Core.ForgivenessSetting.Strict,
-                1 => Core.ForgivenessSetting.Normal,
-                2 => Core.ForgivenessSetting.Forgiving,
-                _ => Core.ForgivenessSetting.Normal
+                0 => ForgivenessSetting.Strict,
+                1 => ForgivenessSetting.Normal,
+                2 => ForgivenessSetting.Forgiving,
+                _ => ForgivenessSetting.Normal
             };
 
             UpdateMissLimitDisplay();
             Debug.Log($"[SetupSettingsPanel] Forgiveness changed to: {_forgiveness}");
-        }
-
-        private void OnEditNameClicked()
-        {
-            if (_playerNameInput != null)
-            {
-                _playerNameInput.interactable = true;
-                _playerNameInput.Select();
-                _playerNameInput.ActivateInputField();
-            }
         }
 
         private void OnPlayerNameChanged(string newName)
@@ -489,200 +697,160 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _playerNameInput.text = _playerName;
             }
 
+            // Update PlayerGridPanel player name label
+            if (_playerGridPanel != null)
+            {
+                _playerGridPanel.SetPlayerName(_playerName);
+            }
+
             OnPlayerSettingsChanged?.Invoke(_playerName, _playerColor);
             Debug.Log($"[SetupSettingsPanel] Player name changed to: {_playerName}");
         }
 
-        private void OnColorPickerClicked()
+        /// <summary>
+        /// Called when the name input field is selected/focused
+        /// Instead of disabling letter buttons, we track focus state for routing
+        /// </summary>
+        private void OnNameInputSelected(string text)
         {
-            if (_colorPickerPanel != null)
-            {
-                _colorPickerPanel.SetActive(!_colorPickerPanel.activeSelf);
-            }
+            _isNameInputFocused = true;
+            Debug.Log("[SetupSettingsPanel] Name input focused - letter input will route to name field");
         }
 
-        private void OnColorSelected(int colorIndex)
+        /// <summary>
+        /// Called when the name input field loses focus
+        /// </summary>
+        private void OnNameInputDeselected(string text)
         {
-            if (colorIndex >= 0 && colorIndex < _availableColors.Count)
-            {
-                _playerColor = _availableColors[colorIndex];
-                UpdateColorDisplay();
+            _isNameInputFocused = false;
+            Debug.Log("[SetupSettingsPanel] Name input unfocused - letter input routes to word entry");
+        }
 
-                // Hide color picker panel
-                if (_colorPickerPanel != null)
+        /// <summary>
+        /// Called when a letter is input from the letter tracker
+        /// Routes to name input field if it's focused, otherwise normal word entry
+        /// </summary>
+        private void OnLetterInputReceived(char letter)
+        {
+            if (_isNameInputFocused && _playerNameInput != null)
+            {
+                // Route letter to name input field
+                string currentText = _playerNameInput.text;
+                _playerNameInput.text = currentText + letter;
+
+                // Keep the input field focused
+                _playerNameInput.ActivateInputField();
+                _playerNameInput.MoveTextEnd(false);
+
+                Debug.Log($"[SetupSettingsPanel] Routed letter '{letter}' to name input");
+            }
+            // If name input is not focused, letter goes to word entry (handled by PlayerGridPanel)
+        }
+
+        private void OnColorButtonClicked(int colorIndex)
+        {
+            if (colorIndex < 0 || colorIndex >= _colorButtons.Count)
+            {
+                Debug.LogWarning($"[SetupSettingsPanel] Invalid color index: {colorIndex}");
+                return;
+            }
+
+            _currentColorIndex = colorIndex;
+
+            // Get the color from the button's Image component
+            var buttonImage = _colorButtons[colorIndex].GetComponent<Image>();
+            if (buttonImage != null)
+            {
+                _playerColor = buttonImage.color;
+            }
+
+            // Update outline selection states - highlight only the selected button
+            for (int i = 0; i < _colorButtonOutlines.Count; i++)
+            {
+                if (_colorButtonOutlines[i] != null)
                 {
-                    _colorPickerPanel.SetActive(false);
+                    _colorButtonOutlines[i].enabled = (i == colorIndex);
                 }
-
-                OnPlayerSettingsChanged?.Invoke(_playerName, _playerColor);
-                Debug.Log($"[SetupSettingsPanel] Player color changed");
             }
-        }
 
-        private void OnMainMenuClicked()
-        {
-            OnMainMenuRequested?.Invoke();
-        }
-
-        private void OnStartClicked()
-        {
-            if (_playerGridPanel != null && _playerGridPanel.AreAllWordsPlaced())
+            // Update PlayerGridPanel player color
+            if (_playerGridPanel != null)
             {
-                ApplySettingsToSO();
-                OnStartRequested?.Invoke();
+                _playerGridPanel.SetPlayerColor(_playerColor);
             }
-            else
-            {
-                Debug.LogWarning("[SetupSettingsPanel] Cannot start - not all words are placed!");
-            }
+
+            OnPlayerSettingsChanged?.Invoke(_playerName, _playerColor);
+            Debug.Log($"[SetupSettingsPanel] Player color changed to index: {_currentColorIndex}, color: {_playerColor}");
         }
+
         #endregion
 
-        #region Private Methods - UI Updates
+        #region UI Updates
+
         private void UpdateUI()
         {
-            // Update player name input
+            // Update player name
             if (_playerNameInput != null)
             {
                 _playerNameInput.text = _playerName;
             }
 
-            // Update color display
-            UpdateColorDisplay();
-
-            // Update phase label
-            if (_phaseLabel != null)
+            // Update color button selection outline
+            for (int i = 0; i < _colorButtonOutlines.Count; i++)
             {
-                _phaseLabel.text = "SETUP";
+                if (_colorButtonOutlines[i] != null)
+                {
+                    _colorButtonOutlines[i].enabled = (i == _currentColorIndex);
+                }
             }
 
-            UpdateDropdownInteractivity();
-        }
-
-        private void UpdateColorDisplay()
-        {
-            if (_playerColorDisplay != null)
+            // Update PlayerGridPanel
+            if (_playerGridPanel != null)
             {
-                _playerColorDisplay.color = _playerColor;
+                _playerGridPanel.SetPlayerName(_playerName);
+                _playerGridPanel.SetPlayerColor(_playerColor);
             }
+
+            UpdateMissLimitDisplay();
         }
 
         private void UpdateMissLimitDisplay()
         {
-            if (_missLimitText != null)
+            if (_missLimitDisplay == null)
             {
-                int missLimit = CalculateMissLimitForGridSize(_gridSize, _wordCount, _forgiveness);
-                _missLimitText.text = $"Miss Limit: {missLimit}";
+                Debug.LogWarning("[SetupSettingsPanel] UpdateMissLimitDisplay called but _missLimitDisplay is null!");
+                return;
             }
+
+            // Use the int overload directly - works with any grid size 6-12
+            int missLimit = DifficultyCalculator.CalculateMissLimit(_gridSize, (int)_wordCount, _forgiveness);
+            _missLimitDisplay.text = $"Miss Limit: {missLimit}";
+
+            Debug.Log($"[SetupSettingsPanel] UpdateMissLimitDisplay: Grid={_gridSize}, Words={(int)_wordCount}, Forgiveness={_forgiveness} => Miss Limit={missLimit}");
         }
 
-        /// <summary>
-        /// Calculate miss limit for any grid size 6-12.
-        /// Extends the existing formula to support intermediate sizes.
-        /// </summary>
-        private int CalculateMissLimitForGridSize(int gridSize, Core.WordCountOption wordCount, Core.ForgivenessSetting forgiveness)
-        {
-            // Base misses
-            int baseMisses = 15;
-
-            // Grid bonus scales linearly: 6x6=3, 7x7=4, 8x8=6, 9x9=7, 10x10=10, 11x11=11, 12x12=13
-            // Formula: roughly (gridSize - 6) + some extra for larger grids
-            int gridBonus;
-            if (gridSize <= 6)
-                gridBonus = 3;
-            else if (gridSize <= 8)
-                gridBonus = 3 + (gridSize - 6); // 7=4, 8=5... but we want 8=6
-            else
-                gridBonus = (gridSize - 6) + (gridSize - 8); // Accelerates for larger grids
-
-            // Adjust to match original formula better: 6=3, 8=6, 10=10
-            gridBonus = Mathf.RoundToInt((gridSize - 6) * 1.75f) + 3;
-            gridBonus = Mathf.Clamp(gridBonus, 3, 15);
-
-            // Word modifier
-            int wordModifier = wordCount == Core.WordCountOption.Four ? -2 : 0;
-
-            // Forgiveness modifier
-            int forgivenessModifier = forgiveness switch
-            {
-                Core.ForgivenessSetting.Strict => -4,
-                Core.ForgivenessSetting.Normal => 0,
-                Core.ForgivenessSetting.Forgiving => 4,
-                _ => 0
-            };
-
-            int total = baseMisses + gridBonus + wordModifier + forgivenessModifier;
-            return Mathf.Clamp(total, 10, 40);
-        }
-
-        private void UpdateDropdownInteractivity()
-        {
-            // Grid size and word count locked once word placement starts
-            if (_gridSizeDropdown != null)
-            {
-                _gridSizeDropdown.interactable = !_settingsLocked;
-            }
-
-            if (_wordCountDropdown != null)
-            {
-                _wordCountDropdown.interactable = !_settingsLocked;
-            }
-
-            // Forgiveness can always be changed
-            if (_forgivenessDropdown != null)
-            {
-                _forgivenessDropdown.interactable = true;
-            }
-        }
         #endregion
 
-        #region Private Methods - Word Selection
-        private string GetRandomWordOfLength(int length)
-        {
-            Core.WordListSO wordList = length switch
-            {
-                3 => _threeLetterWords,
-                4 => _fourLetterWords,
-                5 => _fiveLetterWords,
-                6 => _sixLetterWords,
-                _ => null
-            };
-
-            if (wordList != null && wordList.Count > 0)
-            {
-                return wordList.GetRandomWord();
-            }
-
-            Debug.LogWarning($"[SetupSettingsPanel] No word list available for {length}-letter words");
-            return string.Empty;
-        }
-        #endregion
-
-        #region Editor Helpers
-#if UNITY_EDITOR
-        [TitleGroup("Debug")]
-        [Button("Test Random Words")]
-        private void TestRandomWords()
-        {
-            PickRandomWords();
-        }
+        #region Debug/Testing
 
         [Button("Log Current Settings")]
         private void LogCurrentSettings()
         {
-            Debug.Log($"[SetupSettingsPanel] Player: {_playerName}");
-            Debug.Log($"[SetupSettingsPanel] Grid Size: {_gridSize}x{_gridSize}");
-            Debug.Log($"[SetupSettingsPanel] Word Count: {_wordCount}");
-            Debug.Log($"[SetupSettingsPanel] Forgiveness: {_forgiveness}");
-            Debug.Log($"[SetupSettingsPanel] Miss Limit: {CalculateMissLimitForGridSize(_gridSize, _wordCount, _forgiveness)}");
+            Debug.Log($"[SetupSettingsPanel] Current Settings:");
+            Debug.Log($"  Grid Size: {_gridSize}x{_gridSize}");
+            Debug.Log($"  Word Count: {_wordCount}");
+            Debug.Log($"  Forgiveness: {_forgiveness}");
+            Debug.Log($"  Player Name: {_playerName}");
+            Debug.Log($"  Player Color: {_playerColor}");
+            Debug.Log($"  Name Input Focused: {_isNameInputFocused}");
         }
 
-        [Button("Test Apply Settings")]
-        private void TestApplySettings()
+        [Button("Test Invalid Word Toast")]
+        private void TestInvalidWordToast()
         {
-            ApplySettingsToSO();
+            OnInvalidWordRejected(1, "TEST");
         }
-#endif
+
         #endregion
     }
 }
