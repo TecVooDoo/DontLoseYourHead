@@ -143,6 +143,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         #region Private Fields - Word Patterns
         private List<WordPatternRow> _wordPatternRows = new List<WordPatternRow>();
         private int _selectedWordRowIndex = -1;
+        private Func<string, int, bool> _wordValidator;
         #endregion
 
         #region Private Fields - Coordinate Placement
@@ -213,6 +214,16 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// Fired when placement mode is cancelled
         /// </summary>
         public event Action OnPlacementCancelled;
+
+        /// <summary>
+        /// Fired when an invalid word is rejected. Parameters: word, required length
+        /// </summary>
+        public event Action<string, int> OnInvalidWordRejected;
+
+        /// <summary>
+        /// Fired when a letter is input from the letter tracker (for routing to name field)
+        /// </summary>
+        public event Action<char> OnLetterInput;
         #endregion
 
         #region Properties
@@ -350,189 +361,109 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             Debug.Log($"[PlayerGridPanel] Grid initialized with size {_currentGridSize}x{_currentGridSize}");
         }
+        #endregion
 
+        #region Public Methods - Grid Size
         /// <summary>
-        /// Changes the grid size and recreates the grid.
+        /// Changes the grid size and reinitializes.
         /// </summary>
-        /// <param name="newSize">New grid size (6, 8, 10, or 12)</param>
         public void SetGridSize(int newSize)
         {
-            int clampedSize = Mathf.Clamp(newSize, MIN_GRID_SIZE, MAX_GRID_SIZE);
+            if (newSize == _currentGridSize) return;
 
-            if (clampedSize != _currentGridSize)
-            {
-                InitializeGrid(clampedSize);
-            }
+            _currentGridSize = Mathf.Clamp(newSize, MIN_GRID_SIZE, MAX_GRID_SIZE);
+            InitializeGrid(_currentGridSize);
+
+            Debug.Log($"[SetupSettingsPanel] Grid size changed to: {_currentGridSize}x{_currentGridSize}");
         }
+        #endregion
 
+        #region Public Methods - Player Display
         /// <summary>
-        /// Sets the required word lengths for each row.
-        /// This adjusts the number of visible rows and their required lengths.
+        /// Sets the player name displayed in the label.
         /// </summary>
-        /// <param name="wordLengths">Array of word lengths (e.g., {3, 4, 5} or {3, 4, 5, 6})</param>
-        public void SetWordLengths(int[] wordLengths)
-        {
-            if (wordLengths == null || wordLengths.Length == 0)
-            {
-                Debug.LogError("[PlayerGridPanel] Invalid word lengths array");
-                return;
-            }
-
-            // Update each word row
-            for (int i = 0; i < _wordPatternRows.Count; i++)
-            {
-                var row = _wordPatternRows[i];
-                if (row == null) continue;
-
-                if (i < wordLengths.Length)
-                {
-                    // This row should be active with the specified word length
-                    row.gameObject.SetActive(true);
-                    row.SetRequiredLength(wordLengths[i]);
-                    row.ResetToEmpty();
-                }
-                else
-                {
-                    // This row should be hidden
-                    row.gameObject.SetActive(false);
-                }
-            }
-
-            // Clear any placed words when word count changes
-            ClearAllPlacedWords();
-
-            Debug.Log($"[PlayerGridPanel] Set word lengths: {string.Join(", ", wordLengths)}");
-        }
-
-        /// <summary>
-        /// Clears all placed words from the grid.
-        /// </summary>
-        public void ClearAllPlacedWords()
-        {
-            // Clear tracking data
-            _allPlacedPositions.Clear();
-            _placedLetters.Clear();
-            _wordRowPositions.Clear();
-
-            // Clear all grid cells
-            for (int col = 0; col < _currentGridSize; col++)
-            {
-                for (int row = 0; row < _currentGridSize; row++)
-                {
-                    if (_cells[col, row] != null)
-                    {
-                        _cells[col, row].ClearLetter();
-                        _cells[col, row].SetState(CellState.Empty);
-                        _cells[col, row].ClearHighlight();
-                    }
-                }
-            }
-
-            Debug.Log("[PlayerGridPanel] Cleared all placed words");
-        }
-
-        /// <summary>
-        /// Sets the player name displayed at the top of the panel.
-        /// </summary>
-        public void SetPlayerName(string playerName)
+        public void SetPlayerName(string name)
         {
             if (_playerNameLabel != null)
             {
-                _playerNameLabel.text = playerName;
+                _playerNameLabel.text = name;
             }
         }
 
         /// <summary>
-        /// Sets the player's theme color.
+        /// Sets the player color for visual elements.
         /// </summary>
         public void SetPlayerColor(Color color)
         {
             _playerColor = color;
+            UpdatePlayerColorVisuals();
         }
 
-        /// <summary>
-        /// Forces a recache of label references. Call this if labels were created after Awake.
-        /// </summary>
-        [Button("Recache Labels")]
-        public void RecacheLabels()
+        private void UpdatePlayerColorVisuals()
         {
-            CacheExistingLabels();
-            UpdateLabelVisibility();
+            if (_playerNameLabel != null)
+            {
+                var parentTransform = _playerNameLabel.transform.parent;
+                if (parentTransform != null)
+                {
+                    var bgImage = parentTransform.GetComponent<Image>();
+                    if (bgImage != null)
+                    {
+                        bgImage.color = _playerColor;
+                    }
+                }
+            }
         }
         #endregion
 
-        #region Public Methods - Cell Access
+        #region Public Methods - Word Lengths
         /// <summary>
-        /// Gets the cell at the specified coordinates.
+        /// Sets the required word lengths for each row.
         /// </summary>
-        public GridCellUI GetCell(int column, int row)
+        public void SetWordLengths(int[] lengths)
         {
-            if (!IsValidCoordinate(column, row))
+            if (lengths == null || lengths.Length == 0)
             {
-                return null;
+                Debug.LogWarning("[PlayerGridPanel] SetWordLengths called with null or empty array");
+                return;
             }
-            return _cells[column, row];
-        }
 
-        /// <summary>
-        /// Checks if the coordinate is valid for the current grid size.
-        /// </summary>
-        public bool IsValidCoordinate(int column, int row)
-        {
-            return column >= 0 && column < _currentGridSize &&
-                   row >= 0 && row < _currentGridSize;
-        }
-
-        /// <summary>
-        /// Sets the state of a specific cell.
-        /// </summary>
-        public void SetCellState(int column, int row, CellState state)
-        {
-            var cell = GetCell(column, row);
-            if (cell != null)
+            // Show/hide rows based on array length
+            for (int i = 0; i < _wordPatternRows.Count; i++)
             {
-                cell.SetState(state);
+                if (i < lengths.Length)
+                {
+                    _wordPatternRows[i].gameObject.SetActive(true);
+                    _wordPatternRows[i].SetRequiredLength(lengths[i]);
+                }
+                else
+                {
+                    _wordPatternRows[i].gameObject.SetActive(false);
+                }
             }
+
+            // Clear all placed words from grid
+            ClearAllPlacedWords();
+
+            Debug.Log($"[PlayerGridPanel] Set word lengths: {string.Join(", ", lengths)}");
         }
 
         /// <summary>
-        /// Sets the letter displayed in a specific cell.
+        /// Clears all placed words from the grid but keeps word entries.
         /// </summary>
-        public void SetCellLetter(int column, int row, char letter)
+        public void ClearAllPlacedWords()
         {
-            var cell = GetCell(column, row);
-            if (cell != null)
-            {
-                cell.SetLetter(letter);
-            }
-        }
-
-        /// <summary>
-        /// Clears the letter from a specific cell.
-        /// </summary>
-        public void ClearCellLetter(int column, int row)
-        {
-            var cell = GetCell(column, row);
-            if (cell != null)
-            {
-                cell.ClearLetter();
-            }
-        }
-
-        /// <summary>
-        /// Resets all cells to empty state.
-        /// </summary>
-        [Button("Reset All Cells")]
-        public void ResetAllCells()
-        {
+            // Clear all cells
             for (int col = 0; col < _currentGridSize; col++)
             {
                 for (int row = 0; row < _currentGridSize; row++)
                 {
-                    if (_cells[col, row] != null)
+                    var cell = GetCell(col, row);
+                    if (cell != null)
                     {
-                        _cells[col, row].SetState(CellState.Empty);
-                        _cells[col, row].ClearLetter();
+                        cell.SetState(CellState.Empty);
+                        cell.ClearLetter();
+                        cell.ClearHighlight();
                     }
                 }
             }
@@ -540,6 +471,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
             _allPlacedPositions.Clear();
             _placedLetters.Clear();
             _wordRowPositions.Clear();
+
+            Debug.Log("[PlayerGridPanel] Cleared all placed words");
         }
         #endregion
 
@@ -655,6 +588,20 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 return _wordPatternRows[index];
             }
             return null;
+        }
+
+        /// <summary>
+        /// Returns all WordPatternRow components for event subscription.
+        /// Used by SetupSettingsPanel to subscribe to OnInvalidWordRejected events.
+        /// </summary>
+        public WordPatternRow[] GetWordPatternRows()
+        {
+            if (_wordPatternRows == null || _wordPatternRows.Count == 0)
+            {
+                return new WordPatternRow[0];
+            }
+
+            return _wordPatternRows.ToArray();
         }
 
         /// <summary>
@@ -832,32 +779,42 @@ namespace TecVooDoo.DontLoseYourHead.UI
                         otherRow.ResetToWordEntered();
                     }
                 }
-
-                Debug.Log($"[PlayerGridPanel] Fallback clear - all placements reset");
             }
 
-            // Reset the target row to empty
+            // Reset the target row to empty (for re-entry)
             row.ResetToEmpty();
-
-            // Select the cleared row for new input
-            SelectWordRow(rowIndex);
 
             return true;
         }
 
         /// <summary>
-        /// Clears the currently selected word row if it's placed.
+        /// Clears the currently selected word row's placed word.
         /// </summary>
         public bool ClearSelectedPlacedWord()
         {
-            if (_selectedWordRowIndex < 0)
-            {
-                return false;
-            }
-
+            if (_selectedWordRowIndex < 0) return false;
             return ClearPlacedWord(_selectedWordRowIndex);
         }
 
+        /// <summary>
+        /// Sets the word validator for all word rows.
+        /// Validator function receives (word, requiredLength) and returns true if valid.
+        /// </summary>
+        public void SetWordValidator(Func<string, int, bool> validator)
+        {
+            _wordValidator = validator;
+
+            // Apply to all existing word pattern rows
+            foreach (var row in _wordPatternRows)
+            {
+                if (row != null)
+                {
+                    row.SetWordValidator(validator);
+                }
+            }
+
+            Debug.Log("[PlayerGridPanel] Word validator set");
+        }
 
         /// <summary>
         /// Caches word pattern row references.
@@ -885,6 +842,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 row.OnCoordinateModeClicked += HandleCoordinateModeClicked;
                 row.OnDeleteClicked -= HandleDeleteClicked;
                 row.OnDeleteClicked += HandleDeleteClicked;
+
+                // Apply word validator if set
+                if (_wordValidator != null)
+                {
+                    row.SetWordValidator(_wordValidator);
+                }
 
                 _wordPatternRows.Add(row);
             }
@@ -980,101 +943,99 @@ namespace TecVooDoo.DontLoseYourHead.UI
         }
 
         /// <summary>
-        /// Handles cell hover during placement mode - shows valid/invalid positions.
+        /// Attempts to place the current word randomly on the grid.
         /// </summary>
-        public void UpdatePlacementPreview(int column, int row)
-        {
-            if (_placementState == PlacementState.Inactive) return;
-
-            // Clear previous highlighting
-            ClearPlacementHighlighting();
-
-            if (_placementState == PlacementState.SelectingFirstCell)
-            {
-                // Check if this position has any valid directions
-                var validDirections = GetValidDirectionsFromCell(column, row);
-
-                if (validDirections.Count > 0)
-                {
-                    // Valid starting position - show yellow cursor and green directions
-                    HighlightCellForPlacement(column, row, _cursorColor);
-                    ShowValidDirections(column, row);
-                }
-                else
-                {
-                    // Invalid starting position - show red
-                    HighlightCellForPlacement(column, row, _invalidPlacementColor);
-                }
-            }
-            else if (_placementState == PlacementState.SelectingDirection)
-            {
-                // Keep first cell highlighted and show first letter
-                HighlightCellForPlacement(_firstCellCol, _firstCellRow, _cursorColor);
-
-                // Re-show the first letter (it was cleared by ClearPlacementHighlighting)
-                var firstCell = GetCell(_firstCellCol, _firstCellRow);
-                if (firstCell != null && !string.IsNullOrEmpty(_placementWord))
-                {
-                    firstCell.SetLetter(_placementWord[0]);
-                }
-
-                // Check if this position is valid for direction
-                bool isValidDirection = IsValidDirectionCell(column, row);
-
-                if (isValidDirection)
-                {
-                    // Preview the full word placement
-                    PreviewWordPlacement(column, row);
-                }
-                else
-                {
-                    // Highlight as invalid
-                    HighlightCellForPlacement(column, row, _invalidPlacementColor);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Places word randomly on the grid.
-        /// </summary>
-        [Button("Random Placement (Test)")]
         public bool PlaceWordRandomly()
         {
             if (_placementState == PlacementState.Inactive)
             {
-                Debug.LogWarning("[PlayerGridPanel] Not in placement mode");
+                Debug.LogError("[PlayerGridPanel] Not in placement mode");
                 return false;
             }
 
-            // Try random positions until we find a valid one
-            List<Vector2Int> validStartPositions = GetAllValidStartPositions();
-
-            if (validStartPositions.Count == 0)
+            if (string.IsNullOrEmpty(_placementWord))
             {
-                Debug.LogWarning("[PlayerGridPanel] No valid placement positions found");
+                Debug.LogError("[PlayerGridPanel] No word to place");
                 return false;
             }
 
-            // Shuffle and try each position
-            ShuffleList(validStartPositions);
+            // Get all valid placements
+            var validPlacements = GetAllValidPlacements();
 
-            foreach (var startPos in validStartPositions)
+            if (validPlacements.Count == 0)
             {
-                var validDirections = GetValidDirectionsFromCell(startPos.x, startPos.y);
+                Debug.LogWarning("[PlayerGridPanel] No valid placements found");
+                return false;
+            }
 
-                if (validDirections.Count > 0)
+            // Pick a random valid placement
+            int randomIndex = UnityEngine.Random.Range(0, validPlacements.Count);
+            var (startCol, startRow, dCol, dRow) = validPlacements[randomIndex];
+
+            return PlaceWordInDirection(startCol, startRow, dCol, dRow);
+        }
+        #endregion
+
+        #region Public Methods - Grid Cells
+        /// <summary>
+        /// Gets a cell by column and row.
+        /// </summary>
+        public GridCellUI GetCell(int column, int row)
+        {
+            if (column >= 0 && column < MAX_GRID_SIZE && row >= 0 && row < MAX_GRID_SIZE)
+            {
+                return _cells[column, row];
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Checks if a coordinate is within the current grid bounds.
+        /// </summary>
+        public bool IsValidCoordinate(int column, int row)
+        {
+            return column >= 0 && column < _currentGridSize && row >= 0 && row < _currentGridSize;
+        }
+
+        /// <summary>
+        /// Converts a column index to a letter (A-L).
+        /// </summary>
+        public char GetColumnLetter(int column)
+        {
+            return (char)('A' + column);
+        }
+
+        /// <summary>
+        /// Clears all cells in the grid.
+        /// </summary>
+        public void ClearGrid()
+        {
+            // Destroy existing cell GameObjects
+            if (_gridContainer != null)
+            {
+                for (int i = _gridContainer.childCount - 1; i >= 0; i--)
                 {
-                    // Pick random direction
-                    int dirIndex = UnityEngine.Random.Range(0, validDirections.Count);
-                    Vector2Int direction = validDirections[dirIndex];
-
-                    // Place the word
-                    return PlaceWordInDirection(startPos.x, startPos.y, direction.x, direction.y);
+                    if (Application.isPlaying)
+                    {
+                        Destroy(_gridContainer.GetChild(i).gameObject);
+                    }
+                    else
+                    {
+                        DestroyImmediate(_gridContainer.GetChild(i).gameObject);
+                    }
                 }
             }
 
-            Debug.LogWarning("[PlayerGridPanel] Could not find valid random placement");
-            return false;
+            // Clear the cell array
+            for (int col = 0; col < MAX_GRID_SIZE; col++)
+            {
+                for (int row = 0; row < MAX_GRID_SIZE; row++)
+                {
+                    _cells[col, row] = null;
+                }
+            }
+
+            _isInitialized = false;
         }
         #endregion
 
@@ -1228,175 +1189,126 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             Debug.Log($"[PlayerGridPanel] Panel height updated. Grid: {gridHeight}px, Total: {totalHeight}px");
         }
-        #endregion
 
-        #region Private Methods - Grid Creation
-        private void CreateCellsForCurrentSize()
-        {
-            for (int row = 0; row < _currentGridSize; row++)
-            {
-                for (int col = 0; col < _currentGridSize; col++)
-                {
-                    var cell = Instantiate(_cellPrefab, _gridContainer);
-                    cell.name = $"Cell_{GetColumnLetter(col)}{row + 1}";
-                    cell.Initialize(col, row);
-
-                    int capturedCol = col;
-                    int capturedRow = row;
-                    cell.OnCellClicked += () => HandleCellClicked(capturedCol, capturedRow);
-                    cell.OnCellHoverEnter += () => HandleCellHoverEnter(capturedCol, capturedRow);
-                    cell.OnCellHoverExit += () => HandleCellHoverExit(capturedCol, capturedRow);
-
-                    _cells[col, row] = cell;
-                }
-            }
-        }
-
-        private void ClearGrid()
-        {
-            for (int col = 0; col < MAX_GRID_SIZE; col++)
-            {
-                for (int row = 0; row < MAX_GRID_SIZE; row++)
-                {
-                    _cells[col, row] = null;
-                }
-            }
-
-            if (_gridContainer != null)
-            {
-                for (int i = _gridContainer.childCount - 1; i >= 0; i--)
-                {
-                    var child = _gridContainer.GetChild(i);
-                    if (Application.isPlaying)
-                    {
-                        Destroy(child.gameObject);
-                    }
-                    else
-                    {
-                        DestroyImmediate(child.gameObject);
-                    }
-                }
-            }
-        }
-        #endregion
-
-        #region Private Methods - Labels
         private void UpdateLabelVisibility()
         {
-            int hiddenRows = 0;
-            int hiddenCols = 0;
-
+            // Show/hide row labels based on current grid size
             for (int i = 0; i < MAX_GRID_SIZE; i++)
             {
                 if (_rowLabelObjects[i] != null)
                 {
-                    bool shouldBeVisible = i < _currentGridSize;
-                    _rowLabelObjects[i].SetActive(shouldBeVisible);
-                    if (!shouldBeVisible) hiddenRows++;
+                    _rowLabelObjects[i].SetActive(i < _currentGridSize);
                 }
             }
 
+            // Show/hide column labels based on current grid size
             for (int i = 0; i < MAX_GRID_SIZE; i++)
             {
                 if (_columnLabelObjects[i] != null)
                 {
-                    bool shouldBeVisible = i < _currentGridSize;
-                    _columnLabelObjects[i].SetActive(shouldBeVisible);
-                    if (!shouldBeVisible) hiddenCols++;
+                    _columnLabelObjects[i].SetActive(i < _currentGridSize);
                 }
             }
 
-            Debug.Log($"[PlayerGridPanel] Labels updated. Hidden: {hiddenRows} rows, {hiddenCols} columns");
+            Debug.Log($"[PlayerGridPanel] Labels updated. Hidden: {MAX_GRID_SIZE - _currentGridSize} rows, {MAX_GRID_SIZE - _currentGridSize} columns");
         }
 
-        private char GetColumnLetter(int columnIndex)
+        private void CreateCellsForCurrentSize()
         {
-            return (char)('A' + columnIndex);
+            // Create cells in row-major order (row 0, then row 1, etc.)
+            // This matches how GridLayoutGroup lays out children
+            for (int row = 0; row < _currentGridSize; row++)
+            {
+                for (int col = 0; col < _currentGridSize; col++)
+                {
+                    CreateCell(col, row);
+                }
+            }
+
+            Debug.Log($"[PlayerGridPanel] Created {_currentGridSize * _currentGridSize} cells for {_currentGridSize}x{_currentGridSize} grid");
+        }
+
+        private void CreateCell(int column, int row)
+        {
+            if (_cellPrefab == null || _gridContainer == null) return;
+
+            GameObject cellGO = Instantiate(_cellPrefab.gameObject, _gridContainer);
+            cellGO.name = $"Cell_{GetColumnLetter(column)}{row + 1}";
+
+            GridCellUI cell = cellGO.GetComponent<GridCellUI>();
+            if (cell != null)
+            {
+                cell.Initialize(column, row);
+
+                // Subscribe to cell events
+                cell.OnCellClicked += HandleCellClicked;
+                cell.OnCellHoverEnter += HandleCellHoverEnter;
+                cell.OnCellHoverExit += HandleCellHoverExit;
+
+                _cells[column, row] = cell;
+            }
         }
         #endregion
 
-        #region Private Methods - Placement Helpers
-        private void ClearPlacementHighlighting()
+        #region Private Methods - Placement Validation
+        private List<(int col, int row, int dCol, int dRow)> GetAllValidPlacements()
         {
-            for (int col = 0; col < _currentGridSize; col++)
-            {
-                for (int row = 0; row < _currentGridSize; row++)
-                {
-                    if (_cells[col, row] != null)
-                    {
-                        var pos = new Vector2Int(col, row);
-                        if (_allPlacedPositions.Contains(pos))
-                        {
-                            // This cell has a placed letter - preserve it
-                            _cells[col, row].ClearHighlight();
-                            _cells[col, row].SetHighlightColor(_placedLetterColor);
+            var validPlacements = new List<(int, int, int, int)>();
 
-                            // Make sure the letter is still displayed
-                            if (_placedLetters.TryGetValue(pos, out char letter))
-                            {
-                                _cells[col, row].SetLetter(letter);
-                            }
-                        }
-                        else
+            if (string.IsNullOrEmpty(_placementWord)) return validPlacements;
+
+            int wordLength = _placementWord.Length;
+
+            // 8 directions: horizontal, vertical, diagonal (including backwards)
+            int[] dCols = { 1, 0, 1, 1, -1, 0, -1, -1 };
+            int[] dRows = { 0, 1, 1, -1, 0, -1, -1, 1 };
+
+            for (int startCol = 0; startCol < _currentGridSize; startCol++)
+            {
+                for (int startRow = 0; startRow < _currentGridSize; startRow++)
+                {
+                    for (int d = 0; d < 8; d++)
+                    {
+                        if (IsValidPlacement(startCol, startRow, dCols[d], dRows[d], wordLength))
                         {
-                            // Empty cell - clear everything
-                            _cells[col, row].SetState(CellState.Empty);
-                            _cells[col, row].ClearHighlight();
-                            _cells[col, row].ClearLetter();
+                            validPlacements.Add((startCol, startRow, dCols[d], dRows[d]));
                         }
                     }
                 }
             }
+
+            // Shuffle for randomness
+            ShuffleList(validPlacements);
+
+            return validPlacements;
         }
 
-        private void HighlightCellForPlacement(int col, int row, Color color)
+        private bool IsValidPlacement(int startCol, int startRow, int dCol, int dRow, int wordLength)
         {
-            var cell = GetCell(col, row);
-            if (cell != null)
-            {
-                cell.SetHighlightColor(color);
-            }
-        }
-
-        private void ShowValidDirections(int col, int row)
-        {
-            int[] dCols = { -1, 0, 1, -1, 1, -1, 0, 1 };
-            int[] dRows = { -1, -1, -1, 0, 0, 1, 1, 1 };
-
-            for (int i = 0; i < 8; i++)
-            {
-                if (CanPlaceWordInDirection(col, row, dCols[i], dRows[i]))
-                {
-                    int nextCol = col + dCols[i];
-                    int nextRow = row + dRows[i];
-                    HighlightCellForPlacement(nextCol, nextRow, _validPlacementColor);
-                }
-            }
-        }
-
-        private bool CanPlaceWordInDirection(int startCol, int startRow, int dCol, int dRow)
-        {
-            if (_placementWord.Length == 0) return false;
-
-            for (int i = 0; i < _placementWord.Length; i++)
+            // Check each letter position
+            for (int i = 0; i < wordLength; i++)
             {
                 int col = startCol + (i * dCol);
                 int row = startRow + (i * dRow);
 
+                // Check bounds
                 if (!IsValidCoordinate(col, row))
                 {
                     return false;
                 }
 
+                // Check for conflicts with existing letters
                 var pos = new Vector2Int(col, row);
                 if (_allPlacedPositions.Contains(pos))
                 {
+                    // There's already a letter here - check if it matches
                     if (_placedLetters.TryGetValue(pos, out char existingLetter))
                     {
                         if (existingLetter != _placementWord[i])
                         {
-                            return false;
+                            return false; // Conflict - different letter
                         }
+                        // Same letter - valid overlap
                     }
                 }
             }
@@ -1404,72 +1316,199 @@ namespace TecVooDoo.DontLoseYourHead.UI
             return true;
         }
 
+        private List<Vector2Int> GetValidDirectionsFromCell(int startCol, int startRow)
+        {
+            var validCells = new List<Vector2Int>();
+
+            if (string.IsNullOrEmpty(_placementWord)) return validCells;
+
+            int wordLength = _placementWord.Length;
+
+            // 8 directions
+            int[] dCols = { 1, 0, 1, 1, -1, 0, -1, -1 };
+            int[] dRows = { 0, 1, 1, -1, 0, -1, -1, 1 };
+
+            for (int d = 0; d < 8; d++)
+            {
+                if (IsValidPlacement(startCol, startRow, dCols[d], dRows[d], wordLength))
+                {
+                    // The second cell in this direction
+                    int secondCol = startCol + dCols[d];
+                    int secondRow = startRow + dRows[d];
+                    validCells.Add(new Vector2Int(secondCol, secondRow));
+                }
+            }
+
+            return validCells;
+        }
+
         private bool IsValidDirectionCell(int col, int row)
         {
             if (_firstCellCol < 0 || _firstCellRow < 0) return false;
 
-            int dCol = col - _firstCellCol;
-            int dRow = row - _firstCellRow;
+            var validDirections = GetValidDirectionsFromCell(_firstCellCol, _firstCellRow);
+            return validDirections.Contains(new Vector2Int(col, row));
+        }
+        #endregion
 
-            if (Mathf.Abs(dCol) > 1 || Mathf.Abs(dRow) > 1) return false;
-            if (dCol == 0 && dRow == 0) return false;
+        #region Private Methods - Placement Preview
+        private void UpdatePlacementPreview(int hoverCol, int hoverRow)
+        {
+            // Clear previous highlighting
+            ClearPlacementHighlighting();
 
-            return CanPlaceWordInDirection(_firstCellCol, _firstCellRow, dCol, dRow);
+            if (_placementState == PlacementState.SelectingFirstCell)
+            {
+                // Show valid directions from hover cell
+                var validDirections = GetValidDirectionsFromCell(hoverCol, hoverRow);
+
+                // Highlight current cell as cursor
+                var hoverCell = GetCell(hoverCol, hoverRow);
+                if (hoverCell != null)
+                {
+                    hoverCell.SetHighlightColor(_cursorColor);
+                }
+
+                // Highlight valid direction cells in green
+                foreach (var pos in validDirections)
+                {
+                    var cell = GetCell(pos.x, pos.y);
+                    if (cell != null)
+                    {
+                        cell.SetHighlightColor(_validPlacementColor);
+                    }
+                }
+
+                // Highlight invalid cells (cells that would make word go out of bounds)
+                HighlightInvalidCells(hoverCol, hoverRow, validDirections);
+            }
+            else if (_placementState == PlacementState.SelectingDirection)
+            {
+                // First cell stays highlighted as cursor
+                var firstCell = GetCell(_firstCellCol, _firstCellRow);
+                if (firstCell != null)
+                {
+                    firstCell.SetHighlightColor(_cursorColor);
+                }
+
+                // Show valid second cells
+                var validDirections = GetValidDirectionsFromCell(_firstCellCol, _firstCellRow);
+                foreach (var pos in validDirections)
+                {
+                    var cell = GetCell(pos.x, pos.y);
+                    if (cell != null)
+                    {
+                        cell.SetHighlightColor(_validPlacementColor);
+                    }
+                }
+
+                // If hovering over a valid direction, preview the full word
+                if (validDirections.Contains(new Vector2Int(hoverCol, hoverRow)))
+                {
+                    PreviewWordPlacement(hoverCol, hoverRow);
+                }
+            }
+        }
+
+        private void HighlightInvalidCells(int hoverCol, int hoverRow, List<Vector2Int> validDirections)
+        {
+            // For each adjacent cell that is NOT in validDirections, mark as invalid
+            int[] dCols = { 1, 0, 1, 1, -1, 0, -1, -1 };
+            int[] dRows = { 0, 1, 1, -1, 0, -1, -1, 1 };
+
+            for (int d = 0; d < 8; d++)
+            {
+                int adjCol = hoverCol + dCols[d];
+                int adjRow = hoverRow + dRows[d];
+
+                if (IsValidCoordinate(adjCol, adjRow))
+                {
+                    var adjPos = new Vector2Int(adjCol, adjRow);
+                    if (!validDirections.Contains(adjPos))
+                    {
+                        var cell = GetCell(adjCol, adjRow);
+                        if (cell != null)
+                        {
+                            cell.SetHighlightColor(_invalidPlacementColor);
+                        }
+                    }
+                }
+            }
         }
 
         private void PreviewWordPlacement(int secondCol, int secondRow)
         {
+            if (_firstCellCol < 0 || _firstCellRow < 0) return;
+
             int dCol = secondCol - _firstCellCol;
             int dRow = secondRow - _firstCellRow;
 
+            // Preview all letters in the word
             for (int i = 0; i < _placementWord.Length; i++)
             {
                 int col = _firstCellCol + (i * dCol);
                 int row = _firstCellRow + (i * dRow);
 
-                Color highlightColor = (i == 0) ? _cursorColor : _validPlacementColor;
-                HighlightCellForPlacement(col, row, highlightColor);
+                var cell = GetCell(col, row);
+                if (cell != null)
+                {
+                    cell.SetLetter(_placementWord[i]);
+
+                    // First cell is cursor color, rest are valid placement color
+                    if (i == 0)
+                    {
+                        cell.SetHighlightColor(_cursorColor);
+                    }
+                    else
+                    {
+                        cell.SetHighlightColor(_validPlacementColor);
+                    }
+                }
             }
         }
 
-        private List<Vector2Int> GetAllValidStartPositions()
+        private void ClearPlacementHighlighting()
         {
-            List<Vector2Int> validPositions = new List<Vector2Int>();
-
             for (int col = 0; col < _currentGridSize; col++)
             {
                 for (int row = 0; row < _currentGridSize; row++)
                 {
-                    if (GetValidDirectionsFromCell(col, row).Count > 0)
+                    var cell = GetCell(col, row);
+                    if (cell != null)
                     {
-                        validPositions.Add(new Vector2Int(col, row));
+                        // Only clear highlighting, not permanently placed letters
+                        cell.ClearHighlight();
+
+                        var pos = new Vector2Int(col, row);
+                        if (_allPlacedPositions.Contains(pos))
+                        {
+                            // Restore placed letter
+                            if (_placedLetters.TryGetValue(pos, out char letter))
+                            {
+                                cell.SetLetter(letter);
+                                cell.SetState(CellState.Filled);
+                            }
+                        }
+                        else
+                        {
+                            // Clear any preview letters
+                            cell.ClearLetter();
+                        }
                     }
                 }
             }
-
-            return validPositions;
         }
+        #endregion
 
-        private List<Vector2Int> GetValidDirectionsFromCell(int col, int row)
-        {
-            List<Vector2Int> validDirections = new List<Vector2Int>();
-
-            int[] dCols = { -1, 0, 1, -1, 1, -1, 0, 1 };
-            int[] dRows = { -1, -1, -1, 0, 0, 1, 1, 1 };
-
-            for (int i = 0; i < 8; i++)
-            {
-                if (CanPlaceWordInDirection(col, row, dCols[i], dRows[i]))
-                {
-                    validDirections.Add(new Vector2Int(dCols[i], dRows[i]));
-                }
-            }
-
-            return validDirections;
-        }
-
+        #region Private Methods - Word Placement
         private bool PlaceWordInDirection(int startCol, int startRow, int dCol, int dRow)
         {
+            if (string.IsNullOrEmpty(_placementWord)) return false;
+
+            // Clear previous highlighting
+            ClearPlacementHighlighting();
+
+            // Place all letters
             _placedCellPositions.Clear();
 
             for (int i = 0; i < _placementWord.Length; i++)
@@ -1594,6 +1633,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         private void HandleLetterClicked(char letter)
         {
+            // Fire event for SetupSettingsPanel to route to name input if focused
+            OnLetterInput?.Invoke(letter);
+
             Debug.Log($"[PlayerGridPanel] Letter clicked: {letter}");
 
             if (_currentMode == PanelMode.Setup)

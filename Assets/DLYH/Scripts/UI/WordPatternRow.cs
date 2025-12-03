@@ -104,6 +104,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private string _enteredText = "";
         private bool[] _revealedLetters;
         private bool _isSelected;
+        private Func<string, int, bool> _wordValidator;
         #endregion
 
         #region Events
@@ -131,6 +132,11 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// Fired when a word is auto-accepted (reached correct length). Parameter: row number, word
         /// </summary>
         public event Action<int, string> OnWordAccepted;
+
+        /// <summary>
+        /// Fired when an invalid word is rejected. Parameters: row number, rejected word
+        /// </summary>
+        public event Action<int, string> OnInvalidWordRejected;
         #endregion
 
         #region Properties
@@ -241,6 +247,15 @@ namespace TecVooDoo.DontLoseYourHead.UI
             _revealedLetters = new bool[_requiredWordLength];
             UpdateDisplay();
         }
+
+        /// <summary>
+        /// Sets a validator function to check if entered words are valid.
+        /// Validator receives (word, requiredLength) and returns true if valid.
+        /// </summary>
+        public void SetWordValidator(Func<string, int, bool> validator)
+        {
+            _wordValidator = validator;
+        }
         #endregion
 
         #region Public Methods - Word Entry (Setup Mode)
@@ -260,7 +275,20 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             if (_enteredText.Length == _requiredWordLength)
             {
-                // Auto-accept when word is complete
+                // Validate word before accepting
+                if (_wordValidator != null && !_wordValidator(_enteredText, _requiredWordLength))
+                {
+                    // Invalid word - stay in entering state, remove last letter
+                    string rejectedWord = _enteredText;
+                    _enteredText = _enteredText.Substring(0, _enteredText.Length - 1);
+                    SetState(RowState.Entering);
+                    UpdateDisplay();
+                    OnInvalidWordRejected?.Invoke(_rowNumber, rejectedWord);
+                    Debug.LogWarning($"[WordPatternRow] Row {_rowNumber}: Invalid word rejected: {rejectedWord}");
+                    return false;
+                }
+
+                // Auto-accept when word is complete and valid
                 _currentWord = _enteredText.ToUpper();
                 SetState(RowState.WordEntered);
                 OnWordAccepted?.Invoke(_rowNumber, _currentWord);
@@ -314,7 +342,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         /// <summary>
         /// Sets the entered text directly (e.g., from autocomplete selection).
-        /// Auto-accepts if correct length.
+        /// Auto-accepts if correct length. Validates against word bank if validator is set.
         /// </summary>
         /// <param name="word">The word to set</param>
         public void SetEnteredText(string word)
@@ -335,7 +363,22 @@ namespace TecVooDoo.DontLoseYourHead.UI
             }
             else if (_enteredText.Length == _requiredWordLength)
             {
-                // Auto-accept when word is complete
+                // Validate word before accepting (autocomplete words should already be valid,
+                // but this adds an extra safety check)
+                if (_wordValidator != null && !_wordValidator(_enteredText, _requiredWordLength))
+                {
+                    // Invalid word - clear and go to empty state
+                    string rejectedWord = _enteredText;
+                    _enteredText = "";
+                    _currentWord = "";
+                    SetState(RowState.Empty);
+                    OnInvalidWordRejected?.Invoke(_rowNumber, rejectedWord);
+                    Debug.LogWarning($"[WordPatternRow] Row {_rowNumber}: Invalid word rejected from autocomplete: {rejectedWord}");
+                    UpdateDisplay();
+                    return;
+                }
+
+                // Auto-accept when word is complete and valid
                 _currentWord = _enteredText.ToUpper();
                 SetState(RowState.WordEntered);
                 OnWordAccepted?.Invoke(_rowNumber, _currentWord);

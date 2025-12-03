@@ -220,8 +220,8 @@ private void ProcessKeyboardInput()
                 return;
             }
 
-            // Check for letter keys (A-Z) - only if enabled
-            if (_enableKeyboardLetterInput)
+            // Check for letter keys (A-Z) - only if enabled and no input field is focused
+            if (_enableKeyboardLetterInput && !IsInputFieldFocused())
             {
                 ProcessLetterKeys(keyboard);
             }
@@ -453,6 +453,19 @@ private void HandleDeleteKey()
                 case 'Z': return Key.Z;
                 default: return Key.None;
             }
+        }
+
+        private bool IsInputFieldFocused()
+        {
+            var eventSystem = UnityEngine.EventSystems.EventSystem.current;
+            if (eventSystem == null) return false;
+
+            var selected = eventSystem.currentSelectedGameObject;
+            if (selected == null) return false;
+
+            // Check for TMP_InputField or legacy InputField
+            return selected.GetComponent<TMPro.TMP_InputField>() != null
+                || selected.GetComponent<UnityEngine.UI.InputField>() != null;
         }
         #endregion
 

@@ -28,9 +28,20 @@ namespace TecVooDoo.DontLoseYourHead.UI
         #endregion
 
         #region Events
-        public System.Action OnCellClicked;
-        public System.Action OnCellHoverEnter;
-        public System.Action OnCellHoverExit;
+        /// <summary>
+        /// Fired when the cell is clicked. Parameters: column, row
+        /// </summary>
+        public System.Action<int, int> OnCellClicked;
+
+        /// <summary>
+        /// Fired when mouse enters the cell. Parameters: column, row
+        /// </summary>
+        public System.Action<int, int> OnCellHoverEnter;
+
+        /// <summary>
+        /// Fired when mouse exits the cell. Parameters: column, row
+        /// </summary>
+        public System.Action<int, int> OnCellHoverExit;
         #endregion
 
         #region Properties
@@ -46,7 +57,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             _column = column;
             _row = row;
             _currentLetter = '\0';
-            
+
             if (_button != null)
             {
                 _button.onClick.AddListener(HandleClick);
@@ -104,7 +115,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         {
             _isHighlighted = true;
             _highlightColor = color;
-            
+
             if (_background != null)
             {
                 _background.color = color;
@@ -163,19 +174,19 @@ namespace TecVooDoo.DontLoseYourHead.UI
         #region Event Handlers
         private void HandleClick()
         {
-            OnCellClicked?.Invoke();
+            OnCellClicked?.Invoke(_column, _row);
         }
 
         public void OnPointerEnter(PointerEventData eventData)
         {
             _isHovered = true;
-            OnCellHoverEnter?.Invoke();
+            OnCellHoverEnter?.Invoke(_column, _row);
         }
 
         public void OnPointerExit(PointerEventData eventData)
         {
             _isHovered = false;
-            OnCellHoverExit?.Invoke();
+            OnCellHoverExit?.Invoke(_column, _row);
         }
         #endregion
 

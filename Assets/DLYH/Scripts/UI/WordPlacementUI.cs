@@ -17,23 +17,23 @@ namespace TecVooDoo.DontLoseYourHead.UI
         [Title("Core References")]
         [Required]
         [SerializeField] private Core.GameStateMachine _gameStateMachine;
-        
+
         [Required]
         [SerializeField] private Core.DifficultySO _playerDifficulty;
-        
+
         [Required]
         [SerializeField] private Core.PlayerSO _playerData;
-        
+
         [Title("Word Lists")]
         [Required]
         [SerializeField] private Core.WordListSO _wordList3Letter;
-        
+
         [Required]
         [SerializeField] private Core.WordListSO _wordList4Letter;
-        
+
         [Required]
         [SerializeField] private Core.WordListSO _wordList5Letter;
-        
+
         [Required]
         [SerializeField] private Core.WordListSO _wordList6Letter;
 
@@ -44,7 +44,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         [Title("UI Elements - Keyboard")]
         [Required]
         [SerializeField] private Transform _keyboardContainer;
-        
+
         [SerializeField] private Button _letterButtonPrefab;
 
         [Title("UI Elements - Word Rows")]
@@ -54,28 +54,28 @@ namespace TecVooDoo.DontLoseYourHead.UI
         [Title("UI Elements - Autocomplete")]
         [Required]
         [SerializeField] private GameObject _autocompletePanel;
-        
+
         [Required]
         [SerializeField] private Transform _autocompleteContent;
-        
+
         [SerializeField] private Button _autocompleteItemPrefab;
 
         [Title("UI Elements - Grid")]
         [Required]
         [SerializeField] private GridLayoutGroup _gridContainer;
-        
+
         [SerializeField] private GridCellUI _gridCellPrefab;
-        
+
         [Required]
         [SerializeField] private Button _randomPlacementButton;
 
         [Title("Settings")]
         [SerializeField] private int _maxAutocompleteResults = 10;
-        
+
         [SerializeField] private Color _validPlacementColor = Color.green;
-        
+
         [SerializeField] private Color _invalidPlacementColor = Color.red;
-        
+
         [SerializeField] private Color _activeCellColor = Color.yellow;
         #endregion
 
@@ -110,15 +110,15 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private void InitializeKeyboard()
         {
             string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-            
+
             foreach (char letter in alphabet)
             {
                 Button btn = Instantiate(_letterButtonPrefab, _keyboardContainer);
                 btn.GetComponentInChildren<TextMeshProUGUI>().text = letter.ToString();
-                
+
                 char capturedLetter = letter; // Capture for closure
                 btn.onClick.AddListener(() => OnLetterClicked(capturedLetter));
-                
+
                 _letterButtons[letter] = btn;
             }
         }
@@ -140,11 +140,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 {
                     GridCellUI cell = Instantiate(_gridCellPrefab, _gridContainer.transform);
                     cell.Initialize(col, row);
-                    
-                    int capturedCol = col;
-                    int capturedRow = row;
-                    cell.OnCellClicked += () => OnGridCellClicked(capturedCol, capturedRow);
-                    
+
+                    // Subscribe directly - OnCellClicked is now Action<int, int> and passes col, row
+                    cell.OnCellClicked += OnGridCellClicked;
+
                     _gridCells[col, row] = cell;
                 }
             }
@@ -153,7 +152,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private void SetupWordRows()
         {
             int[] wordLengths = _playerDifficulty.RequiredWordLengths;
-            
+
             for (int i = 0; i < _wordRows.Length && i < wordLengths.Length; i++)
             {
                 int wordLength = wordLengths[i];
@@ -193,7 +192,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             }
 
             WordEntryRow currentRow = _wordRows[_currentWordIndex];
-            
+
             if (_currentWordInput.Length < currentRow.RequiredLength)
             {
                 _currentWordInput += letter;
@@ -241,7 +240,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             {
                 Button item = Instantiate(_autocompleteItemPrefab, _autocompleteContent);
                 item.GetComponentInChildren<TextMeshProUGUI>().text = word;
-                
+
                 string capturedWord = word;
                 item.onClick.AddListener(() => OnAutocompleteSelected(capturedWord));
             }
@@ -259,7 +258,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private Core.WordListSO GetWordListForCurrentRow()
         {
             int requiredLength = _wordRows[_currentWordIndex].RequiredLength;
-            
+
             return requiredLength switch
             {
                 3 => _wordList3Letter,
@@ -308,7 +307,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         {
             _wordRows[rowIndex].SetWord("");
             _wordRows[rowIndex].SetAccepted(false);
-            
+
             if (rowIndex == _currentWordIndex)
             {
                 _currentWordInput = "";
@@ -322,9 +321,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
         {
             _isInCoordinateMode = !_isInCoordinateMode;
             _currentWordIndex = rowIndex;
-            
+
             Debug.Log($"[WordPlacementUI] Coordinate mode: {_isInCoordinateMode} for row {rowIndex}");
-            
+
             if (_isInCoordinateMode)
             {
                 _autocompletePanel.SetActive(false);
@@ -335,7 +334,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private Core.WordListSO GetWordListForRow(int rowIndex)
         {
             int requiredLength = _wordRows[rowIndex].RequiredLength;
-            
+
             return requiredLength switch
             {
                 3 => _wordList3Letter,
@@ -398,19 +397,19 @@ namespace TecVooDoo.DontLoseYourHead.UI
     {
         [Required]
         public GameObject RowObject;
-        
+
         [Required]
         public TextMeshProUGUI NumberLabel;
-        
+
         [Required]
         public TextMeshProUGUI WordDisplay;
-        
+
         [Required]
         public Button AcceptButton;
-        
+
         [Required]
         public Button CoordinateModeButton;
-        
+
         [Required]
         public Button DeleteButton;
 
@@ -426,18 +425,18 @@ namespace TecVooDoo.DontLoseYourHead.UI
         {
             RequiredLength = requiredLength;
             NumberLabel.text = wordNumber.ToString();
-            
+
             AcceptButton.onClick.AddListener(() => OnAcceptClicked?.Invoke());
             DeleteButton.onClick.AddListener(() => OnDeleteClicked?.Invoke());
             CoordinateModeButton.onClick.AddListener(() => OnCoordinateModeClicked?.Invoke());
-            
+
             SetWord("");
         }
 
         public void SetWord(string word)
         {
             CurrentWord = word.ToUpper();
-            
+
             // Display word with underscores for empty spaces
             string display = "";
             for (int i = 0; i < RequiredLength; i++)
@@ -451,7 +450,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
                     display += "_ ";
                 }
             }
-            
+
             WordDisplay.text = display.Trim();
         }
 
