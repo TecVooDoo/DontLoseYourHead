@@ -9581,7 +9581,7 @@ GameObject:
   - component: {fileID: 562963192}
   - component: {fileID: 562963191}
   m_Layer: 5
-  m_Name: ForgivenessLabel
+  m_Name: DifficultyLabel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -9646,7 +9646,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'Forgiveness: '
+  m_text: 'Difficulty:'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -17641,7 +17641,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TecVooDoo.DontLoseYourHead.UI.SetupSettingsPanel
   _gridSizeDropdown: {fileID: 1357875889}
   _wordCountDropdown: {fileID: 1369634111}
-  _forgivenessDropdown: {fileID: 1058690171}
+  _difficultyDropdown: {fileID: 1058690171}
   _playerNameInput: {fileID: 307211707}
   _colorButtonsContainer: {fileID: 1582273757}
   _pickRandomWordsButton: {fileID: 1004730549}
@@ -19300,7 +19300,7 @@ GameObject:
   - component: {fileID: 1058690171}
   - component: {fileID: 1058690170}
   m_Layer: 5
-  m_Name: ForgivenessDropdown
+  m_Name: DifficultyDropdown
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -23719,7 +23719,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Strict
+  m_text: Hard
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -23752,7 +23752,7 @@ MonoBehaviour:
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 0
+  m_fontStyle: 1
   m_HorizontalAlignment: 1
   m_VerticalAlignment: 512
   m_textAlignment: 65535
@@ -35510,7 +35510,7 @@ GameObject:
   - component: {fileID: 2004506450}
   - component: {fileID: 2004506449}
   m_Layer: 5
-  m_Name: ForgivenessRow
+  m_Name: DifficultyRow
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

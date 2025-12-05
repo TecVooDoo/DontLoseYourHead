@@ -27,18 +27,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             Gameplay
         }
 
-        /// <summary>
-        /// State of coordinate placement mode
-        /// </summary>
-        public enum PlacementState
-        {
-            /// <summary>Not in placement mode</summary>
-            Inactive,
-            /// <summary>Waiting for first letter position</summary>
-            SelectingFirstCell,
-            /// <summary>First letter placed, waiting for direction</summary>
-            SelectingDirection
-        }
+        
         #endregion
 
         #region Constants
@@ -136,8 +125,11 @@ namespace TecVooDoo.DontLoseYourHead.UI
         #endregion
 
         #region Private Fields - Letter Tracker
-        private Dictionary<char, LetterButton> _letterButtons = new Dictionary<char, LetterButton>();
-        private bool _letterButtonsCached;
+        private LetterTrackerController _letterTrackerController;
+        #endregion
+
+        #region Private Fields - Grid Color Manager
+        private GridColorManager _gridColorManager;
         #endregion
 
         #region Private Fields - Word Patterns
@@ -248,7 +240,23 @@ private void Start()
         {
             Debug.Log("[PlayerGridPanel] START() called - script is running!");
             
-            CacheLetterButtons();
+            // Initialize grid color manager with serialized colors
+            _gridColorManager = new GridColorManager(
+                _cursorColor,
+                _validPlacementColor,
+                _invalidPlacementColor,
+                _placedLetterColor
+            );
+            
+            // Initialize letter tracker controller
+            _letterTrackerController = new LetterTrackerController(_letterTrackerContainer);
+            _letterTrackerController.CacheLetterButtons();
+            
+            // Wire controller events to panel events
+            _letterTrackerController.OnLetterClicked += HandleLetterClicked;
+            _letterTrackerController.OnLetterHoverEnter += HandleLetterHoverEnter;
+            _letterTrackerController.OnLetterHoverExit += HandleLetterHoverExit;
+            
             CacheWordPatternRows();
 
             // Initialize grid with events wired up
@@ -260,7 +268,7 @@ private void Start()
             // Double-check button reference
             if (_randomPlacementButton != null)
             {
-                Debug.Log($"[PlayerGridPanel] Random placement button reference is VALID: {_randomPlacementButton.gameObject.name}");
+                Debug.Log(string.Format("[PlayerGridPanel] Random placement button reference is VALID: {0}", _randomPlacementButton.gameObject.name));
             }
             else
             {
@@ -502,48 +510,37 @@ public void SetGridSize(int newSize)
         /// <summary>
         /// Gets a letter button by its letter.
         /// </summary>
-        public LetterButton GetLetterButton(char letter)
+public LetterButton GetLetterButton(char letter)
         {
-            char upperLetter = char.ToUpper(letter);
-            if (_letterButtons.TryGetValue(upperLetter, out LetterButton button))
-            {
-                return button;
-            }
-            return null;
+            if (_letterTrackerController == null) return null;
+            return _letterTrackerController.GetLetterButton(letter);
         }
 
         /// <summary>
         /// Sets the state of a letter button.
         /// </summary>
-        public void SetLetterState(char letter, LetterButton.LetterState state)
+public void SetLetterState(char letter, LetterButton.LetterState state)
         {
-            var button = GetLetterButton(letter);
-            if (button != null)
-            {
-                button.SetState(state);
-            }
+            if (_letterTrackerController == null) return;
+            _letterTrackerController.SetLetterState(letter, state);
         }
 
         /// <summary>
         /// Resets all letter buttons to normal state.
         /// </summary>
-        public void ResetAllLetterButtons()
+public void ResetAllLetterButtons()
         {
-            foreach (var button in _letterButtons.Values)
-            {
-                button.ResetState();
-            }
+            if (_letterTrackerController == null) return;
+            _letterTrackerController.ResetAllLetterButtons();
         }
 
         /// <summary>
         /// Sets whether letter buttons are interactable.
         /// </summary>
-        public void SetLetterButtonsInteractable(bool interactable)
+public void SetLetterButtonsInteractable(bool interactable)
         {
-            foreach (var button in _letterButtons.Values)
-            {
-                button.IsInteractable = interactable;
-            }
+            if (_letterTrackerController == null) return;
+            _letterTrackerController.SetLetterButtonsInteractable(interactable);
         }
 
         /// <summary>
@@ -552,50 +549,14 @@ public void SetGridSize(int newSize)
         [Button("Cache Letter Buttons")]
         public void CacheLetterButtons()
         {
-            _letterButtons.Clear();
-
-            if (_letterTrackerContainer == null)
+            if (_letterTrackerController == null)
             {
-                Debug.LogWarning("[PlayerGridPanel] Letter tracker container not assigned.");
-                return;
+                _letterTrackerController = new LetterTrackerController(_letterTrackerContainer);
+                _letterTrackerController.OnLetterClicked += HandleLetterClicked;
+                _letterTrackerController.OnLetterHoverEnter += HandleLetterHoverEnter;
+                _letterTrackerController.OnLetterHoverExit += HandleLetterHoverExit;
             }
-
-            // Find all LetterButton components in children
-            var buttons = _letterTrackerContainer.GetComponentsInChildren<LetterButton>(true);
-
-            foreach (var button in buttons)
-            {
-                // Ensure the button is initialized (auto-detects letter from text or name)
-                button.EnsureInitialized();
-
-                // Skip if still not initialized or invalid letter
-                if (!button.IsInitialized || button.Letter == '\0')
-                {
-                    Debug.LogWarning($"[PlayerGridPanel] LetterButton on {button.gameObject.name} could not be initialized.");
-                    continue;
-                }
-
-                // Subscribe to events
-                button.OnLetterClicked -= HandleLetterClicked;
-                button.OnLetterClicked += HandleLetterClicked;
-                button.OnLetterHoverEnter -= HandleLetterHoverEnter;
-                button.OnLetterHoverEnter += HandleLetterHoverEnter;
-                button.OnLetterHoverExit -= HandleLetterHoverExit;
-                button.OnLetterHoverExit += HandleLetterHoverExit;
-
-                // Add to dictionary (skip duplicates)
-                if (!_letterButtons.ContainsKey(button.Letter))
-                {
-                    _letterButtons[button.Letter] = button;
-                }
-                else
-                {
-                    Debug.LogWarning($"[PlayerGridPanel] Duplicate letter button for '{button.Letter}' on {button.gameObject.name}");
-                }
-            }
-
-            _letterButtonsCached = true;
-            Debug.Log($"[PlayerGridPanel] Cached {_letterButtons.Count} letter buttons (found {buttons.Length} components)");
+            _letterTrackerController.CacheLetterButtons();
         }
         #endregion
 
@@ -1384,7 +1345,7 @@ public void SetGridSize(int newSize)
         #endregion
 
         #region Private Methods - Placement Preview
-        private void UpdatePlacementPreview(int hoverCol, int hoverRow)
+private void UpdatePlacementPreview(int hoverCol, int hoverRow)
         {
             // Clear previous highlighting
             ClearPlacementHighlighting();
@@ -1398,7 +1359,7 @@ public void SetGridSize(int newSize)
                 var hoverCell = GetCell(hoverCol, hoverRow);
                 if (hoverCell != null)
                 {
-                    hoverCell.SetHighlightColor(_cursorColor);
+                    _gridColorManager.SetCellHighlight(hoverCell, GridHighlightType.Cursor);
                 }
 
                 // Highlight valid direction cells in green
@@ -1407,7 +1368,7 @@ public void SetGridSize(int newSize)
                     var cell = GetCell(pos.x, pos.y);
                     if (cell != null)
                     {
-                        cell.SetHighlightColor(_validPlacementColor);
+                        _gridColorManager.SetCellHighlight(cell, GridHighlightType.ValidPlacement);
                     }
                 }
 
@@ -1420,7 +1381,7 @@ public void SetGridSize(int newSize)
                 var firstCell = GetCell(_firstCellCol, _firstCellRow);
                 if (firstCell != null)
                 {
-                    firstCell.SetHighlightColor(_cursorColor);
+                    _gridColorManager.SetCellHighlight(firstCell, GridHighlightType.Cursor);
                 }
 
                 // Show valid second cells
@@ -1430,7 +1391,7 @@ public void SetGridSize(int newSize)
                     var cell = GetCell(pos.x, pos.y);
                     if (cell != null)
                     {
-                        cell.SetHighlightColor(_validPlacementColor);
+                        _gridColorManager.SetCellHighlight(cell, GridHighlightType.ValidPlacement);
                     }
                 }
 
@@ -1442,7 +1403,7 @@ public void SetGridSize(int newSize)
             }
         }
 
-        private void HighlightInvalidCells(int hoverCol, int hoverRow, List<Vector2Int> validDirections)
+private void HighlightInvalidCells(int hoverCol, int hoverRow, List<Vector2Int> validDirections)
         {
             // For each adjacent cell that is NOT in validDirections, mark as invalid
             int[] dCols = { 1, 0, 1, 1, -1, 0, -1, -1 };
@@ -1461,14 +1422,14 @@ public void SetGridSize(int newSize)
                         var cell = GetCell(adjCol, adjRow);
                         if (cell != null)
                         {
-                            cell.SetHighlightColor(_invalidPlacementColor);
+                            _gridColorManager.SetCellHighlight(cell, GridHighlightType.InvalidPlacement);
                         }
                     }
                 }
             }
         }
 
-        private void PreviewWordPlacement(int secondCol, int secondRow)
+private void PreviewWordPlacement(int secondCol, int secondRow)
         {
             if (_firstCellCol < 0 || _firstCellRow < 0) return;
 
@@ -1489,11 +1450,11 @@ public void SetGridSize(int newSize)
                     // First cell is cursor color, rest are valid placement color
                     if (i == 0)
                     {
-                        cell.SetHighlightColor(_cursorColor);
+                        _gridColorManager.SetCellHighlight(cell, GridHighlightType.Cursor);
                     }
                     else
                     {
-                        cell.SetHighlightColor(_validPlacementColor);
+                        _gridColorManager.SetCellHighlight(cell, GridHighlightType.ValidPlacement);
                     }
                 }
             }
@@ -1596,7 +1557,7 @@ public void SetGridSize(int newSize)
         #endregion
 
         #region Private Methods - Event Handlers
-        private void HandleCellClicked(int column, int row)
+private void HandleCellClicked(int column, int row)
         {
             if (!IsValidCoordinate(column, row)) return;
 
@@ -1619,7 +1580,7 @@ public void SetGridSize(int newSize)
                 if (cell != null && !string.IsNullOrEmpty(_placementWord))
                 {
                     cell.SetLetter(_placementWord[0]);
-                    cell.SetHighlightColor(_cursorColor);
+                    _gridColorManager.SetCellHighlight(cell, GridHighlightType.Cursor);
                 }
 
                 UpdatePlacementPreview(column, row);

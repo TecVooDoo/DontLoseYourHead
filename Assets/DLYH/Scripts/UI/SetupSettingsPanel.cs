@@ -1,17 +1,17 @@
-using UnityEngine;
-using UnityEngine.UI;
-using TMPro;
 using Sirenix.OdinInspector;
 using System;
 using System.Collections.Generic;
 using TecVooDoo.DontLoseYourHead.Core;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
 
 
 namespace TecVooDoo.DontLoseYourHead.UI
 {
     /// <summary>
     /// Manages the Setup Phase settings panel including:
-    /// - Difficulty settings (Grid Size, Word Count, Forgiveness)
+    /// - Difficulty settings (Grid Size, Word Count, Difficulty)
     /// - Player settings (Name, Color)
     /// - Word validation setup
     /// - Miss limit display
@@ -30,7 +30,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private TMP_Dropdown _wordCountDropdown;
 
         [SerializeField, Required]
-        private TMP_Dropdown _forgivenessDropdown;
+        private TMP_Dropdown _difficultyDropdown;
 
         [SerializeField, Required]
         private TMP_InputField _playerNameInput;
@@ -43,7 +43,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         [SerializeField]
         private Button _placeRandomPositionsButton;
-
 
         [SerializeField]
         private TextMeshProUGUI _missLimitDisplay;
@@ -97,9 +96,11 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private int _currentPlayerIndex = 0;
         private bool _isNameInputFocused = false;
 
-        // Color button references (populated at runtime from container)
-        private List<Button> _colorButtons = new List<Button>();
-        private List<Outline> _colorButtonOutlines = new List<Outline>();
+        // Controller for color button management
+        private PlayerColorController _playerColorController;
+
+        // Word validation service
+        private WordValidationService _wordValidationService;
 
         #endregion
 
@@ -124,10 +125,11 @@ namespace TecVooDoo.DontLoseYourHead.UI
             SetDefaultValues();
         }
 
-private void Start()
+        private void Start()
         {
             SetupDropdowns();
             SetupButtons();
+            SetupWordValidationService();
             SetupWordValidation();
             SetupInvalidWordFeedback();
             InitializeWordRows();
@@ -143,24 +145,20 @@ private void Start()
             StartCoroutine(DelayedEventSubscription());
         }
 
-/// <summary>
-        /// Delays event subscription by one frame to ensure PlayerGridPanel is fully initialized
-        /// </summary>
-/// <summary>
+        /// <summary>
         /// Delays event subscription by one frame to ensure PlayerGridPanel is fully initialized
         /// </summary>
         private System.Collections.IEnumerator DelayedEventSubscription()
         {
             yield return null; // Wait one frame
-            
+
             UnsubscribeInvalidWordFeedback();
             SetupInvalidWordFeedback();
             UpdatePickRandomWordsButtonState();
             UpdatePlaceRandomPositionsButtonState();
-            
+
             Debug.Log("[SetupSettingsPanel] Re-subscribed to word row events after frame delay");
         }
-
 
         private void OnDestroy()
         {
@@ -225,8 +223,8 @@ private void Start()
                 Debug.LogError("[SetupSettingsPanel] Grid Size Dropdown is not assigned!");
             if (_wordCountDropdown == null)
                 Debug.LogError("[SetupSettingsPanel] Word Count Dropdown is not assigned!");
-            if (_forgivenessDropdown == null)
-                Debug.LogError("[SetupSettingsPanel] Forgiveness Dropdown is not assigned!");
+            if (_difficultyDropdown == null)
+                Debug.LogError("[SetupSettingsPanel] Difficulty Dropdown is not assigned!");
             if (_playerNameInput == null)
                 Debug.LogError("[SetupSettingsPanel] Player Name Input is not assigned!");
             if (_playerGridPanel == null)
@@ -281,22 +279,22 @@ private void Start()
                 _wordCountDropdown.onValueChanged.AddListener(OnWordCountDropdownChanged);
             }
 
-            // Forgiveness Dropdown
-            if (_forgivenessDropdown != null)
+            // Difficulty Dropdown
+            if (_difficultyDropdown != null)
             {
-                _forgivenessDropdown.ClearOptions();
-                _forgivenessDropdown.AddOptions(new System.Collections.Generic.List<string>
+                _difficultyDropdown.ClearOptions();
+                _difficultyDropdown.AddOptions(new System.Collections.Generic.List<string>
                 {
-                    "Strict",
+                    "Easy",
                     "Normal",
-                    "Forgiving"
+                    "Hard"
                 });
-                _forgivenessDropdown.value = 1; // Default to Normal
-                _forgivenessDropdown.onValueChanged.AddListener(OnForgivenessDropdownChanged);
+                _difficultyDropdown.value = 1; // Default to Normal
+                _difficultyDropdown.onValueChanged.AddListener(OnDifficultyDropdownChanged);
             }
         }
 
-private void SetupButtons()
+        private void SetupButtons()
         {
             // Player Name Input
             if (_playerNameInput != null)
@@ -329,54 +327,27 @@ private void SetupButtons()
         }
 
         /// <summary>
-        /// Sets up color button click handlers from the ColorButtonsContainer
+        /// Sets up color button click handlers using PlayerColorController
         /// </summary>
         private void SetupColorButtons()
         {
-            _colorButtons.Clear();
-            _colorButtonOutlines.Clear();
+            // Create and initialize the color controller
+            _playerColorController = new PlayerColorController(_colorButtonsContainer);
+            _playerColorController.OnColorChanged += OnColorChanged;
+            _playerColorController.Initialize();
+        }
 
-            if (_colorButtonsContainer == null)
-            {
-                Debug.LogWarning("[SetupSettingsPanel] Color buttons container not assigned!");
-                return;
-            }
-
-            // Get all buttons in the container
-            for (int i = 0; i < _colorButtonsContainer.childCount; i++)
-            {
-                var child = _colorButtonsContainer.GetChild(i);
-                var button = child.GetComponent<Button>();
-
-                if (button != null)
-                {
-                    _colorButtons.Add(button);
-
-                    // Get or add outline component for selection highlight
-                    var outline = child.GetComponent<Outline>();
-                    if (outline == null)
-                    {
-                        outline = child.gameObject.AddComponent<Outline>();
-                    }
-                    outline.effectColor = Color.white;
-                    outline.effectDistance = new Vector2(3, 3);
-                    outline.enabled = false;
-                    _colorButtonOutlines.Add(outline);
-
-                    // Capture index for closure
-                    int colorIndex = i;
-                    button.onClick.RemoveAllListeners();
-                    button.onClick.AddListener(() => OnColorButtonClicked(colorIndex));
-                }
-            }
-
-            Debug.Log($"[SetupSettingsPanel] Set up {_colorButtons.Count} color buttons");
-
-            // Select initial color
-            if (_colorButtons.Count > 0)
-            {
-                OnColorButtonClicked(0);
-            }
+        /// <summary>
+        /// Creates the word validation service instance
+        /// </summary>
+        private void SetupWordValidationService()
+        {
+            _wordValidationService = new WordValidationService(
+                _threeLetterWords,
+                _fourLetterWords,
+                _fiveLetterWords,
+                _sixLetterWords
+            );
         }
 
         /// <summary>
@@ -394,56 +365,19 @@ private void SetupButtons()
         /// <summary>
         /// Validates a word against the appropriate word list based on length
         /// </summary>
-        /// <param name="word">The word to validate</param>
-        /// <param name="requiredLength">The required length for this word slot (passed by PlayerGridPanel)</param>
         private bool ValidateWord(string word, int requiredLength)
         {
-            if (string.IsNullOrEmpty(word))
-            {
-                Debug.Log("[SetupSettingsPanel] ValidateWord: Empty word rejected");
-                return false;
-            }
-
-            string upperWord = word.ToUpper();
-            int length = upperWord.Length;
-
-            // Check if word matches required length
-            if (length != requiredLength)
-            {
-                Debug.Log($"[SetupSettingsPanel] ValidateWord: '{upperWord}' length {length} != required {requiredLength}");
-                return false;
-            }
-
-            WordListSO wordList = GetWordListForLength(length);
-
-            if (wordList == null)
-            {
-                Debug.LogWarning($"[SetupSettingsPanel] No word list found for length {length}");
-                return false;
-            }
-
-            bool isValid = wordList.Contains(upperWord);
-            Debug.Log($"[SetupSettingsPanel] ValidateWord '{upperWord}' (length {length}): {(isValid ? "VALID" : "INVALID")}");
-
-            return isValid;
+            return _wordValidationService?.ValidateWord(word, requiredLength) ?? false;
         }
 
         /// <summary>
-        /// Returns the appropriate WordListSO for the given word length
+        /// Gets a random word of the specified length from the word bank
         /// </summary>
-        private WordListSO GetWordListForLength(int length)
+        private string GetRandomWordOfLength(int length)
         {
-            return length switch
-            {
-                3 => _threeLetterWords,
-                4 => _fourLetterWords,
-                5 => _fiveLetterWords,
-                6 => _sixLetterWords,
-                _ => null
-            };
+            return _wordValidationService?.GetRandomWordOfLength(length);
         }
 
-        /// <summary>
         /// <summary>
         /// Fill empty word rows with random valid words from word bank
         /// Skips rows that already have words entered
@@ -503,22 +437,6 @@ private void SetupButtons()
         }
 
         /// <summary>
-        /// Gets a random word of the specified length from the word bank
-        /// </summary>
-        private string GetRandomWordOfLength(int length)
-        {
-            WordListSO wordList = GetWordListForLength(length);
-            if (wordList == null || wordList.Words == null || wordList.Words.Count == 0)
-            {
-                Debug.LogWarning($"[SetupSettingsPanel] No word list found for length {length}");
-                return null;
-            }
-
-            int randomIndex = UnityEngine.Random.Range(0, wordList.Words.Count);
-            return wordList.Words[randomIndex];
-        }
-
-        /// <summary>
         /// Sets a word for a specific row by selecting it and adding letters.
         /// </summary>
         private void SetWordForRow(int rowIndex, string word)
@@ -557,9 +475,6 @@ private void SetupButtons()
         }
 
         /// <summary>
-        /// Sets up invalid word feedback by subscribing to rejection events
-        /// </summary>
-/// <summary>
         /// Sets up invalid word feedback and button state tracking by subscribing to word row events
         /// </summary>
         private void SetupInvalidWordFeedback()
@@ -593,9 +508,6 @@ private void SetupButtons()
         }
 
         /// <summary>
-        /// Unsubscribes from invalid word rejection events
-        /// </summary>
-/// <summary>
         /// Unsubscribes from word row and grid events
         /// </summary>
         private void UnsubscribeInvalidWordFeedback()
@@ -623,8 +535,6 @@ private void SetupButtons()
         /// <summary>
         /// Called when an invalid word is rejected - shows toast notification
         /// </summary>
-        /// <param name="rowNumber">The row number (1-based) where the invalid word was entered</param>
-        /// <param name="invalidWord">The word that was rejected</param>
         private void OnInvalidWordRejected(int rowNumber, string invalidWord)
         {
             string message = string.Format(_invalidWordMessage, invalidWord);
@@ -632,10 +542,7 @@ private void SetupButtons()
             Debug.Log($"[SetupSettingsPanel] Invalid word rejected in row {rowNumber}: '{invalidWord}'");
         }
 
-/// <summary>
-        /// Called when a word is accepted in any row - updates button state
-        /// </summary>
-/// <summary>
+        /// <summary>
         /// Called when a word is accepted in any row - updates button states
         /// </summary>
         private void OnWordAcceptedHandler(int rowNumber, string word)
@@ -646,9 +553,6 @@ private void SetupButtons()
         }
 
         /// <summary>
-        /// Called when a word is deleted from any row - updates button state
-        /// </summary>
-/// <summary>
         /// Called when a word is deleted from any row - updates button states
         /// </summary>
         private void OnWordDeletedHandler(int rowNumber, bool wasPlaced)
@@ -659,9 +563,6 @@ private void SetupButtons()
         }
 
         /// <summary>
-        /// Called when a word is placed on the grid - updates button state
-        /// </summary>
-/// <summary>
         /// Called when a word is placed on the grid - updates button states
         /// </summary>
         private void OnWordPlacedHandler(int rowIndex, string word, System.Collections.Generic.List<UnityEngine.Vector2Int> positions)
@@ -670,7 +571,6 @@ private void SetupButtons()
             UpdatePickRandomWordsButtonState();
             UpdatePlaceRandomPositionsButtonState();
         }
-
 
         private void ShowInvalidWordToast(string message)
         {
@@ -698,8 +598,8 @@ private void SetupButtons()
                 _gridSizeDropdown.onValueChanged.RemoveAllListeners();
             if (_wordCountDropdown != null)
                 _wordCountDropdown.onValueChanged.RemoveAllListeners();
-            if (_forgivenessDropdown != null)
-                _forgivenessDropdown.onValueChanged.RemoveAllListeners();
+            if (_difficultyDropdown != null)
+                _difficultyDropdown.onValueChanged.RemoveAllListeners();
             if (_playerNameInput != null)
             {
                 _playerNameInput.onEndEdit.RemoveAllListeners();
@@ -707,11 +607,11 @@ private void SetupButtons()
                 _playerNameInput.onDeselect.RemoveAllListeners();
             }
 
-            // Clean up color button listeners
-            foreach (var button in _colorButtons)
+            // Clean up color controller
+            if (_playerColorController != null)
             {
-                if (button != null)
-                    button.onClick.RemoveAllListeners();
+                _playerColorController.OnColorChanged -= OnColorChanged;
+                _playerColorController.Cleanup();
             }
 
             // Unsubscribe from invalid word events
@@ -765,13 +665,13 @@ private void SetupButtons()
             Debug.Log($"[SetupSettingsPanel] Word count changed to: {_wordCount}");
         }
 
-        private void OnForgivenessDropdownChanged(int value)
+        private void OnDifficultyDropdownChanged(int value)
         {
             _difficulty = value switch
             {
-                0 => DifficultySetting.Hard,
+                0 => DifficultySetting.Easy,
                 1 => DifficultySetting.Normal,
-                2 => DifficultySetting.Easy,
+                2 => DifficultySetting.Hard,
                 _ => DifficultySetting.Normal
             };
 
@@ -805,7 +705,6 @@ private void SetupButtons()
 
         /// <summary>
         /// Called when the name input field is selected/focused
-        /// Instead of disabling letter buttons, we track focus state for routing
         /// </summary>
         private void OnNameInputSelected(string text)
         {
@@ -843,31 +742,13 @@ private void SetupButtons()
             // If name input is not focused, letter goes to word entry (handled by PlayerGridPanel)
         }
 
-        private void OnColorButtonClicked(int colorIndex)
+        /// <summary>
+        /// Called when color selection changes via PlayerColorController
+        /// </summary>
+        private void OnColorChanged(Color newColor)
         {
-            if (colorIndex < 0 || colorIndex >= _colorButtons.Count)
-            {
-                Debug.LogWarning($"[SetupSettingsPanel] Invalid color index: {colorIndex}");
-                return;
-            }
-
-            _currentColorIndex = colorIndex;
-
-            // Get the color from the button's Image component
-            var buttonImage = _colorButtons[colorIndex].GetComponent<Image>();
-            if (buttonImage != null)
-            {
-                _playerColor = buttonImage.color;
-            }
-
-            // Update outline selection states - highlight only the selected button
-            for (int i = 0; i < _colorButtonOutlines.Count; i++)
-            {
-                if (_colorButtonOutlines[i] != null)
-                {
-                    _colorButtonOutlines[i].enabled = (i == colorIndex);
-                }
-            }
+            _playerColor = newColor;
+            _currentColorIndex = _playerColorController?.GetCurrentColorIndex() ?? 0;
 
             // Update PlayerGridPanel player color
             if (_playerGridPanel != null)
@@ -876,13 +757,10 @@ private void SetupButtons()
             }
 
             OnPlayerSettingsChanged?.Invoke(_playerName, _playerColor);
-            Debug.Log($"[SetupSettingsPanel] Player color changed to index: {_currentColorIndex}, color: {_playerColor}");
+            Debug.Log($"[SetupSettingsPanel] Player color changed to: {_playerColor}");
         }
 
         /// <summary>
-        /// Called when Pick Random Words button is clicked
-        /// </summary>
-/// <summary>
         /// Called when Pick Random Words button is clicked
         /// </summary>
         private void OnPickRandomWordsClicked()
@@ -931,11 +809,7 @@ private void SetupButtons()
             Debug.Log($"[SetupSettingsPanel] Place Random Positions button: {(hasAnyUnplacedWords ? "ENABLED" : "DISABLED")}");
         }
 
-/// <summary>
-        /// Updates the Pick Random Words button interactability based on word row state
-        /// Enabled when any row is empty, disabled when all rows are filled
-        /// </summary>
-/// <summary>
+        /// <summary>
         /// Updates the Pick Random Words button interactability based on word row state
         /// Enabled when any row is empty, disabled when all rows are filled
         /// </summary>
@@ -984,14 +858,8 @@ private void SetupButtons()
                 _playerNameInput.text = _playerName;
             }
 
-            // Update color button selection outline
-            for (int i = 0; i < _colorButtonOutlines.Count; i++)
-            {
-                if (_colorButtonOutlines[i] != null)
-                {
-                    _colorButtonOutlines[i].enabled = (i == _currentColorIndex);
-                }
-            }
+            // Update color button selection via controller
+            _playerColorController?.RefreshSelectionVisual();
 
             // Update PlayerGridPanel
             if (_playerGridPanel != null)
