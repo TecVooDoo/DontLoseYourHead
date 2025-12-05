@@ -1,23 +1,29 @@
 namespace TecVooDoo.DontLoseYourHead.Core
 {
     /// <summary>
-    /// Available grid sizes for gameplay
+    /// Available grid sizes for gameplay (6x6 through 12x12)
+    /// Value equals the grid dimension
     /// </summary>
     public enum GridSizeOption
     {
-        Small = 6,      // 6x6 - Easy (default)
-        Medium = 8,     // 8x8 - Medium
-        Large = 10      // 10x10 - Hard
+        Size6x6 = 6,
+        Size7x7 = 7,
+        Size8x8 = 8,
+        Size9x9 = 9,
+        Size10x10 = 10,
+        Size11x11 = 11,
+        Size12x12 = 12
     }
 
     /// <summary>
-    /// Forgiveness setting affects miss limit calculation
+    /// Difficulty setting affects miss limit calculation
+    /// Hard/Normal/Easy replaces old Strict/Normal/Forgiving names
     /// </summary>
-    public enum ForgivenessSetting
+    public enum DifficultySetting
     {
-        Strict,     // Base - 4 misses (challenging)
+        Hard,       // Base - 4 misses (challenging)
         Normal,     // Base + 0 misses (balanced)
-        Forgiving   // Base + 4 misses (casual/learning)
+        Easy        // Base + 4 misses (casual/learning)
     }
 
     /// <summary>
@@ -25,7 +31,7 @@ namespace TecVooDoo.DontLoseYourHead.Core
     /// </summary>
     public enum WordCountOption
     {
-        Three = 3,  // 3 words: uses 3-4-5 letter words
-        Four = 4    // 4 words: uses 3-4-5-6 letter words
+        Three = 3,  // 3 words: uses 3-4-5 letter words (HARDER - fewer letters)
+        Four = 4    // 4 words: uses 3-4-5-6 letter words (EASIER - more letters)
     }
 }

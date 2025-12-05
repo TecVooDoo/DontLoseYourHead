@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: ef894bd6b73d22941bd766cd96cf959d
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 309025
+  packageName: Flow UI Toolkit Extended
+  packageVersion: 1.5.1
+  assetPath: Assets/SABI/C# Extensions/C# Extension Core/ColliderExtensions.cs
+  uploadId: 782149

@@ -244,8 +244,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
             CacheExistingLabels();
         }
 
-        private void Start()
+private void Start()
         {
+            Debug.Log("[PlayerGridPanel] START() called - script is running!");
+            
             CacheLetterButtons();
             CacheWordPatternRows();
 
@@ -253,6 +255,16 @@ namespace TecVooDoo.DontLoseYourHead.UI
             if (!_isInitialized)
             {
                 InitializeGrid(_currentGridSize);
+            }
+            
+            // Double-check button reference
+            if (_randomPlacementButton != null)
+            {
+                Debug.Log($"[PlayerGridPanel] Random placement button reference is VALID: {_randomPlacementButton.gameObject.name}");
+            }
+            else
+            {
+                Debug.LogError("[PlayerGridPanel] Random placement button reference is NULL in Start()!");
             }
         }
 
@@ -367,14 +379,24 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// <summary>
         /// Changes the grid size and reinitializes.
         /// </summary>
-        public void SetGridSize(int newSize)
+public void SetGridSize(int newSize)
         {
             if (newSize == _currentGridSize) return;
+
+            // Before reinitializing, reset any placed words to WordEntered state
+            // This keeps the word text but requires re-placement on the new grid
+            foreach (var row in _wordPatternRows)
+            {
+                if (row != null && row.gameObject.activeSelf && row.IsPlaced)
+                {
+                    row.ResetToWordEntered();
+                }
+            }
 
             _currentGridSize = Mathf.Clamp(newSize, MIN_GRID_SIZE, MAX_GRID_SIZE);
             InitializeGrid(_currentGridSize);
 
-            Debug.Log($"[SetupSettingsPanel] Grid size changed to: {_currentGridSize}x{_currentGridSize}");
+            Debug.Log($"[PlayerGridPanel] Grid size changed to: {_currentGridSize}x{_currentGridSize}. Placed words reset for re-placement.");
         }
         #endregion
 
@@ -974,6 +996,16 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             return PlaceWordInDirection(startCol, startRow, dCol, dRow);
         }
+
+/// <summary>
+        /// Places all unplaced words randomly on the grid.
+        /// Called by SetupSettingsPanel when "Place Random Positions" button is clicked.
+        /// </summary>
+        public void PlaceAllWordsRandomly()
+        {
+            HandleRandomPlacementClick();
+        }
+
         #endregion
 
         #region Public Methods - Grid Cells
@@ -1742,11 +1774,16 @@ namespace TecVooDoo.DontLoseYourHead.UI
             }
         }
 
-        private void SubscribeToRandomPlacementButton()
+private void SubscribeToRandomPlacementButton()
         {
             if (_randomPlacementButton != null)
             {
                 _randomPlacementButton.onClick.AddListener(HandleRandomPlacementClick);
+                Debug.Log("[PlayerGridPanel] Random placement button subscribed successfully");
+            }
+            else
+            {
+                Debug.LogWarning("[PlayerGridPanel] Random placement button is NULL - not assigned in Inspector!");
             }
         }
 
@@ -1758,12 +1795,46 @@ namespace TecVooDoo.DontLoseYourHead.UI
             }
         }
 
-        private void HandleRandomPlacementClick()
+private void HandleRandomPlacementClick()
         {
-            if (_placementState != PlacementState.Inactive)
+            Debug.Log("[PlayerGridPanel] === RANDOM PLACEMENT BUTTON CLICKED ===");
+            
+            // Place all unplaced words that have text entered
+            int placedCount = 0;
+            int checkedCount = 0;
+
+            for (int i = 0; i < _wordPatternRows.Count; i++)
             {
-                PlaceWordRandomly();
+                var row = _wordPatternRows[i];
+                if (row == null || !row.gameObject.activeSelf) continue;
+                
+                checkedCount++;
+                Debug.Log($"[PlayerGridPanel] Row {i + 1}: HasWord={row.HasWord}, IsPlaced={row.IsPlaced}, Word='{row.CurrentWord}'");
+
+                // Skip if already placed or no word entered
+                if (row.IsPlaced || !row.HasWord) continue;
+
+                // Enter placement mode for this row and place randomly
+                EnterPlacementMode(i);
+
+                if (_placementState != PlacementState.Inactive)
+                {
+                    bool success = PlaceWordRandomly();
+                    if (success)
+                    {
+                        placedCount++;
+                        Debug.Log($"[PlayerGridPanel] Randomly placed word {i + 1}: {row.CurrentWord}");
+                    }
+                    else
+                    {
+                        // Failed to place - cancel and continue to next word
+                        CancelPlacementMode();
+                        Debug.LogWarning($"[PlayerGridPanel] Could not find valid placement for word {i + 1}: {row.CurrentWord}");
+                    }
+                }
             }
+
+            Debug.Log($"[PlayerGridPanel] Random placement complete. Checked {checkedCount} rows, placed {placedCount} word(s).");
         }
         #endregion
 

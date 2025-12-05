@@ -12,46 +12,46 @@ namespace TecVooDoo.DontLoseYourHead.Core
 
         // Grid size bonuses (more cells = more chances to miss)
         private const int GRID_BONUS_6X6 = 3;
+        private const int GRID_BONUS_7X7 = 4;
         private const int GRID_BONUS_8X8 = 6;
+        private const int GRID_BONUS_9X9 = 8;
         private const int GRID_BONUS_10X10 = 10;
+        private const int GRID_BONUS_11X11 = 12;
+        private const int GRID_BONUS_12X12 = 13;
 
         // Word count modifiers (fewer words = more empty space = harder)
-        private const int WORD_MODIFIER_3_WORDS = 0;    // Baseline
+        private const int WORD_MODIFIER_3_WORDS = 0;    // Baseline (harder)
         private const int WORD_MODIFIER_4_WORDS = -2;   // More letters = easier
 
-        // Forgiveness modifiers
-        private const int FORGIVENESS_STRICT = -4;
-        private const int FORGIVENESS_NORMAL = 0;
-        private const int FORGIVENESS_FORGIVING = 4;
+        // Difficulty modifiers
+        private const int DIFFICULTY_HARD = -4;
+        private const int DIFFICULTY_NORMAL = 0;
+        private const int DIFFICULTY_EASY = 4;
 
         /// <summary>
         /// Calculate the miss limit based on configuration
         /// </summary>
-        /// <param name="gridSize">Grid size option</param>
-        /// <param name="wordCount">Number of words</param>
-        /// <param name="forgiveness">Forgiveness setting</param>
-        /// <returns>Calculated miss limit</returns>
-        public static int CalculateMissLimit(GridSizeOption gridSize, WordCountOption wordCount, ForgivenessSetting forgiveness)
+        public static int CalculateMissLimit(GridSizeOption gridSize, WordCountOption wordCount, DifficultySetting difficulty)
         {
             int baseValue = BASE_MISSES;
             int gridBonus = GetGridBonus(gridSize);
             int wordModifier = GetWordCountModifier(wordCount);
-            int forgivenessModifier = GetForgivenessModifier(forgiveness);
+            int difficultyModifier = GetDifficultyModifier(difficulty);
 
-            int total = baseValue + gridBonus + wordModifier + forgivenessModifier;
+            int total = baseValue + gridBonus + wordModifier + difficultyModifier;
 
             // Clamp to reasonable range
-            return Mathf.Clamp(total, 10, 35);
+            return Mathf.Clamp(total, 10, 40);
         }
 
         /// <summary>
         /// Calculate miss limit using raw grid size value
         /// </summary>
-        public static int CalculateMissLimit(int gridSize, int wordCount, ForgivenessSetting forgiveness)
+        public static int CalculateMissLimit(int gridSize, int wordCount, DifficultySetting difficulty)
         {
             GridSizeOption gridOption = GridSizeFromInt(gridSize);
             WordCountOption wordOption = WordCountFromInt(wordCount);
-            return CalculateMissLimit(gridOption, wordOption, forgiveness);
+            return CalculateMissLimit(gridOption, wordOption, difficulty);
         }
 
         /// <summary>
@@ -61,14 +61,40 @@ namespace TecVooDoo.DontLoseYourHead.Core
         {
             switch (gridSize)
             {
-                case GridSizeOption.Small:
+                case GridSizeOption.Size6x6:
                     return GRID_BONUS_6X6;
-                case GridSizeOption.Medium:
+                case GridSizeOption.Size7x7:
+                    return GRID_BONUS_7X7;
+                case GridSizeOption.Size8x8:
                     return GRID_BONUS_8X8;
-                case GridSizeOption.Large:
+                case GridSizeOption.Size9x9:
+                    return GRID_BONUS_9X9;
+                case GridSizeOption.Size10x10:
                     return GRID_BONUS_10X10;
+                case GridSizeOption.Size11x11:
+                    return GRID_BONUS_11X11;
+                case GridSizeOption.Size12x12:
+                    return GRID_BONUS_12X12;
                 default:
-                    return GRID_BONUS_6X6;
+                    return GRID_BONUS_8X8;
+            }
+        }
+
+        /// <summary>
+        /// Get the grid size bonus using raw int value
+        /// </summary>
+        public static int GetGridBonus(int gridSize)
+        {
+            switch (gridSize)
+            {
+                case 6: return GRID_BONUS_6X6;
+                case 7: return GRID_BONUS_7X7;
+                case 8: return GRID_BONUS_8X8;
+                case 9: return GRID_BONUS_9X9;
+                case 10: return GRID_BONUS_10X10;
+                case 11: return GRID_BONUS_11X11;
+                case 12: return GRID_BONUS_12X12;
+                default: return GRID_BONUS_8X8;
             }
         }
 
@@ -89,20 +115,20 @@ namespace TecVooDoo.DontLoseYourHead.Core
         }
 
         /// <summary>
-        /// Get the forgiveness modifier for miss calculation
+        /// Get the difficulty modifier for miss calculation
         /// </summary>
-        public static int GetForgivenessModifier(ForgivenessSetting forgiveness)
+        public static int GetDifficultyModifier(DifficultySetting difficulty)
         {
-            switch (forgiveness)
+            switch (difficulty)
             {
-                case ForgivenessSetting.Strict:
-                    return FORGIVENESS_STRICT;
-                case ForgivenessSetting.Normal:
-                    return FORGIVENESS_NORMAL;
-                case ForgivenessSetting.Forgiving:
-                    return FORGIVENESS_FORGIVING;
+                case DifficultySetting.Hard:
+                    return DIFFICULTY_HARD;
+                case DifficultySetting.Normal:
+                    return DIFFICULTY_NORMAL;
+                case DifficultySetting.Easy:
+                    return DIFFICULTY_EASY;
                 default:
-                    return FORGIVENESS_NORMAL;
+                    return DIFFICULTY_NORMAL;
             }
         }
 
@@ -113,15 +139,16 @@ namespace TecVooDoo.DontLoseYourHead.Core
         {
             switch (size)
             {
-                case 6:
-                    return GridSizeOption.Small;
-                case 8:
-                    return GridSizeOption.Medium;
-                case 10:
-                    return GridSizeOption.Large;
+                case 6: return GridSizeOption.Size6x6;
+                case 7: return GridSizeOption.Size7x7;
+                case 8: return GridSizeOption.Size8x8;
+                case 9: return GridSizeOption.Size9x9;
+                case 10: return GridSizeOption.Size10x10;
+                case 11: return GridSizeOption.Size11x11;
+                case 12: return GridSizeOption.Size12x12;
                 default:
-                    Debug.LogWarning(string.Format("[DifficultyCalculator] Unknown grid size {0}, defaulting to Small", size));
-                    return GridSizeOption.Small;
+                    Debug.LogWarning(string.Format("[DifficultyCalculator] Unknown grid size {0}, defaulting to 8x8", size));
+                    return GridSizeOption.Size8x8;
             }
         }
 
@@ -145,7 +172,6 @@ namespace TecVooDoo.DontLoseYourHead.Core
         /// <summary>
         /// Get the word lengths required for a given word count
         /// </summary>
-        /// <returns>Array of word lengths needed</returns>
         public static int[] GetWordLengths(WordCountOption wordCount)
         {
             switch (wordCount)
@@ -162,23 +188,23 @@ namespace TecVooDoo.DontLoseYourHead.Core
         /// <summary>
         /// Get a human-readable description of the miss limit calculation
         /// </summary>
-        public static string GetCalculationBreakdown(GridSizeOption gridSize, WordCountOption wordCount, ForgivenessSetting forgiveness)
+        public static string GetCalculationBreakdown(GridSizeOption gridSize, WordCountOption wordCount, DifficultySetting difficulty)
         {
             int baseValue = BASE_MISSES;
             int gridBonus = GetGridBonus(gridSize);
             int wordModifier = GetWordCountModifier(wordCount);
-            int forgivenessModifier = GetForgivenessModifier(forgiveness);
-            int total = CalculateMissLimit(gridSize, wordCount, forgiveness);
+            int difficultyModifier = GetDifficultyModifier(difficulty);
+            int total = CalculateMissLimit(gridSize, wordCount, difficulty);
 
             string breakdown = string.Format(
-                "Base: {0}\nGrid Bonus ({1}x{1}): +{2}\nWord Modifier ({3} words): {4}\nForgiveness ({5}): {6}\n----------\nTotal: {7} misses",
+                "Base: {0}\nGrid Bonus ({1}x{1}): +{2}\nWord Modifier ({3} words): {4}\nDifficulty ({5}): {6}\n----------\nTotal: {7} misses",
                 baseValue,
                 (int)gridSize,
                 gridBonus,
                 (int)wordCount,
                 wordModifier >= 0 ? "+" + wordModifier.ToString() : wordModifier.ToString(),
-                forgiveness.ToString(),
-                forgivenessModifier >= 0 ? "+" + forgivenessModifier.ToString() : forgivenessModifier.ToString(),
+                difficulty.ToString(),
+                difficultyModifier >= 0 ? "+" + difficultyModifier.ToString() : difficultyModifier.ToString(),
                 total
             );
 

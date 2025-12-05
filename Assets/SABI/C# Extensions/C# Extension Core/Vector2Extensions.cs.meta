@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 107bcbb4725ff5a428af373c627c82e0
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 309025
+  packageName: Flow UI Toolkit Extended
+  packageVersion: 1.5.1
+  assetPath: Assets/SABI/C# Extensions/C# Extension Core/Vector2Extensions.cs
+  uploadId: 782149

@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 96d4e816a353ab7419b9b07bc48cbc81
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 309025
+  packageName: Flow UI Toolkit Extended
+  packageVersion: 1.5.1
+  assetPath: Assets/SABI/C# Extensions/C# Extension Core/Vector4Extensions.cs
+  uploadId: 782149

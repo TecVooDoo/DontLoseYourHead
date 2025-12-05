@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using TecVooDoo.DontLoseYourHead.Core;
 
+
 namespace TecVooDoo.DontLoseYourHead.UI
 {
     /// <summary>
@@ -39,6 +40,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         [SerializeField]
         private Button _pickRandomWordsButton;
+
+        [SerializeField]
+        private Button _placeRandomPositionsButton;
+
 
         [SerializeField]
         private TextMeshProUGUI _missLimitDisplay;
@@ -85,7 +90,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         private int _gridSize = 8;
         private WordCountOption _wordCount = WordCountOption.Four;
-        private ForgivenessSetting _forgiveness = ForgivenessSetting.Normal;
+        private DifficultySetting _difficulty = DifficultySetting.Normal;
         private string _playerName = "PLAYER1";
         private Color _playerColor;
         private int _currentColorIndex = 0;
@@ -119,7 +124,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             SetDefaultValues();
         }
 
-        private void Start()
+private void Start()
         {
             SetupDropdowns();
             SetupButtons();
@@ -133,7 +138,29 @@ namespace TecVooDoo.DontLoseYourHead.UI
             {
                 _playerGridPanel.OnLetterInput += OnLetterInputReceived;
             }
+
+            // Re-subscribe after a frame to ensure PlayerGridPanel word rows are cached
+            StartCoroutine(DelayedEventSubscription());
         }
+
+/// <summary>
+        /// Delays event subscription by one frame to ensure PlayerGridPanel is fully initialized
+        /// </summary>
+/// <summary>
+        /// Delays event subscription by one frame to ensure PlayerGridPanel is fully initialized
+        /// </summary>
+        private System.Collections.IEnumerator DelayedEventSubscription()
+        {
+            yield return null; // Wait one frame
+            
+            UnsubscribeInvalidWordFeedback();
+            SetupInvalidWordFeedback();
+            UpdatePickRandomWordsButtonState();
+            UpdatePlaceRandomPositionsButtonState();
+            
+            Debug.Log("[SetupSettingsPanel] Re-subscribed to word row events after frame delay");
+        }
+
 
         private void OnDestroy()
         {
@@ -175,9 +202,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// <summary>
         /// Gets the current difficulty settings
         /// </summary>
-        public (int gridSize, WordCountOption wordCount, ForgivenessSetting forgiveness) GetDifficultySettings()
+        public (int gridSize, WordCountOption wordCount, DifficultySetting difficulty) GetDifficultySettings()
         {
-            return (_gridSize, _wordCount, _forgiveness);
+            return (_gridSize, _wordCount, _difficulty);
         }
 
         /// <summary>
@@ -216,7 +243,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         {
             _gridSize = 8;
             _wordCount = WordCountOption.Four;
-            _forgiveness = ForgivenessSetting.Normal;
+            _difficulty = DifficultySetting.Normal;
             _playerName = "PLAYER1";
             _playerColor = _availableColors.Length > 0 ? _availableColors[0] : Color.cyan;
         }
@@ -269,7 +296,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             }
         }
 
-        private void SetupButtons()
+private void SetupButtons()
         {
             // Player Name Input
             if (_playerNameInput != null)
@@ -289,7 +316,15 @@ namespace TecVooDoo.DontLoseYourHead.UI
             if (_pickRandomWordsButton != null)
             {
                 _pickRandomWordsButton.onClick.RemoveAllListeners();
-                _pickRandomWordsButton.onClick.AddListener(PickRandomWords);
+                _pickRandomWordsButton.onClick.AddListener(OnPickRandomWordsClicked);
+            }
+
+            // Place Random Positions Button
+            if (_placeRandomPositionsButton != null)
+            {
+                _placeRandomPositionsButton.onClick.RemoveAllListeners();
+                _placeRandomPositionsButton.onClick.AddListener(OnPlaceRandomPositionsClicked);
+                _placeRandomPositionsButton.interactable = false; // Start disabled
             }
         }
 
@@ -409,7 +444,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
         }
 
         /// <summary>
-        /// Fill word rows with random valid words from word bank
+        /// <summary>
+        /// Fill empty word rows with random valid words from word bank
+        /// Skips rows that already have words entered
         /// </summary>
         [Button("Pick Random Words")]
         public void PickRandomWords()
@@ -421,16 +458,48 @@ namespace TecVooDoo.DontLoseYourHead.UI
             }
 
             int[] wordLengths = DifficultyCalculator.GetWordLengths(_wordCount);
+            int filledCount = 0;
+            int emptyCount = 0;
 
+            // First pass: log status of all rows
+            Debug.Log("[SetupSettingsPanel] PickRandomWords - Checking row status:");
             for (int i = 0; i < wordLengths.Length; i++)
             {
+                var row = _playerGridPanel.GetWordPatternRow(i);
+                if (row != null && row.gameObject.activeSelf)
+                {
+                    bool hasWord = row.HasWord;
+                    string currentWord = row.CurrentWord;
+                    Debug.Log($"  Row {i + 1}: HasWord={hasWord}, CurrentWord='{currentWord}'");
+                }
+            }
+
+            // Second pass: fill only empty rows
+            for (int i = 0; i < wordLengths.Length; i++)
+            {
+                var row = _playerGridPanel.GetWordPatternRow(i);
+                if (row == null || !row.gameObject.activeSelf)
+                    continue;
+
+                // Skip rows that already have a word entered
+                if (row.HasWord)
+                {
+                    Debug.Log($"[SetupSettingsPanel] SKIPPING row {i + 1} - already has word: '{row.CurrentWord}'");
+                    filledCount++;
+                    continue;
+                }
+
+                // This row is empty - fill it with a random word
+                emptyCount++;
                 string randomWord = GetRandomWordOfLength(wordLengths[i]);
                 if (!string.IsNullOrEmpty(randomWord))
                 {
                     SetWordForRow(i, randomWord);
-                    Debug.Log($"[SetupSettingsPanel] Set word {i + 1}: {randomWord}");
+                    Debug.Log($"[SetupSettingsPanel] FILLED row {i + 1} with random word: {randomWord}");
                 }
             }
+
+            Debug.Log($"[SetupSettingsPanel] PickRandomWords complete - Skipped {filledCount} filled rows, filled {emptyCount} empty rows");
         }
 
         /// <summary>
@@ -490,11 +559,18 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// <summary>
         /// Sets up invalid word feedback by subscribing to rejection events
         /// </summary>
+/// <summary>
+        /// Sets up invalid word feedback and button state tracking by subscribing to word row events
+        /// </summary>
         private void SetupInvalidWordFeedback()
         {
             if (_playerGridPanel == null) return;
 
-            // Subscribe to rejection events from all word pattern rows
+            // Subscribe to word placement event
+            _playerGridPanel.OnWordPlaced -= OnWordPlacedHandler;
+            _playerGridPanel.OnWordPlaced += OnWordPlacedHandler;
+
+            // Subscribe to events from all word pattern rows
             var wordPatternRows = _playerGridPanel.GetWordPatternRows();
             if (wordPatternRows != null)
             {
@@ -502,19 +578,32 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 {
                     if (row != null)
                     {
+                        row.OnInvalidWordRejected -= OnInvalidWordRejected;
                         row.OnInvalidWordRejected += OnInvalidWordRejected;
+
+                        row.OnWordAccepted -= OnWordAcceptedHandler;
+                        row.OnWordAccepted += OnWordAcceptedHandler;
+
+                        row.OnDeleteClicked -= OnWordDeletedHandler;
+                        row.OnDeleteClicked += OnWordDeletedHandler;
                     }
                 }
-                Debug.Log($"[SetupSettingsPanel] Subscribed to {wordPatternRows.Length} WordPatternRow rejection events");
+                Debug.Log($"[SetupSettingsPanel] Subscribed to {wordPatternRows.Length} WordPatternRow events");
             }
         }
 
         /// <summary>
         /// Unsubscribes from invalid word rejection events
         /// </summary>
+/// <summary>
+        /// Unsubscribes from word row and grid events
+        /// </summary>
         private void UnsubscribeInvalidWordFeedback()
         {
             if (_playerGridPanel == null) return;
+
+            // Unsubscribe from word placement event
+            _playerGridPanel.OnWordPlaced -= OnWordPlacedHandler;
 
             var wordPatternRows = _playerGridPanel.GetWordPatternRows();
             if (wordPatternRows != null)
@@ -524,6 +613,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
                     if (row != null)
                     {
                         row.OnInvalidWordRejected -= OnInvalidWordRejected;
+                        row.OnWordAccepted -= OnWordAcceptedHandler;
+                        row.OnDeleteClicked -= OnWordDeletedHandler;
                     }
                 }
             }
@@ -541,46 +632,51 @@ namespace TecVooDoo.DontLoseYourHead.UI
             Debug.Log($"[SetupSettingsPanel] Invalid word rejected in row {rowNumber}: '{invalidWord}'");
         }
 
-        /// <summary>
-        /// Shows a toast notification for invalid word
-        /// Uses Easy Popup System if available, falls back to Debug.Log
+/// <summary>
+        /// Called when a word is accepted in any row - updates button state
         /// </summary>
-        private void ShowInvalidWordToast(string message)
+/// <summary>
+        /// Called when a word is accepted in any row - updates button states
+        /// </summary>
+        private void OnWordAcceptedHandler(int rowNumber, string word)
         {
-            // Try using Easy Popup System's EasyToast
-            try
-            {
-                // EasyPopupSystem.EasyToast.Create(message, _toastDuration);
-                // If EasyPopupSystem is not available or has different API,
-                // you can uncomment the line above and adjust as needed.
-
-                // For now, log a clear message that can be replaced with actual toast
-                Debug.LogWarning($"[TOAST] {message}");
-
-                // Alternative: Show a simple UI notification
-                ShowSimpleNotification(message);
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogError($"[SetupSettingsPanel] Failed to show toast: {e.Message}");
-            }
+            Debug.Log($"[SetupSettingsPanel] Word accepted in row {rowNumber}: {word}");
+            UpdatePickRandomWordsButtonState();
+            UpdatePlaceRandomPositionsButtonState();
         }
 
         /// <summary>
-        /// Shows a simple notification (fallback when Easy Popup not configured)
-        /// You can replace this with your preferred notification system
+        /// Called when a word is deleted from any row - updates button state
         /// </summary>
-        private void ShowSimpleNotification(string message)
+/// <summary>
+        /// Called when a word is deleted from any row - updates button states
+        /// </summary>
+        private void OnWordDeletedHandler(int rowNumber, bool wasPlaced)
         {
-            // This is a placeholder - implement based on your notification system
-            // Options:
-            // 1. Use EasyPopupSystem.EasyToast.Create(message);
-            // 2. Show a floating TextMeshPro that fades out
-            // 3. Flash the input field red briefly
-            // 4. Play an error sound
+            Debug.Log($"[SetupSettingsPanel] Word deleted from row {rowNumber} (wasPlaced: {wasPlaced})");
+            UpdatePickRandomWordsButtonState();
+            UpdatePlaceRandomPositionsButtonState();
+        }
 
-            // For now, we'll just ensure it's logged prominently
-            Debug.Log($"<color=red>[INVALID WORD]</color> {message}");
+        /// <summary>
+        /// Called when a word is placed on the grid - updates button state
+        /// </summary>
+/// <summary>
+        /// Called when a word is placed on the grid - updates button states
+        /// </summary>
+        private void OnWordPlacedHandler(int rowIndex, string word, System.Collections.Generic.List<UnityEngine.Vector2Int> positions)
+        {
+            Debug.Log($"[SetupSettingsPanel] Word placed: {word} at {positions.Count} positions");
+            UpdatePickRandomWordsButtonState();
+            UpdatePlaceRandomPositionsButtonState();
+        }
+
+
+        private void ShowInvalidWordToast(string message)
+        {
+            // TODO: Implement visual toast notification
+            // Easy Popup System requires ScriptableObject - revisit later
+            Debug.LogWarning($"[INVALID WORD] {message}");
         }
 
         /// <summary>
@@ -671,16 +767,16 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         private void OnForgivenessDropdownChanged(int value)
         {
-            _forgiveness = value switch
+            _difficulty = value switch
             {
-                0 => ForgivenessSetting.Strict,
-                1 => ForgivenessSetting.Normal,
-                2 => ForgivenessSetting.Forgiving,
-                _ => ForgivenessSetting.Normal
+                0 => DifficultySetting.Hard,
+                1 => DifficultySetting.Normal,
+                2 => DifficultySetting.Easy,
+                _ => DifficultySetting.Normal
             };
 
             UpdateMissLimitDisplay();
-            Debug.Log($"[SetupSettingsPanel] Forgiveness changed to: {_forgiveness}");
+            Debug.Log($"[SetupSettingsPanel] Difficulty changed to: {_difficulty}");
         }
 
         private void OnPlayerNameChanged(string newName)
@@ -783,6 +879,99 @@ namespace TecVooDoo.DontLoseYourHead.UI
             Debug.Log($"[SetupSettingsPanel] Player color changed to index: {_currentColorIndex}, color: {_playerColor}");
         }
 
+        /// <summary>
+        /// Called when Pick Random Words button is clicked
+        /// </summary>
+/// <summary>
+        /// Called when Pick Random Words button is clicked
+        /// </summary>
+        private void OnPickRandomWordsClicked()
+        {
+            PickRandomWords();
+            UpdatePickRandomWordsButtonState();
+            UpdatePlaceRandomPositionsButtonState();
+        }
+
+        /// <summary>
+        /// Called when Place Random Positions button is clicked
+        /// </summary>
+        private void OnPlaceRandomPositionsClicked()
+        {
+            if (_playerGridPanel != null)
+            {
+                _playerGridPanel.PlaceAllWordsRandomly();
+                UpdatePlaceRandomPositionsButtonState(); // Disable after placing
+            }
+        }
+
+        /// <summary>
+        /// Updates the Place Random Positions button interactability based on word row state
+        /// </summary>
+        public void UpdatePlaceRandomPositionsButtonState()
+        {
+            if (_placeRandomPositionsButton == null || _playerGridPanel == null)
+                return;
+
+            // Enable if any row has a word entered (but not yet placed)
+            bool hasAnyUnplacedWords = false;
+            var rows = _playerGridPanel.GetWordPatternRows();
+            if (rows != null)
+            {
+                foreach (var row in rows)
+                {
+                    if (row != null && row.gameObject.activeSelf && row.HasWord && !row.IsPlaced)
+                    {
+                        hasAnyUnplacedWords = true;
+                        break;
+                    }
+                }
+            }
+
+            _placeRandomPositionsButton.interactable = hasAnyUnplacedWords;
+            Debug.Log($"[SetupSettingsPanel] Place Random Positions button: {(hasAnyUnplacedWords ? "ENABLED" : "DISABLED")}");
+        }
+
+/// <summary>
+        /// Updates the Pick Random Words button interactability based on word row state
+        /// Enabled when any row is empty, disabled when all rows are filled
+        /// </summary>
+/// <summary>
+        /// Updates the Pick Random Words button interactability based on word row state
+        /// Enabled when any row is empty, disabled when all rows are filled
+        /// </summary>
+        public void UpdatePickRandomWordsButtonState()
+        {
+            if (_pickRandomWordsButton == null || _playerGridPanel == null)
+                return;
+
+            // Enable if any active row is empty (doesn't have a word)
+            bool hasAnyEmptyRows = false;
+            int emptyCount = 0;
+            int filledCount = 0;
+            var rows = _playerGridPanel.GetWordPatternRows();
+            if (rows != null)
+            {
+                foreach (var row in rows)
+                {
+                    if (row != null && row.gameObject.activeSelf)
+                    {
+                        if (!row.HasWord)
+                        {
+                            hasAnyEmptyRows = true;
+                            emptyCount++;
+                        }
+                        else
+                        {
+                            filledCount++;
+                        }
+                    }
+                }
+            }
+
+            _pickRandomWordsButton.interactable = hasAnyEmptyRows;
+            Debug.Log($"[SetupSettingsPanel] Pick Random Words button: {(hasAnyEmptyRows ? "ENABLED" : "DISABLED")} (Empty: {emptyCount}, Filled: {filledCount})");
+        }
+
         #endregion
 
         #region UI Updates
@@ -823,10 +1012,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
             }
 
             // Use the int overload directly - works with any grid size 6-12
-            int missLimit = DifficultyCalculator.CalculateMissLimit(_gridSize, (int)_wordCount, _forgiveness);
+            int missLimit = DifficultyCalculator.CalculateMissLimit(_gridSize, (int)_wordCount, _difficulty);
             _missLimitDisplay.text = $"Miss Limit: {missLimit}";
 
-            Debug.Log($"[SetupSettingsPanel] UpdateMissLimitDisplay: Grid={_gridSize}, Words={(int)_wordCount}, Forgiveness={_forgiveness} => Miss Limit={missLimit}");
+            Debug.Log($"[SetupSettingsPanel] UpdateMissLimitDisplay: Grid={_gridSize}, Words={(int)_wordCount}, Difficulty={_difficulty} => Miss Limit={missLimit}");
         }
 
         #endregion
@@ -839,7 +1028,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             Debug.Log($"[SetupSettingsPanel] Current Settings:");
             Debug.Log($"  Grid Size: {_gridSize}x{_gridSize}");
             Debug.Log($"  Word Count: {_wordCount}");
-            Debug.Log($"  Forgiveness: {_forgiveness}");
+            Debug.Log($"  Difficulty: {_difficulty}");
             Debug.Log($"  Player Name: {_playerName}");
             Debug.Log($"  Player Color: {_playerColor}");
             Debug.Log($"  Name Input Focused: {_isNameInputFocused}");

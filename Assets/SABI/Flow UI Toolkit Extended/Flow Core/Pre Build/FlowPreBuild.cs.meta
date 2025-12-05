@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 677e37140774a524fb192ab9e5cd01fc
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 309025
+  packageName: Flow UI Toolkit Extended
+  packageVersion: 1.5.1
+  assetPath: Assets/SABI/Flow UI Toolkit Extended/Flow Core/Pre Build/FlowPreBuild.cs
+  uploadId: 782149
