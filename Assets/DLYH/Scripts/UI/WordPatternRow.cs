@@ -184,7 +184,19 @@ namespace TecVooDoo.DontLoseYourHead.UI
         #region Unity Lifecycle
         private void Awake()
         {
-            _revealedLetters = new bool[_requiredWordLength];
+            // Only create the array if it hasn't been set already
+            // (SetGameplayWord may have been called before Awake on inactive objects)
+            if (_revealedLetters == null || _revealedLetters.Length == 0)
+            {
+                _revealedLetters = new bool[_requiredWordLength];
+            }
+
+            // If we already have a word set and are in Gameplay mode, update display
+            if (_currentState == RowState.Gameplay && !string.IsNullOrEmpty(_currentWord))
+            {
+                UpdateDisplay();
+                Debug.Log($"[WordPatternRow] Awake: Row {_rowNumber} already in Gameplay mode with word '{_currentWord}', refreshing display");
+            }
         }
 
         private void OnEnable()
@@ -490,13 +502,40 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// Sets the word for gameplay mode (opponent's hidden word).
         /// </summary>
         /// <param name="word">The hidden word</param>
+        /// <summary>
+        /// Sets the word for gameplay mode (opponent's hidden word).
+        /// For owner panel, call RevealAllLetters() after this to show full word.
+        /// </summary>
+        /// <param name="word">The hidden word</param>
         public void SetGameplayWord(string word)
         {
             _currentWord = word?.ToUpper() ?? "";
             _requiredWordLength = _currentWord.Length;
             _revealedLetters = new bool[_requiredWordLength];
-            SetState(RowState.Gameplay);
+            _isSelected = false;
+
+            // Set state directly
+            _currentState = RowState.Gameplay;
+
+            // EXPLICITLY hide ALL setup buttons - don't rely on UpdateButtonStates timing
+            if (_selectButton != null)
+            {
+                _selectButton.gameObject.SetActive(false);
+                Debug.Log($"[WordPatternRow] Row {_rowNumber}: Hid select button");
+            }
+            if (_coordinateModeButton != null)
+            {
+                _coordinateModeButton.gameObject.SetActive(false);
+            }
+            if (_deleteButton != null)
+            {
+                _deleteButton.gameObject.SetActive(false);
+            }
+
+            UpdateBackgroundColor();
             UpdateDisplay();
+
+            Debug.Log($"[WordPatternRow] Row {_rowNumber} set to gameplay with word: '{_currentWord}'");
         }
 
         /// <summary>

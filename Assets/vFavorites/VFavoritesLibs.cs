@@ -786,7 +786,7 @@ namespace VFavorites.Libs
         public struct GlobalID : System.IEquatable<GlobalID>
         {
             public Object GetObject() => GlobalObjectId.GlobalObjectIdentifierToObjectSlow(globalObjectId);
-            public int GetObjectInstanceId() => GlobalObjectId.GlobalObjectIdentifierToInstanceIDSlow(globalObjectId);
+            public int GetObjectInstanceId() => _GlobalObjectId_GlobalObjectIdentifierToInstanceIDSlow(globalObjectId);
 
 
             public string guid => globalObjectId.assetGUID.ToString();
@@ -827,7 +827,7 @@ namespace VFavorites.Libs
 
             var iids = new int[goids.Length];
 
-            GlobalObjectId.GlobalObjectIdentifiersToInstanceIDsSlow(goids, iids);
+            _GlobalObjectId_GlobalObjectIdentifiersToInstanceIDsSlow(goids, iids);
 
             return iids;
         }
@@ -1183,6 +1183,74 @@ namespace VFavorites.Libs
 
 
 
+
+
+        #endregion
+
+        #region Instance/Entity ID mess
+
+
+        static int _GlobalObjectId_GlobalObjectIdentifierToInstanceIDSlow(GlobalObjectId id)
+        {
+#if UNITY_6000_3_OR_NEWER
+            return GlobalObjectId.GlobalObjectIdentifierToEntityIdSlow(id);
+#else
+            return GlobalObjectId.GlobalObjectIdentifierToInstanceIDSlow(id);
+#endif
+
+        }
+
+        static void _GlobalObjectId_GlobalObjectIdentifiersToInstanceIDsSlow(GlobalObjectId[] identifiers, int[] outputInstanceIDs)
+        {
+#if UNITY_6000_3_OR_NEWER
+            GlobalObjectId.GlobalObjectIdentifiersToEntityIdsSlow(identifiers, outputInstanceIDs.Select(r => (EntityId)r).ToArray());
+#else
+            GlobalObjectId.GlobalObjectIdentifiersToInstanceIDsSlow(identifiers, outputInstanceIDs);
+#endif
+
+        }
+
+        static void _GlobalObjectId_GetGlobalObjectIdsSlow(int[] ids, GlobalObjectId[] outputIdentifiers)
+        {
+#if UNITY_6000_3_OR_NEWER
+            GlobalObjectId.GetGlobalObjectIdsSlow(ids.Select(r => (EntityId)r).ToArray(), outputIdentifiers);
+#else
+            GlobalObjectId.GetGlobalObjectIdsSlow(ids, outputIdentifiers);
+#endif
+
+        }
+
+
+
+        public static Object _EditorUtility_InstanceIDToObject(int iid)
+        {
+#if UNITY_6000_3_OR_NEWER
+            return EditorUtility.EntityIdToObject(iid);
+#else
+            return EditorUtility.InstanceIDToObject(iid);
+#endif
+        }
+
+        public static string _AssetDatabase_GetAssetPath(int instanceID)
+        {
+#if UNITY_6000_3_OR_NEWER
+            return AssetDatabase.GetAssetPath((EntityId)instanceID);
+#else
+            return AssetDatabase.GetAssetPath(instanceID);
+#endif
+        }
+
+        public static int[] _Selection_instanceIDs
+        {
+            get
+            {
+#if UNITY_6000_3_OR_NEWER
+                return Selection.entityIds.Select(r => (int)r).ToArray();
+#else
+                return Selection.instanceIDs;
+#endif
+            }
+        }
 
 
         #endregion

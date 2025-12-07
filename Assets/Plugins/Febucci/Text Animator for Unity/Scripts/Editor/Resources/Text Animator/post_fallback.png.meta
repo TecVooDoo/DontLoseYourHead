@@ -7,7 +7,7 @@ AssetOrigin:
   packageVersion: 3.1.1
   assetPath: Assets/Plugins/Febucci/Text Animator for Unity/Scripts/Editor/Resources/Text
     Animator/post_fallback.png
-  uploadId: 825840
+  uploadId: 825834
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -103,6 +103,19 @@ TextureImporter:
     forceMaximumCompressionQuality_BC6H_BC7: 0
   - serializedVersion: 4
     buildTarget: WebGL
+    maxTextureSize: 1024
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WindowsStoreApps
     maxTextureSize: 1024
     resizeAlgorithm: 0
     textureFormat: -1

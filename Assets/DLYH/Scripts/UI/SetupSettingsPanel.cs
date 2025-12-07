@@ -239,7 +239,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         private void SetDefaultValues()
         {
-            _gridSize = 8;
+            _gridSize = 6;
             _wordCount = WordCountOption.Four;
             _difficulty = DifficultySetting.Normal;
             _playerName = "PLAYER1";
@@ -262,8 +262,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
                     "11x11",
                     "12x12"
                 });
-                _gridSizeDropdown.value = 2; // Default to 8x8 (index 2)
+                _gridSizeDropdown.value = 0; // Default to 6x6 (index 0)
                 _gridSizeDropdown.onValueChanged.AddListener(OnGridSizeDropdownChanged);
+                // Fire the handler to sync the grid
+                OnGridSizeDropdownChanged(0);
             }
 
             // Word Count Dropdown
@@ -639,7 +641,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             Debug.Log($"[SetupSettingsPanel] Grid size changed to: {_gridSize}x{_gridSize}");
         }
 
-        private void OnWordCountDropdownChanged(int value)
+private void OnWordCountDropdownChanged(int value)
         {
             _wordCount = value switch
             {
@@ -661,6 +663,11 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 UnsubscribeInvalidWordFeedback();
                 SetupInvalidWordFeedback();
             }
+
+            // CRITICAL: Update button states after word count change
+            // New rows may be empty and need Pick Random Words enabled
+            UpdatePickRandomWordsButtonState();
+            UpdatePlaceRandomPositionsButtonState();
 
             Debug.Log($"[SetupSettingsPanel] Word count changed to: {_wordCount}");
         }

@@ -475,6 +475,10 @@ namespace VFavorites
                         if (curEvent.isRepaint && skipNextRepaint) { skipNextRepaint = false; return; }
 
 
+                        if (curEvent.holdingShift && curEvent.isScroll)
+                            curEvent.e.delta = new Vector2(0, curEvent.e.delta.x + curEvent.e.delta.y);
+
+
                         GUILayout.BeginArea(pageRect);
                         page.scrollPos = EditorGUILayout.BeginScrollView(new Vector2(0, page.scrollPos), GUIStyle.none, GUIStyle.none).y;
 
@@ -1003,7 +1007,11 @@ namespace VFavorites
                 var folderAsset = AssetDatabase.LoadAssetAtPath<Object>(path);
 
                 if (browser.GetFieldValue<int>("m_ViewMode") == 1)
+#if UNITY_6000_3_OR_NEWER
+                    browser.InvokeMethod("SetFolderSelection", new[] { (EntityId)folderAsset.GetInstanceID() }, false);
+#else
                     browser.InvokeMethod("SetFolderSelection", new[] { folderAsset.GetInstanceID() }, false);
+#endif
                 else
                 {
                     Selection.activeObject = folderAsset;
@@ -1800,7 +1808,7 @@ namespace VFavorites
 
 
 
-                var window = Resources.InstanceIDToObject(lockedBrowserInstanceId) as EditorWindow;
+                var window = _EditorUtility_InstanceIDToObject(lockedBrowserInstanceId) as EditorWindow;
 
                 if (window && window.GetType() == t_BrowserWindow) // prevents iid collisions
                     _lockedBrowser = window;
@@ -1990,7 +1998,7 @@ namespace VFavorites
 
 
 
-        const string version = "2.0.11";
+        const string version = "2.0.12";
 
     }
 }

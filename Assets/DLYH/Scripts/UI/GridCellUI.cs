@@ -8,6 +8,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
     /// <summary>
     /// Represents a single cell in the grid UI
     /// Handles visual states and click interactions
+    /// Supports hidden letters for opponent grids in gameplay mode.
     /// </summary>
     public class GridCellUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
     {
@@ -15,6 +16,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
         [SerializeField] private Image _background;
         [SerializeField] private TextMeshProUGUI _letterText;
         [SerializeField] private Button _button;
+
+        [Header("Gameplay Colors")]
+        [SerializeField] private Color _hitColor = new Color(0.5f, 1f, 0.5f, 1f);
+        [SerializeField] private Color _missColor = new Color(1f, 0.5f, 0.5f, 1f);
         #endregion
 
         #region Private Fields
@@ -25,6 +30,11 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private bool _isHighlighted;
         private Color _highlightColor;
         private char _currentLetter;
+
+        // Gameplay mode fields
+        private char _hiddenLetter = '\0';
+        private bool _isLetterHidden = false;
+        private bool _hasBeenGuessed = false;
         #endregion
 
         #region Events
@@ -49,6 +59,16 @@ namespace TecVooDoo.DontLoseYourHead.UI
         public int Row => _row;
         public CellState CurrentState => _currentState;
         public bool IsHighlighted => _isHighlighted;
+
+        /// <summary>
+        /// Returns true if this cell has a hidden (unrevealed) letter.
+        /// </summary>
+        public bool HasHiddenLetter => _isLetterHidden && _hiddenLetter != '\0';
+
+        /// <summary>
+        /// Returns true if this cell has been guessed in gameplay.
+        /// </summary>
+        public bool HasBeenGuessed => _hasBeenGuessed;
         #endregion
 
         #region Initialization
@@ -57,6 +77,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
             _column = column;
             _row = row;
             _currentLetter = '\0';
+            _hiddenLetter = '\0';
+            _isLetterHidden = false;
+            _hasBeenGuessed = false;
 
             if (_button != null)
             {
@@ -78,6 +101,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         public void SetLetter(char letter)
         {
             _currentLetter = letter;
+            _isLetterHidden = false;
             if (_letterText != null)
             {
                 _letterText.text = letter.ToString();
@@ -92,6 +116,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
         public void ClearLetter()
         {
             _currentLetter = '\0';
+            _hiddenLetter = '\0';
+            _isLetterHidden = false;
             if (_letterText != null)
             {
                 _letterText.text = "";
@@ -168,6 +194,64 @@ namespace TecVooDoo.DontLoseYourHead.UI
                     _background.color = Color.cyan;
                     break;
             }
+        }
+        #endregion
+
+        #region Gameplay Mode Methods
+        /// <summary>
+        /// Sets a hidden letter that wont be displayed until revealed.
+        /// Used for opponent grids in gameplay mode.
+        /// </summary>
+        public void SetHiddenLetter(char letter)
+        {
+            _hiddenLetter = char.ToUpper(letter);
+            _isLetterHidden = true;
+            _currentLetter = '\0';
+
+            if (_letterText != null)
+            {
+                _letterText.text = "";
+            }
+        }
+
+        /// <summary>
+        /// Reveals the hidden letter if one exists.
+        /// Returns the revealed letter or null char if none.
+        /// </summary>
+        public char RevealHiddenLetter()
+        {
+            if (_isLetterHidden && _hiddenLetter != '\0')
+            {
+                char revealed = _hiddenLetter;
+                SetLetter(_hiddenLetter);
+                _isLetterHidden = false;
+                _hasBeenGuessed = true;
+                return revealed;
+            }
+            return '\0';
+        }
+
+        /// <summary>
+        /// Marks this cell as guessed (for gameplay tracking).
+        /// </summary>
+        public void MarkAsGuessed(bool isHit)
+        {
+            _hasBeenGuessed = true;
+
+            if (_background != null)
+            {
+                _background.color = isHit ? _hitColor : _missColor;
+            }
+        }
+
+        /// <summary>
+        /// Resets the cell to its initial state (including gameplay state).
+        /// </summary>
+        public void Reset()
+        {
+            ClearLetter();
+            SetState(CellState.Empty);
+            _hasBeenGuessed = false;
         }
         #endregion
 

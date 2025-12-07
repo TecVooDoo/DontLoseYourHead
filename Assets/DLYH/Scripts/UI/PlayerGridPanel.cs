@@ -4,6 +4,7 @@ using TMPro;
 using Sirenix.OdinInspector;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace TecVooDoo.DontLoseYourHead.UI
 {
@@ -27,7 +28,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             Gameplay
         }
 
-        
+
         #endregion
 
         #region Constants
@@ -78,9 +79,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private LayoutElement _rowLabelsLayout;
 
         [TitleGroup("Setup Mode References")]
-        [SerializeField, Tooltip("Button for random word placement")]
-        private Button _randomPlacementButton;
-
         [SerializeField]
         private AutocompleteDropdown _autocompleteDropdown;
         #endregion
@@ -216,6 +214,11 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// Fired when a letter is input from the letter tracker (for routing to name field)
         /// </summary>
         public event Action<char> OnLetterInput;
+
+        /// <summary>
+        /// Fired when word lengths are changed (rows may need re-placement)
+        /// </summary>
+        public event Action OnWordLengthsChanged;
         #endregion
 
         #region Properties
@@ -236,10 +239,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
             CacheExistingLabels();
         }
 
-private void Start()
+        private void Start()
         {
             Debug.Log("[PlayerGridPanel] START() called - script is running!");
-            
+
             // Initialize grid color manager with serialized colors
             _gridColorManager = new GridColorManager(
                 _cursorColor,
@@ -247,16 +250,16 @@ private void Start()
                 _invalidPlacementColor,
                 _placedLetterColor
             );
-            
+
             // Initialize letter tracker controller
             _letterTrackerController = new LetterTrackerController(_letterTrackerContainer);
             _letterTrackerController.CacheLetterButtons();
-            
+
             // Wire controller events to panel events
             _letterTrackerController.OnLetterClicked += HandleLetterClicked;
             _letterTrackerController.OnLetterHoverEnter += HandleLetterHoverEnter;
             _letterTrackerController.OnLetterHoverExit += HandleLetterHoverExit;
-            
+
             CacheWordPatternRows();
 
             // Initialize grid with events wired up
@@ -264,27 +267,9 @@ private void Start()
             {
                 InitializeGrid(_currentGridSize);
             }
-            
-            // Double-check button reference
-            if (_randomPlacementButton != null)
-            {
-                Debug.Log(string.Format("[PlayerGridPanel] Random placement button reference is VALID: {0}", _randomPlacementButton.gameObject.name));
-            }
-            else
-            {
-                Debug.LogError("[PlayerGridPanel] Random placement button reference is NULL in Start()!");
-            }
+
         }
 
-        private void OnEnable()
-        {
-            SubscribeToRandomPlacementButton();
-        }
-
-        private void OnDisable()
-        {
-            UnsubscribeFromRandomPlacementButton();
-        }
         #endregion
 
         #region Public Methods - Mode
@@ -307,11 +292,6 @@ private void Start()
 
         private void UpdateModeVisuals()
         {
-            // Update random placement button visibility
-            if (_randomPlacementButton != null)
-            {
-                _randomPlacementButton.gameObject.SetActive(_currentMode == PanelMode.Setup);
-            }
 
             // Update word pattern rows for mode
             foreach (var row in _wordPatternRows)
@@ -387,7 +367,7 @@ private void Start()
         /// <summary>
         /// Changes the grid size and reinitializes.
         /// </summary>
-public void SetGridSize(int newSize)
+        public void SetGridSize(int newSize)
         {
             if (newSize == _currentGridSize) return;
 
@@ -465,6 +445,13 @@ public void SetGridSize(int newSize)
                 {
                     _wordPatternRows[i].gameObject.SetActive(true);
                     _wordPatternRows[i].SetRequiredLength(lengths[i]);
+
+                    // If row was placed, reset to WordEntered since grid will be cleared
+                    // This keeps the word text but requires re-placement
+                    if (_wordPatternRows[i].IsPlaced)
+                    {
+                        _wordPatternRows[i].ResetToWordEntered();
+                    }
                 }
                 else
                 {
@@ -475,7 +462,9 @@ public void SetGridSize(int newSize)
             // Clear all placed words from grid
             ClearAllPlacedWords();
 
-            Debug.Log($"[PlayerGridPanel] Set word lengths: {string.Join(", ", lengths)}");
+            Debug.Log($"[PlayerGridPanel] Set word lengths: {string.Join(", ", lengths)}. All placements reset.");
+            // Notify listeners that word lengths changed (for Start button state update)
+            OnWordLengthsChanged?.Invoke();
         }
 
         /// <summary>
@@ -510,7 +499,7 @@ public void SetGridSize(int newSize)
         /// <summary>
         /// Gets a letter button by its letter.
         /// </summary>
-public LetterButton GetLetterButton(char letter)
+        public LetterButton GetLetterButton(char letter)
         {
             if (_letterTrackerController == null) return null;
             return _letterTrackerController.GetLetterButton(letter);
@@ -519,7 +508,7 @@ public LetterButton GetLetterButton(char letter)
         /// <summary>
         /// Sets the state of a letter button.
         /// </summary>
-public void SetLetterState(char letter, LetterButton.LetterState state)
+        public void SetLetterState(char letter, LetterButton.LetterState state)
         {
             if (_letterTrackerController == null) return;
             _letterTrackerController.SetLetterState(letter, state);
@@ -528,7 +517,7 @@ public void SetLetterState(char letter, LetterButton.LetterState state)
         /// <summary>
         /// Resets all letter buttons to normal state.
         /// </summary>
-public void ResetAllLetterButtons()
+        public void ResetAllLetterButtons()
         {
             if (_letterTrackerController == null) return;
             _letterTrackerController.ResetAllLetterButtons();
@@ -537,7 +526,7 @@ public void ResetAllLetterButtons()
         /// <summary>
         /// Sets whether letter buttons are interactable.
         /// </summary>
-public void SetLetterButtonsInteractable(bool interactable)
+        public void SetLetterButtonsInteractable(bool interactable)
         {
             if (_letterTrackerController == null) return;
             _letterTrackerController.SetLetterButtonsInteractable(interactable);
@@ -577,15 +566,91 @@ public void SetLetterButtonsInteractable(bool interactable)
         /// Returns all WordPatternRow components for event subscription.
         /// Used by SetupSettingsPanel to subscribe to OnInvalidWordRejected events.
         /// </summary>
-        public WordPatternRow[] GetWordPatternRows()
+public WordPatternRow[] GetWordPatternRows()
         {
+            // Auto-cache if list is empty but container exists
+            if ((_wordPatternRows == null || _wordPatternRows.Count == 0) && _wordPatternsContainer != null)
+            {
+                Debug.Log("[PlayerGridPanel] GetWordPatternRows: Auto-caching word pattern rows");
+                CacheWordPatternRows();
+            }
+
             if (_wordPatternRows == null || _wordPatternRows.Count == 0)
             {
+                Debug.LogWarning("[PlayerGridPanel] GetWordPatternRows: No word pattern rows found");
                 return new WordPatternRow[0];
             }
 
             return _wordPatternRows.ToArray();
         }
+
+
+        #region Structs
+        /// <summary>
+        /// Data structure for word placement information.
+        /// Used to transfer placement data to gameplay panels.
+        /// </summary>
+        public struct WordPlacement
+        {
+            public string word;
+            public int startCol;
+            public int startRow;
+            public int dirCol;
+            public int dirRow;
+            public int rowIndex;
+        }
+        #endregion
+
+        /// <summary>
+        /// Gets all placed words with their positions and directions.
+        /// Used by GameplayUIController to transfer setup data to gameplay panels.
+        /// </summary>
+        public List<WordPlacement> GetAllWordPlacements()
+        {
+            var placements = new List<WordPlacement>();
+
+            foreach (var kvp in _wordRowPositions)
+            {
+                int rowIndex = kvp.Key;
+                List<Vector2Int> positions = kvp.Value;
+
+                if (positions == null || positions.Count < 2) continue;
+
+                // Get the word from the word pattern row
+                string word = "";
+                if (rowIndex >= 0 && rowIndex < _wordPatternRows.Count)
+                {
+                    var wordRow = _wordPatternRows[rowIndex];
+                    if (wordRow != null)
+                    {
+                        word = wordRow.CurrentWord;
+                    }
+                }
+
+                if (string.IsNullOrEmpty(word)) continue;
+
+                // Calculate direction from first two positions
+                Vector2Int first = positions[0];
+                Vector2Int second = positions[1];
+                int dirCol = second.x - first.x;
+                int dirRow = second.y - first.y;
+
+                placements.Add(new WordPlacement
+                {
+                    word = word,
+                    startCol = first.x,
+                    startRow = first.y,
+                    dirCol = dirCol,
+                    dirRow = dirRow,
+                    rowIndex = rowIndex
+                });
+
+                Debug.Log($"[PlayerGridPanel] GetAllWordPlacements: {word} at ({first.x},{first.y}) dir({dirCol},{dirRow})");
+            }
+
+            return placements;
+        }
+
 
         /// <summary>
         /// Selects a word pattern row for input.
@@ -815,8 +880,13 @@ public void SetLetterButtonsInteractable(bool interactable)
 
             // Find all WordPatternRow components in children
             var rows = _wordPatternsContainer.GetComponentsInChildren<WordPatternRow>(true);
+            
+            // Sort by sibling index to ensure correct visual order (top to bottom)
+            var sortedRows = rows.OrderBy(r => r.transform.GetSiblingIndex()).ToArray();
+            
+            Debug.Log($"[PlayerGridPanel] CacheWordPatternRows: Found {rows.Length} rows, sorting by sibling index");
 
-            foreach (var row in rows)
+            foreach (var row in sortedRows)
             {
                 // Subscribe to events
                 row.OnRowSelected -= HandleWordRowSelected;
@@ -833,6 +903,7 @@ public void SetLetterButtonsInteractable(bool interactable)
                 }
 
                 _wordPatternRows.Add(row);
+                Debug.Log($"[PlayerGridPanel] Cached row: sibling={row.transform.GetSiblingIndex()}, name={row.gameObject.name}");
             }
 
             Debug.Log($"[PlayerGridPanel] Cached {_wordPatternRows.Count} word pattern rows");
@@ -958,7 +1029,7 @@ public void SetLetterButtonsInteractable(bool interactable)
             return PlaceWordInDirection(startCol, startRow, dCol, dRow);
         }
 
-/// <summary>
+        /// <summary>
         /// Places all unplaced words randomly on the grid.
         /// Called by SetupSettingsPanel when "Place Random Positions" button is clicked.
         /// </summary>
@@ -1345,7 +1416,7 @@ public void SetLetterButtonsInteractable(bool interactable)
         #endregion
 
         #region Private Methods - Placement Preview
-private void UpdatePlacementPreview(int hoverCol, int hoverRow)
+        private void UpdatePlacementPreview(int hoverCol, int hoverRow)
         {
             // Clear previous highlighting
             ClearPlacementHighlighting();
@@ -1403,7 +1474,7 @@ private void UpdatePlacementPreview(int hoverCol, int hoverRow)
             }
         }
 
-private void HighlightInvalidCells(int hoverCol, int hoverRow, List<Vector2Int> validDirections)
+        private void HighlightInvalidCells(int hoverCol, int hoverRow, List<Vector2Int> validDirections)
         {
             // For each adjacent cell that is NOT in validDirections, mark as invalid
             int[] dCols = { 1, 0, 1, 1, -1, 0, -1, -1 };
@@ -1429,7 +1500,7 @@ private void HighlightInvalidCells(int hoverCol, int hoverRow, List<Vector2Int> 
             }
         }
 
-private void PreviewWordPlacement(int secondCol, int secondRow)
+        private void PreviewWordPlacement(int secondCol, int secondRow)
         {
             if (_firstCellCol < 0 || _firstCellRow < 0) return;
 
@@ -1557,7 +1628,7 @@ private void PreviewWordPlacement(int secondCol, int secondRow)
         #endregion
 
         #region Private Methods - Event Handlers
-private void HandleCellClicked(int column, int row)
+        private void HandleCellClicked(int column, int row)
         {
             if (!IsValidCoordinate(column, row)) return;
 
@@ -1735,31 +1806,10 @@ private void HandleCellClicked(int column, int row)
             }
         }
 
-private void SubscribeToRandomPlacementButton()
-        {
-            if (_randomPlacementButton != null)
-            {
-                _randomPlacementButton.onClick.AddListener(HandleRandomPlacementClick);
-                Debug.Log("[PlayerGridPanel] Random placement button subscribed successfully");
-            }
-            else
-            {
-                Debug.LogWarning("[PlayerGridPanel] Random placement button is NULL - not assigned in Inspector!");
-            }
-        }
-
-        private void UnsubscribeFromRandomPlacementButton()
-        {
-            if (_randomPlacementButton != null)
-            {
-                _randomPlacementButton.onClick.RemoveListener(HandleRandomPlacementClick);
-            }
-        }
-
-private void HandleRandomPlacementClick()
+        private void HandleRandomPlacementClick()
         {
             Debug.Log("[PlayerGridPanel] === RANDOM PLACEMENT BUTTON CLICKED ===");
-            
+
             // Place all unplaced words that have text entered
             int placedCount = 0;
             int checkedCount = 0;
@@ -1768,7 +1818,7 @@ private void HandleRandomPlacementClick()
             {
                 var row = _wordPatternRows[i];
                 if (row == null || !row.gameObject.activeSelf) continue;
-                
+
                 checkedCount++;
                 Debug.Log($"[PlayerGridPanel] Row {i + 1}: HasWord={row.HasWord}, IsPlaced={row.IsPlaced}, Word='{row.CurrentWord}'");
 
