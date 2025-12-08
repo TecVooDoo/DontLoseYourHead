@@ -137,6 +137,8 @@ MonoBehaviour:
   _background: {fileID: 2439589210983022305}
   _letterText: {fileID: 2244363893781800639}
   _button: {fileID: 8314806483867284617}
+  _hitColor: {r: 0.5, g: 1, b: 0.5, a: 1}
+  _missColor: {r: 1, g: 0.5, b: 0.5, a: 1}
 --- !u!1 &5670941660773608518
 GameObject:
   m_ObjectHideFlags: 0
@@ -232,7 +234,7 @@ MonoBehaviour:
   m_fontSize: 20
   m_fontSizeBase: 20
   m_fontWeight: 400
-  m_enableAutoSizing: 0
+  m_enableAutoSizing: 1
   m_fontSizeMin: 18
   m_fontSizeMax: 72
   m_fontStyle: 1
@@ -240,6 +242,7 @@ MonoBehaviour:
   m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
+  m_characterHorizontalScale: 1
   m_wordSpacing: 0
   m_lineSpacing: 0
   m_lineSpacingMax: 0

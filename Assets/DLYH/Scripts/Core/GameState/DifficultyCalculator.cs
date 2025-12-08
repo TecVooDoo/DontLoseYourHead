@@ -3,7 +3,18 @@ using UnityEngine;
 namespace TecVooDoo.DontLoseYourHead.Core
 {
     /// <summary>
-    /// Static utility class for calculating difficulty-related values
+    /// Static utility class for calculating difficulty-related values.
+    /// 
+    /// IMPORTANT: Miss limit is calculated from OPPONENT's grid/word settings
+    /// combined with the PLAYER's difficulty preference.
+    /// 
+    /// Formula: MissLimit = Base + OpponentGridBonus + OpponentWordModifier + PlayerDifficultyModifier
+    /// 
+    /// Example:
+    ///   You: 6x6, 4 words, Easy difficulty
+    ///   Opponent: 12x12, 3 words, Hard difficulty
+    ///   Your miss limit = 15 + 13 + 0 + 4 = 32 (you're guessing opponent's large 12x12 grid)
+    ///   Opponent's miss limit = 15 + 3 + (-2) + (-4) = 12 (they're guessing your small 6x6 grid)
     /// </summary>
     public static class DifficultyCalculator
     {
@@ -28,9 +39,58 @@ namespace TecVooDoo.DontLoseYourHead.Core
         private const int DIFFICULTY_NORMAL = 0;
         private const int DIFFICULTY_EASY = 4;
 
+        #region New Formula - Player vs Opponent
+
         /// <summary>
-        /// Calculate the miss limit based on configuration
+        /// Calculate the miss limit for a player based on their difficulty preference
+        /// and the OPPONENT's grid configuration.
+        /// 
+        /// This is the correct formula: you get more/fewer misses based on how
+        /// hard your opponent's grid is to solve, modified by your difficulty choice.
         /// </summary>
+        /// <param name="playerDifficulty">The player's chosen difficulty (affects their forgiveness)</param>
+        /// <param name="opponentGridSize">The opponent's grid size (what you're guessing on)</param>
+        /// <param name="opponentWordCount">The opponent's word count (what you're trying to find)</param>
+        /// <returns>Number of allowed misses for this player</returns>
+        public static int CalculateMissLimitForPlayer(
+            DifficultySetting playerDifficulty,
+            GridSizeOption opponentGridSize,
+            WordCountOption opponentWordCount)
+        {
+            int baseValue = BASE_MISSES;
+            int gridBonus = GetGridBonus(opponentGridSize);
+            int wordModifier = GetWordCountModifier(opponentWordCount);
+            int difficultyModifier = GetDifficultyModifier(playerDifficulty);
+
+            int total = baseValue + gridBonus + wordModifier + difficultyModifier;
+
+            // Clamp to reasonable range
+            return Mathf.Clamp(total, 10, 40);
+        }
+
+        /// <summary>
+        /// Calculate miss limit using raw int values for opponent's settings.
+        /// </summary>
+        public static int CalculateMissLimitForPlayer(
+            DifficultySetting playerDifficulty,
+            int opponentGridSize,
+            int opponentWordCount)
+        {
+            GridSizeOption gridOption = GridSizeFromInt(opponentGridSize);
+            WordCountOption wordOption = WordCountFromInt(opponentWordCount);
+            return CalculateMissLimitForPlayer(playerDifficulty, gridOption, wordOption);
+        }
+
+        #endregion
+
+        #region Legacy Formula (Deprecated)
+
+        /// <summary>
+        /// [DEPRECATED] Calculate the miss limit based on configuration.
+        /// This method uses the player's own settings which is incorrect.
+        /// Use CalculateMissLimitForPlayer() instead which uses opponent's grid settings.
+        /// </summary>
+        [System.Obsolete("Use CalculateMissLimitForPlayer() which correctly uses opponent's grid settings")]
         public static int CalculateMissLimit(GridSizeOption gridSize, WordCountOption wordCount, DifficultySetting difficulty)
         {
             int baseValue = BASE_MISSES;
@@ -45,14 +105,22 @@ namespace TecVooDoo.DontLoseYourHead.Core
         }
 
         /// <summary>
-        /// Calculate miss limit using raw grid size value
+        /// [DEPRECATED] Calculate miss limit using raw grid size value.
+        /// Use CalculateMissLimitForPlayer() instead.
         /// </summary>
+        [System.Obsolete("Use CalculateMissLimitForPlayer() which correctly uses opponent's grid settings")]
         public static int CalculateMissLimit(int gridSize, int wordCount, DifficultySetting difficulty)
         {
             GridSizeOption gridOption = GridSizeFromInt(gridSize);
             WordCountOption wordOption = WordCountFromInt(wordCount);
+#pragma warning disable CS0618 // Suppress obsolete warning for internal call
             return CalculateMissLimit(gridOption, wordOption, difficulty);
+#pragma warning restore CS0618
         }
+
+        #endregion
+
+        #region Grid Bonus Methods
 
         /// <summary>
         /// Get the grid size bonus for miss calculation
@@ -98,6 +166,10 @@ namespace TecVooDoo.DontLoseYourHead.Core
             }
         }
 
+        #endregion
+
+        #region Word Count Methods
+
         /// <summary>
         /// Get the word count modifier for miss calculation
         /// </summary>
@@ -113,6 +185,10 @@ namespace TecVooDoo.DontLoseYourHead.Core
                     return WORD_MODIFIER_3_WORDS;
             }
         }
+
+        #endregion
+
+        #region Difficulty Methods
 
         /// <summary>
         /// Get the difficulty modifier for miss calculation
@@ -131,6 +207,10 @@ namespace TecVooDoo.DontLoseYourHead.Core
                     return DIFFICULTY_NORMAL;
             }
         }
+
+        #endregion
+
+        #region Conversion Methods
 
         /// <summary>
         /// Convert int to GridSizeOption
@@ -169,6 +249,10 @@ namespace TecVooDoo.DontLoseYourHead.Core
             }
         }
 
+        #endregion
+
+        #region Word Length Methods
+
         /// <summary>
         /// Get the word lengths required for a given word count
         /// </summary>
@@ -185,30 +269,40 @@ namespace TecVooDoo.DontLoseYourHead.Core
             }
         }
 
+        #endregion
+
+        #region Debug/Display Methods
+
         /// <summary>
-        /// Get a human-readable description of the miss limit calculation
+        /// Get a human-readable description of the miss limit calculation for a player
+        /// Uses the correct formula: opponent's grid + player's difficulty
         /// </summary>
-        public static string GetCalculationBreakdown(GridSizeOption gridSize, WordCountOption wordCount, DifficultySetting difficulty)
+        public static string GetCalculationBreakdown(
+            DifficultySetting playerDifficulty,
+            int opponentGridSize,
+            int opponentWordCount)
         {
             int baseValue = BASE_MISSES;
-            int gridBonus = GetGridBonus(gridSize);
-            int wordModifier = GetWordCountModifier(wordCount);
-            int difficultyModifier = GetDifficultyModifier(difficulty);
-            int total = CalculateMissLimit(gridSize, wordCount, difficulty);
+            int gridBonus = GetGridBonus(opponentGridSize);
+            int wordModifier = GetWordCountModifier(WordCountFromInt(opponentWordCount));
+            int difficultyModifier = GetDifficultyModifier(playerDifficulty);
+            int total = CalculateMissLimitForPlayer(playerDifficulty, opponentGridSize, opponentWordCount);
 
             string breakdown = string.Format(
-                "Base: {0}\nGrid Bonus ({1}x{1}): +{2}\nWord Modifier ({3} words): {4}\nDifficulty ({5}): {6}\n----------\nTotal: {7} misses",
+                "Base: {0}\nOpponent Grid ({1}x{1}): +{2}\nOpponent Words ({3}): {4}\nYour Difficulty ({5}): {6}\n----------\nYour Miss Limit: {7}",
                 baseValue,
-                (int)gridSize,
+                opponentGridSize,
                 gridBonus,
-                (int)wordCount,
+                opponentWordCount,
                 wordModifier >= 0 ? "+" + wordModifier.ToString() : wordModifier.ToString(),
-                difficulty.ToString(),
+                playerDifficulty.ToString(),
                 difficultyModifier >= 0 ? "+" + difficultyModifier.ToString() : difficultyModifier.ToString(),
                 total
             );
 
             return breakdown;
         }
+
+        #endregion
     }
 }

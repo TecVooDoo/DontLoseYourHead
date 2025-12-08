@@ -37,7 +37,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
         public const int MAX_WORD_ROWS = 4;
 
         // Layout constants - adjust these to match your prefab settings
-        private const float CELL_SIZE = 40f;
+        private const float MAX_CELL_SIZE = 40f;
+        private const float MIN_CELL_SIZE = 25f;
+        private float _currentCellSize = 40f;
         private const float CELL_SPACING = 2f;
         private const float ROW_LABEL_HEIGHT = 40f;
         private const float ROW_LABEL_SPACING = 2f;
@@ -1149,7 +1151,7 @@ public WordPatternRow[] GetWordPatternRows()
             }
         }
 
-        private void CacheExistingLabels()
+private void CacheExistingLabels()
         {
             // Clear existing cached references
             for (int i = 0; i < MAX_GRID_SIZE; i++)
@@ -1158,45 +1160,96 @@ public WordPatternRow[] GetWordPatternRows()
                 _columnLabelObjects[i] = null;
             }
 
-            // Cache row labels (1-12) - store GameObjects for visibility control
+            // Cache row labels (1-12) by NAME, not sibling order
             if (_rowLabelsContainer != null)
             {
-                int labelIndex = 0;
-                for (int i = 0; i < _rowLabelsContainer.childCount && labelIndex < MAX_GRID_SIZE; i++)
+                for (int i = 0; i < _rowLabelsContainer.childCount; i++)
                 {
                     var child = _rowLabelsContainer.GetChild(i);
-                    var tmp = child.GetComponent<TextMeshProUGUI>();
-                    if (tmp != null || child.name.Contains("Row") || child.name.Contains("Label"))
+                    string childName = child.name;
+                    
+                    // Try to extract the number from the name (e.g., "Label_1" -> 1, "1" -> 1)
+                    for (int labelNum = 1; labelNum <= MAX_GRID_SIZE; labelNum++)
                     {
-                        _rowLabelObjects[labelIndex] = child.gameObject;
-                        labelIndex++;
+                        if (childName.Contains(labelNum.ToString()) && 
+                            (childName.Contains("Label") || childName.Contains("Row") || childName == labelNum.ToString()))
+                        {
+                            // Avoid false matches like "Label_12" matching "1"
+                            string numStr = labelNum.ToString();
+                            bool exactMatch = childName.EndsWith(numStr) || 
+                                              childName.EndsWith("_" + numStr) ||
+                                              childName == numStr;
+                            
+                            // For two-digit numbers, also check they're not part of a larger number
+                            if (labelNum < 10)
+                            {
+                                // Single digit - make sure it's not part of 10, 11, 12
+                                exactMatch = exactMatch && !childName.Contains("1" + numStr);
+                            }
+                            
+                            if (exactMatch && _rowLabelObjects[labelNum - 1] == null)
+                            {
+                                _rowLabelObjects[labelNum - 1] = child.gameObject;
+                                break;
+                            }
+                        }
                     }
                 }
-                Debug.Log($"[PlayerGridPanel] Cached {labelIndex} row labels");
+                
+                int rowCount = _rowLabelObjects.Count(x => x != null);
+                Debug.Log($"[PlayerGridPanel] Cached {rowCount} row labels by name");
+                
+                // Log what we found for debugging
+                for (int i = 0; i < MAX_GRID_SIZE; i++)
+                {
+                    if (_rowLabelObjects[i] != null)
+                    {
+                        Debug.Log($"[PlayerGridPanel] Row label [{i}] = {_rowLabelObjects[i].name}");
+                    }
+                }
             }
 
-            // Cache column labels (A-L) - store GameObjects for visibility control
+            // Cache column labels (A-L) by NAME, not sibling order
             if (_columnLabelsContainer != null)
             {
-                int labelIndex = 0;
-                for (int i = 0; i < _columnLabelsContainer.childCount && labelIndex < MAX_GRID_SIZE; i++)
+                for (int i = 0; i < _columnLabelsContainer.childCount; i++)
                 {
                     var child = _columnLabelsContainer.GetChild(i);
-
+                    string childName = child.name;
+                    
                     // Skip spacer
-                    if (child.name.ToLower().Contains("spacer"))
+                    if (childName.ToLower().Contains("spacer"))
                     {
                         continue;
                     }
-
-                    var tmp = child.GetComponent<TextMeshProUGUI>();
-                    if (tmp != null || child.name.Contains("Label"))
+                    
+                    // Try to extract the letter from the name (e.g., "Label_A" -> A)
+                    for (int letterIndex = 0; letterIndex < MAX_GRID_SIZE; letterIndex++)
                     {
-                        _columnLabelObjects[labelIndex] = child.gameObject;
-                        labelIndex++;
+                        char letter = (char)('A' + letterIndex);
+                        if (childName.Contains(letter.ToString()) && 
+                            (childName.Contains("Label") || childName.Contains("Col") || childName == letter.ToString()))
+                        {
+                            if (_columnLabelObjects[letterIndex] == null)
+                            {
+                                _columnLabelObjects[letterIndex] = child.gameObject;
+                                break;
+                            }
+                        }
                     }
                 }
-                Debug.Log($"[PlayerGridPanel] Cached {labelIndex} column labels");
+                
+                int colCount = _columnLabelObjects.Count(x => x != null);
+                Debug.Log($"[PlayerGridPanel] Cached {colCount} column labels by name");
+                
+                // Log what we found for debugging
+                for (int i = 0; i < MAX_GRID_SIZE; i++)
+                {
+                    if (_columnLabelObjects[i] != null)
+                    {
+                        Debug.Log($"[PlayerGridPanel] Column label [{i}] = {_columnLabelObjects[i].name}");
+                    }
+                }
             }
         }
         #endregion
@@ -1213,68 +1266,310 @@ public WordPatternRow[] GetWordPatternRows()
 
         private void UpdatePanelHeight()
         {
-            float gridHeight = (_currentGridSize * CELL_SIZE) + ((_currentGridSize - 1) * CELL_SPACING);
+            // With horizontal layout, we have full panel height available
+            float availableHeight = 1080f;
 
+            // Fixed elements: header(~40) + word patterns(~120) + letter tracker(~80) + column labels(~30) + padding(~30)
+            float fixedElementsHeight = 300f;
+            float maxGridHeight = availableHeight - fixedElementsHeight;
+
+            // Calculate optimal cell size
+            float optimalCellSize = (maxGridHeight - ((_currentGridSize - 1) * CELL_SPACING)) / _currentGridSize;
+
+            // Clamp between min and max cell sizes
+            float maxCellSize = 65f;
+            float minCellSize = 40f;
+            _currentCellSize = Mathf.Clamp(optimalCellSize, minCellSize, maxCellSize);
+
+            Debug.Log($"[PlayerGridPanel] Grid {_currentGridSize}x{_currentGridSize}: optimal={optimalCellSize:F1}px, clamped={_currentCellSize:F1}px");
+
+            // Update GridLayoutGroup cell size
+            if (_gridLayoutGroup != null)
+            {
+                _gridLayoutGroup.cellSize = new Vector2(_currentCellSize, _currentCellSize);
+                _gridLayoutGroup.spacing = new Vector2(CELL_SPACING, CELL_SPACING);
+            }
+
+            float gridHeight = (_currentGridSize * _currentCellSize) + ((_currentGridSize - 1) * CELL_SPACING);
+            float gridWidth = gridHeight;
+
+            // Set grid container size
             if (_gridContainerLayout != null)
             {
                 _gridContainerLayout.preferredHeight = gridHeight;
+                _gridContainerLayout.preferredWidth = gridWidth;
+                _gridContainerLayout.minHeight = gridHeight;
+                _gridContainerLayout.minWidth = gridWidth;
             }
 
+            // Row labels should be square (same size as cells)
+            float rowLabelSize = _currentCellSize;
+
+            // Update row labels container and individual labels
+            if (_rowLabelsContainer != null)
+            {
+                // Set width on row labels container to match cell size
+                var rowLabelsContainerLayout = _rowLabelsContainer.GetComponent<LayoutElement>();
+                if (rowLabelsContainerLayout == null)
+                {
+                    rowLabelsContainerLayout = _rowLabelsContainer.gameObject.AddComponent<LayoutElement>();
+                }
+                rowLabelsContainerLayout.preferredWidth = rowLabelSize;
+                rowLabelsContainerLayout.minWidth = rowLabelSize;
+                rowLabelsContainerLayout.flexibleWidth = 0;
+
+                // Configure VerticalLayoutGroup to NOT stretch children
+                var rowLayoutGroup = _rowLabelsContainer.GetComponent<VerticalLayoutGroup>();
+                if (rowLayoutGroup != null)
+                {
+                    rowLayoutGroup.spacing = CELL_SPACING;
+                    rowLayoutGroup.childControlHeight = false;
+                    rowLayoutGroup.childControlWidth = false;
+                    rowLayoutGroup.childForceExpandHeight = false;
+                    rowLayoutGroup.childForceExpandWidth = false;
+                    rowLayoutGroup.childAlignment = TextAnchor.UpperCenter;
+                }
+
+                // Set each row label to be square (same as cell size)
+                for (int i = 0; i < MAX_GRID_SIZE; i++)
+                {
+                    if (_rowLabelObjects[i] != null)
+                    {
+                        var labelLayout = _rowLabelObjects[i].GetComponent<LayoutElement>();
+                        if (labelLayout == null)
+                        {
+                            labelLayout = _rowLabelObjects[i].AddComponent<LayoutElement>();
+                        }
+                        labelLayout.preferredHeight = rowLabelSize;
+                        labelLayout.minHeight = rowLabelSize;
+                        labelLayout.preferredWidth = rowLabelSize;
+                        labelLayout.minWidth = rowLabelSize;
+                        labelLayout.flexibleHeight = 0;
+                        labelLayout.flexibleWidth = 0;
+
+                        // Also set the RectTransform directly
+                        var labelRect = _rowLabelObjects[i].GetComponent<RectTransform>();
+                        if (labelRect != null)
+                        {
+                            labelRect.sizeDelta = new Vector2(rowLabelSize, rowLabelSize);
+                        }
+                    }
+                }
+            }
+
+            // Set row labels container height
             if (_rowLabelsLayout != null)
             {
-                float rowLabelsHeight = (_currentGridSize * ROW_LABEL_HEIGHT) + ((_currentGridSize - 1) * ROW_LABEL_SPACING);
-                _rowLabelsLayout.preferredHeight = rowLabelsHeight;
+                _rowLabelsLayout.preferredHeight = gridHeight;
+                _rowLabelsLayout.minHeight = gridHeight;
+                _rowLabelsLayout.flexibleHeight = 0;
             }
 
+            // Column label height (same as cell size for consistency)
+            float columnLabelHeight = _currentCellSize;
+
+            // Update column labels container and spacer
+            if (_columnLabelsContainer != null)
+            {
+                // Set fixed height on column labels container
+                var colContainerLayout = _columnLabelsContainer.GetComponent<LayoutElement>();
+                if (colContainerLayout == null)
+                {
+                    colContainerLayout = _columnLabelsContainer.gameObject.AddComponent<LayoutElement>();
+                }
+                colContainerLayout.preferredHeight = columnLabelHeight;
+                colContainerLayout.minHeight = columnLabelHeight;
+                colContainerLayout.flexibleHeight = 0;
+
+                // Configure HorizontalLayoutGroup to NOT stretch children
+                var colLayoutGroup = _columnLabelsContainer.GetComponent<HorizontalLayoutGroup>();
+                if (colLayoutGroup != null)
+                {
+                    colLayoutGroup.spacing = CELL_SPACING;
+                    colLayoutGroup.childControlWidth = false;
+                    colLayoutGroup.childControlHeight = false;
+                    colLayoutGroup.childForceExpandWidth = false;
+                    colLayoutGroup.childForceExpandHeight = false;
+                    colLayoutGroup.childAlignment = TextAnchor.MiddleLeft;
+                }
+
+                // Find and size the spacer to match row labels width
+                for (int i = 0; i < _columnLabelsContainer.childCount; i++)
+                {
+                    var child = _columnLabelsContainer.GetChild(i);
+                    if (child.name.ToLower().Contains("spacer"))
+                    {
+                        var spacerLayout = child.GetComponent<LayoutElement>();
+                        if (spacerLayout == null)
+                        {
+                            spacerLayout = child.gameObject.AddComponent<LayoutElement>();
+                        }
+                        // Spacer should be square, matching row label size
+                        spacerLayout.preferredWidth = rowLabelSize;
+                        spacerLayout.minWidth = rowLabelSize;
+                        spacerLayout.preferredHeight = columnLabelHeight;
+                        spacerLayout.minHeight = columnLabelHeight;
+                        spacerLayout.flexibleWidth = 0;
+                        spacerLayout.flexibleHeight = 0;
+
+                        // Also set RectTransform directly
+                        var spacerRect = child.GetComponent<RectTransform>();
+                        if (spacerRect != null)
+                        {
+                            spacerRect.sizeDelta = new Vector2(rowLabelSize, columnLabelHeight);
+                        }
+
+                        Debug.Log($"[PlayerGridPanel] Set spacer size to {rowLabelSize}x{columnLabelHeight}px");
+                        break;
+                    }
+                }
+
+                // Set each column label to exact cell size (square)
+                for (int i = 0; i < MAX_GRID_SIZE; i++)
+                {
+                    if (_columnLabelObjects[i] != null)
+                    {
+                        var labelLayout = _columnLabelObjects[i].GetComponent<LayoutElement>();
+                        if (labelLayout == null)
+                        {
+                            labelLayout = _columnLabelObjects[i].AddComponent<LayoutElement>();
+                        }
+                        labelLayout.preferredWidth = _currentCellSize;
+                        labelLayout.minWidth = _currentCellSize;
+                        labelLayout.preferredHeight = columnLabelHeight;
+                        labelLayout.minHeight = columnLabelHeight;
+                        labelLayout.flexibleWidth = 0;
+                        labelLayout.flexibleHeight = 0;
+
+                        // Also set RectTransform directly
+                        var labelRect = _columnLabelObjects[i].GetComponent<RectTransform>();
+                        if (labelRect != null)
+                        {
+                            labelRect.sizeDelta = new Vector2(_currentCellSize, columnLabelHeight);
+                        }
+                    }
+                }
+            }
+
+            // Update GridWithRowLabels container
             if (_gridWithRowLabelsRect != null)
             {
                 var layoutElement = _gridWithRowLabelsRect.GetComponent<LayoutElement>();
                 if (layoutElement != null)
                 {
                     layoutElement.preferredHeight = gridHeight;
+                    layoutElement.minHeight = gridHeight;
                 }
             }
 
-            float totalHeight = _fixedElementsHeight + gridHeight;
-
-            if (_panelLayoutElement != null)
-            {
-                _panelLayoutElement.preferredHeight = totalHeight;
-            }
-
+            // Force layout rebuild
+            Canvas.ForceUpdateCanvases();
             if (_panelRectTransform != null)
             {
-                var sizeDelta = _panelRectTransform.sizeDelta;
-                sizeDelta.y = totalHeight;
-                _panelRectTransform.sizeDelta = sizeDelta;
+                LayoutRebuilder.ForceRebuildLayoutImmediate(_panelRectTransform);
             }
 
-            LayoutRebuilder.ForceRebuildLayoutImmediate(_panelRectTransform);
-
-            Debug.Log($"[PlayerGridPanel] Panel height updated. Grid: {gridHeight}px, Total: {totalHeight}px");
+            Debug.Log($"[PlayerGridPanel] Cell size: {_currentCellSize:F1}px, Grid: {gridHeight:F0}px, Labels: {rowLabelSize:F1}px");
         }
+
+           
 
         private void UpdateLabelVisibility()
         {
-            // Show/hide row labels based on current grid size
+            Debug.Log($"[PlayerGridPanel] === UpdateLabelVisibility START for {_currentGridSize}x{_currentGridSize} ===");
+            
+            // Count how many labels we have cached
+            int rowLabelsCached = 0;
+            int colLabelsCached = 0;
+            for (int i = 0; i < MAX_GRID_SIZE; i++)
+            {
+                if (_rowLabelObjects[i] != null) rowLabelsCached++;
+                if (_columnLabelObjects[i] != null) colLabelsCached++;
+            }
+            Debug.Log($"[PlayerGridPanel] Cached labels: {rowLabelsCached} rows, {colLabelsCached} columns");
+            
+            // Step 1: Enable all row labels and log their state
             for (int i = 0; i < MAX_GRID_SIZE; i++)
             {
                 if (_rowLabelObjects[i] != null)
                 {
-                    _rowLabelObjects[i].SetActive(i < _currentGridSize);
+                    bool wasBefore = _rowLabelObjects[i].activeSelf;
+                    _rowLabelObjects[i].SetActive(true);
+                    bool isAfter = _rowLabelObjects[i].activeSelf;
+                    if (i < 6) // Only log first 6 to reduce spam
+                    {
+                        Debug.Log($"[PlayerGridPanel] Row label {i + 1}: was={wasBefore}, now={isAfter}, name={_rowLabelObjects[i].name}");
+                    }
+                }
+                else
+                {
+                    if (i < 6)
+                    {
+                        Debug.LogWarning($"[PlayerGridPanel] Row label {i + 1}: NULL!");
+                    }
                 }
             }
 
-            // Show/hide column labels based on current grid size
+            // Step 2: Enable all column labels and log their state
             for (int i = 0; i < MAX_GRID_SIZE; i++)
             {
                 if (_columnLabelObjects[i] != null)
                 {
-                    _columnLabelObjects[i].SetActive(i < _currentGridSize);
+                    bool wasBefore = _columnLabelObjects[i].activeSelf;
+                    _columnLabelObjects[i].SetActive(true);
+                    bool isAfter = _columnLabelObjects[i].activeSelf;
+                    if (i < 6) // Only log first 6 to reduce spam
+                    {
+                        Debug.Log($"[PlayerGridPanel] Col label {(char)('A' + i)}: was={wasBefore}, now={isAfter}, name={_columnLabelObjects[i].name}");
+                    }
+                }
+                else
+                {
+                    if (i < 6)
+                    {
+                        Debug.LogWarning($"[PlayerGridPanel] Col label {(char)('A' + i)}: NULL!");
+                    }
                 }
             }
 
-            Debug.Log($"[PlayerGridPanel] Labels updated. Hidden: {MAX_GRID_SIZE - _currentGridSize} rows, {MAX_GRID_SIZE - _currentGridSize} columns");
+            // Step 3: Force layout rebuild while all are active
+            Canvas.ForceUpdateCanvases();
+            
+            if (_rowLabelsContainer != null)
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(_rowLabelsContainer as RectTransform);
+            }
+            if (_columnLabelsContainer != null)
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(_columnLabelsContainer as RectTransform);
+            }
+
+            // Step 4: Now hide the labels beyond our grid size
+            for (int i = _currentGridSize; i < MAX_GRID_SIZE; i++)
+            {
+                if (_rowLabelObjects[i] != null)
+                {
+                    _rowLabelObjects[i].SetActive(false);
+                }
+                if (_columnLabelObjects[i] != null)
+                {
+                    _columnLabelObjects[i].SetActive(false);
+                }
+            }
+
+            // Step 5: Final layout rebuild
+            Canvas.ForceUpdateCanvases();
+            
+            if (_rowLabelsContainer != null)
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(_rowLabelsContainer as RectTransform);
+            }
+            if (_columnLabelsContainer != null)
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(_columnLabelsContainer as RectTransform);
+            }
+
+            Debug.Log($"[PlayerGridPanel] === UpdateLabelVisibility END ===");
         }
 
         private void CreateCellsForCurrentSize()
@@ -1810,20 +2105,37 @@ public WordPatternRow[] GetWordPatternRows()
         {
             Debug.Log("[PlayerGridPanel] === RANDOM PLACEMENT BUTTON CLICKED ===");
 
-            // Place all unplaced words that have text entered
-            int placedCount = 0;
-            int checkedCount = 0;
+            // Build list of rows that need placement, sorted by word length (longest first)
+            // This prevents shorter words from blocking longer words on smaller grids
+            var rowsToPlace = new List<int>();
 
             for (int i = 0; i < _wordPatternRows.Count; i++)
             {
                 var row = _wordPatternRows[i];
                 if (row == null || !row.gameObject.activeSelf) continue;
-
-                checkedCount++;
-                Debug.Log($"[PlayerGridPanel] Row {i + 1}: HasWord={row.HasWord}, IsPlaced={row.IsPlaced}, Word='{row.CurrentWord}'");
-
-                // Skip if already placed or no word entered
                 if (row.IsPlaced || !row.HasWord) continue;
+
+                rowsToPlace.Add(i);
+            }
+
+            // Sort by word length descending (longest words first)
+            rowsToPlace.Sort((a, b) =>
+            {
+                int lengthA = _wordPatternRows[a].CurrentWord?.Length ?? 0;
+                int lengthB = _wordPatternRows[b].CurrentWord?.Length ?? 0;
+                return lengthB.CompareTo(lengthA); // Descending order
+            });
+
+            Debug.Log($"[PlayerGridPanel] Placement order (longest first): {string.Join(", ", rowsToPlace.Select(i => $"Row{i + 1}({_wordPatternRows[i].CurrentWord})"))}");
+
+            // Place words in sorted order
+            int placedCount = 0;
+
+            foreach (int i in rowsToPlace)
+            {
+                var row = _wordPatternRows[i];
+
+                Debug.Log($"[PlayerGridPanel] Placing Row {i + 1}: Word='{row.CurrentWord}' (length {row.CurrentWord?.Length ?? 0})");
 
                 // Enter placement mode for this row and place randomly
                 EnterPlacementMode(i);
@@ -1845,7 +2157,7 @@ public WordPatternRow[] GetWordPatternRows()
                 }
             }
 
-            Debug.Log($"[PlayerGridPanel] Random placement complete. Checked {checkedCount} rows, placed {placedCount} word(s).");
+            Debug.Log($"[PlayerGridPanel] Random placement complete. Placed {placedCount}/{rowsToPlace.Count} word(s).");
         }
         #endregion
 

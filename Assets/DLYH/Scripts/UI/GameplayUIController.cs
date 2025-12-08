@@ -93,6 +93,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private int _playerWordCount;
         private int _playerMissLimit;
         private List<PlacedWordData> _playerPlacedWords = new List<PlacedWordData>();
+        private DifficultySetting _playerDifficulty = DifficultySetting.Normal;
+
 
         // Opponent data
         private int _opponentGridSize;
@@ -395,7 +397,7 @@ private void OnDestroy()
         #endregion
 
         #region Private Methods - Setup Data Capture
-        private void CaptureSetupData()
+private void CaptureSetupData()
         {
             _playerPlacedWords.Clear();
 
@@ -413,11 +415,13 @@ private void OnDestroy()
                 var (gridSize, wordCount, difficulty) = _setupSettingsPanel.GetDifficultySettings();
                 _playerGridSize = gridSize;
                 _playerWordCount = (int)wordCount;
-                _playerMissLimit = DifficultyCalculator.CalculateMissLimit(
-                    gridSize, _playerWordCount, difficulty);
+                
+                // Store difficulty for later miss limit calculation
+                // Miss limit will be calculated in GenerateOpponentData() once we know opponent settings
+                _playerDifficulty = difficulty;
 
                 Debug.Log($"[GameplayUIController] Captured: {_playerName}, Grid={_playerGridSize}, " +
-                          $"Words={_playerWordCount}, MissLimit={_playerMissLimit}");
+                          $"Words={_playerWordCount}, Difficulty={_playerDifficulty}");
             }
             else
             {
@@ -426,7 +430,7 @@ private void OnDestroy()
                 _playerColor = Color.cyan;
                 _playerGridSize = 6;
                 _playerWordCount = 3;
-                _playerMissLimit = 21;
+                _playerDifficulty = DifficultySetting.Normal;
             }
 
             // Get placed words from setup grid
