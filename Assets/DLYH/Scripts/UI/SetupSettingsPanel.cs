@@ -47,6 +47,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
         [SerializeField]
         private TextMeshProUGUI _missLimitDisplay;
 
+        [SerializeField]
+        private Button _startGameButton;
+
         [TitleGroup("Player Grid Reference")]
         [SerializeField, Required]
         private PlayerGridPanel _playerGridPanel;
@@ -181,6 +184,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             SetupInvalidWordFeedback();
             UpdatePickRandomWordsButtonState();
             UpdatePlaceRandomPositionsButtonState();
+            UpdateStartButtonState();
 
             Debug.Log("[SetupSettingsPanel] Re-subscribed to word row events after frame delay");
         }
@@ -350,6 +354,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _placeRandomPositionsButton.onClick.RemoveAllListeners();
                 _placeRandomPositionsButton.onClick.AddListener(OnPlaceRandomPositionsClicked);
                 _placeRandomPositionsButton.interactable = false; // Start disabled
+            }
+
+            // Start Game Button - starts disabled until all words placed
+            if (_startGameButton != null)
+            {
+                _startGameButton.interactable = false;
             }
         }
 
@@ -577,6 +587,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             Debug.Log($"[SetupSettingsPanel] Word accepted in row {rowNumber}: {word}");
             UpdatePickRandomWordsButtonState();
             UpdatePlaceRandomPositionsButtonState();
+            UpdateStartButtonState();
         }
 
         /// <summary>
@@ -587,6 +598,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             Debug.Log($"[SetupSettingsPanel] Word deleted from row {rowNumber} (wasPlaced: {wasPlaced})");
             UpdatePickRandomWordsButtonState();
             UpdatePlaceRandomPositionsButtonState();
+            UpdateStartButtonState();
         }
 
         /// <summary>
@@ -597,6 +609,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             Debug.Log($"[SetupSettingsPanel] Word placed: {word} at {positions.Count} positions");
             UpdatePickRandomWordsButtonState();
             UpdatePlaceRandomPositionsButtonState();
+            UpdateStartButtonState();
         }
 
         private void ShowInvalidWordToast(string message)
@@ -664,6 +677,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
             }
 
             Debug.Log($"[SetupSettingsPanel] Grid size changed to: {_gridSize}x{_gridSize}");
+
+            // Grid size change clears words from grid - update Start button
+            UpdateStartButtonState();
         }
 
         private void OnWordCountDropdownChanged(int value)
@@ -693,6 +709,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             // New rows may be empty and need Pick Random Words enabled
             UpdatePickRandomWordsButtonState();
             UpdatePlaceRandomPositionsButtonState();
+            UpdateStartButtonState();
 
             Debug.Log($"[SetupSettingsPanel] Word count changed to: {_wordCount}");
         }
@@ -877,6 +894,48 @@ namespace TecVooDoo.DontLoseYourHead.UI
             _pickRandomWordsButton.interactable = hasAnyEmptyRows;
             Debug.Log($"[SetupSettingsPanel] Pick Random Words button: {(hasAnyEmptyRows ? "ENABLED" : "DISABLED")} (Empty: {emptyCount}, Filled: {filledCount})");
         }
+        /// <summary>
+        /// Updates the Start Game button interactability.
+        /// Enabled only when ALL required word rows have words AND all are placed on the grid.
+        /// </summary>
+        public void UpdateStartButtonState()
+        {
+            if (_startGameButton == null || _playerGridPanel == null)
+                return;
+
+            bool allWordsPlaced = true;
+            int activeRowCount = 0;
+            int placedCount = 0;
+
+            var rows = _playerGridPanel.GetWordPatternRows();
+            if (rows != null)
+            {
+                foreach (var row in rows)
+                {
+                    if (row != null && row.gameObject.activeSelf)
+                    {
+                        activeRowCount++;
+
+                        // Check if this row has a word AND it's placed on the grid
+                        if (!row.HasWord || !row.IsPlaced)
+                        {
+                            allWordsPlaced = false;
+                        }
+                        else
+                        {
+                            placedCount++;
+                        }
+                    }
+                }
+            }
+
+            // Must have at least one active row and all must be placed
+            bool canStart = activeRowCount > 0 && allWordsPlaced;
+            _startGameButton.interactable = canStart;
+
+            Debug.Log($"[SetupSettingsPanel] Start button: {(canStart ? "ENABLED" : "DISABLED")} (Placed: {placedCount}/{activeRowCount})");
+        }
+
 
         #endregion
 

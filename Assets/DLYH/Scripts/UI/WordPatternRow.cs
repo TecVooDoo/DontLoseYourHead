@@ -709,7 +709,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             switch (_currentState)
             {
                 case RowState.Empty:
-                    // Show all underscores
+                    // Show all underscores (not underlined - these are placeholders)
                     for (int i = 0; i < _requiredWordLength; i++)
                     {
                         if (i > 0) sb.Append(_letterSeparator);
@@ -718,13 +718,16 @@ namespace TecVooDoo.DontLoseYourHead.UI
                     break;
 
                 case RowState.Entering:
-                    // Show entered letters + remaining underscores
+                    // Show entered letters (underlined) + remaining underscores
                     for (int i = 0; i < _requiredWordLength; i++)
                     {
                         if (i > 0) sb.Append(_letterSeparator);
                         if (i < _enteredText.Length)
                         {
+                            // Underline entered letters
+                            sb.Append("<u>");
                             sb.Append(_enteredText[i]);
+                            sb.Append("</u>");
                         }
                         else
                         {
@@ -735,25 +738,31 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
                 case RowState.WordEntered:
                 case RowState.Placed:
-                    // Show the full word
+                    // Show the full word with underlined letters
                     for (int i = 0; i < _currentWord.Length; i++)
                     {
                         if (i > 0) sb.Append(_letterSeparator);
+                        sb.Append("<u>");
                         sb.Append(_currentWord[i]);
+                        sb.Append("</u>");
                     }
                     break;
 
                 case RowState.Gameplay:
-                    // Show revealed letters, underscores for hidden
+                    // Show revealed letters (underlined), underscores for hidden
                     for (int i = 0; i < _currentWord.Length; i++)
                     {
                         if (i > 0) sb.Append(_letterSeparator);
                         if (_revealedLetters[i])
                         {
+                            // Revealed letters are underlined
+                            sb.Append("<u>");
                             sb.Append(_currentWord[i]);
+                            sb.Append("</u>");
                         }
                         else
                         {
+                            // Hidden letters show underscore (not underlined)
                             sb.Append(_unknownLetterChar);
                         }
                     }

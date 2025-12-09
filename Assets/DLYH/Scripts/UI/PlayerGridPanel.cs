@@ -1266,6 +1266,13 @@ private void CacheExistingLabels()
 
         private void UpdatePanelHeight()
         {
+            // In Gameplay mode, use prefab sizing - don't override
+            if (_currentMode == PanelMode.Gameplay)
+            {
+                Debug.Log("[PlayerGridPanel] Gameplay mode - using prefab layout, skipping dynamic sizing");
+                return;
+            }
+
             // With horizontal layout, we have full panel height available
             float availableHeight = 1080f;
 

@@ -1,342 +1,155 @@
-using Sirenix.OdinInspector;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using TecVooDoo.DontLoseYourHead.Core;
-using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
+using System.Collections.Generic;
+using TecVooDoo.DontLoseYourHead.Core;
 
 namespace TecVooDoo.DontLoseYourHead.UI
 {
     /// <summary>
-    /// Controls the Gameplay phase UI, managing two PlayerGridPanels
-    /// and handling the transition from Setup to Gameplay.
+    /// Controls the Gameplay UI phase, managing two PlayerGridPanel instances
+    /// (owner and opponent) and handling the transition from Setup to Gameplay.
     /// </summary>
     public class GameplayUIController : MonoBehaviour
     {
-        #region Serialized Fields - Container References
-        [TitleGroup("Container References")]
-        [SerializeField, Required]
-        private GameObject _setupContainer;
+        #region Serialized Fields
 
-        [SerializeField, Required]
-        private GameObject _gameplayContainer;
+        [Header("Container References")]
+        [SerializeField] private GameObject _setupContainer;
+        [SerializeField] private GameObject _gameplayContainer;
 
-        [SerializeField, Required]
-        private Transform _playerPanelParent;
+        [Header("Pre-Placed Panel References")]
+        [SerializeField] private PlayerGridPanel _ownerPanel;
+        [SerializeField] private PlayerGridPanel _opponentPanel;
 
-        [SerializeField, Required]
-        private Transform _opponentPanelParent;
-        #endregion
+        [Header("Miss Counter References")]
+        [SerializeField] private TextMeshProUGUI _player1MissCounter;
+        [SerializeField] private TextMeshProUGUI _player2MissCounter;
 
-        #region Serialized Fields - Prefab
-        [TitleGroup("Prefab")]
-        [SerializeField, Required]
-        private PlayerGridPanel _playerGridPanelPrefab;
-        #endregion
+        [Header("Start Button (for event subscription)")]
+        [SerializeField] private Button _startGameButton;
 
-        #region Serialized Fields - UI References
-        [TitleGroup("UI References")]
-        [SerializeField, Required]
-        private Button _startButton;
-
-        [SerializeField]
-        private TextMeshProUGUI _player1MissCounter;
-
-        [SerializeField]
-        private TextMeshProUGUI _player2MissCounter;
-        #endregion
-
-        #region Serialized Fields - Setup Reference
-        [TitleGroup("Setup Reference")]
-        [SerializeField, Tooltip("Reference to the setup panel's PlayerGridPanel for data transfer")]
-        private PlayerGridPanel _setupPlayerGridPanel;
-
-        [SerializeField]
-        private SetupSettingsPanel _setupSettingsPanel;
-        #endregion
-
-        #region Serialized Fields - Word Lists (for AI opponent)
-        [TitleGroup("Word Lists")]
-        [SerializeField]
-        private WordListSO _threeLetterWords;
-
-        [SerializeField]
-        private WordListSO _fourLetterWords;
-
-        [SerializeField]
-        private WordListSO _fiveLetterWords;
-
-        [SerializeField]
-        private WordListSO _sixLetterWords;
-        #endregion
-
-        #region Serialized Fields - Opponent Settings
-        [TitleGroup("Opponent Settings")]
-        [SerializeField]
-        private string _opponentName = "OPPONENT";
-
-        [SerializeField]
-        private Color _opponentColor = new Color(0.9f, 0.4f, 0.4f, 1f);
         #endregion
 
         #region Private Fields
-        private PlayerGridPanel _ownerPanel;
-        private PlayerGridPanel _opponentPanel;
-        private bool _isGameplayActive;
 
-        // Cached setup data
-        private string _playerName;
-        private Color _playerColor;
-        private int _playerGridSize;
-        private int _playerWordCount;
-        private int _playerMissLimit;
-        private List<PlacedWordData> _playerPlacedWords = new List<PlacedWordData>();
-        private DifficultySetting _playerDifficulty = DifficultySetting.Normal;
+        // Captured setup data
+        private SetupData _playerSetupData;
+        private SetupData _opponentSetupData;
 
+        // Reference to setup panel for data capture
+        private SetupSettingsPanel _setupSettingsPanel;
+        private PlayerGridPanel _setupGridPanel;
 
-        // Opponent data
-        private int _opponentGridSize;
-        private int _opponentWordCount;
-        private int _opponentMissLimit;
-        private List<PlacedWordData> _opponentPlacedWords = new List<PlacedWordData>();
         #endregion
 
-        #region Data Classes
+        #region Data Structures
+
         /// <summary>
-        /// Stores data about a placed word for transfer between panels
+        /// Data structure to hold captured setup information
         /// </summary>
-        [Serializable]
-        public class PlacedWordData
+        private class SetupData
         {
-            public string word;
-            public int startCol;
-            public int startRow;
-            public int directionCol;
-            public int directionRow;
-
-public int rowIndex;
-
-            public PlacedWordData(string word, int col, int row, int dCol, int dRow, int rowIdx = -1)
-            {
-                this.word = word;
-                this.startCol = col;
-                this.startRow = row;
-                this.directionCol = dCol;
-                this.directionRow = dRow;
-                this.rowIndex = rowIdx;
-            }
+            public string PlayerName;
+            public Color PlayerColor;
+            public int GridSize;
+            public int WordCount;
+            public DifficultySetting DifficultyLevel;
+            public int[] WordLengths;
+            public List<WordPlacementData> PlacedWords = new List<WordPlacementData>();
         }
-        #endregion
-
-        #region Events
-        /// <summary>
-        /// Fired when gameplay starts
-        /// </summary>
-        public event Action OnGameplayStarted;
 
         /// <summary>
-        /// Fired when a letter is guessed on opponent's panel
+        /// Data structure for a placed word with position and direction
         /// </summary>
-        public event Action<char> OnLetterGuessed;
+        private class WordPlacementData
+        {
+            public string Word;
+            public int StartCol;
+            public int StartRow;
+            public int DirCol;
+            public int DirRow;
+            public int RowIndex;
+        }
 
-        /// <summary>
-        /// Fired when a coordinate is guessed on opponent's panel
-        /// </summary>
-        public event Action<int, int> OnCoordinateGuessed;
-        #endregion
-
-        #region Properties
-        public PlayerGridPanel OwnerPanel => _ownerPanel;
-        public PlayerGridPanel OpponentPanel => _opponentPanel;
-        public bool IsGameplayActive => _isGameplayActive;
         #endregion
 
         #region Unity Lifecycle
+
         private void Awake()
         {
-            ValidateReferences();
-        }
-
-private void Start()
-        {
-            // Ensure correct initial state
+            // Find setup references
             if (_setupContainer != null)
-                _setupContainer.SetActive(true);
-
-            if (_gameplayContainer != null)
-                _gameplayContainer.SetActive(false);
-
-            // Subscribe to Start button
-            if (_startButton != null)
             {
-                _startButton.onClick.AddListener(OnStartButtonClicked);
-                UpdateStartButtonState();
+                _setupSettingsPanel = _setupContainer.GetComponentInChildren<SetupSettingsPanel>(true);
+                _setupGridPanel = _setupContainer.GetComponentInChildren<PlayerGridPanel>(true);
             }
-
-            // Subscribe to word placement and deletion events to auto-update Start button
-            if (_setupPlayerGridPanel != null)
-            {
-                _setupPlayerGridPanel.OnWordPlaced += OnSetupWordPlaced;
-                SubscribeToWordRowEvents();
-                Debug.Log("[GameplayUIController] Subscribed to setup panel word events");
-            }
-
-            // Subscribe to word count changes (need to re-subscribe to new rows)
-            if (_setupSettingsPanel != null)
-            {
-                _setupSettingsPanel.OnWordCountChanged += OnWordCountChanged;
-                Debug.Log("[GameplayUIController] Subscribed to word count changes");
-            }
-
-            _setupPlayerGridPanel.OnWordLengthsChanged += UpdateStartButtonState;
         }
 
-private void OnDestroy()
+        private void Start()
         {
-            if (_startButton != null)
+            // Subscribe to Start button if assigned
+            if (_startGameButton != null)
             {
-                _startButton.onClick.RemoveListener(OnStartButtonClicked);
+                _startGameButton.onClick.AddListener(StartGameplay);
             }
 
-            // Unsubscribe from setup panel events
-            if (_setupPlayerGridPanel != null)
-            {
-                _setupPlayerGridPanel.OnWordPlaced -= OnSetupWordPlaced;
-                UnsubscribeFromWordRowEvents();
-            }
-
-            // Unsubscribe from settings panel events
-            if (_setupSettingsPanel != null)
-            {
-                _setupSettingsPanel.OnWordCountChanged -= OnWordCountChanged;
-            }
-
-            if (_setupPlayerGridPanel != null)
-            {
-                _setupPlayerGridPanel.OnWordLengthsChanged -= UpdateStartButtonState;
-            }
-
-            CleanupPanels();
+            // Ensure gameplay panels start inactive
+            if (_ownerPanel != null)
+                _ownerPanel.gameObject.SetActive(false);
+            if (_opponentPanel != null)
+                _opponentPanel.gameObject.SetActive(false);
         }
 
-        /// <summary>
-        /// Handler for when a word is placed on the setup grid.
-        /// Updates Start button state.
-        /// </summary>
-        private void OnSetupWordPlaced(int rowIndex, string word, System.Collections.Generic.List<UnityEngine.Vector2Int> positions)
+        private void OnDestroy()
         {
-            Debug.Log($"[GameplayUIController] Word placed on setup: row {rowIndex}, word '{word}'");
-            UpdateStartButtonState();
-        }
-
-/// <summary>
-        /// Subscribes to word deletion events from all setup word rows.
-        /// </summary>
-        private void SubscribeToWordRowEvents()
-        {
-            if (_setupPlayerGridPanel == null) return;
-
-            var wordRows = _setupPlayerGridPanel.GetWordPatternRows();
-            if (wordRows != null)
+            // Unsubscribe from Start button
+            if (_startGameButton != null)
             {
-                foreach (var row in wordRows)
-                {
-                    if (row != null)
-                    {
-                        row.OnDeleteClicked -= OnSetupWordDeleted;
-                        row.OnDeleteClicked += OnSetupWordDeleted;
-                    }
-                }
-                Debug.Log($"[GameplayUIController] Subscribed to {wordRows.Length} word row deletion events");
+                _startGameButton.onClick.RemoveListener(StartGameplay);
             }
+
+            // Clean up panel event subscriptions
+            UnsubscribeFromPanelEvents();
         }
-
-        /// <summary>
-        /// Unsubscribes from word deletion events from all setup word rows.
-        /// </summary>
-        private void UnsubscribeFromWordRowEvents()
-        {
-            if (_setupPlayerGridPanel == null) return;
-
-            var wordRows = _setupPlayerGridPanel.GetWordPatternRows();
-            if (wordRows != null)
-            {
-                foreach (var row in wordRows)
-                {
-                    if (row != null)
-                    {
-                        row.OnDeleteClicked -= OnSetupWordDeleted;
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Handler for when a word is deleted from the setup grid.
-        /// Updates Start button state.
-        /// </summary>
-        private void OnSetupWordDeleted(int rowNumber, bool wasPlaced)
-        {
-            Debug.Log($"[GameplayUIController] Word deleted from setup row {rowNumber} (wasPlaced: {wasPlaced})");
-            UpdateStartButtonState();
-        }
-
-/// <summary>
-        /// Handler for when word count changes in setup.
-        /// Need to re-subscribe to new word rows.
-        /// </summary>
-        private void OnWordCountChanged(WordCountOption newWordCount)
-        {
-            Debug.Log($"[GameplayUIController] Word count changed to: {newWordCount}");
-            
-            // Re-subscribe to word row events (rows may have changed)
-            UnsubscribeFromWordRowEvents();
-            SubscribeToWordRowEvents();
-            
-            // Update Start button state since setup completion may have changed
-            UpdateStartButtonState();
-        }
-
 
         #endregion
 
         #region Public Methods
-        /// <summary>
-        /// Updates the Start button interactable state based on setup completion.
-        /// Call this when words are placed or removed.
-        /// </summary>
-        public void UpdateStartButtonState()
-        {
-            if (_startButton == null) return;
-
-            bool canStart = CanStartGame();
-            _startButton.interactable = canStart;
-
-            Debug.Log($"[GameplayUIController] Start button state: {(canStart ? "ENABLED" : "DISABLED")}");
-        }
 
         /// <summary>
+        /// Called when the Start Game button is clicked in setup.
         /// Transitions from Setup to Gameplay phase.
         /// </summary>
-        [Button("Start Gameplay")]
         public void StartGameplay()
         {
-            if (!CanStartGame())
+            Debug.Log("[GameplayUI] Starting gameplay transition...");
+
+            // Safety validation - ensure all words are placed
+            if (_setupGridPanel != null)
             {
-                Debug.LogWarning("[GameplayUIController] Cannot start - setup not complete");
-                return;
+                var rows = _setupGridPanel.GetWordPatternRows();
+                if (rows != null)
+                {
+                    foreach (var row in rows)
+                    {
+                        if (row != null && row.gameObject.activeSelf)
+                        {
+                            if (!row.HasWord || !row.IsPlaced)
+                            {
+                                Debug.LogWarning("[GameplayUI] Cannot start - not all words are placed!");
+                                return;
+                            }
+                        }
+                    }
+                }
             }
 
-            // Capture setup data before switching
+            // Capture data from setup
             CaptureSetupData();
 
-            // Generate opponent data
+            // Generate opponent data (AI or second player)
             GenerateOpponentData();
-
-            // Create gameplay panels
-            CreateGameplayPanels();
 
             // Switch containers
             if (_setupContainer != null)
@@ -345,627 +158,440 @@ private void OnDestroy()
             if (_gameplayContainer != null)
                 _gameplayContainer.SetActive(true);
 
-            _isGameplayActive = true;
+            // Activate and configure the gameplay panels
+            if (_ownerPanel != null)
+            {
+                _ownerPanel.gameObject.SetActive(true);
+                ConfigureOwnerPanel();
+            }
 
-            // Initialize miss counters
-            UpdateMissCounter(0, 0, _playerMissLimit);
-            UpdateMissCounter(1, 0, _opponentMissLimit);
+            if (_opponentPanel != null)
+            {
+                _opponentPanel.gameObject.SetActive(true);
+                ConfigureOpponentPanel();
+            }
 
-            OnGameplayStarted?.Invoke();
-            Debug.Log("[GameplayUIController] Gameplay started!");
+            // Update miss counters
+            UpdateMissCounters();
+
+            Debug.Log("[GameplayUI] Gameplay transition complete");
         }
 
         /// <summary>
-        /// Returns to Setup phase (for testing or restart).
+        /// Returns to setup mode (for future use)
         /// </summary>
-        [Button("Return to Setup")]
         public void ReturnToSetup()
         {
-            CleanupPanels();
+            Debug.Log("[GameplayUI] Returning to setup...");
 
+            UnsubscribeFromPanelEvents();
+
+            // Hide gameplay panels
+            if (_ownerPanel != null)
+                _ownerPanel.gameObject.SetActive(false);
+            if (_opponentPanel != null)
+                _opponentPanel.gameObject.SetActive(false);
+
+            // Switch containers
             if (_gameplayContainer != null)
                 _gameplayContainer.SetActive(false);
 
             if (_setupContainer != null)
                 _setupContainer.SetActive(true);
+        }
 
-            _isGameplayActive = false;
+        #endregion
 
-            // Clear cached data
-            _playerPlacedWords.Clear();
-            _opponentPlacedWords.Clear();
+        #region Data Capture
 
-            Debug.Log("[GameplayUIController] Returned to setup");
+        /// <summary>
+        /// Captures player setup data from the setup panel
+        /// </summary>
+        private void CaptureSetupData()
+        {
+            _playerSetupData = new SetupData();
+
+            if (_setupSettingsPanel != null)
+            {
+                // Use the actual API methods from SetupSettingsPanel
+                var playerSettings = _setupSettingsPanel.GetPlayerSettings();
+                var difficultySettings = _setupSettingsPanel.GetDifficultySettings();
+
+                _playerSetupData.PlayerName = playerSettings.name;
+                _playerSetupData.PlayerColor = playerSettings.color;
+                _playerSetupData.GridSize = difficultySettings.gridSize;
+                _playerSetupData.WordCount = (int)difficultySettings.wordCount;
+                _playerSetupData.DifficultyLevel = difficultySettings.difficulty;
+                _playerSetupData.WordLengths = DifficultyCalculator.GetWordLengths(difficultySettings.wordCount);
+
+                Debug.Log(string.Format("[GameplayUI] Captured setup: {0}, Grid: {1}x{1}, Words: {2}, Difficulty: {3}",
+                    _playerSetupData.PlayerName,
+                    _playerSetupData.GridSize,
+                    _playerSetupData.WordCount,
+                    _playerSetupData.DifficultyLevel));
+            }
+
+            // Capture placed words from setup grid using the actual API
+            if (_setupGridPanel != null)
+            {
+                CaptureWordPlacements(_setupGridPanel, _playerSetupData);
+            }
         }
 
         /// <summary>
-        /// Updates the miss counter display for a player.
+        /// Captures the placed words using PlayerGridPanel.GetAllWordPlacements()
         /// </summary>
-        public void UpdateMissCounter(int playerIndex, int currentMisses, int maxMisses)
+        private void CaptureWordPlacements(PlayerGridPanel panel, SetupData data)
         {
-            string text = $"{currentMisses} / {maxMisses}";
+            // Use the actual API from PlayerGridPanel
+            var placements = panel.GetAllWordPlacements();
 
-            if (playerIndex == 0 && _player1MissCounter != null)
+            foreach (var placement in placements)
             {
-                _player1MissCounter.text = text;
-            }
-            else if (playerIndex == 1 && _player2MissCounter != null)
-            {
-                _player2MissCounter.text = text;
+                var wordData = new WordPlacementData
+                {
+                    Word = placement.word,
+                    StartCol = placement.startCol,
+                    StartRow = placement.startRow,
+                    DirCol = placement.dirCol,
+                    DirRow = placement.dirRow,
+                    RowIndex = placement.rowIndex
+                };
+
+                data.PlacedWords.Add(wordData);
+
+                Debug.Log(string.Format("[GameplayUI] Captured word: {0} at ({1},{2}) dir({3},{4})",
+                    wordData.Word, wordData.StartCol, wordData.StartRow, wordData.DirCol, wordData.DirRow));
             }
         }
+
         #endregion
 
-        #region Private Methods - Setup Data Capture
-private void CaptureSetupData()
-        {
-            _playerPlacedWords.Clear();
+        #region Opponent Generation
 
-            Debug.Log("[GameplayUIController] === CaptureSetupData START ===");
-            Debug.Log($"[GameplayUIController] _setupSettingsPanel: {(_setupSettingsPanel != null ? "ASSIGNED" : "NULL")}");
-            Debug.Log($"[GameplayUIController] _setupPlayerGridPanel: {(_setupPlayerGridPanel != null ? "ASSIGNED" : "NULL")}");
-
-            // Get player settings from SetupSettingsPanel
-            if (_setupSettingsPanel != null)
-            {
-                var (name, color) = _setupSettingsPanel.GetPlayerSettings();
-                _playerName = name;
-                _playerColor = color;
-
-                var (gridSize, wordCount, difficulty) = _setupSettingsPanel.GetDifficultySettings();
-                _playerGridSize = gridSize;
-                _playerWordCount = (int)wordCount;
-                
-                // Store difficulty for later miss limit calculation
-                // Miss limit will be calculated in GenerateOpponentData() once we know opponent settings
-                _playerDifficulty = difficulty;
-
-                Debug.Log($"[GameplayUIController] Captured: {_playerName}, Grid={_playerGridSize}, " +
-                          $"Words={_playerWordCount}, Difficulty={_playerDifficulty}");
-            }
-            else
-            {
-                // Fallback defaults
-                _playerName = "PLAYER1";
-                _playerColor = Color.cyan;
-                _playerGridSize = 6;
-                _playerWordCount = 3;
-                _playerDifficulty = DifficultySetting.Normal;
-            }
-
-            // Get placed words from setup grid
-            if (_setupPlayerGridPanel != null)
-            {
-                CapturePlayerPlacedWords();
-            }
-
-            Debug.Log($"[GameplayUIController] Captured {_playerPlacedWords.Count} placed words");
-        }
-
-private void CapturePlayerPlacedWords()
-        {
-            Debug.Log("[GameplayUIController] === CapturePlayerPlacedWords START ===");
-
-            // Get word placements from the setup panel
-            var placements = _setupPlayerGridPanel.GetAllWordPlacements();
-
-            Debug.Log($"[GameplayUIController] GetAllWordPlacements returned: {(placements != null ? placements.Count + " items" : "NULL")}");
-
-            if (placements != null)
-            {
-                foreach (var placement in placements)
-                {
-                    _playerPlacedWords.Add(new PlacedWordData(
-                        placement.word,
-                        placement.startCol,
-                        placement.startRow,
-                        placement.dirCol,
-                        placement.dirRow,
-                        placement.rowIndex  // Preserve the original row index!
-                    ));
-                    Debug.Log($"[GameplayUIController] Captured: {placement.word} at " +
-                              $"({placement.startCol},{placement.startRow}) rowIndex={placement.rowIndex}");
-                }
-            }
-        }
-
+        /// <summary>
+        /// Generates opponent data (for now, creates AI opponent with random words)
+        /// </summary>
         private void GenerateOpponentData()
         {
-            _opponentPlacedWords.Clear();
-
-            // Use same settings as player for balanced gameplay
-            _opponentGridSize = _playerGridSize;
-            _opponentWordCount = _playerWordCount;
-            _opponentMissLimit = _playerMissLimit;
-
-            // Generate random words for opponent
-            int[] wordLengths = GetWordLengthsForCount(_opponentWordCount);
-
-            foreach (int length in wordLengths)
+            _opponentSetupData = new SetupData
             {
-                string word = GetRandomWord(length);
-                if (!string.IsNullOrEmpty(word))
-                {
-                    // Position will be set when placed on grid
-                    _opponentPlacedWords.Add(new PlacedWordData(word, -1, -1, 0, 0));
-                    Debug.Log($"[GameplayUIController] Generated opponent word: {word}");
-                }
-            }
-
-            Debug.Log($"[GameplayUIController] Generated {_opponentPlacedWords.Count} opponent words");
-        }
-
-        private int[] GetWordLengthsForCount(int wordCount)
-        {
-            if (wordCount == 3)
-            {
-                return new int[] { 3, 4, 5 };
-            }
-            else
-            {
-                return new int[] { 3, 4, 5, 6 };
-            }
-        }
-
-        private string GetRandomWord(int length)
-        {
-            WordListSO wordList = null;
-
-            switch (length)
-            {
-                case 3: wordList = _threeLetterWords; break;
-                case 4: wordList = _fourLetterWords; break;
-                case 5: wordList = _fiveLetterWords; break;
-                case 6: wordList = _sixLetterWords; break;
-            }
-
-            if (wordList != null && wordList.Words != null && wordList.Words.Count > 0)
-            {
-                int index = UnityEngine.Random.Range(0, wordList.Words.Count);
-                return wordList.Words[index].ToUpper();
-            }
-
-            // Fallback test words if word lists not assigned
-            switch (length)
-            {
-                case 3: return "CAT";
-                case 4: return "WORD";
-                case 5: return "HELLO";
-                case 6: return "PLAYER";
-                default: return "TEST";
-            }
-        }
-        #endregion
-
-        #region Private Methods - Setup
-        private void ValidateReferences()
-        {
-            if (_setupContainer == null)
-                Debug.LogError("[GameplayUIController] Setup container not assigned!");
-
-            if (_gameplayContainer == null)
-                Debug.LogError("[GameplayUIController] Gameplay container not assigned!");
-
-            if (_playerPanelParent == null)
-                Debug.LogError("[GameplayUIController] Player panel parent not assigned!");
-
-            if (_opponentPanelParent == null)
-                Debug.LogError("[GameplayUIController] Opponent panel parent not assigned!");
-
-            if (_playerGridPanelPrefab == null)
-                Debug.LogError("[GameplayUIController] PlayerGridPanel prefab not assigned!");
-        }
-
-        private bool CanStartGame()
-        {
-            if (_setupPlayerGridPanel != null)
-            {
-                return _setupPlayerGridPanel.AreAllWordsPlaced();
-            }
-
-            Debug.LogWarning("[GameplayUIController] No setup panel reference - allowing start for testing");
-            return true;
-        }
-        #endregion
-
-        #region Private Methods - Panel Creation
-        private void CreateGameplayPanels()
-        {
-            Debug.Log("[GameplayUIController] === CreateGameplayPanels START ===");
-
-            // Create owner panel (shows your words)
-            _ownerPanel = CreatePanel(_playerPanelParent, "OwnerGridPanel");
-            Debug.Log($"[GameplayUIController] _ownerPanel created: {(_ownerPanel != null ? "SUCCESS" : "FAILED")}");
-            ConfigureOwnerPanel(_ownerPanel);
-
-            // Create opponent panel (hidden words to guess)
-            _opponentPanel = CreatePanel(_opponentPanelParent, "OpponentGridPanel");
-            Debug.Log($"[GameplayUIController] _opponentPanel created: {(_opponentPanel != null ? "SUCCESS" : "FAILED")}");
-            ConfigureOpponentPanel(_opponentPanel);
-
-            Debug.Log("[GameplayUIController] === CreateGameplayPanels END ===");
-        }
-
-        private PlayerGridPanel CreatePanel(Transform parent, string name)
-        {
-            Debug.Log($"[GameplayUIController] CreatePanel: {name}, parent={parent?.name ?? "NULL"}, prefab={(_playerGridPanelPrefab != null ? "VALID" : "NULL")}");
-
-            if (_playerGridPanelPrefab == null || parent == null)
-            {
-                Debug.LogError($"[GameplayUIController] Cannot create panel - missing prefab or parent");
-                return null;
-            }
-
-            GameObject panelGO = Instantiate(_playerGridPanelPrefab.gameObject, parent);
-            panelGO.name = name;
-
-            PlayerGridPanel panel = panelGO.GetComponent<PlayerGridPanel>();
-            Debug.Log($"[GameplayUIController] Created panel: {name}, component={panel != null}");
-            return panel;
-        }
-
-        private void ConfigureOwnerPanel(PlayerGridPanel panel)
-        {
-            Debug.Log($"[GameplayUIController] === ConfigureOwnerPanel START === panel is {(panel != null ? "VALID" : "NULL")}");
-            if (panel == null) return;
-
-            // Set player identity
-            panel.SetPlayerName(_playerName);
-            panel.SetPlayerColor(_playerColor);
-
-            // IMPORTANT: Force grid initialization BEFORE placing words
-            // This must happen before Start() would normally run
-            panel.InitializeGrid(_playerGridSize);
-            Debug.Log($"[GameplayUIController] Forced grid initialization: {_playerGridSize}x{_playerGridSize}");
-
-            // Set word lengths (creates/configures word pattern rows)
-            int[] lengths = GetWordLengthsForCount(_playerWordCount);
-            panel.SetWordLengths(lengths);
-            Debug.Log($"[GameplayUIController] Set word lengths: {string.Join(", ", lengths)}");
-
-            // Set to Gameplay mode
-            panel.SetMode(PlayerGridPanel.PanelMode.Gameplay);
-
-            // NOW place the captured words on the grid (cells should exist)
-            Debug.Log($"[GameplayUIController] Placing {_playerPlacedWords.Count} words on owner panel...");
-            foreach (var wordData in _playerPlacedWords)
-            {
-                PlaceWordOnPanel(panel, wordData, true);
-            }
-
-            // Set word rows to Gameplay state (hides setup buttons, shows words)
-            ConfigurePlayerWordRows(panel);
-
-            Debug.Log($"[GameplayUIController] Owner panel configured: {_playerName}, " +
-                      $"{_playerGridSize}x{_playerGridSize}, {_playerPlacedWords.Count} words");
-        }
-
-        private void ConfigureOpponentPanel(PlayerGridPanel panel)
-        {
-            if (panel == null) return;
-
-            Debug.Log($"[GameplayUIController] === ConfigureOpponentPanel START ===");
-
-            // Set opponent identity
-            panel.SetPlayerName(_opponentName);
-            panel.SetPlayerColor(_opponentColor);
-
-            // IMPORTANT: Force grid initialization BEFORE placing words
-            panel.InitializeGrid(_opponentGridSize);
-            Debug.Log($"[GameplayUIController] Forced opponent grid initialization: {_opponentGridSize}x{_opponentGridSize}");
-
-            // Set word lengths
-            int[] lengths = GetWordLengthsForCount(_opponentWordCount);
-            panel.SetWordLengths(lengths);
-
-            // Set to Gameplay mode
-            panel.SetMode(PlayerGridPanel.PanelMode.Gameplay);
-
-            // Place opponent words randomly
-            PlaceOpponentWordsRandomly(panel);
-
-            // Subscribe to click events for guessing
-            panel.OnLetterClicked += HandleOpponentLetterClicked;
-            panel.OnCellClicked += HandleOpponentCellClicked;
-
-            // Hide opponent letters (words are secret)
-            HideOpponentDisplay(panel);
-
-            Debug.Log($"[GameplayUIController] Opponent panel configured: {_opponentName}, " +
-                      $"{_opponentGridSize}x{_opponentGridSize}, {_opponentPlacedWords.Count} words");
-        }
-
-        private void PlaceWordOnPanel(PlayerGridPanel panel, PlacedWordData wordData, bool showLetters)
-        {
-            if (panel == null || wordData == null) return;
-
-            int col = wordData.startCol;
-            int row = wordData.startRow;
-
-            Debug.Log($"[GameplayUIController] PlaceWordOnPanel: '{wordData.word}' at ({col},{row}) " +
-                      $"dir({wordData.directionCol},{wordData.directionRow}) showLetters={showLetters}");
-
-            for (int i = 0; i < wordData.word.Length; i++)
-            {
-                var cell = panel.GetCell(col, row);
-                if (cell != null)
-                {
-                    if (showLetters)
-                    {
-                        cell.SetLetter(wordData.word[i]);
-                        cell.SetState(CellState.Filled);  // ADD THIS LINE
-                        Debug.Log($"[GameplayUIController] Set letter '{wordData.word[i]}' at ({col},{row}) - State set to Filled");
-                    }
-                    else
-                    {
-                        // Mark as having a letter but dont show it
-                        cell.SetHiddenLetter(wordData.word[i]);
-                    }
-                }
-                else
-                {
-                    Debug.LogWarning($"[GameplayUIController] Cell at ({col},{row}) is null!");
-                }
-
-                col += wordData.directionCol;
-                row += wordData.directionRow;
-            }
-        }
-
-        private void PlaceOpponentWordsRandomly(PlayerGridPanel panel)
-        {
-            if (panel == null) return;
-
-            for (int i = 0; i < _opponentPlacedWords.Count; i++)
-            {
-                var wordData = _opponentPlacedWords[i];
-                var placement = FindRandomPlacement(panel, wordData.word);
-
-                if (placement.HasValue)
-                {
-                    wordData.startCol = placement.Value.col;
-                    wordData.startRow = placement.Value.row;
-                    wordData.directionCol = placement.Value.dCol;
-                    wordData.directionRow = placement.Value.dRow;
-
-                    PlaceWordOnPanel(panel, wordData, false);
-                    Debug.Log($"[GameplayUIController] Placed opponent word '{wordData.word}' " +
-                              $"at ({wordData.startCol},{wordData.startRow})");
-                }
-                else
-                {
-                    Debug.LogWarning($"[GameplayUIController] Could not place: {wordData.word}");
-                }
-            }
-        }
-
-        private (int col, int row, int dCol, int dRow)? FindRandomPlacement(
-            PlayerGridPanel panel, string word)
-        {
-            if (panel == null || string.IsNullOrEmpty(word)) return null;
-
-            int gridSize = panel.CurrentGridSize;
-            int wordLength = word.Length;
-
-            // 8 direction vectors
-            int[,] directions = new int[,]
-            {
-                { 1, 0 },   // Right
-                { -1, 0 },  // Left
-                { 0, 1 },   // Down
-                { 0, -1 },  // Up
-                { 1, 1 },   // Diagonal down-right
-                { -1, -1 }, // Diagonal up-left
-                { 1, -1 },  // Diagonal up-right
-                { -1, 1 }   // Diagonal down-left
+                PlayerName = "OPPONENT",
+                PlayerColor = new Color(0.8f, 0.2f, 0.2f, 1f),
+                GridSize = _playerSetupData != null ? _playerSetupData.GridSize : 8,
+                WordCount = _playerSetupData != null ? _playerSetupData.WordCount : 3,
+                DifficultyLevel = _playerSetupData != null ? _playerSetupData.DifficultyLevel : DifficultySetting.Normal
             };
 
-            var validPlacements = new List<(int col, int row, int dCol, int dRow)>();
+            // Get word lengths for opponent
+            WordCountOption wordCountOption = _opponentSetupData.WordCount == 4 ? WordCountOption.Four : WordCountOption.Three;
+            _opponentSetupData.WordLengths = DifficultyCalculator.GetWordLengths(wordCountOption);
 
-            for (int col = 0; col < gridSize; col++)
-            {
-                for (int row = 0; row < gridSize; row++)
-                {
-                    for (int d = 0; d < 8; d++)
-                    {
-                        int dCol = directions[d, 0];
-                        int dRow = directions[d, 1];
+            // Generate placeholder words for AI opponent
+            GenerateRandomWordsForOpponent();
 
-                        if (CanPlaceWord(panel, word, col, row, dCol, dRow))
-                        {
-                            validPlacements.Add((col, row, dCol, dRow));
-                        }
-                    }
-                }
-            }
-
-            if (validPlacements.Count > 0)
-            {
-                int index = UnityEngine.Random.Range(0, validPlacements.Count);
-                return validPlacements[index];
-            }
-
-            return null;
+            Debug.Log(string.Format("[GameplayUI] Generated opponent: {0}, Grid: {1}x{1}, Words: {2}",
+                _opponentSetupData.PlayerName, _opponentSetupData.GridSize, _opponentSetupData.WordCount));
         }
 
-        private bool CanPlaceWord(PlayerGridPanel panel, string word,
-            int startCol, int startRow, int dCol, int dRow)
+        /// <summary>
+        /// Generates random words and placements for AI opponent
+        /// </summary>
+        private void GenerateRandomWordsForOpponent()
         {
-            int gridSize = panel.CurrentGridSize;
+            // Placeholder implementation - uses fixed words
+            // TODO: Use WordListSO for random word selection
 
-            for (int i = 0; i < word.Length; i++)
+            string[] placeholderWords = _opponentSetupData.WordCount == 4
+                ? new string[] { "CAT", "WORD", "GAMES", "PUZZLE" }
+                : new string[] { "DOG", "PLAY", "BOARD" };
+
+            int gridSize = _opponentSetupData.GridSize;
+
+            for (int i = 0; i < placeholderWords.Length; i++)
             {
-                int col = startCol + i * dCol;
-                int row = startRow + i * dRow;
+                string word = placeholderWords[i];
+                int startCol = (i * 2) % Mathf.Max(1, gridSize - word.Length);
+                int startRow = i;
 
-                // Check bounds
-                if (col < 0 || col >= gridSize || row < 0 || row >= gridSize)
-                    return false;
-
-                // Check if cell is empty or has same letter (for crosswords)
-                var cell = panel.GetCell(col, row);
-                if (cell != null && cell.GetLetter() != '\0')
+                var wordData = new WordPlacementData
                 {
-                    if (cell.GetLetter() != word[i])
-                        return false;
-                }
-            }
+                    Word = word,
+                    StartCol = startCol,
+                    StartRow = startRow,
+                    DirCol = 1,
+                    DirRow = 0,
+                    RowIndex = i
+                };
 
-            return true;
+                _opponentSetupData.PlacedWords.Add(wordData);
+            }
         }
 
-        private void ConfigurePlayerWordRows(PlayerGridPanel panel)
+        #endregion
+
+        #region Panel Configuration
+
+        /// <summary>
+        /// Configures the owner panel with player's data (fully revealed)
+        /// </summary>
+        /// <summary>
+        /// Configures the owner panel with player's data (fully revealed)
+        /// </summary>
+private void ConfigureOwnerPanel()
         {
-            if (panel == null) return;
+            if (_ownerPanel == null || _playerSetupData == null) return;
 
-            Debug.Log($"[GameplayUIController] === ConfigurePlayerWordRows START ===");
-            Debug.Log($"[GameplayUIController] _playerPlacedWords.Count = {_playerPlacedWords.Count}");
+            _ownerPanel.SetMode(PlayerGridPanel.PanelMode.Gameplay);
+            _ownerPanel.InitializeGrid(_playerSetupData.GridSize);
+            _ownerPanel.SetPlayerName(_playerSetupData.PlayerName);
+            _ownerPanel.SetPlayerColor(_playerSetupData.PlayerColor);
+            _ownerPanel.SetWordLengths(_playerSetupData.WordLengths);
 
-            var wordRows = panel.GetWordPatternRows();
-            Debug.Log($"[GameplayUIController] panel.GetWordPatternRows() returned {(wordRows != null ? wordRows.Length + " rows" : "NULL")}");
+            // CRITICAL: Ensure word pattern rows are cached before we try to use them
+            // This is needed because Start() hasn't run yet on newly activated panels
+            _ownerPanel.CacheWordPatternRows();
 
-            if (wordRows == null || wordRows.Length == 0)
+            // Place words on the grid AND set up word pattern rows
+            foreach (var wordData in _playerSetupData.PlacedWords)
             {
-                Debug.LogError("[GameplayUIController] No word rows found on panel!");
-                return;
-            }
+                // Place letters on grid
+                PlaceWordOnPanelRevealed(_ownerPanel, wordData);
 
-            // Sort placed words by word length to match row order (3, 4, 5, 6 letters)
-            var sortedWords = _playerPlacedWords.OrderBy(w => w.word.Length).ToList();
-
-            for (int i = 0; i < wordRows.Length && i < sortedWords.Count; i++)
-            {
-                var row = wordRows[i];
-                var wordData = sortedWords[i];
-
-                if (row != null && row.gameObject.activeSelf)
+                // Set up the word pattern row to show the full word
+                var row = _ownerPanel.GetWordPatternRow(wordData.RowIndex);
+                if (row != null)
                 {
-                    Debug.Log($"[GameplayUIController] Setting row {i} with word: '{wordData.word}' (length {wordData.word.Length})");
-
-                    // Set gameplay word (switches to Gameplay state, hides buttons)
-                    row.SetGameplayWord(wordData.word);
-
-                    // Reveal ALL letters since this is the player's own words
+                    row.SetGameplayWord(wordData.Word);
                     row.RevealAllLetters();
-
-                    Debug.Log($"[GameplayUIController] Row {i} configured - calling RevealAllLetters");
+                    Debug.Log($"[GameplayUI] Owner row {wordData.RowIndex + 1}: Set word '{wordData.Word}' (revealed)");
+                }
+                else
+                {
+                    Debug.LogError($"[GameplayUI] Owner row {wordData.RowIndex} is NULL! Cannot set word '{wordData.Word}'");
                 }
             }
 
-            Debug.Log($"[GameplayUIController] Player word rows configured for gameplay");
-        }
-
-        private void HideOpponentDisplay(PlayerGridPanel panel)
-        {
-            if (panel == null) return;
-
-            // Hide grid letters (already handled by SetHiddenLetter)
-            // Reset letter tracker
-            panel.ResetAllLetterButtons();
-
-            // Show word patterns as underscores only
-            var wordRows = panel.GetWordPatternRows();
-            if (wordRows != null)
+            // Hide unused word rows
+            int wordCount = _playerSetupData.PlacedWords.Count;
+            var allRows = _ownerPanel.GetWordPatternRows();
+            if (allRows != null)
             {
-                for (int i = 0; i < wordRows.Length && i < _opponentPlacedWords.Count; i++)
+                for (int i = 0; i < allRows.Length; i++)
                 {
-                    var row = wordRows[i];
-                    var wordData = _opponentPlacedWords[i];
-                    if (row != null && row.gameObject.activeSelf)
+                    if (allRows[i] != null)
                     {
-                        row.SetGameplayWord(wordData.word);
+                        bool shouldBeActive = i < wordCount;
+                        allRows[i].gameObject.SetActive(shouldBeActive);
                     }
                 }
+                Debug.Log($"[GameplayUI] Owner panel: Showing {wordCount} rows, hiding {allRows.Length - wordCount} unused rows");
+            }
+
+            Debug.Log(string.Format("[GameplayUI] Configured owner panel: {0} words placed",
+                _playerSetupData.PlacedWords.Count));
+        }
+
+        /// <summary>
+        /// Configures the opponent panel with opponent's data (hidden)
+        /// </summary>
+private void ConfigureOpponentPanel()
+        {
+            if (_opponentPanel == null || _opponentSetupData == null) return;
+
+            _opponentPanel.SetMode(PlayerGridPanel.PanelMode.Gameplay);
+            _opponentPanel.InitializeGrid(_opponentSetupData.GridSize);
+            _opponentPanel.SetPlayerName(_opponentSetupData.PlayerName);
+            _opponentPanel.SetPlayerColor(_opponentSetupData.PlayerColor);
+            _opponentPanel.SetWordLengths(_opponentSetupData.WordLengths);
+
+            // CRITICAL: Ensure word pattern rows are cached before we try to use them
+            // This is needed because Start() hasn't run yet on newly activated panels
+            _opponentPanel.CacheWordPatternRows();
+
+            // Place words on the grid AND set up word pattern rows
+            foreach (var wordData in _opponentSetupData.PlacedWords)
+            {
+                // Place letters on grid (hidden)
+                PlaceWordOnPanelHidden(_opponentPanel, wordData);
+
+                // Set up the word pattern row to show underscores (hidden)
+                var row = _opponentPanel.GetWordPatternRow(wordData.RowIndex);
+                if (row != null)
+                {
+                    row.SetGameplayWord(wordData.Word);
+                    Debug.Log($"[GameplayUI] Opponent row {wordData.RowIndex + 1}: Set word '{wordData.Word}' (hidden)");
+                }
+                else
+                {
+                    Debug.LogError($"[GameplayUI] Opponent row {wordData.RowIndex} is NULL! Cannot set word '{wordData.Word}'");
+                }
+            }
+
+            // Hide unused word rows
+            int wordCount = _opponentSetupData.PlacedWords.Count;
+            var allRows = _opponentPanel.GetWordPatternRows();
+            if (allRows != null)
+            {
+                for (int i = 0; i < allRows.Length; i++)
+                {
+                    if (allRows[i] != null)
+                    {
+                        bool shouldBeActive = i < wordCount;
+                        allRows[i].gameObject.SetActive(shouldBeActive);
+                    }
+                }
+                Debug.Log($"[GameplayUI] Opponent panel: Showing {wordCount} rows, hiding {allRows.Length - wordCount} unused rows");
+            }
+
+            SubscribeToPanelEvents();
+
+            Debug.Log(string.Format("[GameplayUI] Configured opponent panel: {0} words placed (hidden)",
+                _opponentSetupData.PlacedWords.Count));
+        }
+
+        /// <summary>
+        /// Places a word on a panel's grid with letters fully revealed
+        /// </summary>
+        private void PlaceWordOnPanelRevealed(PlayerGridPanel panel, WordPlacementData wordData)
+        {
+            int col = wordData.StartCol;
+            int row = wordData.StartRow;
+
+            for (int i = 0; i < wordData.Word.Length; i++)
+            {
+                char letter = wordData.Word[i];
+                var cellUI = panel.GetCell(col, row);
+
+                if (cellUI != null)
+                {
+                    cellUI.SetLetter(letter);
+                    cellUI.SetState(CellState.Filled);
+                }
+
+                col += wordData.DirCol;
+                row += wordData.DirRow;
             }
         }
 
-        private void CleanupPanels()
+        /// <summary>
+        /// Places a word on a panel's grid with letters hidden
+        /// </summary>
+        private void PlaceWordOnPanelHidden(PlayerGridPanel panel, WordPlacementData wordData)
         {
-            if (_ownerPanel != null)
-            {
-                Destroy(_ownerPanel.gameObject);
-                _ownerPanel = null;
-            }
+            int col = wordData.StartCol;
+            int row = wordData.StartRow;
 
+            Debug.Log(string.Format("[GameplayUI] PlaceWordOnPanelHidden: '{0}' at ({1},{2}) dir({3},{4})",
+                wordData.Word, col, row, wordData.DirCol, wordData.DirRow));
+
+            for (int i = 0; i < wordData.Word.Length; i++)
+            {
+                char letter = wordData.Word[i];
+                var cellUI = panel.GetCell(col, row);
+
+                if (cellUI != null)
+                {
+                    cellUI.SetHiddenLetter(letter);
+                }
+
+                col += wordData.DirCol;
+                row += wordData.DirRow;
+            }
+        }
+
+        #endregion
+
+        #region Event Handling
+
+        private void SubscribeToPanelEvents()
+        {
             if (_opponentPanel != null)
             {
-                _opponentPanel.OnLetterClicked -= HandleOpponentLetterClicked;
-                _opponentPanel.OnCellClicked -= HandleOpponentCellClicked;
-                Destroy(_opponentPanel.gameObject);
-                _opponentPanel = null;
+                _opponentPanel.OnLetterClicked += HandleLetterGuess;
+                _opponentPanel.OnCellClicked += HandleCellGuess;
             }
         }
+
+        private void UnsubscribeFromPanelEvents()
+        {
+            if (_opponentPanel != null)
+            {
+                _opponentPanel.OnLetterClicked -= HandleLetterGuess;
+                _opponentPanel.OnCellClicked -= HandleCellGuess;
+            }
+        }
+
+        private void HandleLetterGuess(char letter)
+        {
+            Debug.Log(string.Format("[GameplayUI] Letter guessed: {0}", letter));
+            // TODO: Implement letter guessing logic
+        }
+
+        private void HandleCellGuess(int column, int row)
+        {
+            Debug.Log(string.Format("[GameplayUI] Cell guessed: ({0}, {1})", column, row));
+            // TODO: Implement coordinate guessing logic
+        }
+
         #endregion
 
-        #region Private Methods - Event Handlers
-        private void OnStartButtonClicked()
+        #region Miss Counter
+
+        private void UpdateMissCounters()
         {
-            StartGameplay();
+            if (_player1MissCounter != null && _opponentSetupData != null)
+            {
+                int missLimit = CalculateMissLimit(_playerSetupData.DifficultyLevel, _opponentSetupData);
+                _player1MissCounter.text = string.Format("0 / {0}", missLimit);
+            }
+
+            if (_player2MissCounter != null && _playerSetupData != null)
+            {
+                int missLimit = CalculateMissLimit(_opponentSetupData.DifficultyLevel, _playerSetupData);
+                _player2MissCounter.text = string.Format("0 / {0}", missLimit);
+            }
         }
 
-        private void HandleOpponentLetterClicked(char letter)
+        private int CalculateMissLimit(DifficultySetting playerDifficulty, SetupData opponentData)
         {
-            if (!_isGameplayActive) return;
+            if (opponentData == null)
+                return 21;
 
-            Debug.Log($"[GameplayUIController] Letter guessed: {letter}");
-            OnLetterGuessed?.Invoke(letter);
+            int baseMisses = 15;
+            int gridBonus = GetGridBonus(opponentData.GridSize);
+            int wordModifier = opponentData.WordCount == 4 ? -2 : 0;
+            int difficultyModifier = GetDifficultyModifier(playerDifficulty);
 
-            // TODO: Process guess through GameManager
+            return baseMisses + gridBonus + wordModifier + difficultyModifier;
         }
 
-        private void HandleOpponentCellClicked(int column, int row)
+        private int GetGridBonus(int gridSize)
         {
-            if (!_isGameplayActive) return;
-
-            Debug.Log($"[GameplayUIController] Coordinate guessed: {(char)('A' + column)}{row + 1}");
-            OnCoordinateGuessed?.Invoke(column, row);
-
-            // TODO: Process guess through GameManager
-        }
-        #endregion
-
-        #region Editor Helpers
-#if UNITY_EDITOR
-        [TitleGroup("Debug")]
-        [Button("Test Start Button State")]
-        private void TestStartButtonState()
-        {
-            UpdateStartButtonState();
+            switch (gridSize)
+            {
+                case 6: return 3;
+                case 7: return 4;
+                case 8: return 6;
+                case 9: return 8;
+                case 10: return 10;
+                case 11: return 12;
+                case 12: return 13;
+                default: return 6;
+            }
         }
 
-        [Button("Force Start Gameplay")]
-        private void ForceStartGameplay()
+        private int GetDifficultyModifier(DifficultySetting difficulty)
         {
-            // Use test data
-            _playerName = "TEST_PLAYER";
-            _playerColor = Color.cyan;
-            _playerGridSize = 6;
-            _playerWordCount = 3;
-            _playerMissLimit = 21;
-            _playerPlacedWords.Clear();
-
-            // Add test words
-            _playerPlacedWords.Add(new PlacedWordData("CAT", 0, 0, 1, 0));
-            _playerPlacedWords.Add(new PlacedWordData("WORD", 0, 1, 1, 0));
-            _playerPlacedWords.Add(new PlacedWordData("HELLO", 0, 2, 1, 0));
-
-            GenerateOpponentData();
-            CreateGameplayPanels();
-
-            if (_setupContainer != null)
-                _setupContainer.SetActive(false);
-
-            if (_gameplayContainer != null)
-                _gameplayContainer.SetActive(true);
-
-            _isGameplayActive = true;
-
-            UpdateMissCounter(0, 0, _playerMissLimit);
-            UpdateMissCounter(1, 0, _opponentMissLimit);
-
-            Debug.Log("[GameplayUIController] Force started gameplay (debug)");
+            switch (difficulty)
+            {
+                case DifficultySetting.Easy: return 4;
+                case DifficultySetting.Normal: return 0;
+                case DifficultySetting.Hard: return -4;
+                default: return 0;
+            }
         }
-#endif
+
         #endregion
     }
 }
