@@ -517,6 +517,15 @@ namespace TecVooDoo.DontLoseYourHead.UI
         }
 
         /// <summary>
+        /// Gets the current state of a letter button.
+        /// </summary>
+        public LetterButton.LetterState GetLetterState(char letter)
+        {
+            if (_letterTrackerController == null) return LetterButton.LetterState.Normal;
+            return _letterTrackerController.GetLetterState(letter);
+        }
+
+        /// <summary>
         /// Resets all letter buttons to normal state.
         /// </summary>
         public void ResetAllLetterButtons()
@@ -1901,6 +1910,7 @@ private void CacheExistingLabels()
             if (_placementWordRowIndex >= 0 && _placementWordRowIndex < _wordPatternRows.Count)
             {
                 _wordPatternRows[_placementWordRowIndex].MarkAsPlaced();
+                _wordPatternRows[_placementWordRowIndex].SetPlacementPosition(startCol, startRow, dCol, dRow);
             }
 
             OnWordPlaced?.Invoke(_placementWordRowIndex, _placementWord, new List<Vector2Int>(_placedCellPositions));

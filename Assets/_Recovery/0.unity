@@ -4635,7 +4635,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 985792144}
-  - component: {fileID: 985792143}
   m_Layer: 0
   m_Name: TestController
   m_TagString: Untagged
@@ -4643,28 +4642,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &985792143
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 985792142}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5b5cdb95a167d824284ae6e0b648548e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TecVooDoo.DontLoseYourHead.Core.TestController
-  _gameManager: {fileID: 1680601024}
-  _stateMachine: {fileID: 1286652520}
-  _turnManager: {fileID: 75395243}
-  _playerManager: {fileID: 995572634}
-  _word1: CAT
-  _word2: DOGS
-  _word3: BIRDS
-  _customWordGuess: CAT
-  _testLetter: 67
-  _testCoordinate: {x: 0, y: 0}
 --- !u!4 &985792144
 Transform:
   m_ObjectHideFlags: 0
@@ -4848,6 +4825,7 @@ MonoBehaviour:
   _pickRandomWordsButton: {fileID: 1004730549}
   _placeRandomPositionsButton: {fileID: 1939555896}
   _missLimitDisplay: {fileID: 1702829874}
+  _startGameButton: {fileID: 0}
   _playerGridPanel: {fileID: 2030745016}
   _threeLetterWords: {fileID: 11400000, guid: 06114520cd18e54439e47522617dbaa7, type: 2}
   _fourLetterWords: {fileID: 11400000, guid: 83e7ad5863c5046469a403a9dab4ec0c, type: 2}
@@ -4864,6 +4842,13 @@ MonoBehaviour:
   - {r: 0.6, g: 0.4, b: 0.2, a: 1}
   _toastDuration: 2
   _invalidWordMessage: '''{0}'' is not a valid word!'
+  _contentContainer: {fileID: 0}
+  _minFontSize: 14
+  _maxFontSize: 24
+  _minElementHeight: 35
+  _maxElementHeight: 60
+  _minSpacing: 8
+  _maxSpacing: 20
 --- !u!114 &992477047
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5692,20 +5677,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TecVooDoo.DontLoseYourHead.UI.GameplayUIController
   _setupContainer: {fileID: 1608185427}
   _gameplayContainer: {fileID: 1286568915}
-  _playerPanelParent: {fileID: 1734187633}
-  _opponentPanelParent: {fileID: 2018636809}
-  _playerGridPanelPrefab: {fileID: 2030745016}
-  _startButton: {fileID: 1578194323}
+  _ownerPanel: {fileID: 0}
+  _opponentPanel: {fileID: 0}
   _player1MissCounter: {fileID: 1006247647}
   _player2MissCounter: {fileID: 1152910707}
-  _setupPlayerGridPanel: {fileID: 2030745016}
-  _setupSettingsPanel: {fileID: 992477046}
-  _threeLetterWords: {fileID: 11400000, guid: 06114520cd18e54439e47522617dbaa7, type: 2}
-  _fourLetterWords: {fileID: 11400000, guid: 83e7ad5863c5046469a403a9dab4ec0c, type: 2}
-  _fiveLetterWords: {fileID: 11400000, guid: d210015902afad641bbdd412067539a2, type: 2}
-  _sixLetterWords: {fileID: 11400000, guid: cb4da1dbc7be8444cbc76bbbdbc7ef07, type: 2}
-  _opponentName: OPPONENT
-  _opponentColor: {r: 0.9, g: 0.4, b: 0.4, a: 1}
+  _startGameButton: {fileID: 0}
+  _testOpponentLetter: 69
+  _testOpponentCoordinate: {x: 0, y: 0}
+  _testOpponentWord: NOV
 --- !u!4 &1086319916
 Transform:
   m_ObjectHideFlags: 0

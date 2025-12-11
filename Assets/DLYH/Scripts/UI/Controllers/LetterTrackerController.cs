@@ -89,6 +89,19 @@ namespace TecVooDoo.DontLoseYourHead.UI
         }
 
         /// <summary>
+        /// Gets the current state of a letter button.
+        /// </summary>
+        public LetterButton.LetterState GetLetterState(char letter)
+        {
+            var button = GetLetterButton(letter);
+            if (button != null)
+            {
+                return button.CurrentState;
+            }
+            return LetterButton.LetterState.Normal;
+        }
+
+        /// <summary>
         /// Sets the state of a letter button.
         /// </summary>
         public void SetLetterState(char letter, LetterButton.LetterState state)

@@ -20,6 +20,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         [Header("Gameplay Colors")]
         [SerializeField] private Color _hitColor = new Color(0.5f, 1f, 0.5f, 1f);
         [SerializeField] private Color _missColor = new Color(1f, 0.5f, 0.5f, 1f);
+        [SerializeField] private Color _hitUnknownLetterColor = new Color(1f, 0.85f, 0.4f, 1f); // Yellow/orange for hit but letter unknown
         #endregion
 
         #region Private Fields
@@ -35,6 +36,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private char _hiddenLetter = '\0';
         private bool _isLetterHidden = false;
         private bool _hasBeenGuessed = false;
+        private bool _isHitButLetterUnknown = false; // Track if hit but letter not yet guessed
         #endregion
 
         #region Events
@@ -69,6 +71,11 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// Returns true if this cell has been guessed in gameplay.
         /// </summary>
         public bool HasBeenGuessed => _hasBeenGuessed;
+
+        /// <summary>
+        /// Returns true if this cell was hit but the letter is not yet known.
+        /// </summary>
+        public bool IsHitButLetterUnknown => _isHitButLetterUnknown;
         #endregion
 
         #region Initialization
@@ -80,6 +87,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             _hiddenLetter = '\0';
             _isLetterHidden = false;
             _hasBeenGuessed = false;
+            _isHitButLetterUnknown = false;
 
             if (_button != null)
             {
@@ -234,13 +242,46 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// <summary>
         /// Marks this cell as guessed (for gameplay tracking).
         /// </summary>
+        /// <param name="isHit">True if coordinate hit a letter, false if miss</param>
         public void MarkAsGuessed(bool isHit)
         {
             _hasBeenGuessed = true;
+            _isHitButLetterUnknown = false; // Clear this flag when using standard marking
 
             if (_background != null)
             {
                 _background.color = isHit ? _hitColor : _missColor;
+            }
+        }
+
+        /// <summary>
+        /// Marks this cell as hit but with letter unknown (yellow/orange color).
+        /// Used when opponent guesses a coordinate hit but hasn't guessed the letter yet.
+        /// </summary>
+        public void MarkAsHitButLetterUnknown()
+        {
+            _hasBeenGuessed = true;
+            _isHitButLetterUnknown = true;
+
+            if (_background != null)
+            {
+                _background.color = _hitUnknownLetterColor;
+            }
+        }
+
+        /// <summary>
+        /// Upgrades a "hit but letter unknown" cell to fully known (green).
+        /// Called when the letter is later guessed correctly.
+        /// </summary>
+        public void UpgradeToKnownHit()
+        {
+            if (_isHitButLetterUnknown)
+            {
+                _isHitButLetterUnknown = false;
+                if (_background != null)
+                {
+                    _background.color = _hitColor;
+                }
             }
         }
 
@@ -252,6 +293,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             ClearLetter();
             SetState(CellState.Empty);
             _hasBeenGuessed = false;
+            _isHitButLetterUnknown = false;
         }
         #endregion
 
