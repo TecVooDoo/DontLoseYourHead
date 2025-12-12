@@ -6,6 +6,8 @@ using Sirenix.OdinInspector;
 using System;
 using TecVooDoo.DontLoseYourHead.UI.Controllers;
 
+using TecVooDoo.DontLoseYourHead.UI.Utilities;
+
 namespace TecVooDoo.DontLoseYourHead.UI
 {
     /// <summary>
@@ -966,6 +968,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         }
         #endregion
 
+
         #region Private Methods - Display
         private void UpdateDisplay()
         {
@@ -979,83 +982,40 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         private string BuildDisplayText()
         {
-            System.Text.StringBuilder sb = new System.Text.StringBuilder();
-
-            sb.Append(_rowNumber);
-            sb.Append(_numberSeparator);
-
-            switch (_currentState)
-            {
-                case RowState.Empty:
-                    for (int i = 0; i < _requiredWordLength; i++)
-                    {
-                        if (i > 0) sb.Append(_letterSeparator);
-                        sb.Append(_unknownLetterChar);
-                    }
-                    break;
-
-                case RowState.Entering:
-                    for (int i = 0; i < _requiredWordLength; i++)
-                    {
-                        if (i > 0) sb.Append(_letterSeparator);
-                        if (i < _enteredText.Length)
-                        {
-                            sb.Append("<u>");
-                            sb.Append(_enteredText[i]);
-                            sb.Append("</u>");
-                        }
-                        else
-                        {
-                            sb.Append(_unknownLetterChar);
-                        }
-                    }
-                    break;
-
-                case RowState.WordEntered:
-                case RowState.Placed:
-                    for (int i = 0; i < _currentWord.Length; i++)
-                    {
-                        if (i > 0) sb.Append(_letterSeparator);
-                        sb.Append("<u>");
-                        sb.Append(_currentWord[i]);
-                        sb.Append("</u>");
-                    }
-                    break;
-
-                case RowState.Gameplay:
-                    BuildGameplayDisplayText(sb);
-                    break;
-            }
-
-            return sb.ToString();
+            RowDisplayData data = CreateDisplayData();
+            return RowDisplayBuilder.Build(data);
         }
 
-        private void BuildGameplayDisplayText(System.Text.StringBuilder sb)
+        private RowDisplayData CreateDisplayData()
         {
-            string typedColorHex = ColorUtility.ToHtmlStringRGB(_guessTypedLetterColor);
-
-            for (int i = 0; i < _currentWord.Length; i++)
+            RowDisplayData data = new RowDisplayData
             {
-                if (i > 0) sb.Append(_letterSeparator);
+                RowNumber = _rowNumber,
+                NumberSeparator = _numberSeparator,
+                LetterSeparator = _letterSeparator,
+                UnknownLetterChar = _unknownLetterChar,
+                State = ConvertToDisplayState(_currentState),
+                CurrentWord = _currentWord,
+                EnteredText = _enteredText,
+                RequiredLength = _requiredWordLength,
+                RevealedLetters = _revealedLetters,
+                InWordGuessMode = InWordGuessMode,
+                GetGuessedLetterAt = _wordGuessController != null ? _wordGuessController.GetGuessedLetterAt : null,
+                GuessTypedLetterColorHex = ColorUtility.ToHtmlStringRGB(_guessTypedLetterColor)
+            };
+            return data;
+        }
 
-                if (_revealedLetters[i])
-                {
-                    sb.Append("<u>");
-                    sb.Append(_currentWord[i]);
-                    sb.Append("</u>");
-                }
-                else if (InWordGuessMode && _wordGuessController != null && _wordGuessController.GetGuessedLetterAt(i) != '\0')
-                {
-                    sb.Append("<color=#");
-                    sb.Append(typedColorHex);
-                    sb.Append(">");
-                    sb.Append(_wordGuessController.GetGuessedLetterAt(i));
-                    sb.Append("</color>");
-                }
-                else
-                {
-                    sb.Append(_unknownLetterChar);
-                }
+        private RowDisplayData.RowState ConvertToDisplayState(RowState state)
+        {
+            switch (state)
+            {
+                case RowState.Empty: return RowDisplayData.RowState.Empty;
+                case RowState.Entering: return RowDisplayData.RowState.Entering;
+                case RowState.WordEntered: return RowDisplayData.RowState.WordEntered;
+                case RowState.Placed: return RowDisplayData.RowState.Placed;
+                case RowState.Gameplay: return RowDisplayData.RowState.Gameplay;
+                default: return RowDisplayData.RowState.Empty;
             }
         }
         #endregion
