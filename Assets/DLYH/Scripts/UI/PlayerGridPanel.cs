@@ -132,6 +132,11 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private GridColorManager _gridColorManager;
         #endregion
 
+        #region Private Fields - Placement Preview
+        private PlacementPreviewController _placementPreviewController;
+        #endregion
+
+
         #region Private Fields - Word Patterns
         private List<WordPatternRow> _wordPatternRows = new List<WordPatternRow>();
         private int _selectedWordRowIndex = -1;
@@ -241,7 +246,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             CacheExistingLabels();
         }
 
-        private void Start()
+private void Start()
         {
             Debug.Log("[PlayerGridPanel] START() called - script is running!");
 
@@ -251,6 +256,13 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _validPlacementColor,
                 _invalidPlacementColor,
                 _placedLetterColor
+            );
+
+            // Initialize placement preview controller
+            _placementPreviewController = new PlacementPreviewController(
+                _gridColorManager,
+                GetCell,
+                IsValidCoordinate
             );
 
             // Initialize letter tracker controller
@@ -269,7 +281,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
             {
                 InitializeGrid(_currentGridSize);
             }
-
         }
 
         #endregion
@@ -1727,7 +1738,7 @@ private void CacheExistingLabels()
         #endregion
 
         #region Private Methods - Placement Preview
-        private void UpdatePlacementPreview(int hoverCol, int hoverRow)
+private void UpdatePlacementPreview(int hoverCol, int hoverRow)
         {
             // Clear previous highlighting
             ClearPlacementHighlighting();
@@ -1735,143 +1746,28 @@ private void CacheExistingLabels()
             if (_placementState == PlacementState.SelectingFirstCell)
             {
                 // Show valid directions from hover cell
-                var validDirections = GetValidDirectionsFromCell(hoverCol, hoverRow);
-
-                // Highlight current cell as cursor
-                var hoverCell = GetCell(hoverCol, hoverRow);
-                if (hoverCell != null)
-                {
-                    _gridColorManager.SetCellHighlight(hoverCell, GridHighlightType.Cursor);
-                }
-
-                // Highlight valid direction cells in green
-                foreach (var pos in validDirections)
-                {
-                    var cell = GetCell(pos.x, pos.y);
-                    if (cell != null)
-                    {
-                        _gridColorManager.SetCellHighlight(cell, GridHighlightType.ValidPlacement);
-                    }
-                }
-
-                // Highlight invalid cells (cells that would make word go out of bounds)
-                HighlightInvalidCells(hoverCol, hoverRow, validDirections);
+                List<Vector2Int> validDirections = GetValidDirectionsFromCell(hoverCol, hoverRow);
+                _placementPreviewController.ShowFirstCellPreview(hoverCol, hoverRow, validDirections);
             }
             else if (_placementState == PlacementState.SelectingDirection)
             {
-                // First cell stays highlighted as cursor
-                var firstCell = GetCell(_firstCellCol, _firstCellRow);
-                if (firstCell != null)
-                {
-                    _gridColorManager.SetCellHighlight(firstCell, GridHighlightType.Cursor);
-                }
-
-                // Show valid second cells
-                var validDirections = GetValidDirectionsFromCell(_firstCellCol, _firstCellRow);
-                foreach (var pos in validDirections)
-                {
-                    var cell = GetCell(pos.x, pos.y);
-                    if (cell != null)
-                    {
-                        _gridColorManager.SetCellHighlight(cell, GridHighlightType.ValidPlacement);
-                    }
-                }
-
-                // If hovering over a valid direction, preview the full word
-                if (validDirections.Contains(new Vector2Int(hoverCol, hoverRow)))
-                {
-                    PreviewWordPlacement(hoverCol, hoverRow);
-                }
+                // Show direction preview with potential word placement
+                List<Vector2Int> validDirections = GetValidDirectionsFromCell(_firstCellCol, _firstCellRow);
+                _placementPreviewController.ShowDirectionPreview(
+                    _firstCellCol, _firstCellRow,
+                    hoverCol, hoverRow,
+                    _placementWord,
+                    validDirections);
             }
         }
 
-        private void HighlightInvalidCells(int hoverCol, int hoverRow, List<Vector2Int> validDirections)
+
+
+
+
+private void ClearPlacementHighlighting()
         {
-            // For each adjacent cell that is NOT in validDirections, mark as invalid
-            int[] dCols = { 1, 0, 1, 1, -1, 0, -1, -1 };
-            int[] dRows = { 0, 1, 1, -1, 0, -1, -1, 1 };
-
-            for (int d = 0; d < 8; d++)
-            {
-                int adjCol = hoverCol + dCols[d];
-                int adjRow = hoverRow + dRows[d];
-
-                if (IsValidCoordinate(adjCol, adjRow))
-                {
-                    var adjPos = new Vector2Int(adjCol, adjRow);
-                    if (!validDirections.Contains(adjPos))
-                    {
-                        var cell = GetCell(adjCol, adjRow);
-                        if (cell != null)
-                        {
-                            _gridColorManager.SetCellHighlight(cell, GridHighlightType.InvalidPlacement);
-                        }
-                    }
-                }
-            }
-        }
-
-        private void PreviewWordPlacement(int secondCol, int secondRow)
-        {
-            if (_firstCellCol < 0 || _firstCellRow < 0) return;
-
-            int dCol = secondCol - _firstCellCol;
-            int dRow = secondRow - _firstCellRow;
-
-            // Preview all letters in the word
-            for (int i = 0; i < _placementWord.Length; i++)
-            {
-                int col = _firstCellCol + (i * dCol);
-                int row = _firstCellRow + (i * dRow);
-
-                var cell = GetCell(col, row);
-                if (cell != null)
-                {
-                    cell.SetLetter(_placementWord[i]);
-
-                    // First cell is cursor color, rest are valid placement color
-                    if (i == 0)
-                    {
-                        _gridColorManager.SetCellHighlight(cell, GridHighlightType.Cursor);
-                    }
-                    else
-                    {
-                        _gridColorManager.SetCellHighlight(cell, GridHighlightType.ValidPlacement);
-                    }
-                }
-            }
-        }
-
-        private void ClearPlacementHighlighting()
-        {
-            for (int col = 0; col < _currentGridSize; col++)
-            {
-                for (int row = 0; row < _currentGridSize; row++)
-                {
-                    var cell = GetCell(col, row);
-                    if (cell != null)
-                    {
-                        // Only clear highlighting, not permanently placed letters
-                        cell.ClearHighlight();
-
-                        var pos = new Vector2Int(col, row);
-                        if (_allPlacedPositions.Contains(pos))
-                        {
-                            // Restore placed letter
-                            if (_placedLetters.TryGetValue(pos, out char letter))
-                            {
-                                cell.SetLetter(letter);
-                                cell.SetState(CellState.Filled);
-                            }
-                        }
-                        else
-                        {
-                            // Clear any preview letters
-                            cell.ClearLetter();
-                        }
-                    }
-                }
-            }
+            _placementPreviewController.ClearAllPreviews(_currentGridSize, _allPlacedPositions, _placedLetters);
         }
         #endregion
 
