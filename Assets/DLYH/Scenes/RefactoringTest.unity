@@ -27600,7 +27600,6 @@ MonoBehaviour:
   _currentGridSize: 6
   _playerColor: {r: 1, g: 1, b: 1, a: 1}
   _currentMode: 0
-  _fixedElementsHeight: 300
   _cursorColor: {r: 0.13, g: 0.85, b: 0.13, a: 1}
   _validPlacementColor: {r: 0.6, g: 1, b: 0.6, a: 0.7}
   _invalidPlacementColor: {r: 1, g: 0, b: 0, a: 0.7}
