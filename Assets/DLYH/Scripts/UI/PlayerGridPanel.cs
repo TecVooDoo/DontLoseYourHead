@@ -136,6 +136,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private PlacementPreviewController _placementPreviewController;
         #endregion
 
+        #region Private Fields - Word Pattern Row Manager
+        private WordPatternRowManager _wordPatternRowManager;
+        #endregion
 
         #region Private Fields - Word Patterns
         private List<WordPatternRow> _wordPatternRows = new List<WordPatternRow>();
@@ -246,7 +249,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             CacheExistingLabels();
         }
 
-private void Start()
+        private void Start()
         {
             Debug.Log("[PlayerGridPanel] START() called - script is running!");
 
@@ -274,6 +277,17 @@ private void Start()
             _letterTrackerController.OnLetterHoverEnter += HandleLetterHoverEnter;
             _letterTrackerController.OnLetterHoverExit += HandleLetterHoverExit;
 
+            // Initialize word pattern row manager
+            _wordPatternRowManager = new WordPatternRowManager(_wordPatternsContainer, _autocompleteDropdown);
+            _wordPatternRowManager.CacheWordPatternRows();
+
+            // Wire manager events
+            _wordPatternRowManager.OnWordRowSelected += HandleManagerWordRowSelected;
+            _wordPatternRowManager.OnCoordinateModeRequested += HandleManagerCoordinateModeRequested;
+            _wordPatternRowManager.OnDeleteClicked += HandleManagerDeleteClicked;
+            _wordPatternRowManager.OnWordLengthsChanged += HandleManagerWordLengthsChanged;
+
+            // Also cache to legacy list for backward compatibility during transition
             CacheWordPatternRows();
 
             // Initialize grid with events wired up
@@ -588,7 +602,7 @@ private void Start()
         /// Returns all WordPatternRow components for event subscription.
         /// Used by SetupSettingsPanel to subscribe to OnInvalidWordRejected events.
         /// </summary>
-public WordPatternRow[] GetWordPatternRows()
+        public WordPatternRow[] GetWordPatternRows()
         {
             // Auto-cache if list is empty but container exists
             if ((_wordPatternRows == null || _wordPatternRows.Count == 0) && _wordPatternsContainer != null)
@@ -902,10 +916,10 @@ public WordPatternRow[] GetWordPatternRows()
 
             // Find all WordPatternRow components in children
             var rows = _wordPatternsContainer.GetComponentsInChildren<WordPatternRow>(true);
-            
+
             // Sort by sibling index to ensure correct visual order (top to bottom)
             var sortedRows = rows.OrderBy(r => r.transform.GetSiblingIndex()).ToArray();
-            
+
             Debug.Log($"[PlayerGridPanel] CacheWordPatternRows: Found {rows.Length} rows, sorting by sibling index");
 
             foreach (var row in sortedRows)
@@ -1171,7 +1185,7 @@ public WordPatternRow[] GetWordPatternRows()
             }
         }
 
-private void CacheExistingLabels()
+        private void CacheExistingLabels()
         {
             // Clear existing cached references
             for (int i = 0; i < MAX_GRID_SIZE; i++)
@@ -1187,26 +1201,26 @@ private void CacheExistingLabels()
                 {
                     var child = _rowLabelsContainer.GetChild(i);
                     string childName = child.name;
-                    
+
                     // Try to extract the number from the name (e.g., "Label_1" -> 1, "1" -> 1)
                     for (int labelNum = 1; labelNum <= MAX_GRID_SIZE; labelNum++)
                     {
-                        if (childName.Contains(labelNum.ToString()) && 
+                        if (childName.Contains(labelNum.ToString()) &&
                             (childName.Contains("Label") || childName.Contains("Row") || childName == labelNum.ToString()))
                         {
                             // Avoid false matches like "Label_12" matching "1"
                             string numStr = labelNum.ToString();
-                            bool exactMatch = childName.EndsWith(numStr) || 
+                            bool exactMatch = childName.EndsWith(numStr) ||
                                               childName.EndsWith("_" + numStr) ||
                                               childName == numStr;
-                            
+
                             // For two-digit numbers, also check they're not part of a larger number
                             if (labelNum < 10)
                             {
                                 // Single digit - make sure it's not part of 10, 11, 12
                                 exactMatch = exactMatch && !childName.Contains("1" + numStr);
                             }
-                            
+
                             if (exactMatch && _rowLabelObjects[labelNum - 1] == null)
                             {
                                 _rowLabelObjects[labelNum - 1] = child.gameObject;
@@ -1215,10 +1229,10 @@ private void CacheExistingLabels()
                         }
                     }
                 }
-                
+
                 int rowCount = _rowLabelObjects.Count(x => x != null);
                 Debug.Log($"[PlayerGridPanel] Cached {rowCount} row labels by name");
-                
+
                 // Log what we found for debugging
                 for (int i = 0; i < MAX_GRID_SIZE; i++)
                 {
@@ -1236,18 +1250,18 @@ private void CacheExistingLabels()
                 {
                     var child = _columnLabelsContainer.GetChild(i);
                     string childName = child.name;
-                    
+
                     // Skip spacer
                     if (childName.ToLower().Contains("spacer"))
                     {
                         continue;
                     }
-                    
+
                     // Try to extract the letter from the name (e.g., "Label_A" -> A)
                     for (int letterIndex = 0; letterIndex < MAX_GRID_SIZE; letterIndex++)
                     {
                         char letter = (char)('A' + letterIndex);
-                        if (childName.Contains(letter.ToString()) && 
+                        if (childName.Contains(letter.ToString()) &&
                             (childName.Contains("Label") || childName.Contains("Col") || childName == letter.ToString()))
                         {
                             if (_columnLabelObjects[letterIndex] == null)
@@ -1258,10 +1272,10 @@ private void CacheExistingLabels()
                         }
                     }
                 }
-                
+
                 int colCount = _columnLabelObjects.Count(x => x != null);
                 Debug.Log($"[PlayerGridPanel] Cached {colCount} column labels by name");
-                
+
                 // Log what we found for debugging
                 for (int i = 0; i < MAX_GRID_SIZE; i++)
                 {
@@ -1499,12 +1513,12 @@ private void CacheExistingLabels()
             Debug.Log($"[PlayerGridPanel] Cell size: {_currentCellSize:F1}px, Grid: {gridHeight:F0}px, Labels: {rowLabelSize:F1}px");
         }
 
-           
+
 
         private void UpdateLabelVisibility()
         {
             Debug.Log($"[PlayerGridPanel] === UpdateLabelVisibility START for {_currentGridSize}x{_currentGridSize} ===");
-            
+
             // Count how many labels we have cached
             int rowLabelsCached = 0;
             int colLabelsCached = 0;
@@ -1514,7 +1528,7 @@ private void CacheExistingLabels()
                 if (_columnLabelObjects[i] != null) colLabelsCached++;
             }
             Debug.Log($"[PlayerGridPanel] Cached labels: {rowLabelsCached} rows, {colLabelsCached} columns");
-            
+
             // Step 1: Enable all row labels and log their state
             for (int i = 0; i < MAX_GRID_SIZE; i++)
             {
@@ -1561,7 +1575,7 @@ private void CacheExistingLabels()
 
             // Step 3: Force layout rebuild while all are active
             Canvas.ForceUpdateCanvases();
-            
+
             if (_rowLabelsContainer != null)
             {
                 LayoutRebuilder.ForceRebuildLayoutImmediate(_rowLabelsContainer as RectTransform);
@@ -1586,7 +1600,7 @@ private void CacheExistingLabels()
 
             // Step 5: Final layout rebuild
             Canvas.ForceUpdateCanvases();
-            
+
             if (_rowLabelsContainer != null)
             {
                 LayoutRebuilder.ForceRebuildLayoutImmediate(_rowLabelsContainer as RectTransform);
@@ -1738,7 +1752,7 @@ private void CacheExistingLabels()
         #endregion
 
         #region Private Methods - Placement Preview
-private void UpdatePlacementPreview(int hoverCol, int hoverRow)
+        private void UpdatePlacementPreview(int hoverCol, int hoverRow)
         {
             // Clear previous highlighting
             ClearPlacementHighlighting();
@@ -1765,7 +1779,7 @@ private void UpdatePlacementPreview(int hoverCol, int hoverRow)
 
 
 
-private void ClearPlacementHighlighting()
+        private void ClearPlacementHighlighting()
         {
             _placementPreviewController.ClearAllPreviews(_currentGridSize, _allPlacedPositions, _placedLetters);
         }
@@ -1967,6 +1981,37 @@ private void ClearPlacementHighlighting()
 
             // Select this row for new input
             SelectWordRow(index);
+        }
+
+        // Manager event handlers (from WordPatternRowManager)
+        private void HandleManagerWordRowSelected(int index)
+        {
+            _selectedWordRowIndex = index;
+            OnWordRowSelected?.Invoke(index);
+        }
+
+        private void HandleManagerCoordinateModeRequested(int index)
+        {
+            if (index >= 0 && index < _wordPatternRows.Count)
+            {
+                EnterPlacementMode(index);
+                OnCoordinateModeRequested?.Invoke(index);
+            }
+        }
+
+        private void HandleManagerDeleteClicked(int index, bool wasPlaced)
+        {
+            Debug.Log($"[PlayerGridPanel] Manager delete on row {index + 1}, wasPlaced: {wasPlaced}");
+            if (wasPlaced && index >= 0 && index < _wordPatternRows.Count)
+            {
+                ClearWordFromGrid(index);
+            }
+            _selectedWordRowIndex = index;
+        }
+
+        private void HandleManagerWordLengthsChanged()
+        {
+            OnWordLengthsChanged?.Invoke();
         }
 
         /// <summary>
