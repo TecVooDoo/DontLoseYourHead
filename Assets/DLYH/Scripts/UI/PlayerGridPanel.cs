@@ -146,18 +146,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private Func<string, int, bool> _wordValidator;
         #endregion
 
-        #region Private Fields - Coordinate Placement
-        private PlacementState _placementState = PlacementState.Inactive;
-        private int _placementWordRowIndex = -1;
-        private string _placementWord = "";
-        private int _firstCellCol = -1;
-        private int _firstCellRow = -1;
-        private List<Vector2Int> _placedCellPositions = new List<Vector2Int>();
-        private HashSet<Vector2Int> _allPlacedPositions = new HashSet<Vector2Int>();
-        private Dictionary<Vector2Int, char> _placedLetters = new Dictionary<Vector2Int, char>();
-
-        // Track which cells belong to which word row for proper deletion
-        private Dictionary<int, List<Vector2Int>> _wordRowPositions = new Dictionary<int, List<Vector2Int>>();
+        #region Private Fields - Coordinate Placement Controller
+        private CoordinatePlacementController _coordinatePlacementController;
         #endregion
 
         #region Events - Grid
@@ -235,9 +225,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
         public int CurrentGridSize => _currentGridSize;
         public bool IsInitialized => _isInitialized;
         public PanelMode CurrentMode => _currentMode;
-        public PlacementState CurrentPlacementState => _placementState;
+        public PlacementState CurrentPlacementState => _coordinatePlacementController?.CurrentPlacementState ?? PlacementState.Inactive;
         public int SelectedWordRowIndex => _selectedWordRowIndex;
-        public bool IsInPlacementMode => _placementState != PlacementState.Inactive;
+        public bool IsInPlacementMode => _coordinatePlacementController?.IsInPlacementMode ?? false;
         public int WordRowCount => _wordPatternRows.Count;
         #endregion
 
@@ -267,6 +257,17 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 GetCell,
                 IsValidCoordinate
             );
+
+            // Initialize coordinate placement controller
+            _coordinatePlacementController = new CoordinatePlacementController(
+                _gridColorManager,
+                GetCell,
+                () => _currentGridSize
+            );
+
+            // Wire coordinate placement controller events
+            _coordinatePlacementController.OnPlacementCancelled += HandleCoordinatePlacementCancelled;
+            _coordinatePlacementController.OnWordPlaced += HandleCoordinatePlacementWordPlaced;
 
             // Initialize letter tracker controller
             _letterTrackerController = new LetterTrackerController(_letterTrackerContainer);
@@ -309,7 +310,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             _currentMode = mode;
 
             // Exit placement mode if switching modes
-            if (_placementState != PlacementState.Inactive)
+            if (IsInPlacementMode)
             {
                 CancelPlacementMode();
             }
@@ -367,10 +368,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
             // Clear any existing cells
             ClearGrid();
 
-            // Clear placement tracking
-            _allPlacedPositions.Clear();
-            _placedLetters.Clear();
-            _wordRowPositions.Clear();
+            // Clear placement tracking via controller
+            _coordinatePlacementController?.ClearAllPlacedWords();
 
             // Update GridLayoutGroup constraint to match grid size
             UpdateGridLayoutConstraint();
@@ -499,25 +498,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// </summary>
         public void ClearAllPlacedWords()
         {
-            // Clear all cells
-            for (int col = 0; col < _currentGridSize; col++)
-            {
-                for (int row = 0; row < _currentGridSize; row++)
-                {
-                    var cell = GetCell(col, row);
-                    if (cell != null)
-                    {
-                        cell.SetState(CellState.Empty);
-                        cell.ClearLetter();
-                        cell.ClearHighlight();
-                    }
-                }
-            }
-
-            _allPlacedPositions.Clear();
-            _placedLetters.Clear();
-            _wordRowPositions.Clear();
-
+            _coordinatePlacementController?.ClearAllPlacedWords();
             Debug.Log("[PlayerGridPanel] Cleared all placed words");
         }
         #endregion
@@ -645,7 +626,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
         {
             var placements = new List<WordPlacement>();
 
-            foreach (var kvp in _wordRowPositions)
+            if (_coordinatePlacementController == null) return placements;
+
+            foreach (var kvp in _coordinatePlacementController.WordRowPositions)
             {
                 int rowIndex = kvp.Key;
                 List<Vector2Int> positions = kvp.Value;
@@ -681,7 +664,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
                     rowIndex = rowIndex
                 });
 
-                Debug.Log($"[PlayerGridPanel] GetAllWordPlacements: {word} at ({first.x},{first.y}) dir({dirCol},{dirRow})");
+                Debug.Log(string.Format("[PlayerGridPanel] GetAllWordPlacements: {0} at ({1},{2}) dir({3},{4})", word, first.x, first.y, dirCol, dirRow));
             }
 
             return placements;
@@ -694,7 +677,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
         public void SelectWordRow(int index)
         {
             // If we're in placement mode and selecting a DIFFERENT row, cancel placement
-            if (_placementState != PlacementState.Inactive && index != _placementWordRowIndex)
+            int currentPlacementRow = _coordinatePlacementController?.PlacementWordRowIndex ?? -1;
+            if (IsInPlacementMode && index != currentPlacementRow)
             {
                 CancelPlacementMode();
             }
@@ -783,87 +767,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
             // Only clear if the row has a placed word
             if (!row.IsPlaced)
             {
-                Debug.Log($"[PlayerGridPanel] Row {rowIndex + 1} is not placed, nothing to clear from grid");
+                Debug.Log(string.Format("[PlayerGridPanel] Row {0} is not placed, nothing to clear from grid", rowIndex + 1));
                 return false;
             }
 
-            // Check if we have position tracking for this word
-            if (_wordRowPositions.TryGetValue(rowIndex, out List<Vector2Int> positions))
-            {
-                // Clear only this word's cells
-                foreach (var pos in positions)
-                {
-                    var cell = GetCell(pos.x, pos.y);
-                    if (cell != null)
-                    {
-                        // Check if another word shares this cell
-                        bool sharedCell = false;
-                        char sharedLetter = '\0';
-
-                        foreach (var kvp in _wordRowPositions)
-                        {
-                            if (kvp.Key != rowIndex && kvp.Value.Contains(pos))
-                            {
-                                sharedCell = true;
-                                // Get the letter from the other word
-                                if (_placedLetters.TryGetValue(pos, out char letter))
-                                {
-                                    sharedLetter = letter;
-                                }
-                                break;
-                            }
-                        }
-
-                        if (!sharedCell)
-                        {
-                            // No other word uses this cell - clear it
-                            cell.SetState(CellState.Empty);
-                            cell.ClearLetter();
-                            cell.ClearHighlight();
-                            _allPlacedPositions.Remove(pos);
-                            _placedLetters.Remove(pos);
-                        }
-                        // If shared, leave the cell as is (other word still uses it)
-                    }
-                }
-
-                // Remove this word's position tracking
-                _wordRowPositions.Remove(rowIndex);
-                Debug.Log($"[PlayerGridPanel] Cleared word from row {rowIndex + 1} - preserved other words");
-            }
-            else
-            {
-                // Fallback: No position tracking - clear all and reset other rows
-                Debug.LogWarning($"[PlayerGridPanel] No position tracking for row {rowIndex + 1}, using fallback clear");
-
-                // Reset the grid completely
-                for (int col = 0; col < _currentGridSize; col++)
-                {
-                    for (int r = 0; r < _currentGridSize; r++)
-                    {
-                        var cell = GetCell(col, r);
-                        if (cell != null)
-                        {
-                            cell.SetState(CellState.Empty);
-                            cell.ClearLetter();
-                            cell.ClearHighlight();
-                        }
-                    }
-                }
-
-                _allPlacedPositions.Clear();
-                _placedLetters.Clear();
-                _wordRowPositions.Clear();
-
-                // Reset other placed rows to WordEntered (need re-placement)
-                foreach (var otherRow in _wordPatternRows)
-                {
-                    if (otherRow != row && otherRow.IsPlaced)
-                    {
-                        otherRow.ResetToWordEntered();
-                    }
-                }
-            }
+            // Delegate grid clearing to the controller
+            _coordinatePlacementController?.ClearWordFromGrid(rowIndex);
 
             // Reset the target row to empty (for re-entry)
             row.ResetToEmpty();
@@ -970,7 +879,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         {
             if (wordRowIndex < 0 || wordRowIndex >= _wordPatternRows.Count)
             {
-                Debug.LogError($"[PlayerGridPanel] Invalid word row index: {wordRowIndex}");
+                Debug.LogError(string.Format("[PlayerGridPanel] Invalid word row index: {0}", wordRowIndex));
                 return;
             }
 
@@ -981,14 +890,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 return;
             }
 
-            _placementWordRowIndex = wordRowIndex;
-            _placementWord = row.CurrentWord;
-            _placementState = PlacementState.SelectingFirstCell;
-            _firstCellCol = -1;
-            _firstCellRow = -1;
-            _placedCellPositions.Clear();
-
-            Debug.Log($"[PlayerGridPanel] Entered placement mode for word: {_placementWord}");
+            // Delegate to controller
+            _coordinatePlacementController?.EnterPlacementMode(wordRowIndex, row.CurrentWord);
         }
 
         /// <summary>
@@ -996,40 +899,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// </summary>
         public void CancelPlacementMode()
         {
-            if (_placementState == PlacementState.Inactive) return;
-
-            // Clear the first cell's temporary letter if one was placed
-            if (_firstCellCol >= 0 && _firstCellRow >= 0)
-            {
-                var firstCell = GetCell(_firstCellCol, _firstCellRow);
-                if (firstCell != null)
-                {
-                    var pos = new Vector2Int(_firstCellCol, _firstCellRow);
-                    // Only clear if this cell doesn't have a permanently placed letter
-                    if (!_allPlacedPositions.Contains(pos))
-                    {
-                        firstCell.ClearLetter();
-                    }
-                    else if (_placedLetters.TryGetValue(pos, out char existingLetter))
-                    {
-                        // Restore the original letter if there was one
-                        firstCell.SetLetter(existingLetter);
-                    }
-                }
-            }
-
-            // Clear any preview highlighting
-            ClearPlacementHighlighting();
-
-            _placementState = PlacementState.Inactive;
-            _placementWordRowIndex = -1;
-            _placementWord = "";
-            _firstCellCol = -1;
-            _firstCellRow = -1;
-            _placedCellPositions.Clear();
-
-            OnPlacementCancelled?.Invoke();
-            Debug.Log("[PlayerGridPanel] Placement mode cancelled");
+            _coordinatePlacementController?.CancelPlacementMode();
         }
 
         /// <summary>
@@ -1037,32 +907,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// </summary>
         public bool PlaceWordRandomly()
         {
-            if (_placementState == PlacementState.Inactive)
-            {
-                Debug.LogError("[PlayerGridPanel] Not in placement mode");
-                return false;
-            }
-
-            if (string.IsNullOrEmpty(_placementWord))
-            {
-                Debug.LogError("[PlayerGridPanel] No word to place");
-                return false;
-            }
-
-            // Get all valid placements
-            var validPlacements = GetAllValidPlacements();
-
-            if (validPlacements.Count == 0)
-            {
-                Debug.LogWarning("[PlayerGridPanel] No valid placements found");
-                return false;
-            }
-
-            // Pick a random valid placement
-            int randomIndex = UnityEngine.Random.Range(0, validPlacements.Count);
-            var (startCol, startRow, dCol, dRow) = validPlacements[randomIndex];
-
-            return PlaceWordInDirection(startCol, startRow, dCol, dRow);
+            return _coordinatePlacementController?.PlaceWordRandomly() ?? false;
         }
 
         /// <summary>
@@ -1650,252 +1495,18 @@ namespace TecVooDoo.DontLoseYourHead.UI
         }
         #endregion
 
-        #region Private Methods - Placement Validation
-        private List<(int col, int row, int dCol, int dRow)> GetAllValidPlacements()
-        {
-            var validPlacements = new List<(int, int, int, int)>();
-
-            if (string.IsNullOrEmpty(_placementWord)) return validPlacements;
-
-            int wordLength = _placementWord.Length;
-
-            // 8 directions: horizontal, vertical, diagonal (including backwards)
-            int[] dCols = { 1, 0, 1, 1, -1, 0, -1, -1 };
-            int[] dRows = { 0, 1, 1, -1, 0, -1, -1, 1 };
-
-            for (int startCol = 0; startCol < _currentGridSize; startCol++)
-            {
-                for (int startRow = 0; startRow < _currentGridSize; startRow++)
-                {
-                    for (int d = 0; d < 8; d++)
-                    {
-                        if (IsValidPlacement(startCol, startRow, dCols[d], dRows[d], wordLength))
-                        {
-                            validPlacements.Add((startCol, startRow, dCols[d], dRows[d]));
-                        }
-                    }
-                }
-            }
-
-            // Shuffle for randomness
-            ShuffleList(validPlacements);
-
-            return validPlacements;
-        }
-
-        private bool IsValidPlacement(int startCol, int startRow, int dCol, int dRow, int wordLength)
-        {
-            // Check each letter position
-            for (int i = 0; i < wordLength; i++)
-            {
-                int col = startCol + (i * dCol);
-                int row = startRow + (i * dRow);
-
-                // Check bounds
-                if (!IsValidCoordinate(col, row))
-                {
-                    return false;
-                }
-
-                // Check for conflicts with existing letters
-                var pos = new Vector2Int(col, row);
-                if (_allPlacedPositions.Contains(pos))
-                {
-                    // There's already a letter here - check if it matches
-                    if (_placedLetters.TryGetValue(pos, out char existingLetter))
-                    {
-                        if (existingLetter != _placementWord[i])
-                        {
-                            return false; // Conflict - different letter
-                        }
-                        // Same letter - valid overlap
-                    }
-                }
-            }
-
-            return true;
-        }
-
-        private List<Vector2Int> GetValidDirectionsFromCell(int startCol, int startRow)
-        {
-            var validCells = new List<Vector2Int>();
-
-            if (string.IsNullOrEmpty(_placementWord)) return validCells;
-
-            int wordLength = _placementWord.Length;
-
-            // 8 directions
-            int[] dCols = { 1, 0, 1, 1, -1, 0, -1, -1 };
-            int[] dRows = { 0, 1, 1, -1, 0, -1, -1, 1 };
-
-            for (int d = 0; d < 8; d++)
-            {
-                if (IsValidPlacement(startCol, startRow, dCols[d], dRows[d], wordLength))
-                {
-                    // The second cell in this direction
-                    int secondCol = startCol + dCols[d];
-                    int secondRow = startRow + dRows[d];
-                    validCells.Add(new Vector2Int(secondCol, secondRow));
-                }
-            }
-
-            return validCells;
-        }
-
-        private bool IsValidDirectionCell(int col, int row)
-        {
-            if (_firstCellCol < 0 || _firstCellRow < 0) return false;
-
-            var validDirections = GetValidDirectionsFromCell(_firstCellCol, _firstCellRow);
-            return validDirections.Contains(new Vector2Int(col, row));
-        }
-        #endregion
-
-        #region Private Methods - Placement Preview
-        private void UpdatePlacementPreview(int hoverCol, int hoverRow)
-        {
-            // Clear previous highlighting
-            ClearPlacementHighlighting();
-
-            if (_placementState == PlacementState.SelectingFirstCell)
-            {
-                // Show valid directions from hover cell
-                List<Vector2Int> validDirections = GetValidDirectionsFromCell(hoverCol, hoverRow);
-                _placementPreviewController.ShowFirstCellPreview(hoverCol, hoverRow, validDirections);
-            }
-            else if (_placementState == PlacementState.SelectingDirection)
-            {
-                // Show direction preview with potential word placement
-                List<Vector2Int> validDirections = GetValidDirectionsFromCell(_firstCellCol, _firstCellRow);
-                _placementPreviewController.ShowDirectionPreview(
-                    _firstCellCol, _firstCellRow,
-                    hoverCol, hoverRow,
-                    _placementWord,
-                    validDirections);
-            }
-        }
-
-
-
-
-
-        private void ClearPlacementHighlighting()
-        {
-            _placementPreviewController.ClearAllPreviews(_currentGridSize, _allPlacedPositions, _placedLetters);
-        }
-        #endregion
-
-        #region Private Methods - Word Placement
-        private bool PlaceWordInDirection(int startCol, int startRow, int dCol, int dRow)
-        {
-            if (string.IsNullOrEmpty(_placementWord)) return false;
-
-            // Clear previous highlighting
-            ClearPlacementHighlighting();
-
-            // Place all letters
-            _placedCellPositions.Clear();
-
-            for (int i = 0; i < _placementWord.Length; i++)
-            {
-                int col = startCol + (i * dCol);
-                int row = startRow + (i * dRow);
-
-                var cell = GetCell(col, row);
-                if (cell != null)
-                {
-                    cell.SetLetter(_placementWord[i]);
-                    cell.SetState(CellState.Filled);
-
-                    var pos = new Vector2Int(col, row);
-                    _placedCellPositions.Add(pos);
-                    _allPlacedPositions.Add(pos);
-                    _placedLetters[pos] = _placementWord[i];
-                }
-            }
-
-            // Track which positions belong to this word row
-            _wordRowPositions[_placementWordRowIndex] = new List<Vector2Int>(_placedCellPositions);
-
-            if (_placementWordRowIndex >= 0 && _placementWordRowIndex < _wordPatternRows.Count)
-            {
-                _wordPatternRows[_placementWordRowIndex].MarkAsPlaced();
-                _wordPatternRows[_placementWordRowIndex].SetPlacementPosition(startCol, startRow, dCol, dRow);
-            }
-
-            OnWordPlaced?.Invoke(_placementWordRowIndex, _placementWord, new List<Vector2Int>(_placedCellPositions));
-
-            _placementState = PlacementState.Inactive;
-            _placementWordRowIndex = -1;
-            _placementWord = "";
-
-            ClearPlacementHighlighting();
-
-            Debug.Log($"[PlayerGridPanel] Word placed successfully");
-            return true;
-        }
-
-        private void ShuffleList<T>(List<T> list)
-        {
-            int n = list.Count;
-            while (n > 1)
-            {
-                n--;
-                int k = UnityEngine.Random.Range(0, n + 1);
-                T value = list[k];
-                list[k] = list[n];
-                list[n] = value;
-            }
-        }
-        #endregion
-
         #region Private Methods - Event Handlers
         private void HandleCellClicked(int column, int row)
         {
             if (!IsValidCoordinate(column, row)) return;
 
-            if (_placementState == PlacementState.SelectingFirstCell)
+            // Let the controller handle placement clicks
+            if (_coordinatePlacementController != null && _coordinatePlacementController.HandleCellClick(column, row))
             {
-                // Check if there's at least one valid direction from this cell
-                var validDirections = GetValidDirectionsFromCell(column, row);
-                if (validDirections.Count == 0)
-                {
-                    Debug.Log($"[PlayerGridPanel] Invalid starting position: {GetColumnLetter(column)}{row + 1} - no valid directions for word");
-                    return; // Don't allow placement here
-                }
-
-                _firstCellCol = column;
-                _firstCellRow = row;
-                _placementState = PlacementState.SelectingDirection;
-
-                // Show first letter immediately as visual feedback
-                var cell = GetCell(column, row);
-                if (cell != null && !string.IsNullOrEmpty(_placementWord))
-                {
-                    cell.SetLetter(_placementWord[0]);
-                    _gridColorManager.SetCellHighlight(cell, GridHighlightType.Cursor);
-                }
-
-                UpdatePlacementPreview(column, row);
-                Debug.Log($"[PlayerGridPanel] First cell selected: {GetColumnLetter(column)}{row + 1}");
-                return;
-            }
-            else if (_placementState == PlacementState.SelectingDirection)
-            {
-                if (IsValidDirectionCell(column, row))
-                {
-                    int dCol = column - _firstCellCol;
-                    int dRow = row - _firstCellRow;
-                    PlaceWordInDirection(_firstCellCol, _firstCellRow, dCol, dRow);
-                }
-                else
-                {
-                    CancelPlacementMode();
-                }
-                return;
+                return; // Controller handled the click
             }
 
-            Debug.Log($"[PlayerGridPanel] Cell clicked: {GetColumnLetter(column)}{row + 1}");
+            Debug.Log(string.Format("[PlayerGridPanel] Cell clicked: {0}{1}", GetColumnLetter(column), row + 1));
             OnCellClicked?.Invoke(column, row);
         }
 
@@ -1903,9 +1514,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
         {
             if (!IsValidCoordinate(column, row)) return;
 
-            if (_placementState != PlacementState.Inactive)
+            // Let the controller handle placement preview
+            if (IsInPlacementMode)
             {
-                UpdatePlacementPreview(column, row);
+                _coordinatePlacementController?.UpdatePlacementPreview(column, row);
             }
 
             OnCellHoverEnter?.Invoke(column, row);
@@ -2014,23 +1626,53 @@ namespace TecVooDoo.DontLoseYourHead.UI
             OnWordLengthsChanged?.Invoke();
         }
 
+        // Controller event handlers (from CoordinatePlacementController)
+        private void HandleCoordinatePlacementCancelled()
+        {
+            Debug.Log("[PlayerGridPanel] Placement cancelled by controller");
+            OnPlacementCancelled?.Invoke();
+        }
+
+        private void HandleCoordinatePlacementWordPlaced(int rowIndex, string word, List<Vector2Int> positions)
+        {
+            Debug.Log(string.Format("[PlayerGridPanel] Word placed by controller: {0} at row {1}", word, rowIndex + 1));
+
+            // Update the word pattern row state
+            if (rowIndex >= 0 && rowIndex < _wordPatternRows.Count)
+            {
+                _wordPatternRows[rowIndex].MarkAsPlaced();
+            }
+
+            OnWordPlaced?.Invoke(rowIndex, word, positions);
+        }
+
         /// <summary>
         /// Clears a word's cells from the grid without resetting the row.
         /// Called when delete button is pressed on a placed word.
         /// </summary>
         private void ClearWordFromGrid(int rowIndex)
         {
-            if (_wordRowPositions.TryGetValue(rowIndex, out List<Vector2Int> positions))
+            if (_coordinatePlacementController == null)
             {
-                foreach (var pos in positions)
+                Debug.LogWarning("[PlayerGridPanel] Controller not initialized");
+                return;
+            }
+
+            // Get positions from controller before clearing
+            List<Vector2Int> positions = _coordinatePlacementController.GetPositionsForRow(rowIndex);
+
+            if (positions != null && positions.Count > 0)
+            {
+                foreach (Vector2Int pos in positions)
                 {
-                    var cell = GetCell(pos.x, pos.y);
+                    GridCellUI cell = GetCell(pos.x, pos.y);
                     if (cell != null)
                     {
                         // Check if another word shares this cell
                         bool sharedCell = false;
+                        IReadOnlyDictionary<int, List<Vector2Int>> wordRowPositions = _coordinatePlacementController.WordRowPositions;
 
-                        foreach (var kvp in _wordRowPositions)
+                        foreach (KeyValuePair<int, List<Vector2Int>> kvp in wordRowPositions)
                         {
                             if (kvp.Key != rowIndex && kvp.Value.Contains(pos))
                             {
@@ -2044,18 +1686,17 @@ namespace TecVooDoo.DontLoseYourHead.UI
                             cell.SetState(CellState.Empty);
                             cell.ClearLetter();
                             cell.ClearHighlight();
-                            _allPlacedPositions.Remove(pos);
-                            _placedLetters.Remove(pos);
                         }
                     }
                 }
 
-                _wordRowPositions.Remove(rowIndex);
-                Debug.Log($"[PlayerGridPanel] Cleared grid cells for row {rowIndex + 1}");
+                // Let controller handle its internal state cleanup
+                _coordinatePlacementController.ClearWordFromGrid(rowIndex);
+                Debug.Log(string.Format("[PlayerGridPanel] Cleared grid cells for row {0}", rowIndex + 1));
             }
             else
             {
-                Debug.LogWarning($"[PlayerGridPanel] No position tracking for row {rowIndex + 1}");
+                Debug.LogWarning(string.Format("[PlayerGridPanel] No position tracking for row {0}", rowIndex + 1));
             }
         }
 
@@ -2084,38 +1725,38 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 return lengthB.CompareTo(lengthA); // Descending order
             });
 
-            Debug.Log($"[PlayerGridPanel] Placement order (longest first): {string.Join(", ", rowsToPlace.Select(i => $"Row{i + 1}({_wordPatternRows[i].CurrentWord})"))}");
+            Debug.Log(string.Format("[PlayerGridPanel] Placement order (longest first): {0}", string.Join(", ", rowsToPlace.Select(i => string.Format("Row{0}({1})", i + 1, _wordPatternRows[i].CurrentWord)))));
 
             // Place words in sorted order
             int placedCount = 0;
 
             foreach (int i in rowsToPlace)
             {
-                var row = _wordPatternRows[i];
+                WordPatternRow row = _wordPatternRows[i];
 
-                Debug.Log($"[PlayerGridPanel] Placing Row {i + 1}: Word='{row.CurrentWord}' (length {row.CurrentWord?.Length ?? 0})");
+                Debug.Log(string.Format("[PlayerGridPanel] Placing Row {0}: Word='{1}' (length {2})", i + 1, row.CurrentWord, row.CurrentWord?.Length ?? 0));
 
                 // Enter placement mode for this row and place randomly
                 EnterPlacementMode(i);
 
-                if (_placementState != PlacementState.Inactive)
+                if (IsInPlacementMode)
                 {
                     bool success = PlaceWordRandomly();
                     if (success)
                     {
                         placedCount++;
-                        Debug.Log($"[PlayerGridPanel] Randomly placed word {i + 1}: {row.CurrentWord}");
+                        Debug.Log(string.Format("[PlayerGridPanel] Randomly placed word {0}: {1}", i + 1, row.CurrentWord));
                     }
                     else
                     {
                         // Failed to place - cancel and continue to next word
                         CancelPlacementMode();
-                        Debug.LogWarning($"[PlayerGridPanel] Could not find valid placement for word {i + 1}: {row.CurrentWord}");
+                        Debug.LogWarning(string.Format("[PlayerGridPanel] Could not find valid placement for word {0}: {1}", i + 1, row.CurrentWord));
                     }
                 }
             }
 
-            Debug.Log($"[PlayerGridPanel] Random placement complete. Placed {placedCount}/{rowsToPlace.Count} word(s).");
+            Debug.Log(string.Format("[PlayerGridPanel] Random placement complete. Placed {0}/{1} word(s).", placedCount, rowsToPlace.Count));
         }
         #endregion
 

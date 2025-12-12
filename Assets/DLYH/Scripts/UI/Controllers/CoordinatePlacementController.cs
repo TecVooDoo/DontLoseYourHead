@@ -33,6 +33,49 @@ namespace TecVooDoo.DontLoseYourHead.UI
         public int PlacementWordRowIndex => _placementWordRowIndex;
 
         /// <summary>
+        /// Gets a read-only view of all placed positions.
+        /// </summary>
+        public IReadOnlyCollection<Vector2Int> AllPlacedPositions => _allPlacedPositions;
+
+        /// <summary>
+        /// Gets a read-only view of placed letters by position.
+        /// </summary>
+        public IReadOnlyDictionary<Vector2Int, char> PlacedLetters => _placedLetters;
+
+        /// <summary>
+        /// Gets a read-only view of word row positions.
+        /// </summary>
+        public IReadOnlyDictionary<int, List<Vector2Int>> WordRowPositions => _wordRowPositions;
+
+        /// <summary>
+        /// Gets the positions for a specific word row index.
+        /// </summary>
+        public List<Vector2Int> GetPositionsForRow(int rowIndex)
+        {
+            if (_wordRowPositions.TryGetValue(rowIndex, out List<Vector2Int> positions))
+            {
+                return new List<Vector2Int>(positions);
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Checks if a position is occupied by a placed letter.
+        /// </summary>
+        public bool IsPositionOccupied(Vector2Int pos)
+        {
+            return _allPlacedPositions.Contains(pos);
+        }
+
+        /// <summary>
+        /// Gets the letter at a specific position, or '\0' if none.
+        /// </summary>
+        public char GetLetterAtPosition(Vector2Int pos)
+        {
+            return _placedLetters.TryGetValue(pos, out char letter) ? letter : '\0';
+        }
+
+        /// <summary>
         /// Creates a new CoordinatePlacementController.
         /// </summary>
         /// <param name="colorManager">Color manager for highlighting</param>
