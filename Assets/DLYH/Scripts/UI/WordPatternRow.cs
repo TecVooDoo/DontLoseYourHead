@@ -1106,13 +1106,12 @@ public void HideAllGuessButtons()
             sb.Append(_rowNumber);
             sb.Append(_numberSeparator);
 
-            // Use monospace for consistent letter width (0.6em works well for most fonts)
-            sb.Append("<mspace=0.6em>");
+            // NOTE: For consistent letter widths, assign a monospace font
+            // (Liberation Mono, Consolas, Courier New) to the TMP component.
 
             switch (_currentState)
             {
                 case RowState.Empty:
-                    // Show all underscores (not underlined - these are placeholders)
                     for (int i = 0; i < _requiredWordLength; i++)
                     {
                         if (i > 0) sb.Append(_letterSeparator);
@@ -1121,13 +1120,11 @@ public void HideAllGuessButtons()
                     break;
 
                 case RowState.Entering:
-                    // Show entered letters (underlined) + remaining underscores
                     for (int i = 0; i < _requiredWordLength; i++)
                     {
                         if (i > 0) sb.Append(_letterSeparator);
                         if (i < _enteredText.Length)
                         {
-                            // Underline entered letters
                             sb.Append("<u>");
                             sb.Append(_enteredText[i]);
                             sb.Append("</u>");
@@ -1141,7 +1138,6 @@ public void HideAllGuessButtons()
 
                 case RowState.WordEntered:
                 case RowState.Placed:
-                    // Show the full word with underlined letters
                     for (int i = 0; i < _currentWord.Length; i++)
                     {
                         if (i > 0) sb.Append(_letterSeparator);
@@ -1152,19 +1148,15 @@ public void HideAllGuessButtons()
                     break;
 
                 case RowState.Gameplay:
-                    // Build gameplay display (handles both normal and guess mode)
                     BuildGameplayDisplayText(sb);
                     break;
             }
-
-            sb.Append("</mspace>");
 
             return sb.ToString();
         }
 
         private void BuildGameplayDisplayText(System.Text.StringBuilder sb)
         {
-            // Convert color to hex for TMP rich text
             string typedColorHex = ColorUtility.ToHtmlStringRGB(_guessTypedLetterColor);
 
             for (int i = 0; i < _currentWord.Length; i++)
@@ -1173,14 +1165,12 @@ public void HideAllGuessButtons()
 
                 if (_revealedLetters[i])
                 {
-                    // Revealed letters are underlined (discovered through gameplay)
                     sb.Append("<u>");
                     sb.Append(_currentWord[i]);
                     sb.Append("</u>");
                 }
                 else if (_inWordGuessMode && _guessedLetters[i] != '\0')
                 {
-                    // Player-typed letters in guess mode: colored, NO underline
                     sb.Append("<color=#");
                     sb.Append(typedColorHex);
                     sb.Append(">");
@@ -1189,7 +1179,6 @@ public void HideAllGuessButtons()
                 }
                 else
                 {
-                    // Hidden letters show underscore (not underlined)
                     sb.Append(_unknownLetterChar);
                 }
             }

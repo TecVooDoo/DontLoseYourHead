@@ -940,11 +940,24 @@ namespace TecVooDoo.DontLoseYourHead.UI
             OnPlacementCancelled?.Invoke();
         }
 
-        private void HandleCoordinatePlacementWordPlaced(int rowIndex, string word, List<Vector2Int> positions)
+private void HandleCoordinatePlacementWordPlaced(int rowIndex, string word, List<Vector2Int> positions)
         {
             if (rowIndex >= 0 && rowIndex < _wordPatternRows.Count)
             {
-                _wordPatternRows[rowIndex].MarkAsPlaced();
+                WordPatternRow row = _wordPatternRows[rowIndex];
+
+                // Extract placement position data from positions list
+                if (positions != null && positions.Count >= 2)
+                {
+                    int startCol = positions[0].x;
+                    int startRow = positions[0].y;
+                    int dirCol = positions[1].x - positions[0].x;
+                    int dirRow = positions[1].y - positions[0].y;
+                    row.SetPlacementPosition(startCol, startRow, dirCol, dirRow);
+                    Debug.Log(string.Format("[PlayerGridPanel] Set placement position for row {0}: ({1},{2}) dir({3},{4})", rowIndex + 1, startCol, startRow, dirCol, dirRow));
+                }
+
+                row.MarkAsPlaced();
             }
 
             OnWordPlaced?.Invoke(rowIndex, word, positions);

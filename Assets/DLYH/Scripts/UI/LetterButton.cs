@@ -46,6 +46,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
         [SerializeField]
         private Image _backgroundImage;
 
+        [SerializeField]
+        private LayoutElement _layoutElement;
+
         [TitleGroup("Colors")]
         [SerializeField]
         private Color _normalColor = new Color(0.9f, 0.9f, 0.9f, 1f);
@@ -112,7 +115,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
         {
             get
             {
-                // Auto-detect if not initialized
                 if (!_isInitialized)
                 {
                     EnsureInitialized();
@@ -194,14 +196,15 @@ namespace TecVooDoo.DontLoseYourHead.UI
             if (_letterText != null)
             {
                 _letterText.text = _letter.ToString();
+                _letterText.alignment = TextAlignmentOptions.Center;
             }
 
+            EnsureConsistentWidth();
             SetState(LetterState.Normal);
         }
 
         /// <summary>
         /// Ensures the button is initialized by auto-detecting the letter if needed.
-        /// Can be called from editor scripts or during caching.
         /// </summary>
         public void EnsureInitialized()
         {
@@ -214,7 +217,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// <summary>
         /// Sets the visual state of the letter button.
         /// </summary>
-        /// <param name="state">The new state</param>
         public void SetState(LetterState state)
         {
             _currentState = state;
@@ -272,7 +274,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// <summary>
         /// Sets the hit color (used to match opponent's player color).
         /// </summary>
-        /// <param name="color">The color to use for hit state</param>
         public void SetHitColor(Color color)
         {
             _hitColor = color;
@@ -318,17 +319,44 @@ namespace TecVooDoo.DontLoseYourHead.UI
             {
                 _backgroundImage = GetComponent<Image>();
             }
+
+            if (_layoutElement == null)
+            {
+                _layoutElement = GetComponent<LayoutElement>();
+                if (_layoutElement == null)
+                {
+                    _layoutElement = gameObject.AddComponent<LayoutElement>();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Ensures all letter buttons have consistent width regardless of letter character.
+        /// </summary>
+private void EnsureConsistentWidth()
+        {
+            if (_layoutElement == null)
+            {
+                _layoutElement = GetComponent<LayoutElement>();
+                if (_layoutElement == null)
+                {
+                    _layoutElement = gameObject.AddComponent<LayoutElement>();
+                }
+            }
+
+            // Set both min and preferred width for consistent sizing across all letters
+            float buttonWidth = 26f;
+            _layoutElement.minWidth = buttonWidth;
+            _layoutElement.preferredWidth = buttonWidth;
         }
 
         /// <summary>
         /// Automatically detects the letter from the TextMeshProUGUI content.
-        /// Called during Awake to initialize the letter from existing UI text.
         /// </summary>
-        private void AutoDetectLetter()
+private void AutoDetectLetter()
         {
             if (_isInitialized) return;
 
-            // First try: Get from TextMeshProUGUI
             if (_letterText != null && !string.IsNullOrEmpty(_letterText.text))
             {
                 string text = _letterText.text.Trim().ToUpper();
@@ -336,11 +364,11 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 {
                     _letter = text[0];
                     _isInitialized = true;
+                    EnsureConsistentWidth();
                     return;
                 }
             }
 
-            // Second try: Get from GameObject name (e.g., "Letter_A" -> 'A')
             string goName = gameObject.name;
             if (goName.Contains("_") && goName.Length > 0)
             {
@@ -352,12 +380,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
                     {
                         _letter = potentialLetter;
                         _isInitialized = true;
+                        EnsureConsistentWidth();
                         return;
                     }
                 }
             }
 
-            // Third try: Last character of name if it's a letter
             if (goName.Length > 0)
             {
                 char lastChar = char.ToUpper(goName[goName.Length - 1]);
@@ -365,6 +393,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 {
                     _letter = lastChar;
                     _isInitialized = true;
+                    EnsureConsistentWidth();
                 }
             }
         }

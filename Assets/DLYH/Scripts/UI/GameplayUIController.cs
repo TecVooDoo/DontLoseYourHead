@@ -63,6 +63,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private GuessProcessor _playerGuessProcessor;
         private GuessProcessor _opponentGuessProcessor;
 
+        // Word guess mode controller
+        private WordGuessModeController _wordGuessModeController;
+
         #endregion
 
         #region Player State Tracking
@@ -95,19 +98,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         #endregion
 
-        #region Word Guess Mode State
-
-        // Track which row (if any) is currently in word guess mode
-        private WordPatternRow _activeWordGuessRow = null;
-
-        // Save letter tracker states when switching to keyboard mode
-        private Dictionary<char, LetterButton.LetterState> _savedLetterStates = new Dictionary<char, LetterButton.LetterState>();
-
-        // Flag to indicate letter tracker is in keyboard mode
-        private bool _letterTrackerInKeyboardMode = false;
-
-        #endregion
-
         #region Guess Result Enum
 
         /// <summary>
@@ -122,6 +112,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
         }
 
         #endregion
+
+#if UNITY_EDITOR
 
         #region Testing - Simulate Opponent Turn
 
@@ -312,6 +304,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         #endregion
 
+#endif
+
         #region Data Structures
 
         /// <summary>
@@ -359,39 +353,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         private void Update()
         {
-            if (_letterTrackerInKeyboardMode && _activeWordGuessRow != null)
-            {
-                Keyboard keyboard = Keyboard.current;
-                if (keyboard == null) return;
-
-                for (int i = 0; i < 26; i++)
-                {
-                    Key key = Key.A + i;
-                    if (keyboard[key].wasPressedThisFrame)
-                    {
-                        char letter = (char)('A' + i);
-                        HandleKeyboardLetterInput(letter);
-                    }
-                }
-
-                if (keyboard.backspaceKey.wasPressedThisFrame)
-                {
-                    _activeWordGuessRow.BackspaceGuessLetter();
-                }
-
-                if (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame)
-                {
-                    if (_activeWordGuessRow.IsGuessComplete())
-                    {
-                        _activeWordGuessRow.ExitWordGuessMode(true);
-                    }
-                }
-
-                if (keyboard.escapeKey.wasPressedThisFrame)
-                {
-                    _activeWordGuessRow.ExitWordGuessMode(false);
-                }
-            }
+            // Delegate keyboard input to word guess mode controller
+            _wordGuessModeController?.ProcessKeyboardInput();
         }
 
         private void OnDestroy()
@@ -401,6 +364,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _startGameButton.onClick.RemoveListener(StartGameplay);
             }
             UnsubscribeFromPanelEvents();
+            UnsubscribeFromWordGuessModeController();
         }
 
         #endregion
@@ -412,7 +376,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// </summary>
         public void StartGameplay()
         {
-            Debug.Log("[GameplayUI] Starting gameplay transition...");
 
             if (_setupGridPanel != null)
             {
@@ -457,9 +420,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 ConfigureOpponentPanel();
             }
 
+            InitializeWordGuessModeController();
             UpdateMissCounters();
 
-            Debug.Log("[GameplayUI] Gameplay transition complete");
         }
 
         /// <summary>
@@ -467,10 +430,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// </summary>
         public void ReturnToSetup()
         {
-            Debug.Log("[GameplayUI] Returning to setup...");
 
-            ExitWordGuessMode();
+            _wordGuessModeController?.ExitWordGuessMode();
             UnsubscribeFromPanelEvents();
+            UnsubscribeFromWordGuessModeController();
 
             if (_ownerPanel != null)
                 _ownerPanel.gameObject.SetActive(false);
@@ -503,11 +466,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _playerSetupData.WordCount = (int)wordCount + 3;
                 _playerSetupData.DifficultyLevel = difficulty;
 
-                Debug.Log(string.Format("[GameplayUI] Captured: {0}, {1}x{1} grid, {2} words, {3}",
-                    _playerSetupData.PlayerName,
-                    _playerSetupData.GridSize,
-                    _playerSetupData.WordCount,
-                    _playerSetupData.DifficultyLevel));
             }
 
             if (_setupGridPanel != null)
@@ -546,8 +504,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
                     setupData.PlacedWords.Add(wordData);
 
-                    Debug.Log(string.Format("[GameplayUI] Captured word {0}: '{1}' at ({2},{3}) dir({4},{5})",
-                        i + 1, wordData.Word, wordData.StartCol, wordData.StartRow, wordData.DirCol, wordData.DirRow));
                 }
             }
         }
@@ -581,9 +537,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 };
 
                 _opponentSetupData.PlacedWords.Add(opponentWord);
-
-                Debug.Log(string.Format("[GameplayUI] Generated opponent word {0}: '{1}' at ({2},{3})",
-                    i + 1, opponentWord.Word, opponentWord.StartCol, opponentWord.StartRow));
             }
         }
 
@@ -615,7 +568,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
                     row.SetGameplayWord(wordData.Word);
                     row.RevealAllLetters();
                     row.SetAsOwnerPanel();
-                    Debug.Log(string.Format("[GameplayUI] Owner row {0}: Set word '{1}' (revealed)", wordData.RowIndex + 1, wordData.Word));
                 }
                 else
                 {
@@ -636,7 +588,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
                         allRows[i].SetAsOwnerPanel();
                     }
                 }
-                Debug.Log(string.Format("[GameplayUI] Owner panel: Showing {0} rows, hiding {1} unused rows", wordCount, allRows.Length - wordCount));
             }
         }
 
@@ -662,7 +613,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 if (row != null)
                 {
                     row.SetGameplayWord(wordData.Word);
-                    Debug.Log(string.Format("[GameplayUI] Opponent row {0}: Set word '{1}' (hidden)", wordData.RowIndex + 1, wordData.Word));
                 }
                 else
                 {
@@ -682,13 +632,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
                         allRows[i].gameObject.SetActive(shouldBeActive);
                     }
                 }
-                Debug.Log(string.Format("[GameplayUI] Opponent panel: Showing {0} rows, hiding {1} unused rows", wordCount, allRows.Length - wordCount));
             }
 
             SubscribeToPanelEvents();
-
-            Debug.Log(string.Format("[GameplayUI] Configured opponent panel: {0} words placed (hidden)",
-                _opponentSetupData.PlacedWords.Count));
         }
 
         private void PlaceWordOnPanelRevealed(PlayerGridPanel panel, WordPlacementData wordData)
@@ -706,6 +652,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
                     cellUI.SetLetter(letter);
                     cellUI.SetState(CellState.Filled);
                 }
+                else
+                {
+                    Debug.LogError(string.Format("[GameplayUI]   FAILED: GetCell({0},{1}) returned NULL!", col, row));
+                }
 
                 col += wordData.DirCol;
                 row += wordData.DirRow;
@@ -716,9 +666,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
         {
             int col = wordData.StartCol;
             int row = wordData.StartRow;
-
-            Debug.Log(string.Format("[GameplayUI] PlaceWordOnPanelHidden: '{0}' at ({1},{2}) dir({3},{4})",
-                wordData.Word, col, row, wordData.DirCol, wordData.DirRow));
 
             for (int i = 0; i < wordData.Word.Length; i++)
             {
@@ -745,20 +692,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
             {
                 _opponentPanel.OnLetterClicked += HandleLetterClicked;
                 _opponentPanel.OnCellClicked += HandleCellGuess;
-
-                WordPatternRow[] rows = _opponentPanel.GetWordPatternRows();
-                if (rows != null)
-                {
-                    foreach (WordPatternRow row in rows)
-                    {
-                        if (row != null)
-                        {
-                            row.OnWordGuessStarted += HandleWordGuessStarted;
-                            row.OnWordGuessSubmitted += HandleWordGuessSubmitted;
-                            row.OnWordGuessCancelled += HandleWordGuessCancelled;
-                        }
-                    }
-                }
             }
         }
 
@@ -768,49 +701,19 @@ namespace TecVooDoo.DontLoseYourHead.UI
             {
                 _opponentPanel.OnLetterClicked -= HandleLetterClicked;
                 _opponentPanel.OnCellClicked -= HandleCellGuess;
-
-                WordPatternRow[] rows = _opponentPanel.GetWordPatternRows();
-                if (rows != null)
-                {
-                    foreach (WordPatternRow row in rows)
-                    {
-                        if (row != null)
-                        {
-                            row.OnWordGuessStarted -= HandleWordGuessStarted;
-                            row.OnWordGuessSubmitted -= HandleWordGuessSubmitted;
-                            row.OnWordGuessCancelled -= HandleWordGuessCancelled;
-                        }
-                    }
-                }
             }
         }
 
         private void HandleLetterClicked(char letter)
         {
-            if (_letterTrackerInKeyboardMode && _activeWordGuessRow != null)
+            // Check if we're in word guess keyboard mode
+            if (_wordGuessModeController != null && _wordGuessModeController.IsInKeyboardMode)
             {
-                HandleKeyboardLetterInput(letter);
+                _wordGuessModeController.HandleKeyboardLetterInput(letter);
                 return;
             }
 
             HandleLetterGuess(letter);
-        }
-
-        private void HandleKeyboardLetterInput(char letter)
-        {
-            if (_activeWordGuessRow == null)
-            {
-                Debug.LogWarning("[GameplayUI] No active word guess row for keyboard input!");
-                return;
-            }
-
-            letter = char.ToUpper(letter);
-            bool success = _activeWordGuessRow.TypeGuessLetter(letter);
-
-            if (success)
-            {
-                Debug.Log(string.Format("[GameplayUI] Typed '{0}' in word guess row", letter));
-            }
         }
 
         private void HandleLetterGuess(char letter)
@@ -826,19 +729,17 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             if (result == GuessResult.AlreadyGuessed)
             {
-                Debug.Log(string.Format("[GameplayUI] Letter '{0}' already guessed - try again!", letter));
                 return;
             }
 
-            Debug.Log(string.Format("[GameplayUI] Player guessed letter '{0}': {1}", letter, result == GuessResult.Hit ? "HIT" : "MISS"));
             EndPlayerTurn();
         }
 
         private void HandleCellGuess(int column, int row)
         {
-            if (_letterTrackerInKeyboardMode)
+            // Block coordinate guesses during word guess mode
+            if (_wordGuessModeController != null && _wordGuessModeController.IsInKeyboardMode)
             {
-                Debug.Log("[GameplayUI] Cannot guess coordinates while in word guess mode!");
                 return;
             }
 
@@ -855,195 +756,93 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             if (result == GuessResult.AlreadyGuessed)
             {
-                Debug.Log(string.Format("[GameplayUI] Coordinate {0} already guessed - try again!", coordLabel));
                 return;
             }
 
-            Debug.Log(string.Format("[GameplayUI] Player guessed coordinate {0}: {1}", coordLabel, result == GuessResult.Hit ? "HIT" : "MISS"));
             EndPlayerTurn();
         }
 
         #endregion
 
-        #region Word Guess Mode Event Handlers
+        #region Word Guess Mode Controller
 
-        private void HandleWordGuessStarted(int rowNumber)
+        private void InitializeWordGuessModeController()
         {
-            int rowIndex = rowNumber - 1;
+            _wordGuessModeController = new WordGuessModeController(
+                _opponentPanel,
+                ProcessWordGuessForController,
+                () => _isPlayerTurn && !_gameOver,
+                rowIndex => _playerSolvedWordRows.Contains(rowIndex),
+                rowIndex => _playerSolvedWordRows.Add(rowIndex)
+            );
 
-            if (!_isPlayerTurn || _gameOver)
+            // Subscribe to controller events
+            _wordGuessModeController.OnFeedbackRequested += ShowFeedback;
+            _wordGuessModeController.OnTurnEnded += EndPlayerTurn;
+
+            // Subscribe word pattern rows to controller
+            WordPatternRow[] rows = _opponentPanel.GetWordPatternRows();
+            if (rows != null)
             {
-                Debug.LogWarning("[GameplayUI] Cannot start word guess - not player's turn or game is over!");
-                WordPatternRow[] rows = _opponentPanel.GetWordPatternRows();
-                if (rows != null && rowIndex < rows.Length && rows[rowIndex] != null)
+                foreach (WordPatternRow row in rows)
                 {
-                    rows[rowIndex].ExitWordGuessMode(false);
-                }
-                return;
-            }
-
-            if (_activeWordGuessRow != null)
-            {
-                _activeWordGuessRow.ExitWordGuessMode(false);
-            }
-
-            WordPatternRow[] allRows = _opponentPanel.GetWordPatternRows();
-            if (allRows != null && rowIndex < allRows.Length)
-            {
-                _activeWordGuessRow = allRows[rowIndex];
-            }
-
-            SwitchLetterTrackerToKeyboardMode();
-
-            Debug.Log(string.Format("[GameplayUI] Word guess mode started for row {0}", rowIndex + 1));
-
-            if (allRows != null)
-            {
-                for (int i = 0; i < allRows.Length; i++)
-                {
-                    if (allRows[i] != null && i != rowIndex)
+                    if (row != null)
                     {
-                        allRows[i].HideGuessWordButton();
+                        row.OnWordGuessStarted += _wordGuessModeController.HandleWordGuessStarted;
+                        row.OnWordGuessSubmitted += _wordGuessModeController.HandleWordGuessSubmitted;
+                        row.OnWordGuessCancelled += _wordGuessModeController.HandleWordGuessCancelled;
                     }
                 }
             }
         }
 
-        private void HandleWordGuessSubmitted(int rowNumber, string guessedWord)
+        private void UnsubscribeFromWordGuessModeController()
         {
-            int rowIndex = rowNumber - 1;
+            if (_wordGuessModeController == null) return;
 
-            Debug.Log(string.Format("[GameplayUI] === HandleWordGuessSubmitted START: rowNumber={0}, rowIndex={1}, word='{2}' ===",
-                rowNumber, rowIndex, guessedWord));
+            _wordGuessModeController.OnFeedbackRequested -= ShowFeedback;
+            _wordGuessModeController.OnTurnEnded -= EndPlayerTurn;
 
-            RestoreLetterTrackerFromKeyboardMode();
-            _activeWordGuessRow = null;
+            if (_opponentPanel != null)
+            {
+                WordPatternRow[] rows = _opponentPanel.GetWordPatternRows();
+                if (rows != null)
+                {
+                    foreach (WordPatternRow row in rows)
+                    {
+                        if (row != null)
+                        {
+                            row.OnWordGuessStarted -= _wordGuessModeController.HandleWordGuessStarted;
+                            row.OnWordGuessSubmitted -= _wordGuessModeController.HandleWordGuessSubmitted;
+                            row.OnWordGuessCancelled -= _wordGuessModeController.HandleWordGuessCancelled;
+                        }
+                    }
+                }
+            }
 
-            GuessResult result = ProcessPlayerWordGuess(guessedWord, rowIndex);
-            Debug.Log(string.Format("[GameplayUI] ProcessPlayerWordGuess returned: {0}", result));
+            _wordGuessModeController = null;
+        }
+
+        /// <summary>
+        /// Bridge method to convert between controller's WordGuessResult and internal processing
+        /// </summary>
+        private WordGuessResult ProcessWordGuessForController(string word, int rowIndex)
+        {
+            GuessResult result = ProcessPlayerWordGuess(word, rowIndex);
 
             switch (result)
             {
-                case GuessResult.InvalidWord:
-                    ShowFeedback("Not a valid word - try again!");
-                    WordPatternRow[] rows = _opponentPanel.GetWordPatternRows();
-                    if (rows != null && rowIndex < rows.Length && rows[rowIndex] != null)
-                    {
-                        rows[rowIndex].EnterWordGuessMode();
-                    }
-                    return;
-
-                case GuessResult.AlreadyGuessed:
-                    ShowFeedback("Already guessed that word!");
-                    return;
-
                 case GuessResult.Hit:
-                    ShowFeedback("Correct!");
-                    Debug.Log(string.Format("[GameplayUI] Player guessed word '{0}': CORRECT!", guessedWord));
-                    break;
-
+                    return WordGuessResult.Hit;
                 case GuessResult.Miss:
-                    ShowFeedback("Wrong! (+2 misses)");
-                    Debug.Log(string.Format("[GameplayUI] Player guessed word '{0}': WRONG (+2 misses)", guessedWord));
-                    break;
+                    return WordGuessResult.Miss;
+                case GuessResult.AlreadyGuessed:
+                    return WordGuessResult.AlreadyGuessed;
+                case GuessResult.InvalidWord:
+                    return WordGuessResult.InvalidWord;
+                default:
+                    return WordGuessResult.Miss;
             }
-
-            Debug.Log(string.Format("[GameplayUI] Before EndPlayerTurn, solved rows: [{0}]",
-                string.Join(", ", _playerSolvedWordRows)));
-
-            EndPlayerTurn();
-
-            Debug.Log(string.Format("[GameplayUI] Before ShowAllGuessWordButtons, solved rows: [{0}]",
-                string.Join(", ", _playerSolvedWordRows)));
-
-            ShowAllGuessWordButtons();
-
-            Debug.Log("[GameplayUI] === HandleWordGuessSubmitted END ===");
-        }
-
-        private void HandleWordGuessCancelled(int rowNumber)
-        {
-            int rowIndex = rowNumber - 1;
-
-            Debug.Log(string.Format("[GameplayUI] Word guess cancelled for row {0}", rowNumber));
-
-            RestoreLetterTrackerFromKeyboardMode();
-            _activeWordGuessRow = null;
-            ShowAllGuessWordButtons();
-        }
-
-        private void ShowAllGuessWordButtons()
-        {
-            Debug.Log(string.Format("[GameplayUI] ShowAllGuessWordButtons called. Solved rows: [{0}]",
-                string.Join(", ", _playerSolvedWordRows)));
-
-            WordPatternRow[] allRows = _opponentPanel.GetWordPatternRows();
-            if (allRows != null)
-            {
-                for (int i = 0; i < allRows.Length; i++)
-                {
-                    if (allRows[i] != null)
-                    {
-                        if (_playerSolvedWordRows.Contains(i))
-                        {
-                            Debug.Log(string.Format("[GameplayUI] Row {0} is SOLVED - hiding button", i));
-                            allRows[i].HideGuessWordButton();
-                            continue;
-                        }
-                        Debug.Log(string.Format("[GameplayUI] Row {0} is NOT solved - showing button", i));
-                        allRows[i].ShowGuessWordButton();
-                    }
-                }
-            }
-        }
-
-        private void ExitWordGuessMode()
-        {
-            if (_activeWordGuessRow != null)
-            {
-                _activeWordGuessRow.ExitWordGuessMode(false);
-                _activeWordGuessRow = null;
-            }
-
-            if (_letterTrackerInKeyboardMode)
-            {
-                RestoreLetterTrackerFromKeyboardMode();
-            }
-        }
-
-        #endregion
-
-        #region Letter Tracker Keyboard Mode
-
-        private void SwitchLetterTrackerToKeyboardMode()
-        {
-            if (_opponentPanel == null) return;
-
-            _savedLetterStates.Clear();
-
-            for (char c = 'A'; c <= 'Z'; c++)
-            {
-                LetterButton.LetterState state = _opponentPanel.GetLetterState(c);
-                _savedLetterStates[c] = state;
-                _opponentPanel.SetLetterState(c, LetterButton.LetterState.Normal);
-            }
-
-            _letterTrackerInKeyboardMode = true;
-            Debug.Log("[GameplayUI] Letter tracker switched to keyboard mode");
-        }
-
-        private void RestoreLetterTrackerFromKeyboardMode()
-        {
-            if (_opponentPanel == null || !_letterTrackerInKeyboardMode) return;
-
-            foreach (KeyValuePair<char, LetterButton.LetterState> kvp in _savedLetterStates)
-            {
-                _opponentPanel.SetLetterState(kvp.Key, kvp.Value);
-            }
-
-            _savedLetterStates.Clear();
-            _letterTrackerInKeyboardMode = false;
-            Debug.Log("[GameplayUI] Letter tracker restored from keyboard mode");
         }
 
         #endregion
@@ -1052,7 +851,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         private void ShowFeedback(string message)
         {
-            Debug.Log(string.Format("[GameplayUI] Feedback: {0}", message));
 
             if (_wordGuessFeedbackText != null)
             {
@@ -1080,10 +878,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
         {
             if (_gameOver) return;
 
-            ExitWordGuessMode();
+            _wordGuessModeController?.ExitWordGuessMode();
 
             _isPlayerTurn = false;
-            Debug.Log("[GameplayUI] === Player's turn ended. Opponent's turn. ===");
         }
 
         private void EndOpponentTurn()
@@ -1091,7 +888,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
             if (_gameOver) return;
 
             _isPlayerTurn = true;
-            Debug.Log("[GameplayUI] === Opponent's turn ended. Player's turn. ===");
         }
 
         public bool IsPlayerTurn => _isPlayerTurn;
@@ -1121,7 +917,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _player1MissCounter.text = string.Format("{0} / {1}", _playerMisses, _playerMissLimit);
             }
 
-            Debug.Log(string.Format("[GameplayUI] Player misses: {0} / {1}", _playerMisses, _playerMissLimit));
 
             if (_playerMisses >= _playerMissLimit)
             {
@@ -1137,7 +932,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _player2MissCounter.text = string.Format("{0} / {1}", _opponentMisses, _opponentMissLimit);
             }
 
-            Debug.Log(string.Format("[GameplayUI] Opponent misses: {0} / {1}", _opponentMisses, _opponentMissLimit));
 
             if (_opponentMisses >= _opponentMissLimit)
             {
@@ -1200,7 +994,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             _playerMissLimit = CalculateMissLimit(_playerSetupData.DifficultyLevel, _opponentSetupData);
 
-            Debug.Log(string.Format("[GameplayUI] Player miss limit: {0}", _playerMissLimit));
         }
 
         /// <summary>
@@ -1347,7 +1140,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
             _opponentGuessedWords.Clear();
             _opponentMissLimit = CalculateMissLimit(_opponentSetupData.DifficultyLevel, _playerSetupData);
 
-            Debug.Log(string.Format("[GameplayUI] Opponent miss limit: {0}", _opponentMissLimit));
         }
 
         /// <summary>
