@@ -4,6 +4,7 @@ using UnityEngine.EventSystems;
 using TMPro;
 using Sirenix.OdinInspector;
 using System;
+using TecVooDoo.DontLoseYourHead.UI.Controllers;
 
 namespace TecVooDoo.DontLoseYourHead.UI
 {
@@ -102,7 +103,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private Color _selectedColor = new Color(0.8f, 0.9f, 1f, 1f);
 
         [SerializeField, Tooltip("Color for player-typed letters in guess mode")]
-        private Color _guessTypedLetterColor = new Color(0.85f, 0.65f, 0f, 1f); // Gold/yellow
+        private Color _guessTypedLetterColor = new Color(0.85f, 0.65f, 0f, 1f);
 
         [TitleGroup("Text Settings")]
         [SerializeField]
@@ -123,14 +124,11 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private bool _isSelected;
         private Func<string, int, bool> _wordValidator;
 
-        // Word Guess Mode fields
-        private bool _inWordGuessMode = false;
+        // Word Guess Mode
+        private WordGuessInputController _wordGuessController;
         private bool _isOwnerPanel = false;
-        private bool _wordSolved = false; // True when word has been correctly guessed - never show button again
- // Owner panels never show guess buttons
+        private bool _wordSolved = false;
 
-        private char[] _guessedLetters; // Player-typed letters (null char = not typed)
-        private int _guessCursorPosition = 0;
         // Placement position tracking
         private int _placedStartCol = -1;
         private int _placedStartRow = -1;
@@ -229,8 +227,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// <summary>
         /// Whether this row is currently in word guess mode
         /// </summary>
-        public bool InWordGuessMode => _inWordGuessMode;
-        #endregion
+        public bool InWordGuessMode => _wordGuessController != null && _wordGuessController.IsActive;
 
         /// <summary>
         /// Starting column of placed word (-1 if not placed)
@@ -251,28 +248,17 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// Row direction of placed word (1, 0, or -1)
         /// </summary>
         public int PlacedDirRow => _placedDirRow;
+        #endregion
 
         #region Unity Lifecycle
         private void Awake()
         {
-            // Only create the array if it hasn't been set already
-            // (SetGameplayWord may have been called before Awake on inactive objects)
-            if (_revealedLetters == null || _revealedLetters.Length == 0)
-            {
-                _revealedLetters = new bool[_requiredWordLength];
-            }
+            InitializeArraysIfNeeded();
+            InitializeWordGuessController();
 
-            // Initialize guessed letters array
-            if (_guessedLetters == null || _guessedLetters.Length == 0)
-            {
-                _guessedLetters = new char[_requiredWordLength];
-            }
-
-            // If we already have a word set and are in Gameplay mode, update display
             if (_currentState == RowState.Gameplay && !string.IsNullOrEmpty(_currentWord))
             {
                 UpdateDisplay();
-                Debug.Log($"[WordPatternRow] Awake: Row {_rowNumber} already in Gameplay mode with word '{_currentWord}', refreshing display");
             }
         }
 
@@ -291,6 +277,11 @@ namespace TecVooDoo.DontLoseYourHead.UI
             UpdateDisplay();
             UpdateButtonStates();
         }
+
+        private void OnDestroy()
+        {
+            UnsubscribeFromControllerEvents();
+        }
         #endregion
 
         #region IPointerClickHandler
@@ -299,13 +290,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// </summary>
         public void OnPointerClick(PointerEventData eventData)
         {
-            // Only respond to left clicks
             if (eventData.button != PointerEventData.InputButton.Left) return;
-
-            // Don't select if already placed or in gameplay mode
             if (_currentState == RowState.Placed || _currentState == RowState.Gameplay) return;
 
-            Debug.Log($"[WordPatternRow] Row {_rowNumber} background clicked");
             OnRowSelected?.Invoke(_rowNumber);
         }
         #endregion
@@ -314,14 +301,14 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// <summary>
         /// Initialize the row with its number and required word length.
         /// </summary>
-        /// <param name="rowNumber">Row number (1-based)</param>
-        /// <param name="requiredLength">Required word length (3-6)</param>
         public void Initialize(int rowNumber, int requiredLength)
         {
             _rowNumber = rowNumber;
             _requiredWordLength = Mathf.Clamp(requiredLength, 3, 6);
             _revealedLetters = new bool[_requiredWordLength];
-            _guessedLetters = new char[_requiredWordLength];
+
+            InitializeWordGuessController();
+            _wordGuessController.SetWordLength(_requiredWordLength);
 
             SetState(RowState.Empty);
         }
@@ -330,18 +317,21 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// Sets the required word length for this row.
         /// Resets the row to empty state.
         /// </summary>
-        /// <param name="requiredLength">Required word length (3-6)</param>
         public void SetRequiredLength(int requiredLength)
         {
             _requiredWordLength = Mathf.Clamp(requiredLength, 3, 6);
             _revealedLetters = new bool[_requiredWordLength];
-            _guessedLetters = new char[_requiredWordLength];
+
+            if (_wordGuessController != null)
+            {
+                _wordGuessController.SetWordLength(_requiredWordLength);
+            }
+
             UpdateDisplay();
         }
 
         /// <summary>
         /// Sets a validator function to check if entered words are valid.
-        /// Validator receives (word, requiredLength) and returns true if valid.
         /// </summary>
         public void SetWordValidator(Func<string, int, bool> validator)
         {
@@ -354,36 +344,30 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// Adds a letter to the current entry.
         /// Auto-accepts when correct length is reached.
         /// </summary>
-        /// <param name="letter">Letter to add</param>
-        /// <returns>True if letter was added, false if at max length or placed</returns>
         public bool AddLetter(char letter)
         {
             if (_currentState == RowState.Placed) return false;
-            if (_currentState == RowState.WordEntered) return false; // Already have a complete word
+            if (_currentState == RowState.WordEntered) return false;
             if (_enteredText.Length >= _requiredWordLength) return false;
 
             _enteredText += char.ToUpper(letter);
 
             if (_enteredText.Length == _requiredWordLength)
             {
-                // Validate word before accepting
                 if (_wordValidator != null && !_wordValidator(_enteredText, _requiredWordLength))
                 {
-                    // Invalid word - stay in entering state, remove last letter
                     string rejectedWord = _enteredText;
                     _enteredText = _enteredText.Substring(0, _enteredText.Length - 1);
                     SetState(RowState.Entering);
                     UpdateDisplay();
                     OnInvalidWordRejected?.Invoke(_rowNumber, rejectedWord);
-                    Debug.LogWarning($"[WordPatternRow] Row {_rowNumber}: Invalid word rejected: {rejectedWord}");
+                    Debug.LogWarning(string.Format("[WordPatternRow] Row {0}: Invalid word rejected: {1}", _rowNumber, rejectedWord));
                     return false;
                 }
 
-                // Auto-accept when word is complete and valid
                 _currentWord = _enteredText.ToUpper();
                 SetState(RowState.WordEntered);
                 OnWordAccepted?.Invoke(_rowNumber, _currentWord);
-                Debug.Log($"[WordPatternRow] Row {_rowNumber}: Word auto-accepted: {_currentWord}");
             }
             else
             {
@@ -392,28 +376,23 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             UpdateDisplay();
             OnWordTextChanged?.Invoke(_rowNumber, _enteredText);
-
-            Debug.Log($"[WordPatternRow] Row {_rowNumber}: Added letter '{letter}', now: {_enteredText}");
             return true;
         }
 
         /// <summary>
         /// Removes the last letter from the current entry.
         /// </summary>
-        /// <returns>True if a letter was removed</returns>
         public bool RemoveLastLetter()
         {
             if (_currentState == RowState.Placed) return false;
             if (_enteredText.Length == 0) return false;
 
-            // If we had a complete word, go back to entering state
             bool wasComplete = (_currentState == RowState.WordEntered);
-
             _enteredText = _enteredText.Substring(0, _enteredText.Length - 1);
 
             if (wasComplete)
             {
-                _currentWord = ""; // Clear the accepted word
+                _currentWord = "";
             }
 
             if (_enteredText.Length == 0)
@@ -427,15 +406,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             UpdateDisplay();
             OnWordTextChanged?.Invoke(_rowNumber, _enteredText);
-
             return true;
         }
 
         /// <summary>
         /// Sets the entered text directly (e.g., from autocomplete selection).
-        /// Auto-accepts if correct length. Validates against word bank if validator is set.
         /// </summary>
-        /// <param name="word">The word to set</param>
         public void SetEnteredText(string word)
         {
             if (_currentState == RowState.Placed) return;
@@ -454,26 +430,21 @@ namespace TecVooDoo.DontLoseYourHead.UI
             }
             else if (_enteredText.Length == _requiredWordLength)
             {
-                // Validate word before accepting (autocomplete words should already be valid,
-                // but this adds an extra safety check)
                 if (_wordValidator != null && !_wordValidator(_enteredText, _requiredWordLength))
                 {
-                    // Invalid word - clear and go to empty state
                     string rejectedWord = _enteredText;
                     _enteredText = "";
                     _currentWord = "";
                     SetState(RowState.Empty);
                     OnInvalidWordRejected?.Invoke(_rowNumber, rejectedWord);
-                    Debug.LogWarning($"[WordPatternRow] Row {_rowNumber}: Invalid word rejected from autocomplete: {rejectedWord}");
+                    Debug.LogWarning(string.Format("[WordPatternRow] Row {0}: Invalid word rejected from autocomplete: {1}", _rowNumber, rejectedWord));
                     UpdateDisplay();
                     return;
                 }
 
-                // Auto-accept when word is complete and valid
                 _currentWord = _enteredText.ToUpper();
                 SetState(RowState.WordEntered);
                 OnWordAccepted?.Invoke(_rowNumber, _currentWord);
-                Debug.Log($"[WordPatternRow] Row {_rowNumber}: Word auto-accepted from autocomplete: {_currentWord}");
             }
             else
             {
@@ -487,9 +458,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         /// <summary>
         /// Manually accepts the current entry as the word for this row.
-        /// Usually not needed since words auto-accept at correct length.
         /// </summary>
-        /// <returns>True if word was accepted (correct length)</returns>
         public bool AcceptWord()
         {
             if (_enteredText.Length != _requiredWordLength) return false;
@@ -497,7 +466,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
             _currentWord = _enteredText.ToUpper();
             SetState(RowState.WordEntered);
             UpdateDisplay();
-
             return true;
         }
 
@@ -509,7 +477,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
             _currentWord = "";
             _enteredText = "";
             ResetRevealedLetters();
-            ClearGuessedLetters();
+            if (_wordGuessController != null)
+            {
+                _wordGuessController.ClearGuessedLetters();
+            }
             SetState(RowState.Empty);
             UpdateDisplay();
         }
@@ -528,7 +499,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         /// <summary>
         /// Sets the placement position data for this word.
-        /// Called by PlayerGridPanel when word is placed on grid.
         /// </summary>
         public void SetPlacementPosition(int startCol, int startRow, int dirCol, int dirRow)
         {
@@ -540,22 +510,22 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         /// <summary>
         /// Resets the row to empty state, clearing all word data.
-        /// Used when player wants to re-enter a word.
         /// </summary>
         public void ResetToEmpty()
         {
             _currentWord = "";
             _enteredText = "";
             ResetRevealedLetters();
-            ClearGuessedLetters();
+            if (_wordGuessController != null)
+            {
+                _wordGuessController.ClearGuessedLetters();
+            }
             SetState(RowState.Empty);
             UpdateDisplay();
-            Debug.Log($"[WordPatternRow] Row {_rowNumber} reset to empty");
         }
 
         /// <summary>
         /// Resets the row to WordEntered state, keeping the word but allowing re-placement.
-        /// Used when grid is cleared but words should be retained.
         /// </summary>
         public void ResetToWordEntered()
         {
@@ -567,7 +537,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             SetState(RowState.WordEntered);
             UpdateDisplay();
-            Debug.Log($"[WordPatternRow] Row {_rowNumber} reset to WordEntered (word: {_currentWord})");
         }
 
         /// <summary>
@@ -577,7 +546,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
         {
             _isSelected = true;
             UpdateDisplay();
-            Debug.Log($"[WordPatternRow] Row {_rowNumber} selected");
         }
 
         /// <summary>
@@ -593,47 +561,28 @@ namespace TecVooDoo.DontLoseYourHead.UI
         #region Public Methods - Letter Reveal (Gameplay Mode)
         /// <summary>
         /// Sets the word for gameplay mode (opponent's hidden word).
-        /// For owner panel, call RevealAllLetters() after this to show full word.
         /// </summary>
-        /// <param name="word">The hidden word</param>
         public void SetGameplayWord(string word)
         {
             _currentWord = word?.ToUpper() ?? "";
             _requiredWordLength = _currentWord.Length;
             _revealedLetters = new bool[_requiredWordLength];
-            _guessedLetters = new char[_requiredWordLength];
             _isSelected = false;
-            _inWordGuessMode = false;
 
-            // Set state directly
+            InitializeWordGuessController();
+            _wordGuessController.SetWordLength(_requiredWordLength);
+
             _currentState = RowState.Gameplay;
 
-            // EXPLICITLY hide ALL setup buttons - don't rely on UpdateButtonStates timing
-            if (_selectButton != null)
-            {
-                _selectButton.gameObject.SetActive(false);
-                Debug.Log($"[WordPatternRow] Row {_rowNumber}: Hid select button");
-            }
-            if (_coordinateModeButton != null)
-            {
-                _coordinateModeButton.gameObject.SetActive(false);
-            }
-            if (_deleteButton != null)
-            {
-                _deleteButton.gameObject.SetActive(false);
-            }
-
+            HideSetupButtons();
             UpdateBackgroundColor();
             UpdateDisplay();
             UpdateGuessButtonStates();
-
-            Debug.Log($"[WordPatternRow] Row {_rowNumber} set to gameplay with word: '{_currentWord}'");
         }
 
         /// <summary>
         /// Reveals a specific letter position.
         /// </summary>
-        /// <param name="index">Index of the letter to reveal (0-based)</param>
         public void RevealLetter(int index)
         {
             if (index < 0 || index >= _revealedLetters.Length) return;
@@ -645,8 +594,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// <summary>
         /// Reveals all instances of a letter in the word.
         /// </summary>
-        /// <param name="letter">The letter to reveal</param>
-        /// <returns>Number of letters revealed</returns>
         public int RevealAllInstancesOfLetter(char letter)
         {
             int count = 0;
@@ -706,172 +653,66 @@ namespace TecVooDoo.DontLoseYourHead.UI
         }
         #endregion
 
-        #region Public Methods - Word Guess Mode
+        #region Public Methods - Word Guess Mode (Delegated to Controller)
         /// <summary>
         /// Enters word guess mode, allowing player to type letters into unrevealed positions.
         /// </summary>
         public void EnterWordGuessMode()
         {
             if (_currentState != RowState.Gameplay) return;
-            if (_inWordGuessMode) return;
+            if (_wordGuessController == null) return;
 
-            _inWordGuessMode = true;
-            ClearGuessedLetters();
-
-            // Find first unrevealed position for cursor
-            _guessCursorPosition = FindNextUnrevealedPosition(-1);
-
-            UpdateDisplay();
-            UpdateGuessButtonStates();
-
-            Debug.Log($"[WordPatternRow] Row {_rowNumber} entered word guess mode, cursor at {_guessCursorPosition}");
-            OnWordGuessStarted?.Invoke(_rowNumber);
+            if (_wordGuessController.Enter())
+            {
+                UpdateGuessButtonStates();
+            }
         }
 
         /// <summary>
         /// Exits word guess mode.
         /// </summary>
-        /// <param name="submit">If true, submits the guess before exiting</param>
         public void ExitWordGuessMode(bool submit)
         {
-            if (!_inWordGuessMode) return;
+            if (_wordGuessController == null) return;
 
-            if (submit)
-            {
-                string guessedWord = GetFullGuessWord();
-                Debug.Log($"[WordPatternRow] Row {_rowNumber} submitting guess: {guessedWord}");
-                OnWordGuessSubmitted?.Invoke(_rowNumber, guessedWord);
-            }
-            else
-            {
-                Debug.Log($"[WordPatternRow] Row {_rowNumber} cancelled word guess");
-                OnWordGuessCancelled?.Invoke(_rowNumber);
-            }
-
-            _inWordGuessMode = false;
-            ClearGuessedLetters();
-            _guessCursorPosition = 0;
-
-            UpdateDisplay();
+            _wordGuessController.Exit(submit);
             UpdateGuessButtonStates();
         }
 
         /// <summary>
         /// Types a letter into the current cursor position (guess mode only).
-        /// Auto-advances to next unrevealed position.
         /// </summary>
-        /// <param name="letter">The letter to type</param>
-        /// <returns>True if letter was typed</returns>
         public bool TypeGuessLetter(char letter)
         {
-            if (!_inWordGuessMode) return false;
-            if (_guessCursorPosition < 0 || _guessCursorPosition >= _guessedLetters.Length) return false;
-
-            // Can only type into unrevealed positions
-            if (_revealedLetters[_guessCursorPosition])
-            {
-                // Move to next unrevealed position
-                _guessCursorPosition = FindNextUnrevealedPosition(_guessCursorPosition);
-                if (_guessCursorPosition < 0) return false;
-            }
-
-            _guessedLetters[_guessCursorPosition] = char.ToUpper(letter);
-            Debug.Log($"[WordPatternRow] Row {_rowNumber} typed '{letter}' at position {_guessCursorPosition}");
-
-            // Auto-advance to next unrevealed position
-            _guessCursorPosition = FindNextUnrevealedPosition(_guessCursorPosition);
-
-            UpdateDisplay();
-            return true;
+            if (_wordGuessController == null) return false;
+            return _wordGuessController.TypeLetter(letter);
         }
 
         /// <summary>
         /// Handles backspace in guess mode.
-        /// First click: clears letter at current position (stays there)
-        /// Second click (if position empty): moves back and clears that letter
         /// </summary>
-        /// <returns>True if backspace was handled</returns>
         public bool BackspaceGuessLetter()
         {
-            if (!_inWordGuessMode) return false;
-
-            // If cursor is past end, move back to last unrevealed position
-            if (_guessCursorPosition < 0)
-            {
-                _guessCursorPosition = FindPreviousUnrevealedPosition(_guessedLetters.Length);
-                if (_guessCursorPosition < 0) return false;
-            }
-
-            // Check if current position has a typed letter
-            if (_guessCursorPosition >= 0 && _guessCursorPosition < _guessedLetters.Length)
-            {
-                if (_guessedLetters[_guessCursorPosition] != '\0')
-                {
-                    // Clear letter at current position, stay there
-                    _guessedLetters[_guessCursorPosition] = '\0';
-                    Debug.Log($"[WordPatternRow] Row {_rowNumber} cleared letter at position {_guessCursorPosition}");
-                    UpdateDisplay();
-                    return true;
-                }
-                else
-                {
-                    // Current position empty, move back to previous unrevealed position and clear
-                    int prevPos = FindPreviousUnrevealedPosition(_guessCursorPosition);
-                    if (prevPos >= 0 && _guessedLetters[prevPos] != '\0')
-                    {
-                        _guessedLetters[prevPos] = '\0';
-                        _guessCursorPosition = prevPos;
-                        Debug.Log($"[WordPatternRow] Row {_rowNumber} moved back and cleared at position {prevPos}");
-                        UpdateDisplay();
-                        return true;
-                    }
-                }
-            }
-
-            return false;
+            if (_wordGuessController == null) return false;
+            return _wordGuessController.Backspace();
         }
 
         /// <summary>
         /// Gets the full guessed word (revealed letters + typed letters).
         /// </summary>
-        /// <returns>The complete guessed word</returns>
         public string GetFullGuessWord()
         {
-            char[] result = new char[_currentWord.Length];
-
-            for (int i = 0; i < _currentWord.Length; i++)
-            {
-                if (_revealedLetters[i])
-                {
-                    result[i] = _currentWord[i];
-                }
-                else if (_guessedLetters[i] != '\0')
-                {
-                    result[i] = _guessedLetters[i];
-                }
-                else
-                {
-                    result[i] = '_'; // Still unknown
-                }
-            }
-
-            return new string(result);
+            if (_wordGuessController == null) return string.Empty;
+            return _wordGuessController.GetFullGuessWord();
         }
 
         /// <summary>
         /// Checks if all unrevealed positions have been filled with guessed letters.
         /// </summary>
-        /// <returns>True if guess is complete</returns>
         public bool IsGuessComplete()
         {
-            for (int i = 0; i < _currentWord.Length; i++)
-            {
-                if (!_revealedLetters[i] && _guessedLetters[i] == '\0')
-                {
-                    return false;
-                }
-            }
-            return true;
+            if (_wordGuessController == null) return false;
+            return _wordGuessController.IsGuessComplete();
         }
 
         /// <summary>
@@ -887,18 +728,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         /// <summary>
         /// Show the "Guess Word" button (used when exiting guess mode)
-        /// Only shows if in Gameplay state, not currently in guess mode, and not solved
         /// </summary>
         public void ShowGuessWordButton()
         {
-            // Never show if word has been solved
-            if (_wordSolved)
-            {
-                Debug.Log($"[WordPatternRow] Row {_rowNumber} ShowGuessWordButton blocked - word is SOLVED");
-                return;
-            }
+            if (_wordSolved) return;
 
-            if (_guessWordButton != null && _currentState == RowState.Gameplay && !_inWordGuessMode)
+            if (_guessWordButton != null && _currentState == RowState.Gameplay && !InWordGuessMode)
             {
                 _guessWordButton.gameObject.SetActive(true);
             }
@@ -914,20 +749,18 @@ namespace TecVooDoo.DontLoseYourHead.UI
         }
 
         /// <summary>
-        /// Permanently hide all guess-related buttons (for owner panel)
-        /// </summary>
-        /// <summary>
         /// Mark this word as solved (correctly guessed) - permanently hides guess button
         /// </summary>
         public void MarkWordSolved()
         {
             _wordSolved = true;
             HideGuessWordButton();
-            Debug.Log($"[WordPatternRow] Row {_rowNumber} marked as SOLVED - button permanently hidden");
         }
 
-        
-public void HideAllGuessButtons()
+        /// <summary>
+        /// Permanently hide all guess-related buttons (for owner panel)
+        /// </summary>
+        public void HideAllGuessButtons()
         {
             if (_guessWordButton != null) _guessWordButton.gameObject.SetActive(false);
             if (_guessBackspaceButton != null) _guessBackspaceButton.gameObject.SetActive(false);
@@ -936,78 +769,85 @@ public void HideAllGuessButtons()
         }
         #endregion
 
-        #region Private Methods - Word Guess Helpers
-        private void ClearGuessedLetters()
+        #region Private Methods - Controller Management
+        private void InitializeArraysIfNeeded()
         {
-            if (_guessedLetters == null) return;
-            for (int i = 0; i < _guessedLetters.Length; i++)
+            if (_revealedLetters == null || _revealedLetters.Length == 0)
             {
-                _guessedLetters[i] = '\0';
+                _revealedLetters = new bool[_requiredWordLength];
             }
         }
 
-        private int FindNextUnrevealedPosition(int fromPosition)
+        private void InitializeWordGuessController()
         {
-            for (int i = fromPosition + 1; i < _revealedLetters.Length; i++)
-            {
-                if (!_revealedLetters[i])
-                {
-                    return i;
-                }
-            }
-            return -1; // No more unrevealed positions
+            if (_wordGuessController != null) return;
+
+            _wordGuessController = new WordGuessInputController(
+                IsLetterRevealedAt,
+                GetRevealedLetterAt,
+                () => _currentWord
+            );
+            _wordGuessController.Initialize(_requiredWordLength);
+
+            SubscribeToControllerEvents();
         }
 
-        private int FindPreviousUnrevealedPosition(int fromPosition)
+        private void SubscribeToControllerEvents()
         {
-            for (int i = fromPosition - 1; i >= 0; i--)
-            {
-                if (!_revealedLetters[i])
-                {
-                    return i;
-                }
-            }
-            return -1; // No previous unrevealed positions
+            if (_wordGuessController == null) return;
+
+            _wordGuessController.OnGuessStarted += HandleControllerGuessStarted;
+            _wordGuessController.OnGuessSubmitted += HandleControllerGuessSubmitted;
+            _wordGuessController.OnGuessCancelled += HandleControllerGuessCancelled;
+            _wordGuessController.OnDisplayUpdateNeeded += HandleControllerDisplayUpdate;
         }
 
-        private void UpdateGuessButtonStates()
+        private void UnsubscribeFromControllerEvents()
         {
-            // Owner panels NEVER show guess buttons
-            if (_isOwnerPanel)
-            {
-                if (_guessWordButton != null) _guessWordButton.gameObject.SetActive(false);
-                if (_guessBackspaceButton != null) _guessBackspaceButton.gameObject.SetActive(false);
-                if (_guessAcceptButton != null) _guessAcceptButton.gameObject.SetActive(false);
-                if (_guessCancelButton != null) _guessCancelButton.gameObject.SetActive(false);
-                return;
-            }
+            if (_wordGuessController == null) return;
 
-            if (_currentState != RowState.Gameplay)
-            {
-                // Hide all guess buttons when not in gameplay
-                if (_guessWordButton != null) _guessWordButton.gameObject.SetActive(false);
-                if (_guessBackspaceButton != null) _guessBackspaceButton.gameObject.SetActive(false);
-                if (_guessAcceptButton != null) _guessAcceptButton.gameObject.SetActive(false);
-                if (_guessCancelButton != null) _guessCancelButton.gameObject.SetActive(false);
-                return;
-            }
+            _wordGuessController.OnGuessStarted -= HandleControllerGuessStarted;
+            _wordGuessController.OnGuessSubmitted -= HandleControllerGuessSubmitted;
+            _wordGuessController.OnGuessCancelled -= HandleControllerGuessCancelled;
+            _wordGuessController.OnDisplayUpdateNeeded -= HandleControllerDisplayUpdate;
+        }
 
-            if (_inWordGuessMode)
+        private void HandleControllerGuessStarted()
+        {
+            OnWordGuessStarted?.Invoke(_rowNumber);
+        }
+
+        private void HandleControllerGuessSubmitted(string guessedWord)
+        {
+            OnWordGuessSubmitted?.Invoke(_rowNumber, guessedWord);
+        }
+
+        private void HandleControllerGuessCancelled()
+        {
+            OnWordGuessCancelled?.Invoke(_rowNumber);
+        }
+
+        private void HandleControllerDisplayUpdate()
+        {
+            UpdateDisplay();
+        }
+
+        private bool IsLetterRevealedAt(int index)
+        {
+            if (_revealedLetters == null || index < 0 || index >= _revealedLetters.Length)
             {
-                // In guess mode: show backspace, accept, cancel; hide word button
-                if (_guessWordButton != null) _guessWordButton.gameObject.SetActive(false);
-                if (_guessBackspaceButton != null) _guessBackspaceButton.gameObject.SetActive(true);
-                if (_guessAcceptButton != null) _guessAcceptButton.gameObject.SetActive(true);
-                if (_guessCancelButton != null) _guessCancelButton.gameObject.SetActive(true);
+                return false;
             }
-            else
+            return _revealedLetters[index];
+        }
+
+        private char GetRevealedLetterAt(int index)
+        {
+            if (string.IsNullOrEmpty(_currentWord) || index < 0 || index >= _currentWord.Length)
             {
-                // Not in guess mode: show word button (unless solved), hide others
-                if (_guessWordButton != null && !_wordSolved) _guessWordButton.gameObject.SetActive(true);
-                if (_guessBackspaceButton != null) _guessBackspaceButton.gameObject.SetActive(false);
-                if (_guessAcceptButton != null) _guessAcceptButton.gameObject.SetActive(false);
-                if (_guessCancelButton != null) _guessCancelButton.gameObject.SetActive(false);
+                return '\0';
             }
+            return _currentWord[index];
         }
         #endregion
 
@@ -1021,8 +861,6 @@ public void HideAllGuessButtons()
 
         private void UpdateButtonStates()
         {
-            // Select button: visible unless placed or in gameplay
-            // Allows player to select any row at any time during entry
             if (_selectButton != null)
             {
                 bool showSelect = _currentState != RowState.Gameplay && _currentState != RowState.Placed;
@@ -1030,8 +868,6 @@ public void HideAllGuessButtons()
                 _selectButton.interactable = showSelect;
             }
 
-            // Coordinate mode button: only VISIBLE when word is entered but not yet placed
-            // Hides completely when empty, entering, placed, or gameplay
             if (_coordinateModeButton != null)
             {
                 bool showCoordinate = _currentState == RowState.WordEntered;
@@ -1039,8 +875,6 @@ public void HideAllGuessButtons()
                 _coordinateModeButton.interactable = showCoordinate;
             }
 
-            // Delete button: visible when there's any content (including placed words)
-            // Hidden only when empty or in gameplay
             if (_deleteButton != null)
             {
                 bool showDelete = _currentState != RowState.Empty && _currentState != RowState.Gameplay;
@@ -1048,8 +882,37 @@ public void HideAllGuessButtons()
                 _deleteButton.interactable = showDelete;
             }
 
-            // Update guess button states
             UpdateGuessButtonStates();
+        }
+
+        private void UpdateGuessButtonStates()
+        {
+            if (_isOwnerPanel)
+            {
+                HideAllGuessButtons();
+                return;
+            }
+
+            if (_currentState != RowState.Gameplay)
+            {
+                HideAllGuessButtons();
+                return;
+            }
+
+            if (InWordGuessMode)
+            {
+                if (_guessWordButton != null) _guessWordButton.gameObject.SetActive(false);
+                if (_guessBackspaceButton != null) _guessBackspaceButton.gameObject.SetActive(true);
+                if (_guessAcceptButton != null) _guessAcceptButton.gameObject.SetActive(true);
+                if (_guessCancelButton != null) _guessCancelButton.gameObject.SetActive(true);
+            }
+            else
+            {
+                if (_guessWordButton != null && !_wordSolved) _guessWordButton.gameObject.SetActive(true);
+                if (_guessBackspaceButton != null) _guessBackspaceButton.gameObject.SetActive(false);
+                if (_guessAcceptButton != null) _guessAcceptButton.gameObject.SetActive(false);
+                if (_guessCancelButton != null) _guessCancelButton.gameObject.SetActive(false);
+            }
         }
 
         private void UpdateBackgroundColor()
@@ -1085,6 +948,22 @@ public void HideAllGuessButtons()
 
             _backgroundImage.color = bgColor;
         }
+
+        private void HideSetupButtons()
+        {
+            if (_selectButton != null)
+            {
+                _selectButton.gameObject.SetActive(false);
+            }
+            if (_coordinateModeButton != null)
+            {
+                _coordinateModeButton.gameObject.SetActive(false);
+            }
+            if (_deleteButton != null)
+            {
+                _deleteButton.gameObject.SetActive(false);
+            }
+        }
         #endregion
 
         #region Private Methods - Display
@@ -1102,12 +981,8 @@ public void HideAllGuessButtons()
         {
             System.Text.StringBuilder sb = new System.Text.StringBuilder();
 
-            // Add row number prefix
             sb.Append(_rowNumber);
             sb.Append(_numberSeparator);
-
-            // NOTE: For consistent letter widths, assign a monospace font
-            // (Liberation Mono, Consolas, Courier New) to the TMP component.
 
             switch (_currentState)
             {
@@ -1169,12 +1044,12 @@ public void HideAllGuessButtons()
                     sb.Append(_currentWord[i]);
                     sb.Append("</u>");
                 }
-                else if (_inWordGuessMode && _guessedLetters[i] != '\0')
+                else if (InWordGuessMode && _wordGuessController != null && _wordGuessController.GetGuessedLetterAt(i) != '\0')
                 {
                     sb.Append("<color=#");
                     sb.Append(typedColorHex);
                     sb.Append(">");
-                    sb.Append(_guessedLetters[i]);
+                    sb.Append(_wordGuessController.GetGuessedLetterAt(i));
                     sb.Append("</color>");
                 }
                 else
@@ -1203,7 +1078,6 @@ public void HideAllGuessButtons()
                 _deleteButton.onClick.AddListener(HandleDeleteClick);
             }
 
-            // Gameplay guess buttons
             if (_guessWordButton != null)
             {
                 _guessWordButton.onClick.AddListener(HandleGuessWordClick);
@@ -1242,7 +1116,6 @@ public void HideAllGuessButtons()
                 _deleteButton.onClick.RemoveListener(HandleDeleteClick);
             }
 
-            // Gameplay guess buttons
             if (_guessWordButton != null)
             {
                 _guessWordButton.onClick.RemoveListener(HandleGuessWordClick);
@@ -1266,8 +1139,6 @@ public void HideAllGuessButtons()
 
         private void HandleSelectClick()
         {
-            // Select button just selects this row - doesn't accept anything
-            Debug.Log($"[WordPatternRow] Row {_rowNumber} select button clicked");
             OnRowSelected?.Invoke(_rowNumber);
         }
 
@@ -1278,40 +1149,29 @@ public void HideAllGuessButtons()
 
         private void HandleDeleteClick()
         {
-            // Track if the word was placed (needs grid clearing)
             bool wasPlaced = _currentState == RowState.Placed;
-
-            // Clear the row
             ClearWord();
-
-            // Fire event with wasPlaced flag so listeners know to clear the grid too
             OnDeleteClicked?.Invoke(_rowNumber, wasPlaced);
-
-            Debug.Log($"[WordPatternRow] Row {_rowNumber} deleted (wasPlaced: {wasPlaced})");
         }
 
         private void HandleGuessWordClick()
         {
-            Debug.Log($"[WordPatternRow] Row {_rowNumber} guess word button clicked");
             EnterWordGuessMode();
         }
 
         private void HandleGuessBackspaceClick()
         {
-            Debug.Log($"[WordPatternRow] Row {_rowNumber} backspace button clicked");
             BackspaceGuessLetter();
         }
 
         private void HandleGuessAcceptClick()
         {
-            Debug.Log($"[WordPatternRow] Row {_rowNumber} accept button clicked");
-            ExitWordGuessMode(true); // Submit the guess
+            ExitWordGuessMode(true);
         }
 
         private void HandleGuessCancelClick()
         {
-            Debug.Log($"[WordPatternRow] Row {_rowNumber} cancel button clicked");
-            ExitWordGuessMode(false); // Cancel without submitting
+            ExitWordGuessMode(false);
         }
         #endregion
 
