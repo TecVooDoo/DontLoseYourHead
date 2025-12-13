@@ -207,21 +207,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// <summary>
         /// Sets up the panel for a specific player
         /// </summary>
-        public void SetupForPlayer(int playerIndex, PlayerSO playerData = null)
+public void SetupForPlayer(int playerIndex)
         {
             _currentPlayerIndex = playerIndex;
-
-            if (playerData != null)
-            {
-                _playerName = playerData.PlayerName;
-                // Note: PlayerSO doesn't have PlayerColor - use default color logic
-            }
-            else
-            {
-                _playerName = $"PLAYER{playerIndex + 1}";
-                _playerColor = _availableColors[playerIndex % _availableColors.Length];
-                _currentColorIndex = playerIndex % _availableColors.Length;
-            }
+            _playerName = string.Format("PLAYER{0}", playerIndex + 1);
+            _playerColor = _availableColors[playerIndex % _availableColors.Length];
+            _currentColorIndex = playerIndex % _availableColors.Length;
 
             UpdateUI();
         }
