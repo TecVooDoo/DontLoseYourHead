@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eed0dc1d2b0bd9549a9780ce6b614b84, type: 3}
+  m_Name: ExecutionerConfig
+  m_EditorClassIdentifier: Assembly-CSharp::DLYH.AI.Config.ExecutionerConfigSO
+  _minSkillLevel: 0.15
+  _maxSkillLevel: 0.95
+  _skillAdjustmentStep: 0.15
+  _easyStartSkill: 0.25
+  _normalStartSkill: 0.5
+  _hardStartSkill: 0.75
+  _easyHitsToIncrease: 5
+  _easyMissesToDecrease: 2
+  _normalHitsToIncrease: 3
+  _normalMissesToDecrease: 3
+  _hardHitsToIncrease: 2
+  _hardMissesToDecrease: 5
+  _consecutiveAdjustmentsToAdapt: 2
+  _minHitsToIncrease: 1
+  _maxHitsToIncrease: 7
+  _minMissesToDecrease: 1
+  _maxMissesToDecrease: 7
+  _recentGuessesToTrack: 5
+  _highDensityThreshold: 0.35
+  _lowDensityThreshold: 0.12
+  _wordGuessRiskFactor: 0.7
+  _maxForgetChance: 0.3
+  _alwaysRememberRecent: 3
+  _minThinkTime: 1
+  _maxThinkTime: 3
