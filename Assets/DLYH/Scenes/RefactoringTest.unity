@@ -155,57 +155,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: -20, y: -20}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!1 &75395242
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 75395244}
-  - component: {fileID: 75395243}
-  m_Layer: 0
-  m_Name: TurnManager
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &75395243
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 75395242}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aaeb2d509513a0f4d91409ea6e20df5a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TecVooDoo.DontLoseYourHead.Core.GameState.TurnManager
-  _currentPlayerTurn: {fileID: 11400000, guid: aeb88fc71de90b74585ffb913a180188, type: 2}
-  _onTurnStarted: {fileID: 11400000, guid: 22ef65d9d89b1b646b06209c65b11fd2, type: 2}
-  _onTurnEnded: {fileID: 11400000, guid: 82fb7e1e64fc8ed478f1508e4f3c1135, type: 2}
-  _onTurnChanged: {fileID: 11400000, guid: a073a7566b9bd7b4ead133f610c6117e, type: 2}
-  _player1Index: 0
-  _player2Index: 1
-  _turnDelaySeconds: 0.5
---- !u!4 &75395244
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 75395242}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &77692528
 GameObject:
   m_ObjectHideFlags: 0
@@ -749,6 +698,7 @@ RectTransform:
   m_Children:
   - {fileID: 1608185428}
   - {fileID: 1286568916}
+  - {fileID: 928873974}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -3480,6 +3430,68 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 632787769}
   m_CullTransparentMesh: 1
+--- !u!1 &733208891
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 733208892}
+  - component: {fileID: 733208893}
+  m_Layer: 5
+  m_Name: ItemContainer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &733208892
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 733208891}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 928873974}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &733208893
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 733208891}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 59f8146938fff824cb5fd77236b75775, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.VerticalLayoutGroup
+  m_Padding:
+    m_Left: 0
+    m_Right: 0
+    m_Top: 0
+    m_Bottom: 0
+  m_ChildAlignment: 0
+  m_Spacing: 0
+  m_ChildForceExpandWidth: 1
+  m_ChildForceExpandHeight: 0
+  m_ChildControlWidth: 0
+  m_ChildControlHeight: 0
+  m_ChildScaleWidth: 0
+  m_ChildScaleHeight: 0
+  m_ReverseArrangement: 0
 --- !u!1 &754500579
 GameObject:
   m_ObjectHideFlags: 0
@@ -4992,6 +5004,119 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 912775883}
   m_CullTransparentMesh: 1
+--- !u!1 &928873973
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 928873974}
+  - component: {fileID: 928873978}
+  - component: {fileID: 928873977}
+  - component: {fileID: 928873976}
+  - component: {fileID: 928873975}
+  m_Layer: 5
+  m_Name: AutocompleteDropdown
+  m_TagString: Untagged
+  m_Icon: {fileID: 5132851093641282708, guid: 0000000000000000d000000000000000, type: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &928873974
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 928873973}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 733208892}
+  m_Father: {fileID: 138650375}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 1340, y: -103}
+  m_SizeDelta: {x: 400, y: 100}
+  m_Pivot: {x: 0, y: 1}
+--- !u!114 &928873975
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 928873973}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c391502cc07a1cc48937711d82d9f958, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TecVooDoo.DontLoseYourHead.UI.AutocompleteDropdown
+  _itemContainer: {fileID: 733208892}
+  _itemPrefab: {fileID: 2306302458084805948, guid: fff7b09146b9d9f488836acb51f615e5, type: 3}
+  _scrollRect: {fileID: 0}
+  _canvasGroup: {fileID: 928873978}
+  _dropdownRect: {fileID: 928873974}
+  _maxVisibleItems: 5
+  _itemHeight: 30
+  _minCharsToShow: 1
+  _hideOnEmptyResults: 1
+  _fadeInDuration: 0.15
+  _fadeOutDuration: 0.1
+--- !u!114 &928873976
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 928873973}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 0.31132078, g: 0.30104133, b: 0.30104133, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
+  m_Type: 1
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &928873977
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 928873973}
+  m_CullTransparentMesh: 1
+--- !u!225 &928873978
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 928873973}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &965054867
 GameObject:
   m_ObjectHideFlags: 0
@@ -5453,6 +5578,7 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 1892528452}
   - {fileID: 1876884778}
   - {fileID: 1813682292}
   - {fileID: 1742626265}
@@ -5525,6 +5651,7 @@ MonoBehaviour:
   _colorButtonsContainer: {fileID: 1582273757}
   _pickRandomWordsButton: {fileID: 1004730549}
   _placeRandomPositionsButton: {fileID: 1939555896}
+  _autocompleteDropdown: {fileID: 928873975}
   _missLimitDisplay: {fileID: 1702829874}
   _startGameButton: {fileID: 1578194323}
   _playerGridPanel: {fileID: 3271076589819839208}
@@ -8389,54 +8516,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 9f759d1832515a741844880e110d86fd, type: 3}
---- !u!1 &995572633
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 995572635}
-  - component: {fileID: 995572634}
-  m_Layer: 0
-  m_Name: PlayerManager
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &995572634
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 995572633}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6cfb9cc6ba56ce644b180188c512451c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TecVooDoo.DontLoseYourHead.Core.PlayerManager
-  _player1: {fileID: 11400000, guid: 3cc055a0e47ed7a4c9d10110dc152fe1, type: 2}
-  _player2: {fileID: 11400000, guid: 5ee09c9a294c81d499eb4582a1006001, type: 2}
-  _turnManager: {fileID: 75395243}
-  _difficulty: {fileID: 11400000, guid: 892cfbb1970d94041baf987c8f996e90, type: 2}
---- !u!4 &995572635
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 995572633}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1001886234
 GameObject:
   m_ObjectHideFlags: 0
@@ -9202,6 +9281,7 @@ MonoBehaviour:
   _player1MissCounter: {fileID: 1006247647}
   _player2MissCounter: {fileID: 1410504340}
   _startGameButton: {fileID: 1578194323}
+  _autocompleteDropdown: {fileID: 928873975}
   _threeLetterWords: {fileID: 11400000, guid: 06114520cd18e54439e47522617dbaa7, type: 2}
   _fourLetterWords: {fileID: 11400000, guid: 83e7ad5863c5046469a403a9dab4ec0c, type: 2}
   _fiveLetterWords: {fileID: 11400000, guid: d210015902afad641bbdd412067539a2, type: 2}
@@ -10196,55 +10276,6 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
---- !u!1 &1286652519
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1286652521}
-  - component: {fileID: 1286652520}
-  m_Layer: 0
-  m_Name: GameStateMachine
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1286652520
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1286652519}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 49a4fadfa5e47d744969eb3be8469713, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TecVooDoo.DontLoseYourHead.Core.GameStateMachine
-  _onGameStart: {fileID: 11400000, guid: 0ef5bdd5f8697ad428569cf42195e27a, type: 2}
-  _onSetupComplete: {fileID: 11400000, guid: d380c5b42f7b93b4a9d3a4d036e179c5, type: 2}
-  _onGameplayStart: {fileID: 11400000, guid: ae05efae512712744b869e17fd18d189, type: 2}
-  _onGameOver: {fileID: 11400000, guid: 1e6ccbc652d92aa49a3ba6ac5a518030, type: 2}
-  _turnManager: {fileID: 75395243}
---- !u!4 &1286652521
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1286652519}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1287115219
 GameObject:
   m_ObjectHideFlags: 0
@@ -12301,54 +12332,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1671826237}
   m_CullTransparentMesh: 1
---- !u!1 &1680601023
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1680601025}
-  - component: {fileID: 1680601024}
-  m_Layer: 0
-  m_Name: GameManager
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1680601024
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1680601023}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: da0c89807f4548c42afea7bbfba6e63e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TecVooDoo.DontLoseYourHead.Core.GameManager
-  _difficulty: {fileID: 11400000, guid: 892cfbb1970d94041baf987c8f996e90, type: 2}
-  _turnManager: {fileID: 75395243}
-  _stateMachine: {fileID: 1286652520}
-  _playerManager: {fileID: 995572634}
---- !u!4 &1680601025
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1680601023}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1681274528
 GameObject:
   m_ObjectHideFlags: 0
@@ -12379,7 +12362,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TecVooDoo.DontLoseYourHead.UI.SetupModeController
   _playerGridPanel: {fileID: 3271076589819839208}
-  _autocompleteDropdown: {fileID: 0}
+  _autocompleteDropdown: {fileID: 928873975}
   _enableKeyboardLetterInput: 1
   _autoSelectFirstRow: 1
 --- !u!4 &1681274530
@@ -13509,6 +13492,63 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1876884777}
   m_CullTransparentMesh: 1
+--- !u!1 &1892528451
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1892528452}
+  - component: {fileID: 1892528453}
+  m_Layer: 5
+  m_Name: AutocompleteManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1892528452
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1892528451}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 992477041}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1892528453
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1892528451}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 02f443635319d0f4f8ffb69b029ace24, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TecVooDoo.DontLoseYourHead.UI.Controllers.AutocompleteManager
+  _playerGridPanel: {fileID: 3271076589819839208}
+  _autocompleteDropdown: {fileID: 928873975}
+  _wordListsByLength:
+  - {fileID: 11400000, guid: 06114520cd18e54439e47522617dbaa7, type: 2}
+  - {fileID: 11400000, guid: 83e7ad5863c5046469a403a9dab4ec0c, type: 2}
+  - {fileID: 11400000, guid: d210015902afad641bbdd412067539a2, type: 2}
+  - {fileID: 11400000, guid: cb4da1dbc7be8444cbc76bbbdbc7ef07, type: 2}
+  _dropdownOffset: {x: -250, y: 165}
+  _dropdownRectTransform: {fileID: 0}
 --- !u!1 &1929893649
 GameObject:
   m_ObjectHideFlags: 0
@@ -47081,10 +47121,6 @@ SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 1873126929}
-  - {fileID: 1680601025}
-  - {fileID: 75395244}
-  - {fileID: 995572635}
-  - {fileID: 1286652521}
   - {fileID: 138650375}
   - {fileID: 278237049}
   - {fileID: 1681274530}

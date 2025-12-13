@@ -32,6 +32,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
         [Header("Start Button (for event subscription)")]
         [SerializeField] private Button _startGameButton;
 
+        [Header("Autocomplete (Setup Mode Only)")]
+        [SerializeField] private AutocompleteDropdown _autocompleteDropdown;
+
+
         [Header("Word Bank References (for word guess validation)")]
         [SerializeField] private WordListSO _threeLetterWords;
         [SerializeField] private WordListSO _fourLetterWords;
@@ -402,7 +406,14 @@ namespace TecVooDoo.DontLoseYourHead.UI
             InitializeOpponentState();
             InitializeGuessProcessors();
 
-            if (_setupContainer != null)
+            // Hide autocomplete dropdown (it's a sibling of SetupContainer, not a child)
+            if (_autocompleteDropdown != null)
+            {
+                _autocompleteDropdown.Hide();
+            }
+
+            
+if (_setupContainer != null)
                 _setupContainer.SetActive(false);
 
             if (_gameplayContainer != null)

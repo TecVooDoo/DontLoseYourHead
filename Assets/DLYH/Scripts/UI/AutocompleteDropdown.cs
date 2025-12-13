@@ -38,7 +38,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private int _maxVisibleItems = 8;
 
         [SerializeField]
-        private float _itemHeight = 30f;
+        private float _itemHeight = 40f;
 
         [SerializeField, Range(1, 3)]
         private int _minCharsToShow = 2;
@@ -217,12 +217,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// <summary>
         /// Hides the dropdown.
         /// </summary>
-        public void Hide()
+public void Hide()
         {
-            if (!_isVisible) return;
-
+            // Always hide, even if we think we're already hidden
             _selectedIndex = -1;
-            SetVisible(false);
+            _isVisible = false;
+            SetVisible(false, immediate: true);
             OnDropdownHidden?.Invoke();
         }
         #endregion
@@ -339,15 +339,18 @@ namespace TecVooDoo.DontLoseYourHead.UI
         #endregion
 
         #region Private Methods - Display
-        private void UpdateItemDisplay()
+private void UpdateItemDisplay()
         {
-            // Ensure we have enough item instances
-            EnsureItemInstances(_filteredWords.Count);
+            // Limit displayed items to max visible
+            int itemsToShow = Mathf.Min(_filteredWords.Count, _maxVisibleItems);
 
-            // Update items
+            // Ensure we have enough item instances
+            EnsureItemInstances(itemsToShow);
+
+            // Update items - only show up to maxVisibleItems
             for (int i = 0; i < _itemInstances.Count; i++)
             {
-                if (i < _filteredWords.Count)
+                if (i < itemsToShow)
                 {
                     _itemInstances[i].gameObject.SetActive(true);
                     _itemInstances[i].SetWord(_filteredWords[i], _currentFilter);

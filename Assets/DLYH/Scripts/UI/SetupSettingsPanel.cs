@@ -45,6 +45,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private Button _placeRandomPositionsButton;
 
         [SerializeField]
+        private AutocompleteDropdown _autocompleteDropdown;
+
+
+        [SerializeField]
         private TextMeshProUGUI _missLimitDisplay;
 
         [SerializeField]
@@ -803,8 +807,14 @@ public void SetupForPlayer(int playerIndex)
         /// <summary>
         /// Called when Pick Random Words button is clicked
         /// </summary>
-        private void OnPickRandomWordsClicked()
+private void OnPickRandomWordsClicked()
         {
+            // Hide autocomplete dropdown before picking random words
+            if (_autocompleteDropdown != null)
+            {
+                _autocompleteDropdown.Hide();
+            }
+
             PickRandomWords();
             UpdatePickRandomWordsButtonState();
             UpdatePlaceRandomPositionsButtonState();
