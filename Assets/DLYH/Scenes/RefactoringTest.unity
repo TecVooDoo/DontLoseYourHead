@@ -10324,8 +10324,11 @@ MonoBehaviour:
   _feedbackDisplayDuration: 2
   _player1GuessedWordList: {fileID: 526052750}
   _player2GuessedWordList: {fileID: 808358335}
-  _testOpponentLetter: 69
-  _testOpponentCoordinate: {x: 0, y: 0}
+  _aiConfig: {fileID: 11400000, guid: df8c91823e1b7f443b0ee20d57885195, type: 2}
+  _turnIndicatorText: {fileID: 0}
+  _testOpponentLetter: 
+  _testOpponentCol: 0
+  _testOpponentRow: 0
   _testOpponentWord: NOV
 --- !u!4 &1086319916
 Transform:
@@ -17302,7 +17305,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.392}
+  m_Color: {r: 0.0754717, g: 0.07297971, b: 0.07297971, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1

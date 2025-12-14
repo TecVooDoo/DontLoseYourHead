@@ -33,7 +33,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private readonly string _processorName;
 
         // Callbacks for external operations
-        private readonly Action _onMissIncrement;
+        // CHANGED: Now takes int parameter for miss amount
+        private readonly Action<int> _onMissIncrement;
         private readonly Action<char, LetterButton.LetterState> _setLetterState;
         private readonly Func<string, bool> _validateWord;
         private readonly Action<string, bool> _addToGuessedWordList;
@@ -69,7 +70,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// <param name="targetWords">The words to guess against</param>
         /// <param name="targetPanel">The panel to update when guesses are made</param>
         /// <param name="processorName">Name for debug logging (e.g., "Player" or "Opponent")</param>
-        /// <param name="onMissIncrement">Callback when miss count changes</param>
+        /// <param name="onMissIncrement">Callback when miss count changes - now takes amount parameter</param>
         /// <param name="setLetterState">Callback to update letter tracker state</param>
         /// <param name="validateWord">Callback to validate words against word bank</param>
         /// <param name="addToGuessedWordList">Callback to add word to guessed list UI</param>
@@ -77,7 +78,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             List<WordPlacementData> targetWords,
             PlayerGridPanel targetPanel,
             string processorName,
-            Action onMissIncrement,
+            Action<int> onMissIncrement,
             Action<char, LetterButton.LetterState> setLetterState,
             Func<string, bool> validateWord,
             Action<string, bool> addToGuessedWordList)
@@ -156,7 +157,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 UpgradeGridCellsForLetter(letter);
 
                 // Mark letter button as HIT (green)
-                _setLetterState?.Invoke(letter, LetterButton.LetterState.Hit);
+                if (_setLetterState != null)
+                {
+                    Debug.Log(string.Format("[GuessProcessor:{0}] Setting letter '{1}' state to HIT",
+                        _processorName, letter));
+                    _setLetterState.Invoke(letter, LetterButton.LetterState.Hit);
+                }
 
                 return GuessResult.Hit;
             }
@@ -166,7 +172,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 IncrementMisses(1);
 
                 // Mark letter button as MISS (red)
-                _setLetterState?.Invoke(letter, LetterButton.LetterState.Miss);
+                if (_setLetterState != null)
+                {
+                    _setLetterState.Invoke(letter, LetterButton.LetterState.Miss);
+                }
 
                 return GuessResult.Miss;
             }
@@ -232,8 +241,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
                         if (cell != null && cell.IsHitButLetterUnknown)
                         {
                             cell.UpgradeToKnownHit();
-                            cell.RevealHiddenLetter();
-                            Debug.Log(string.Format("[GuessProcessor:{0}] Upgraded cell ({1},{2}) to green for letter '{3}'",
+                            Debug.Log(string.Format("[GuessProcessor:{0}] Upgraded cell ({1},{2}) from yellow to green with letter '{3}'",
                                 _processorName, col, row, letter));
                         }
                     }
@@ -382,7 +390,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// </summary>
         private GuessResult HandleCorrectWordGuess(WordPlacementData targetWord, string normalizedGuess, int rowIndex)
         {
-            // Add all letters to known
+            Debug.Log(string.Format("[GuessProcessor:{0}] CORRECT word guess: '{1}'",
+                _processorName, normalizedGuess));
+
+            // Add all letters to known and guessed
             foreach (char c in targetWord.Word.ToUpper())
             {
                 _knownLetters.Add(c);
@@ -402,11 +413,21 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 row.MarkWordSolved();
             }
 
-            // Update OTHER word pattern rows and upgrade cells for discovered letters
+            // Update OTHER word pattern rows, letter states, and upgrade cells for discovered letters
             foreach (char c in targetWord.Word.ToUpper())
             {
+                // Update word pattern displays for this letter in other rows
                 UpdatePanelForLetter(c);
-                _setLetterState?.Invoke(c, LetterButton.LetterState.Hit);
+
+                // CRITICAL: Update letter tracker state to show this letter as HIT
+                if (_setLetterState != null)
+                {
+                    Debug.Log(string.Format("[GuessProcessor:{0}] Setting letter '{1}' state to HIT (from word guess)",
+                        _processorName, c));
+                    _setLetterState.Invoke(c, LetterButton.LetterState.Hit);
+                }
+
+                // Upgrade any yellow cells containing this letter to green
                 UpgradeGridCellsForLetter(c);
             }
 
@@ -421,7 +442,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// </summary>
         private GuessResult HandleIncorrectWordGuess(string normalizedGuess)
         {
-            // Wrong guess - double penalty
+            Debug.Log(string.Format("[GuessProcessor:{0}] INCORRECT word guess: '{1}' - adding 2 misses",
+                _processorName, normalizedGuess));
+
+            // Wrong guess - double penalty (2 misses)
             IncrementMisses(2);
 
             // Add to guessed word list (wrong)
@@ -435,12 +459,16 @@ namespace TecVooDoo.DontLoseYourHead.UI
         #region Miss Management
 
         /// <summary>
-        /// Increment miss count and notify callback
+        /// Increment miss count and notify callback with the amount
         /// </summary>
         private void IncrementMisses(int amount)
         {
             _misses += amount;
-            _onMissIncrement?.Invoke();
+            Debug.Log(string.Format("[GuessProcessor:{0}] Misses incremented by {1}. Total: {2}/{3}",
+                _processorName, amount, _misses, _missLimit));
+
+            // FIXED: Pass the amount to the callback so external counter updates correctly
+            _onMissIncrement?.Invoke(amount);
         }
 
         /// <summary>
