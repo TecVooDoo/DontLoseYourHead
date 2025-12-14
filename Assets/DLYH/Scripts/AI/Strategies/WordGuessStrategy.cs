@@ -112,8 +112,8 @@ namespace DLYH.AI.Strategies
                     continue;
                 }
 
-                // Find matching words
-                List<string> matches = FindMatchingWords(pattern, state.WordBank);
+                // Find matching words (excluding already guessed words)
+                List<string> matches = FindMatchingWords(pattern, state.WordBank, state.GuessedWords);
 
                 if (matches.Count == 0)
                 {
@@ -172,8 +172,9 @@ namespace DLYH.AI.Strategies
         /// </summary>
         /// <param name="pattern">Pattern like "_A_E" where _ is unknown</param>
         /// <param name="wordBank">Set of valid words</param>
-        /// <returns>List of matching words</returns>
-        private List<string> FindMatchingWords(string pattern, HashSet<string> wordBank)
+        /// <param name="guessedWords">Set of already guessed words to exclude</param>
+        /// <returns>List of matching words (excluding already guessed)</returns>
+        private List<string> FindMatchingWords(string pattern, HashSet<string> wordBank, HashSet<string> guessedWords = null)
         {
             List<string> matches = new List<string>();
             int patternLength = pattern.Length;
@@ -182,6 +183,12 @@ namespace DLYH.AI.Strategies
             {
                 // Length must match
                 if (word.Length != patternLength)
+                {
+                    continue;
+                }
+
+                // Skip already guessed words
+                if (guessedWords != null && guessedWords.Contains(word.ToUpper()))
                 {
                     continue;
                 }

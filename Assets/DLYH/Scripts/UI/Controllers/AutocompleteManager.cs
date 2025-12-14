@@ -103,6 +103,9 @@ public void Initialize()
                 _dropdownRectTransform = _autocompleteDropdown.GetComponent<RectTransform>();
             }
 
+            // Ensure dropdown starts hidden - don't show until row is selected and user types
+            _autocompleteDropdown.Hide();
+
             // Subscribe to PlayerGridPanel events first
             _playerGridPanel.OnWordRowSelected += HandleRowSelected;
             _playerGridPanel.OnWordLengthsChanged += HandleWordLengthsChanged;
@@ -217,17 +220,19 @@ private void HandleRowSelected(int rowIndex)
             if (_activeRow != null)
             {
                 SetWordListForLength(_activeRow.RequiredWordLength);
-                PositionDropdownNearRow(_activeRow);
 
                 string currentText = _activeRow.EnteredText;
                 Debug.Log(string.Format("[AutocompleteManager] Row has text: '{0}', length requirement: {1}", currentText, _activeRow.RequiredWordLength));
 
                 if (!string.IsNullOrEmpty(currentText))
                 {
+                    // Position dropdown before showing - use LateUpdate positioning for consistent layout
+                    PositionDropdownNearRow(_activeRow);
                     _autocompleteDropdown.UpdateFilter(currentText);
                 }
                 else
                 {
+                    // No text entered yet - hide dropdown and clear filter
                     _autocompleteDropdown.ClearFilter();
                 }
             }
@@ -250,6 +255,12 @@ private void HandleWordTextChanged(int rowNumber, string currentText)
             {
                 _autocompleteDropdown.Hide();
                 return;
+            }
+
+            // Ensure dropdown is properly positioned relative to active row before showing
+            if (_activeRow != null)
+            {
+                PositionDropdownNearRow(_activeRow);
             }
 
             _autocompleteDropdown.UpdateFilter(currentText);
@@ -324,6 +335,14 @@ private void HandleWordSelected(string selectedWord)
 
             RectTransform rowRect = row.GetComponent<RectTransform>();
             if (rowRect == null) return;
+
+            // Ensure the row's RectTransform has valid positioning
+            // (not at origin which would cause dropdown to float at top)
+            if (rowRect.position.y == 0 && rowRect.position.x == 0)
+            {
+                Debug.LogWarning("[AutocompleteManager] Row RectTransform position is at origin - delaying positioning");
+                return;
+            }
 
             Vector3 rowWorldPos = rowRect.position;
             Vector3 dropdownPos = rowWorldPos + new Vector3(_dropdownOffset.x, _dropdownOffset.y, 0f);

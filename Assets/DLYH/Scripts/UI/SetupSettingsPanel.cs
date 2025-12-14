@@ -818,6 +818,12 @@ private void OnPickRandomWordsClicked()
             PickRandomWords();
             UpdatePickRandomWordsButtonState();
             UpdatePlaceRandomPositionsButtonState();
+
+            // Hide autocomplete dropdown again after picking (row selection may have re-triggered it)
+            if (_autocompleteDropdown != null)
+            {
+                _autocompleteDropdown.Hide();
+            }
         }
 
         /// <summary>
@@ -825,10 +831,22 @@ private void OnPickRandomWordsClicked()
         /// </summary>
         private void OnPlaceRandomPositionsClicked()
         {
+            // Hide autocomplete dropdown before placing random positions
+            if (_autocompleteDropdown != null)
+            {
+                _autocompleteDropdown.Hide();
+            }
+
             if (_playerGridPanel != null)
             {
                 _playerGridPanel.PlaceAllWordsRandomly();
                 UpdatePlaceRandomPositionsButtonState(); // Disable after placing
+            }
+
+            // Hide autocomplete dropdown again after placement (row selection may have re-triggered it)
+            if (_autocompleteDropdown != null)
+            {
+                _autocompleteDropdown.Hide();
             }
         }
 

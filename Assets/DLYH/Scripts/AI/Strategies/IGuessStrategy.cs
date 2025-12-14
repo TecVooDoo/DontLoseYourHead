@@ -208,6 +208,13 @@ namespace DLYH.AI.Strategies
         /// </summary>
         public List<bool> WordsSolved;
 
+        
+
+        /// <summary>
+        /// Words that have already been guessed (to avoid repeating).
+        /// </summary>
+        public HashSet<string> GuessedWords;
+
         /// <summary>
         /// The word bank to check valid words against.
         /// </summary>
@@ -234,6 +241,7 @@ namespace DLYH.AI.Strategies
             HitCoordinates = new HashSet<(int row, int col)>();
             WordPatterns = new List<string>();
             WordsSolved = new List<bool>();
+            GuessedWords = new HashSet<string>();
             WordBank = new HashSet<string>();
         }
 

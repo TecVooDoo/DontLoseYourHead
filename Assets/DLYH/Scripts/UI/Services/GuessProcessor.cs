@@ -241,6 +241,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
                         if (cell != null && cell.IsHitButLetterUnknown)
                         {
                             cell.UpgradeToKnownHit();
+                            cell.RevealHiddenLetter(); // Bug fix: Also reveal the letter when upgrading to green
                             Debug.Log(string.Format("[GuessProcessor:{0}] Upgraded cell ({1},{2}) from yellow to green with letter '{3}'",
                                 _processorName, col, row, letter));
                         }

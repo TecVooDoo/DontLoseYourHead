@@ -20,17 +20,17 @@ namespace DLYH.AI.Config
         // ============================================================
 
         [Header("Skill Level Bounds")]
-        [Tooltip("Minimum skill level (AI never becomes completely random)")]
+        [Tooltip("Minimum skill level (AI never becomes completely random). 0.25 ensures AI still makes some smart moves.")]
         [Range(0f, 1f)]
-        [SerializeField] private float _minSkillLevel = 0.15f;
+        [SerializeField] private float _minSkillLevel = 0.25f;
 
         [Tooltip("Maximum skill level (AI never becomes perfect)")]
         [Range(0f, 1f)]
         [SerializeField] private float _maxSkillLevel = 0.95f;
 
-        [Tooltip("How much skill changes per adjustment")]
+        [Tooltip("How much skill changes per adjustment. Lower = more gradual changes.")]
         [Range(0f, 0.3f)]
-        [SerializeField] private float _skillAdjustmentStep = 0.15f;
+        [SerializeField] private float _skillAdjustmentStep = 0.10f;
 
         public float MinSkillLevel => _minSkillLevel;
         public float MaxSkillLevel => _maxSkillLevel;
@@ -66,9 +66,9 @@ namespace DLYH.AI.Config
         [Range(1, 7)]
         [SerializeField] private int _easyHitsToIncrease = 5;
 
-        [Tooltip("Consecutive player misses before AI skill decreases (Easy)")]
+        [Tooltip("Consecutive player misses before AI skill decreases (Easy). Higher value = AI stays competent longer.")]
         [Range(1, 7)]
-        [SerializeField] private int _easyMissesToDecrease = 2;
+        [SerializeField] private int _easyMissesToDecrease = 4;
 
         [Header("Initial Thresholds - Normal Difficulty")]
         [Tooltip("Consecutive player hits before AI skill increases (Normal)")]

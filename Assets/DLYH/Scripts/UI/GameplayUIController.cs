@@ -33,6 +33,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
         [Header("Miss Counter References")]
         [SerializeField] private TextMeshProUGUI _player1MissCounter;
         [SerializeField] private TextMeshProUGUI _player2MissCounter;
+        [SerializeField] private Image _player1MissLabelBackground;
+        [SerializeField] private Image _player2MissLabelBackground;
 
         [Header("Center Panel Name Labels")]
         [SerializeField] private TextMeshProUGUI _player1NameLabel;
@@ -60,6 +62,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
         [Header("Guessed Word List References")]
         [SerializeField] private GuessedWordListController _player1GuessedWordList;
         [SerializeField] private GuessedWordListController _player2GuessedWordList;
+        [SerializeField] private Image _player1GuessedWordsLabelBackground;
+        [SerializeField] private Image _player2GuessedWordsLabelBackground;
 
         [Header("AI Configuration")]
         [SerializeField] private ExecutionerConfigSO _aiConfig;
@@ -87,40 +91,49 @@ namespace TecVooDoo.DontLoseYourHead.UI
         // Word guess mode controller
         private WordGuessModeController _wordGuessModeController;
 
+        // State tracking and win condition checking (extracted services)
+        private GameplayStateTracker _stateTracker;
+        private WinConditionChecker _winChecker;
+
         // AI System
         private ExecutionerAI _executionerAI;
         private bool _aiInitialized = false;
 
-        #endregion
-
-        #region Player State Tracking
-
-        // Turn management
-        private bool _isPlayerTurn = true;
-        private bool _gameOver = false;
-
-        // Player gameplay state (guessing against opponent)
-        private int _playerMisses = 0;
-        private int _playerMissLimit = 0;
-        private HashSet<char> _playerKnownLetters = new HashSet<char>();
-        private HashSet<char> _playerGuessedLetters = new HashSet<char>();
-        private HashSet<Vector2Int> _playerGuessedCoordinates = new HashSet<Vector2Int>();
-        private HashSet<string> _playerGuessedWords = new HashSet<string>();
-        private HashSet<int> _playerSolvedWordRows = new HashSet<int>();
-
+        // AI opponent settings are now dynamic based on player difficulty
+        // Easy player = smaller AI grid (6-8), more words (4) = easier for player to find
+        // Normal player = medium AI grid (8-10), random words (3-4) = balanced
+        // Hard player = larger AI grid (10-12), fewer words (3) = harder for player to find
 
         #endregion
 
-        #region Opponent State Tracking
+        #region State Accessors (delegate to GameplayStateTracker)
 
-        // Opponent (Executioner) gameplay state (guessing against player)
-        private int _opponentMisses = 0;
-        private int _opponentMissLimit = 0;
-        private HashSet<char> _opponentKnownLetters = new HashSet<char>();
-        private HashSet<char> _opponentGuessedLetters = new HashSet<char>();
-        private HashSet<Vector2Int> _opponentGuessedCoordinates = new HashSet<Vector2Int>();
-        private HashSet<string> _opponentGuessedWords = new HashSet<string>();
-        private HashSet<int> _opponentSolvedWordRows = new HashSet<int>();
+        // These properties delegate to _stateTracker for backwards compatibility
+        private bool _isPlayerTurn
+        {
+            get => _stateTracker?.IsPlayerTurn ?? true;
+            set { if (_stateTracker != null) _stateTracker.IsPlayerTurn = value; }
+        }
+
+        private bool _gameOver
+        {
+            get => _stateTracker?.GameOver ?? false;
+            set { if (_stateTracker != null) _stateTracker.GameOver = value; }
+        }
+
+        private int _playerMisses => _stateTracker?.PlayerMisses ?? 0;
+        private int _playerMissLimit => _stateTracker?.PlayerMissLimit ?? 0;
+        private HashSet<char> _playerKnownLetters => _stateTracker?.PlayerKnownLetters ?? new HashSet<char>();
+        private HashSet<char> _playerGuessedLetters => _stateTracker?.PlayerGuessedLetters ?? new HashSet<char>();
+        private HashSet<Vector2Int> _playerGuessedCoordinates => _stateTracker?.PlayerGuessedCoordinates ?? new HashSet<Vector2Int>();
+        private HashSet<int> _playerSolvedWordRows => _stateTracker?.PlayerSolvedWordRows ?? new HashSet<int>();
+
+        private int _opponentMisses => _stateTracker?.OpponentMisses ?? 0;
+        private int _opponentMissLimit => _stateTracker?.OpponentMissLimit ?? 0;
+        private HashSet<char> _opponentKnownLetters => _stateTracker?.OpponentKnownLetters ?? new HashSet<char>();
+        private HashSet<char> _opponentGuessedLetters => _stateTracker?.OpponentGuessedLetters ?? new HashSet<char>();
+        private HashSet<Vector2Int> _opponentGuessedCoordinates => _stateTracker?.OpponentGuessedCoordinates ?? new HashSet<Vector2Int>();
+        private HashSet<int> _opponentSolvedWordRows => _stateTracker?.OpponentSolvedWordRows ?? new HashSet<int>();
 
         #endregion
 
@@ -535,9 +548,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
             _opponentSetupData = null;
             _playerGuessProcessor = null;
             _opponentGuessProcessor = null;
+            _stateTracker = null;
+            _winChecker = null;
             _executionerAI = null;
             _aiInitialized = false;
-            _gameOver = false;
         }
 
         #endregion
@@ -599,14 +613,67 @@ namespace TecVooDoo.DontLoseYourHead.UI
         }
 
         /// <summary>
+        /// Gets AI grid size and word count based on player's difficulty setting.
+        /// Adds variety while scaling appropriately with difficulty.
+        /// </summary>
+        /// <param name="playerDifficulty">The difficulty level chosen by the player</param>
+        /// <returns>Tuple of (gridSize, wordCount)</returns>
+        private (int gridSize, int wordCount) GetAISettingsForPlayerDifficulty(DifficultySetting playerDifficulty)
+        {
+            int gridSize;
+            int wordCount;
+
+            switch (playerDifficulty)
+            {
+                case DifficultySetting.Easy:
+                    // Player is on Easy = AI should be easier to beat
+                    // Smaller grids (6-8), more words (4) = easier to find AI's words
+                    int[] easyGrids = { 6, 7, 8 };
+                    gridSize = easyGrids[UnityEngine.Random.Range(0, easyGrids.Length)];
+                    wordCount = 4;
+                    Debug.Log($"[GameplayUI] AI Settings (Player Easy): {gridSize}x{gridSize} grid, {wordCount} words");
+                    break;
+
+                case DifficultySetting.Normal:
+                    // Player is on Normal = balanced challenge
+                    // Medium grids (8-10), random word count (3-4)
+                    int[] normalGrids = { 8, 9, 10 };
+                    gridSize = normalGrids[UnityEngine.Random.Range(0, normalGrids.Length)];
+                    wordCount = UnityEngine.Random.Range(0, 2) == 0 ? 3 : 4;
+                    Debug.Log($"[GameplayUI] AI Settings (Player Normal): {gridSize}x{gridSize} grid, {wordCount} words");
+                    break;
+
+                case DifficultySetting.Hard:
+                    // Player is on Hard = AI should be harder to beat
+                    // Larger grids (10-12), fewer words (3) = harder to find AI's words
+                    int[] hardGrids = { 10, 11, 12 };
+                    gridSize = hardGrids[UnityEngine.Random.Range(0, hardGrids.Length)];
+                    wordCount = 3;
+                    Debug.Log($"[GameplayUI] AI Settings (Player Hard): {gridSize}x{gridSize} grid, {wordCount} words");
+                    break;
+
+                default:
+                    // Fallback to medium settings
+                    gridSize = 8;
+                    wordCount = 3;
+                    Debug.LogWarning($"[GameplayUI] Unknown difficulty {playerDifficulty}, using default 8x8/3 words");
+                    break;
+            }
+
+            return (gridSize, wordCount);
+        }
+
+        /// <summary>
         /// Generate opponent data using AISetupManager for intelligent word selection and placement.
+        /// AI settings vary based on player difficulty for variety and appropriate challenge.
         /// </summary>
         private void GenerateOpponentData()
         {
-            // Match opponent settings to player settings (symmetric setup)
-            int gridSize = _playerSetupData.GridSize;
-            int wordCount = _playerSetupData.WordCount;
-            int[] wordLengths = _playerSetupData.WordLengths;
+            // Get AI settings based on player's chosen difficulty
+            var (gridSize, wordCount) = GetAISettingsForPlayerDifficulty(_playerSetupData.DifficultyLevel);
+
+            int[] wordLengths = DifficultyCalculator.GetWordLengths(
+                wordCount == 3 ? WordCountOption.Three : WordCountOption.Four);
 
             // Create AI setup manager
             AISetupManager setupManager = new AISetupManager(gridSize, wordCount, wordLengths);
@@ -629,40 +696,54 @@ namespace TecVooDoo.DontLoseYourHead.UI
             }
 
             // Create opponent setup data from AI results
+            // Invert difficulty: Player Easy = Opponent Hard, Player Hard = Opponent Easy
+            DifficultySetting opponentDifficulty = GetInverseDifficulty(_playerSetupData.DifficultyLevel);
+
             _opponentSetupData = new SetupData
             {
                 PlayerName = "Executioner",
                 PlayerColor = new Color(0.6f, 0.2f, 0.2f, 1f), // Dark red
                 GridSize = gridSize,
                 WordCount = wordCount,
-                DifficultyLevel = _playerSetupData.DifficultyLevel,
+                DifficultyLevel = opponentDifficulty,
                 WordLengths = wordLengths,
                 PlacedWords = setupManager.Placements
             };
 
             Debug.Log(setupManager.GetDebugSummary());
+            Debug.Log($"[GameplayUI] Player difficulty: {_playerSetupData.DifficultyLevel}, Opponent difficulty: {opponentDifficulty}");
         }
 
         /// <summary>
         /// Fallback opponent data generation if AI setup fails.
+        /// Uses dynamic AI settings based on player difficulty.
         /// </summary>
         private void GenerateOpponentDataFallback()
         {
+            // Invert difficulty for opponent
+            DifficultySetting opponentDifficulty = GetInverseDifficulty(_playerSetupData.DifficultyLevel);
+
+            // Get AI settings based on player's chosen difficulty
+            var (gridSize, wordCount) = GetAISettingsForPlayerDifficulty(_playerSetupData.DifficultyLevel);
+
+            int[] wordLengths = DifficultyCalculator.GetWordLengths(
+                wordCount == 3 ? WordCountOption.Three : WordCountOption.Four);
+
             _opponentSetupData = new SetupData
             {
                 PlayerName = "Executioner",
                 PlayerColor = new Color(0.6f, 0.2f, 0.2f, 1f),
-                GridSize = _playerSetupData.GridSize,
-                WordCount = _playerSetupData.WordCount,
-                DifficultyLevel = _playerSetupData.DifficultyLevel,
-                WordLengths = _playerSetupData.WordLengths
+                GridSize = gridSize,
+                WordCount = wordCount,
+                DifficultyLevel = opponentDifficulty,
+                WordLengths = wordLengths
             };
 
             // Simple fallback words
             string[] fallbackWords = { "CAT", "ROAD", "SNORE", "BRIDGE" };
-            int wordCount = Mathf.Min(_playerSetupData.WordCount, fallbackWords.Length);
+            int fallbackWordCount = Mathf.Min(wordCount, fallbackWords.Length);
 
-            for (int i = 0; i < wordCount; i++)
+            for (int i = 0; i < fallbackWordCount; i++)
             {
                 WordPlacementData fallbackWord = new WordPlacementData
                 {
@@ -679,9 +760,26 @@ namespace TecVooDoo.DontLoseYourHead.UI
             Debug.LogWarning("[GameplayUI] Using fallback opponent data!");
         }
 
+        /// <summary>
+        /// Get the inverse difficulty setting (Easy <-> Hard, Normal stays Normal)
+        /// </summary>
+        private DifficultySetting GetInverseDifficulty(DifficultySetting playerDifficulty)
+        {
+            switch (playerDifficulty)
+            {
+                case DifficultySetting.Easy:
+                    return DifficultySetting.Hard;
+                case DifficultySetting.Hard:
+                    return DifficultySetting.Easy;
+                default:
+                    return DifficultySetting.Normal;
+            }
+        }
+
         #endregion
 
         #region Panel Configuration
+
 
         private void ConfigureOwnerPanel()
         {
@@ -837,6 +935,13 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 return;
             }
 
+            // Route letter input to word guess mode if active
+            if (_wordGuessModeController != null && _wordGuessModeController.IsInKeyboardMode)
+            {
+                _wordGuessModeController.HandleKeyboardLetterInput(letter);
+                return;
+            }
+
             letter = char.ToUpper(letter);
             GuessResult result = ProcessPlayerLetterGuess(letter);
 
@@ -894,6 +999,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
             if (_executionerAI != null)
             {
                 _executionerAI.RecordPlayerGuess(result == GuessResult.Hit);
+            }
+
+            // Check if any words are now fully revealed via coordinate guessing
+            if (result == GuessResult.Hit)
+            {
+                CheckAndMarkFullyRevealedWords();
             }
 
             // Check win condition after coordinate guess
@@ -1248,6 +1359,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 state.WordsSolved.Add(_opponentSolvedWordRows.Contains(word.RowIndex));
             }
 
+            // Copy previously guessed words so AI doesn't repeat them
+            state.GuessedWords = new HashSet<string>(_stateTracker.OpponentGuessedWords);
+
             return state;
         }
 
@@ -1285,15 +1399,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             GuessResult result = ProcessOpponentLetterGuess(letter);
 
+            // Record revealed letter for AI memory (ProcessOpponentLetterGuess handles state tracker)
             if (result == GuessResult.Hit)
             {
-                _opponentKnownLetters.Add(letter);
                 _executionerAI?.RecordRevealedLetter(letter);
-            }
-
-            if (result != GuessResult.AlreadyGuessed)
-            {
-                _opponentGuessedLetters.Add(letter);
             }
 
             // Check opponent win condition
@@ -1315,12 +1424,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             GuessResult result = ProcessOpponentCoordinateGuess(col, row);
 
-            Vector2Int coord = new Vector2Int(col, row);
-            if (result != GuessResult.AlreadyGuessed)
-            {
-                _opponentGuessedCoordinates.Add(coord);
-            }
-
+            // Record hit for AI memory (ProcessOpponentCoordinateGuess handles state tracker)
             if (result == GuessResult.Hit)
             {
                 _executionerAI?.RecordAIHit(row, col);
@@ -1343,20 +1447,18 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             GuessResult result = ProcessOpponentWordGuess(word, rowIndex);
 
+            // Record revealed letters for AI memory (ProcessOpponentWordGuess handles state tracker)
             if (result == GuessResult.Hit)
             {
-                _opponentSolvedWordRows.Add(rowIndex);
-                // Record all letters in the word
                 foreach (char letter in word.ToUpper())
                 {
-                    _opponentKnownLetters.Add(letter);
                     _executionerAI?.RecordRevealedLetter(letter);
                 }
             }
 
             if (result != GuessResult.AlreadyGuessed && result != GuessResult.InvalidWord)
             {
-                _opponentGuessedWords.Add(word.ToUpper());
+                _stateTracker.AddOpponentGuessedWord(word);
             }
 
             // Check opponent win condition
@@ -1378,34 +1480,19 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// </summary>
         private void CheckAndMarkFullyRevealedWords()
         {
-            if (_opponentPanel == null || _opponentSetupData == null) return;
+            if (_opponentPanel == null || _opponentSetupData == null || _winChecker == null) return;
 
             WordPatternRow[] rows = _opponentPanel.GetWordPatternRows();
+            List<int> newlyRevealed = _winChecker.FindNewlyRevealedWordRows(_opponentSetupData.PlacedWords);
 
-            for (int i = 0; i < _opponentSetupData.PlacedWords.Count && i < rows.Length; i++)
+            foreach (int rowIndex in newlyRevealed)
             {
-                WordPlacementData wordData = _opponentSetupData.PlacedWords[i];
-                WordPatternRow row = rows[i];
-
-                // Skip if already solved
-                if (_playerSolvedWordRows.Contains(i)) continue;
-
-                // Check if all letters in this word are known
-                bool allLettersKnown = true;
-                foreach (char letter in wordData.Word)
+                if (rowIndex < rows.Length && rows[rowIndex] != null)
                 {
-                    if (!_playerKnownLetters.Contains(char.ToUpper(letter)))
-                    {
-                        allLettersKnown = false;
-                        break;
-                    }
-                }
-
-                if (allLettersKnown)
-                {
-                    Debug.Log(string.Format("[GameplayUI] Word row {0} fully revealed via letters: {1}", i + 1, wordData.Word));
-                    row.MarkWordSolved();
-                    _playerSolvedWordRows.Add(i);
+                    Debug.Log(string.Format("[GameplayUI] Word row {0} fully revealed via letters: {1}",
+                        rowIndex + 1, _opponentSetupData.PlacedWords[rowIndex].Word));
+                    rows[rowIndex].MarkWordSolved();
+                    _stateTracker.AddPlayerSolvedRow(rowIndex);
                 }
             }
         }
@@ -1415,45 +1502,15 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// </summary>
         private void CheckPlayerWinCondition()
         {
-            if (_gameOver || _opponentSetupData == null) return;
+            if (_winChecker == null || _opponentSetupData == null) return;
 
-            bool allLettersRevealed = true;
-            bool allPositionsRevealed = true;
-
-            foreach (WordPlacementData wordData in _opponentSetupData.PlacedWords)
+            if (_winChecker.CheckPlayerWinCondition(_opponentSetupData.PlacedWords))
             {
-                // Check all letters in this word are known
-                foreach (char letter in wordData.Word)
-                {
-                    if (!_playerKnownLetters.Contains(char.ToUpper(letter)))
-                    {
-                        allLettersRevealed = false;
-                        break;
-                    }
-                }
-
-                if (!allLettersRevealed) break;
-
-                // Check all positions for this word are guessed
-                for (int i = 0; i < wordData.Word.Length; i++)
-                {
-                    int col = wordData.StartCol + (i * wordData.DirCol);
-                    int row = wordData.StartRow + (i * wordData.DirRow);
-                    Vector2Int coord = new Vector2Int(col, row);
-
-                    if (!_playerGuessedCoordinates.Contains(coord))
-                    {
-                        allPositionsRevealed = false;
-                        break;
-                    }
-                }
-
-                if (!allPositionsRevealed) break;
+                _gameOver = true;
+                UpdateTurnIndicator();
             }
-
-            if (allLettersRevealed && allPositionsRevealed)
+            else if (_winChecker.CheckPlayerLoseCondition())
             {
-                Debug.Log("[GameplayUI] === PLAYER WINS! All words and positions revealed! ===");
                 _gameOver = true;
                 UpdateTurnIndicator();
             }
@@ -1464,45 +1521,15 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// </summary>
         private void CheckOpponentWinCondition()
         {
-            if (_gameOver || _playerSetupData == null) return;
+            if (_winChecker == null || _playerSetupData == null) return;
 
-            bool allLettersRevealed = true;
-            bool allPositionsRevealed = true;
-
-            foreach (WordPlacementData wordData in _playerSetupData.PlacedWords)
+            if (_winChecker.CheckOpponentWinCondition(_playerSetupData.PlacedWords))
             {
-                // Check all letters in this word are known by opponent
-                foreach (char letter in wordData.Word)
-                {
-                    if (!_opponentKnownLetters.Contains(char.ToUpper(letter)))
-                    {
-                        allLettersRevealed = false;
-                        break;
-                    }
-                }
-
-                if (!allLettersRevealed) break;
-
-                // Check all positions for this word are guessed by opponent
-                for (int i = 0; i < wordData.Word.Length; i++)
-                {
-                    int col = wordData.StartCol + (i * wordData.DirCol);
-                    int row = wordData.StartRow + (i * wordData.DirRow);
-                    Vector2Int coord = new Vector2Int(col, row);
-
-                    if (!_opponentGuessedCoordinates.Contains(coord))
-                    {
-                        allPositionsRevealed = false;
-                        break;
-                    }
-                }
-
-                if (!allPositionsRevealed) break;
+                _gameOver = true;
+                UpdateTurnIndicator();
             }
-
-            if (allLettersRevealed && allPositionsRevealed)
+            else if (_winChecker.CheckOpponentLoseCondition())
             {
-                Debug.Log("[GameplayUI] === OPPONENT WINS! All words and positions revealed! ===");
                 _gameOver = true;
                 UpdateTurnIndicator();
             }
@@ -1514,14 +1541,14 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         private void UpdateMissCounters()
         {
-            if (_player1MissCounter != null && _opponentSetupData != null)
+            if (_player1MissCounter != null && _stateTracker != null)
             {
-                _player1MissCounter.text = string.Format("{0} / {1}", _playerMisses, _playerMissLimit);
+                _player1MissCounter.text = _stateTracker.GetPlayerMissCounterText();
             }
 
-            if (_player2MissCounter != null && _playerSetupData != null)
+            if (_player2MissCounter != null && _stateTracker != null)
             {
-                _player2MissCounter.text = string.Format("{0} / {1}", _opponentMisses, _opponentMissLimit);
+                _player2MissCounter.text = _stateTracker.GetOpponentMissCounterText();
             }
         }
 
@@ -1546,79 +1573,60 @@ namespace TecVooDoo.DontLoseYourHead.UI
             {
                 _player2ColorIndicator.color = _opponentSetupData.PlayerColor;
             }
+
+            // Apply player colors to miss counter labels and guessed word list labels
+            ApplyPlayerColorsToLabels();
+        }
+
+        /// <summary>
+        /// Sets the background Image color of miss counter labels and guessed word list labels
+        /// to match each player's chosen color.
+        /// </summary>
+        private void ApplyPlayerColorsToLabels()
+        {
+            // Player 1 label backgrounds
+            if (_playerSetupData != null)
+            {
+                Color player1Color = _playerSetupData.PlayerColor;
+
+                if (_player1MissLabelBackground != null)
+                    _player1MissLabelBackground.color = player1Color;
+
+                if (_player1GuessedWordsLabelBackground != null)
+                    _player1GuessedWordsLabelBackground.color = player1Color;
+            }
+
+            // Player 2 (opponent) label backgrounds
+            if (_opponentSetupData != null)
+            {
+                Color player2Color = _opponentSetupData.PlayerColor;
+
+                if (_player2MissLabelBackground != null)
+                    _player2MissLabelBackground.color = player2Color;
+
+                if (_player2GuessedWordsLabelBackground != null)
+                    _player2GuessedWordsLabelBackground.color = player2Color;
+            }
         }
 
         private void UpdatePlayerMissCounter()
         {
-            if (_player1MissCounter != null)
+            if (_player1MissCounter != null && _stateTracker != null)
             {
-                _player1MissCounter.text = string.Format("{0} / {1}", _playerMisses, _playerMissLimit);
+                _player1MissCounter.text = _stateTracker.GetPlayerMissCounterText();
             }
 
-
-            if (_playerMisses >= _playerMissLimit)
-            {
-                Debug.Log("[GameplayUI] === PLAYER LOSES! Opponent wins! ===");
-                _gameOver = true;
-                UpdateTurnIndicator();
-            }
+            // Win/lose checking delegated to WinConditionChecker via CheckPlayerWinCondition
         }
 
         private void UpdateOpponentMissCounter()
         {
-            if (_player2MissCounter != null)
+            if (_player2MissCounter != null && _stateTracker != null)
             {
-                _player2MissCounter.text = string.Format("{0} / {1}", _opponentMisses, _opponentMissLimit);
+                _player2MissCounter.text = _stateTracker.GetOpponentMissCounterText();
             }
 
-
-            if (_opponentMisses >= _opponentMissLimit)
-            {
-                Debug.Log("[GameplayUI] === OPPONENT LOSES! Player wins! ===");
-                _gameOver = true;
-                UpdateTurnIndicator();
-            }
-        }
-
-        private int CalculateMissLimit(DifficultySetting playerDifficulty, SetupData opponentData)
-        {
-            if (opponentData == null)
-                return 21;
-
-            int baseMisses = 15;
-            int gridBonus = GetGridBonus(opponentData.GridSize);
-            int wordModifier = opponentData.WordCount == 4 ? -2 : 0;
-            int difficultyModifier = GetDifficultyModifier(playerDifficulty);
-
-            int missLimit = baseMisses + gridBonus + wordModifier + difficultyModifier;
-
-            return missLimit;
-        }
-
-        private int GetGridBonus(int gridSize)
-        {
-            switch (gridSize)
-            {
-                case 6: return 3;
-                case 7: return 4;
-                case 8: return 6;
-                case 9: return 8;
-                case 10: return 10;
-                case 11: return 12;
-                case 12: return 13;
-                default: return 6;
-            }
-        }
-
-        private int GetDifficultyModifier(DifficultySetting difficulty)
-        {
-            switch (difficulty)
-            {
-                case DifficultySetting.Easy: return 4;
-                case DifficultySetting.Normal: return 0;
-                case DifficultySetting.Hard: return -4;
-                default: return 0;
-            }
+            // Win/lose checking delegated to WinConditionChecker via CheckOpponentWinCondition
         }
 
         #endregion
@@ -1627,16 +1635,16 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         private void InitializePlayerState()
         {
-            _playerMisses = 0;
-            _playerKnownLetters.Clear();
-            _playerGuessedLetters.Clear();
-            _playerGuessedCoordinates.Clear();
-            _playerGuessedWords.Clear();
-            _playerSolvedWordRows.Clear();
-            _playerMissLimit = CalculateMissLimit(_playerSetupData.DifficultyLevel, _opponentSetupData);
-            _isPlayerTurn = true;
-            _gameOver = false;
+            // Create state tracker and win condition checker
+            _stateTracker = new GameplayStateTracker();
+            _winChecker = new WinConditionChecker(_stateTracker);
 
+            // Calculate miss limit and initialize player state
+            int missLimit = GameplayStateTracker.CalculateMissLimit(
+                _playerSetupData.DifficultyLevel,
+                _opponentSetupData.GridSize,
+                _opponentSetupData.WordCount);
+            _stateTracker.InitializePlayerState(missLimit);
         }
 
         #endregion
@@ -1658,12 +1666,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 }),
                 _opponentPanel,
                 "Player",
-                (amount) => { _playerMisses += amount; UpdatePlayerMissCounter(); },
+                (amount) => { _stateTracker.AddPlayerMisses(amount); UpdatePlayerMissCounter(); },
                 (letter, state) => _opponentPanel.SetLetterState(letter, state),
                 word => IsValidWord(word),
                 (word, correct) => _player1GuessedWordList?.AddGuessedWord(word, correct)
             );
-            _playerGuessProcessor.Initialize(_playerMissLimit);
+            _playerGuessProcessor.Initialize(_stateTracker.PlayerMissLimit);
 
             // Create opponent's processor (guesses against player's data)
             _opponentGuessProcessor = new GuessProcessor(
@@ -1678,12 +1686,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 }),
                 _ownerPanel,
                 "Opponent",
-                (amount) => { _opponentMisses += amount; UpdateOpponentMissCounter(); },
+                (amount) => { _stateTracker.AddOpponentMisses(amount); UpdateOpponentMissCounter(); },
                 (letter, state) => _ownerPanel.SetLetterState(letter, state),
                 word => IsValidWord(word),
                 (word, correct) => _player2GuessedWordList?.AddGuessedWord(word, correct)
             );
-            _opponentGuessProcessor.Initialize(_opponentMissLimit);
+            _opponentGuessProcessor.Initialize(_stateTracker.OpponentMissLimit);
         }
 
         /// <summary>
@@ -1715,9 +1723,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             if (result == GuessProcessor.GuessResult.Hit)
             {
-                _playerKnownLetters.Add(letter);
+                _stateTracker.AddPlayerKnownLetter(letter);
             }
-            _playerGuessedLetters.Add(letter);
+            _stateTracker.AddPlayerGuessedLetter(letter);
 
             return ConvertGuessResult(result);
         }
@@ -1729,22 +1737,38 @@ namespace TecVooDoo.DontLoseYourHead.UI
         {
             GuessProcessor.GuessResult result = _playerGuessProcessor.ProcessCoordinateGuess(col, row);
 
-            _playerGuessedCoordinates.Add(new Vector2Int(col, row));
+            _stateTracker.AddPlayerGuessedCoordinate(col, row);
 
             return ConvertGuessResult(result);
         }
 
         /// <summary>
-        /// Process player guessing a complete word
+        /// Process player guessing a complete word.
+        /// NOTE: Correct word guess reveals LETTERS but NOT grid positions.
+        /// Grid positions must be guessed via coordinate guessing for win condition.
         /// </summary>
         private GuessResult ProcessPlayerWordGuess(string word, int rowIndex)
         {
             GuessProcessor.GuessResult result = _playerGuessProcessor.ProcessWordGuess(word, rowIndex);
 
-            // Track solved rows locally for UI button management
+            // Track solved rows via state tracker for UI button management
             if (result == GuessProcessor.GuessResult.Hit)
             {
-                _playerSolvedWordRows.Add(rowIndex);
+                _stateTracker.AddPlayerSolvedRow(rowIndex);
+
+                // When a word is correctly guessed, add all its letters as known
+                // NOTE: Do NOT add coordinates - those must be guessed via coordinate guessing
+                if (rowIndex < _opponentSetupData.PlacedWords.Count)
+                {
+                    WordPlacementData wordData = _opponentSetupData.PlacedWords[rowIndex];
+
+                    // Add all letters as known
+                    foreach (char c in wordData.Word.ToUpper())
+                    {
+                        _stateTracker.AddPlayerKnownLetter(c);
+                        _stateTracker.AddPlayerGuessedLetter(c);
+                    }
+                }
             }
 
             return ConvertGuessResult(result);
@@ -1786,14 +1810,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         private void InitializeOpponentState()
         {
-            _opponentMisses = 0;
-            _opponentKnownLetters.Clear();
-            _opponentGuessedLetters.Clear();
-            _opponentGuessedCoordinates.Clear();
-            _opponentGuessedWords.Clear();
-            _opponentSolvedWordRows.Clear();
-            _opponentMissLimit = CalculateMissLimit(_opponentSetupData.DifficultyLevel, _playerSetupData);
-
+            // Calculate miss limit and initialize opponent state
+            int missLimit = GameplayStateTracker.CalculateMissLimit(
+                _opponentSetupData.DifficultyLevel,
+                _playerSetupData.GridSize,
+                _playerSetupData.WordCount);
+            _stateTracker.InitializeOpponentState(missLimit);
         }
 
         /// <summary>
@@ -1802,6 +1824,13 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private GuessResult ProcessOpponentLetterGuess(char letter)
         {
             GuessProcessor.GuessResult result = _opponentGuessProcessor.ProcessLetterGuess(letter);
+
+            if (result == GuessProcessor.GuessResult.Hit)
+            {
+                _stateTracker.AddOpponentKnownLetter(letter);
+            }
+            _stateTracker.AddOpponentGuessedLetter(letter);
+
             return ConvertGuessResult(result);
         }
 
@@ -1811,15 +1840,41 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private GuessResult ProcessOpponentCoordinateGuess(int col, int row)
         {
             GuessProcessor.GuessResult result = _opponentGuessProcessor.ProcessCoordinateGuess(col, row);
+
+            _stateTracker.AddOpponentGuessedCoordinate(col, row);
+
             return ConvertGuessResult(result);
         }
 
         /// <summary>
-        /// Process opponent guessing a complete word
+        /// Process opponent guessing a complete word.
+        /// NOTE: Correct word guess reveals LETTERS but NOT grid positions.
+        /// Grid positions must be guessed via coordinate guessing for win condition.
         /// </summary>
         private GuessResult ProcessOpponentWordGuess(string word, int rowIndex)
         {
             GuessProcessor.GuessResult result = _opponentGuessProcessor.ProcessWordGuess(word, rowIndex);
+
+            // Track solved rows and update known letters for win condition
+            if (result == GuessProcessor.GuessResult.Hit)
+            {
+                _stateTracker.AddOpponentSolvedRow(rowIndex);
+
+                // When a word is correctly guessed, add all its letters as known
+                // NOTE: Do NOT add coordinates - those must be guessed via coordinate guessing
+                if (rowIndex < _playerSetupData.PlacedWords.Count)
+                {
+                    WordPlacementData wordData = _playerSetupData.PlacedWords[rowIndex];
+
+                    // Add all letters as known
+                    foreach (char c in wordData.Word.ToUpper())
+                    {
+                        _stateTracker.AddOpponentKnownLetter(c);
+                        _stateTracker.AddOpponentGuessedLetter(c);
+                    }
+                }
+            }
+
             return ConvertGuessResult(result);
         }
 

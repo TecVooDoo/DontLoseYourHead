@@ -152,6 +152,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
                 case WordGuessResult.AlreadyGuessed:
                     OnFeedbackRequested?.Invoke("Already guessed that word!");
+                    // Still need to show buttons since we exited guess mode
+                    ShowAllGuessWordButtons();
                     return;
 
                 case WordGuessResult.Hit:

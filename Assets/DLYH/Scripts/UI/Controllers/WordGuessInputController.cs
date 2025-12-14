@@ -117,6 +117,11 @@ namespace TecVooDoo.DontLoseYourHead.UI.Controllers
         {
             if (!_isActive) return;
 
+            // IMPORTANT: Set _isActive = false BEFORE firing events
+            // This ensures InWordGuessMode returns false when ShowAllGuessWordButtons()
+            // is called from the event handler chain
+            _isActive = false;
+
             if (submit)
             {
                 string guessedWord = GetFullGuessWord();
@@ -127,7 +132,6 @@ namespace TecVooDoo.DontLoseYourHead.UI.Controllers
                 OnGuessCancelled?.Invoke();
             }
 
-            _isActive = false;
             ClearGuessedLetters();
             _cursorPosition = 0;
 
