@@ -94,17 +94,32 @@ namespace TecVooDoo.DontLoseYourHead.UI.Controllers
         /// </summary>
         public bool Enter()
         {
-            if (_isActive) return false;
-            if (_guessedLetters == null || _guessedLetters.Length == 0) return false;
+            // Check if we can enter (need valid word length)
+            string currentWord = _getCurrentWord();
+            if (string.IsNullOrEmpty(currentWord)) return false;
 
-            _isActive = true;
+            // Ensure guessed letters array matches current word length
+            // This handles cases where the row's word changed or we're re-entering
+            if (_guessedLetters == null || _guessedLetters.Length != currentWord.Length)
+            {
+                _guessedLetters = new char[currentWord.Length];
+                _wordLength = currentWord.Length;
+            }
+
+            // Always clear guessed letters when entering (even if re-entering after invalid word)
             ClearGuessedLetters();
-
-            // Find first unrevealed position for cursor
             _cursorPosition = FindNextUnrevealedPosition(-1);
 
+            // Only fire events if not already active (avoid double-firing)
+            bool wasActive = _isActive;
+            _isActive = true;
+
             OnDisplayUpdateNeeded?.Invoke();
-            OnGuessStarted?.Invoke();
+
+            if (!wasActive)
+            {
+                OnGuessStarted?.Invoke();
+            }
 
             return true;
         }

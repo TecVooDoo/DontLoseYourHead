@@ -126,7 +126,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
         public event Action<int> OnCoordinateModeRequested;
         public event Action<int, string, List<Vector2Int>> OnWordPlaced;
         public event Action OnPlacementCancelled;
-        public event Action<string, int> OnInvalidWordRejected;
         public event Action<char> OnLetterInput;
         public event Action OnWordLengthsChanged;
         #endregion
@@ -401,6 +400,22 @@ namespace TecVooDoo.DontLoseYourHead.UI
                     bgImage.color = _playerColor;
                 }
             }
+        }
+
+        /// <summary>
+        /// Sets the hit color for grid cells and letter tracker buttons.
+        /// This is the color shown when the guesser makes correct guesses on this panel.
+        /// Should be called with the guesser's color (not the panel owner's color).
+        /// </summary>
+        public void SetGuesserHitColor(Color color)
+        {
+            // Set hit color on all grid cells
+            _gridCellManager?.SetHitColor(color);
+
+            // Set hit color on all letter tracker buttons
+            _letterTrackerController?.SetHitColor(color);
+
+            Debug.Log($"[PlayerGridPanel] Set guesser hit color to: {color}");
         }
         #endregion
 

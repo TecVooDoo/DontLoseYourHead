@@ -133,6 +133,24 @@ namespace TecVooDoo.DontLoseYourHead.UI
             }
             return count;
         }
+
+        /// <summary>
+        /// Sets the hit color for all grid cells.
+        /// Called during panel setup to apply the guesser's chosen color.
+        /// </summary>
+        public void SetHitColor(Color color)
+        {
+            for (int col = 0; col < MAX_GRID_SIZE; col++)
+            {
+                for (int row = 0; row < MAX_GRID_SIZE; row++)
+                {
+                    if (_cells[col, row] != null)
+                    {
+                        _cells[col, row].SetHitColor(color);
+                    }
+                }
+            }
+        }
         #endregion
     }
 }

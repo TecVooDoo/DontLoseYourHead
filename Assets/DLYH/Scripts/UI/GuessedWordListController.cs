@@ -80,6 +80,15 @@ namespace TecVooDoo.DontLoseYourHead.UI
         public int WordCount => _guessedWords.Count;
 
         /// <summary>
+        /// Sets the hit color used for correctly guessed words.
+        /// Called during panel setup to apply the player's chosen color.
+        /// </summary>
+        public void SetHitColor(Color color)
+        {
+            _hitColor = color;
+        }
+
+        /// <summary>
         /// Sorts the word list and rebuilds the UI.
         /// </summary>
         private void SortAndRefreshDisplay()

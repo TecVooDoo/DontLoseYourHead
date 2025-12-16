@@ -12,18 +12,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: eed0dc1d2b0bd9549a9780ce6b614b84, type: 3}
   m_Name: ExecutionerConfig
   m_EditorClassIdentifier: Assembly-CSharp::DLYH.AI.Config.ExecutionerConfigSO
-  _minSkillLevel: 0.15
-  _maxSkillLevel: 0.95
-  _skillAdjustmentStep: 0.15
-  _easyStartSkill: 0.25
-  _normalStartSkill: 0.5
-  _hardStartSkill: 0.75
-  _easyHitsToIncrease: 5
-  _easyMissesToDecrease: 2
-  _normalHitsToIncrease: 3
-  _normalMissesToDecrease: 3
+  _minSkillLevel: 0.3
+  _maxSkillLevel: 1
+  _skillAdjustmentStep: 0.1
+  _easyStartSkill: 0.3
+  _normalStartSkill: 0.6
+  _hardStartSkill: 0.9
+  _easyHitsToIncrease: 3
+  _easyMissesToDecrease: 4
+  _normalHitsToIncrease: 4
+  _normalMissesToDecrease: 5
   _hardHitsToIncrease: 2
-  _hardMissesToDecrease: 5
+  _hardMissesToDecrease: 6
   _consecutiveAdjustmentsToAdapt: 2
   _minHitsToIncrease: 1
   _maxHitsToIncrease: 7

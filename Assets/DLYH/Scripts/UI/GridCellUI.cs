@@ -27,7 +27,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private int _column;
         private int _row;
         private CellState _currentState = CellState.Empty;
-        private bool _isHovered;
         private bool _isHighlighted;
         private Color _highlightColor;
         private char _currentLetter;
@@ -165,6 +164,15 @@ namespace TecVooDoo.DontLoseYourHead.UI
             UpdateVisuals();
         }
 
+        /// <summary>
+        /// Sets the hit color used when marking cells as guessed hits.
+        /// Called during panel setup to apply the player's chosen color.
+        /// </summary>
+        public void SetHitColor(Color color)
+        {
+            _hitColor = color;
+        }
+
         private void UpdateVisuals()
         {
             if (_background == null) return;
@@ -300,18 +308,19 @@ namespace TecVooDoo.DontLoseYourHead.UI
         #region Event Handlers
         private void HandleClick()
         {
+            // Play grid cell click sound
+            DLYH.Audio.UIAudioManager.GridCellClick();
+
             OnCellClicked?.Invoke(_column, _row);
         }
 
         public void OnPointerEnter(PointerEventData eventData)
         {
-            _isHovered = true;
             OnCellHoverEnter?.Invoke(_column, _row);
         }
 
         public void OnPointerExit(PointerEventData eventData)
         {
-            _isHovered = false;
             OnCellHoverExit?.Invoke(_column, _row);
         }
         #endregion

@@ -402,6 +402,9 @@ private void AutoDetectLetter()
         {
             if (!_isInteractable) return;
 
+            // Play keyboard click sound
+            DLYH.Audio.UIAudioManager.KeyboardClick();
+
             OnLetterClicked?.Invoke(_letter);
         }
 

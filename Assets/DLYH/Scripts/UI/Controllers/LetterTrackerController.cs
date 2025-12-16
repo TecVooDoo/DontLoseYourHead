@@ -136,6 +136,18 @@ namespace TecVooDoo.DontLoseYourHead.UI
         }
 
         /// <summary>
+        /// Sets the hit color for all letter buttons.
+        /// Called during panel setup to apply the guesser's chosen color.
+        /// </summary>
+        public void SetHitColor(Color color)
+        {
+            foreach (var button in _letterButtons.Values)
+            {
+                button.SetHitColor(color);
+            }
+        }
+
+        /// <summary>
         /// Checks if buttons have been cached.
         /// </summary>
         public bool IsCached => _isCached;

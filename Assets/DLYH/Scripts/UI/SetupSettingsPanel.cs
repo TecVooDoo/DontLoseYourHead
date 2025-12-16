@@ -54,6 +54,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
         [SerializeField]
         private Button _startGameButton;
 
+        [SerializeField]
+        private Button _mainMenuButton;
+
+
         [TitleGroup("Player Grid Reference")]
         [SerializeField, Required]
         private PlayerGridPanel _playerGridPanel;
@@ -76,11 +80,13 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private Color[] _availableColors = new Color[]
         {
             new Color(0.4f, 0.6f, 0.9f, 1f),   // Blue
-            new Color(0.9f, 0.5f, 0.7f, 1f),   // Pink
             new Color(0.5f, 0.8f, 0.5f, 1f),   // Green
             new Color(0.9f, 0.7f, 0.4f, 1f),   // Orange
             new Color(0.7f, 0.5f, 0.9f, 1f),   // Purple
-            new Color(0.4f, 0.8f, 0.8f, 1f)    // Cyan
+            new Color(0.4f, 0.8f, 0.8f, 1f),   // Cyan
+            new Color(0.9f, 0.5f, 0.7f, 1f),   // Pink
+            new Color(0.7f, 0.9f, 0.4f, 1f),   // Lime (replaces Yellow - system color)
+            new Color(0.6f, 0.4f, 0.3f, 1f)    // Brown
         };
 
         [TitleGroup("Invalid Word Toast Settings")]
@@ -143,6 +149,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         /// <summary>Fired when player name or color changes</summary>
         public event Action<string, Color> OnPlayerSettingsChanged;
+
+        /// <summary>Fired when Main Menu button is clicked</summary>
+        public event Action OnMainMenuRequested;
+
 
         #endregion
 
@@ -356,6 +366,22 @@ public void SetupForPlayer(int playerIndex)
             {
                 _startGameButton.interactable = false;
             }
+
+            // Main Menu Button
+            if (_mainMenuButton != null)
+            {
+                _mainMenuButton.onClick.RemoveAllListeners();
+                _mainMenuButton.onClick.AddListener(OnMainMenuClicked);
+            }
+        }
+
+        /// <summary>
+        /// Called when Main Menu button is clicked
+        /// </summary>
+        private void OnMainMenuClicked()
+        {
+            Debug.Log("[SetupSettingsPanel] Main Menu button clicked");
+            OnMainMenuRequested?.Invoke();
         }
 
         /// <summary>
@@ -609,9 +635,12 @@ public void SetupForPlayer(int playerIndex)
 
         private void ShowInvalidWordToast(string message)
         {
-            // TODO: Implement visual toast notification
-            // Easy Popup System requires ScriptableObject - revisit later
-            Debug.LogWarning($"[INVALID WORD] {message}");
+            // Use the generic MessagePopup system
+            if (MessagePopup.Instance != null)
+            {
+                MessagePopup.Instance.ShowMessage(message, _toastDuration);
+            }
+            Debug.Log($"[SetupSettingsPanel] Invalid word toast: {message}");
         }
 
         /// <summary>

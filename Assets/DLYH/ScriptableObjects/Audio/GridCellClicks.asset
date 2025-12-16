@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb4150d5a8cd59946ba8c7511d6c2362, type: 3}
+  m_Name: GridCellClicks
+  m_EditorClassIdentifier: Assembly-CSharp::DLYH.Audio.SFXClipGroup
+  _clips:
+  - {fileID: 8300000, guid: 4e7ce19b0c9dda1458946554f940d3b8, type: 3}
+  - {fileID: 8300000, guid: 7abccce1359ba0d4a8421bcc212783c5, type: 3}
+  - {fileID: 8300000, guid: e8af9035f5758f44da37af4225a02619, type: 3}
+  - {fileID: 8300000, guid: c230389cdba1a4d47bda71c4d0e2b6f9, type: 3}
+  - {fileID: 8300000, guid: f44b7388dcf5dd14a981e85a3aa5a9f6, type: 3}
+  - {fileID: 8300000, guid: cb231dc76449c8e46989b1203a51c32d, type: 3}
+  _baseVolume: 1
+  _volumeVariation: 0.1
+  _basePitch: 1
+  _pitchVariation: 0.05

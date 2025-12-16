@@ -1,10 +1,10 @@
 # Don't Lose Your Head - Architecture Document
 
-**Version:** 3.1  
-**Date Created:** December 13, 2025  
-**Last Updated:** December 13, 2025  
-**Developer:** TecVooDoo LLC  
-**Total Scripts:** 34 UI + 11 AI = 45 Scripts
+**Version:** 3.2
+**Date Created:** December 13, 2025
+**Last Updated:** December 13, 2025
+**Developer:** TecVooDoo LLC
+**Total Scripts:** 36 UI + 11 AI = 47 Scripts
 
 ---
 
@@ -247,7 +247,7 @@ public enum PlacementState
 
 ---
 
-### GameplayUIController.cs (~1,250 lines)
+### GameplayUIController.cs (~1,700 lines)
 **Namespace:** `TecVooDoo.DontLoseYourHead.UI`  
 **Location:** `Scripts/UI/`  
 **Purpose:** Master controller for gameplay phase. Manages two PlayerGridPanels, guess processing, turn management, win/lose conditions, and AI opponent integration.
@@ -258,6 +258,8 @@ public enum PlacementState
 | SetupSettingsPanel | Reads data from |
 | GuessProcessor (x2) | Creates instances |
 | WordGuessModeController | Creates instance |
+| GameplayStateTracker | Creates instance |
+| WinConditionChecker | Creates instance |
 | WordListSO (x4) | Word validation |
 | GuessedWordListController (x2) | Owns |
 | ExecutionerAI | Reference (AI opponent) |
@@ -850,14 +852,85 @@ public enum GuessResult
 ---
 
 ### WordValidationService.cs (~60 lines)
-**Namespace:** `TecVooDoo.DontLoseYourHead.UI`  
-**Location:** `Scripts/UI/Services/`  
+**Namespace:** `TecVooDoo.DontLoseYourHead.UI`
+**Location:** `Scripts/UI/Services/`
 **Purpose:** Validates words against loaded WordListSO dictionaries.
 
 **Key Methods:**
 ```csharp
 public bool IsValidWord(string word, int length);
 public void LoadWordLists(WordListSO word3, WordListSO word4, ...);
+```
+
+---
+
+### GameplayStateTracker.cs (~300 lines)
+**Namespace:** `TecVooDoo.DontLoseYourHead.UI`
+**Location:** `Scripts/UI/Services/`
+**Purpose:** Tracks gameplay state for both player and opponent. Extracted from GameplayUIController to reduce file size.
+
+**Architecture Pattern:** Plain C# class with state encapsulation.
+
+**Tracked State:**
+- Miss counts and limits (player/opponent)
+- Known letters (HashSet<char>)
+- Guessed letters (HashSet<char>)
+- Guessed coordinates (HashSet<Vector2Int>)
+- Guessed words (HashSet<string>)
+- Solved word rows (HashSet<int>)
+- Turn state (IsPlayerTurn, GameOver)
+
+**Key Methods:**
+
+| Method | Purpose |
+|--------|---------|
+| `InitializePlayerState(missLimit)` | Reset player state for new game |
+| `InitializeOpponentState(missLimit)` | Reset opponent state for new game |
+| `AddPlayerMisses(amount)` | Increment player miss count |
+| `AddOpponentMisses(amount)` | Increment opponent miss count |
+| `HasPlayerExceededMissLimit()` | Check if player lost |
+| `HasOpponentExceededMissLimit()` | Check if opponent lost |
+| `GetPlayerMissCounterText()` | Formatted "X / Y" display |
+| `GetOpponentMissCounterText()` | Formatted "X / Y" display |
+| `CalculateMissLimit(difficulty, gridSize, wordCount)` | Static calculation |
+
+---
+
+### WinConditionChecker.cs (~225 lines)
+**Namespace:** `TecVooDoo.DontLoseYourHead.UI`
+**Location:** `Scripts/UI/Services/`
+**Purpose:** Checks win/lose conditions for gameplay. Extracted from GameplayUIController to reduce file size.
+
+**Architecture Pattern:** Plain C# class with injected GameplayStateTracker dependency.
+
+**Win Condition:**
+- All letters in opponent's words are known AND
+- All grid positions for those words have been guessed
+
+**Lose Condition:**
+- Miss count exceeds miss limit
+
+**Key Methods:**
+
+| Method | Purpose | Returns |
+|--------|---------|---------|
+| `CheckPlayerWinCondition(opponentWords)` | Check if player won | bool |
+| `CheckPlayerLoseCondition()` | Check if player lost | bool |
+| `CheckOpponentWinCondition(playerWords)` | Check if AI won | bool |
+| `CheckOpponentLoseCondition()` | Check if AI lost | bool |
+| `IsWordFullyRevealed(wordData)` | Check if all letters known | bool |
+| `FindNewlyRevealedWordRows(opponentWords)` | Find auto-solved rows | List<int> |
+
+**Usage in GameplayUIController:**
+```csharp
+_stateTracker = new GameplayStateTracker();
+_winChecker = new WinConditionChecker(_stateTracker);
+
+// Check win conditions
+if (_winChecker.CheckPlayerWinCondition(_opponentSetupData.PlacedWords))
+{
+    _gameOver = true;
+}
 ```
 
 ---
@@ -1436,7 +1509,9 @@ Assets/DLYH/Scripts/
     |-- Interfaces/
     |   +-- IGridControllers.cs
     |-- Services/
+    |   |-- GameplayStateTracker.cs
     |   |-- GuessProcessor.cs
+    |   |-- WinConditionChecker.cs
     |   +-- WordValidationService.cs
     +-- Utilities/
         +-- RowDisplayBuilder.cs
@@ -1470,6 +1545,28 @@ First playtest (Stacey vs AI) revealed these issues:
 | Center panel names | Shows "Player 1/Player 2" instead of actual names under guillotines | IN PROGRESS |
 | Miss count for word guesses | Wrong word guess counts 1 miss instead of 2 | IN PROGRESS |
 | Guess Word button auto-hide | Buttons now auto-hide when words fully revealed via letters | FIXED |
+
+---
+
+## Refactoring History
+
+### December 13, 2025 - State Tracker Extraction
+**Target:** GameplayUIController.cs (was ~1,830 lines, now ~1,700 lines)
+
+**Extracted Services:**
+1. **GameplayStateTracker.cs** (~300 lines)
+   - All player/opponent state tracking
+   - Miss counts, known letters, guessed coordinates
+   - Solved word rows
+   - Miss limit calculation
+
+2. **WinConditionChecker.cs** (~225 lines)
+   - Player/opponent win condition checking
+   - Player/opponent lose condition checking
+   - Word reveal detection (for auto-hiding guess buttons)
+
+**Integration Pattern:**
+GameplayUIController now uses property accessors that delegate to `_stateTracker` for backwards compatibility with existing code that references fields like `_playerMisses` and `_playerKnownLetters`.
 
 ---
 

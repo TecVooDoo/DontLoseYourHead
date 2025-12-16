@@ -10,6 +10,7 @@ using Cysharp.Threading.Tasks;
 using DLYH.AI.Core;
 using DLYH.AI.Config;
 using DLYH.AI.Strategies;
+using DLYH.Telemetry;
 
 namespace TecVooDoo.DontLoseYourHead.UI
 {
@@ -71,6 +72,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
         [Header("Turn Indicator (Optional)")]
         [SerializeField] private TextMeshProUGUI _turnIndicatorText;
 
+        [Header("Main Menu Access")]
+        [SerializeField] private Button _mainMenuButton;
 
         #endregion
 
@@ -99,10 +102,26 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private ExecutionerAI _executionerAI;
         private bool _aiInitialized = false;
 
+        // Telemetry tracking
+        private int _totalTurns = 0;
+
         // AI opponent settings are now dynamic based on player difficulty
         // Easy player = smaller AI grid (6-8), more words (4) = easier for player to find
         // Normal player = medium AI grid (8-10), random words (3-4) = balanced
         // Hard player = larger AI grid (10-12), fewer words (3) = harder for player to find
+
+        #endregion
+
+        #region Events
+
+        /// <summary>Fired when Main Menu is requested from Gameplay</summary>
+        public event System.Action OnMainMenuRequested;
+
+        /// <summary>Fired when gameplay starts (after setup complete)</summary>
+        public event System.Action OnGameStarted;
+
+        /// <summary>Fired when game ends (win/lose)</summary>
+        public event System.Action OnGameEnded;
 
         #endregion
 
@@ -424,6 +443,11 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _startGameButton.onClick.AddListener(StartGameplay);
             }
 
+            if (_mainMenuButton != null)
+            {
+                _mainMenuButton.onClick.AddListener(OnMainMenuButtonClicked);
+            }
+
             if (_ownerPanel != null)
                 _ownerPanel.gameObject.SetActive(false);
             if (_opponentPanel != null)
@@ -445,9 +469,22 @@ namespace TecVooDoo.DontLoseYourHead.UI
             {
                 _startGameButton.onClick.RemoveListener(StartGameplay);
             }
+            if (_mainMenuButton != null)
+            {
+                _mainMenuButton.onClick.RemoveListener(OnMainMenuButtonClicked);
+            }
             UnsubscribeFromPanelEvents();
             UnsubscribeFromWordGuessModeController();
             UnsubscribeFromAIEvents();
+        }
+
+        /// <summary>
+        /// Called when the Main Menu button (gear icon) is clicked during gameplay.
+        /// </summary>
+        private void OnMainMenuButtonClicked()
+        {
+            Debug.Log("[GameplayUI] Main Menu button clicked");
+            OnMainMenuRequested?.Invoke();
         }
 
         #endregion
@@ -518,6 +555,21 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             // Game starts with player's turn
             _isPlayerTurn = true;
+            _totalTurns = 0;
+
+            // Send telemetry for game start
+            PlaytestTelemetry.GameStart(
+                _playerSetupData.GridSize,
+                _playerSetupData.WordCount,
+                _playerSetupData.DifficultyLevel.ToString(),
+                _opponentSetupData.GridSize,
+                _opponentSetupData.WordCount,
+                _opponentSetupData.DifficultyLevel.ToString()
+            );
+
+            // Notify that game has started
+            OnGameStarted?.Invoke();
+            Debug.Log("[GameplayUI] Game started - OnGameStarted fired");
 
         }
 
@@ -701,8 +753,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             _opponentSetupData = new SetupData
             {
-                PlayerName = "Executioner",
-                PlayerColor = new Color(0.6f, 0.2f, 0.2f, 1f), // Dark red
+                PlayerName = "EXECUTIONER",
+                PlayerColor = new Color(0.1f, 0.15f, 0.3f, 1f), // Dark blue - evokes executioner's hood
                 GridSize = gridSize,
                 WordCount = wordCount,
                 DifficultyLevel = opponentDifficulty,
@@ -731,8 +783,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             _opponentSetupData = new SetupData
             {
-                PlayerName = "Executioner",
-                PlayerColor = new Color(0.6f, 0.2f, 0.2f, 1f),
+                PlayerName = "EXECUTIONER",
+                PlayerColor = new Color(0.1f, 0.15f, 0.3f, 1f), // Dark blue - evokes executioner's hood
                 GridSize = gridSize,
                 WordCount = wordCount,
                 DifficultyLevel = opponentDifficulty,
@@ -795,6 +847,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
             _ownerPanel.SetMode(PlayerGridPanel.PanelMode.Gameplay);
             _ownerPanel.CacheWordPatternRows();
 
+            // Set hit color to opponent's color (opponent guesses on this panel)
+            _ownerPanel.SetGuesserHitColor(_opponentSetupData.PlayerColor);
+
             foreach (WordPlacementData wordData in _playerSetupData.PlacedWords)
             {
                 PlaceWordOnPanelRevealed(_ownerPanel, wordData);
@@ -841,6 +896,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
             _opponentPanel.SetPlayerName(_opponentSetupData.PlayerName);
             _opponentPanel.SetPlayerColor(_opponentSetupData.PlayerColor);
             _opponentPanel.CacheWordPatternRows();
+
+            // Set hit color to player's color (player guesses on this panel)
+            _opponentPanel.SetGuesserHitColor(_playerSetupData.PlayerColor);
 
             foreach (WordPlacementData wordData in _opponentSetupData.PlacedWords)
             {
@@ -947,6 +1005,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             if (result == GuessResult.AlreadyGuessed)
             {
+                ShowErrorPopup(string.Format("Letter '{0}' already guessed. Try again!", letter));
                 return;
             }
 
@@ -961,6 +1020,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
             {
                 CheckAndMarkFullyRevealedWords();
             }
+
+            // Show popup message for player turn result
+            string resultText = result == GuessResult.Hit ? "Hit" : "Miss";
+            ShowTurnPopup(string.Format("{0} guessed letter '{1}' - {2}. {3}'s turn!",
+                _playerSetupData?.PlayerName ?? "Player", letter, resultText,
+                _opponentSetupData?.PlayerName ?? "Opponent"));
 
             // Check win condition
             CheckPlayerWinCondition();
@@ -992,6 +1057,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             if (result == GuessResult.AlreadyGuessed)
             {
+                ShowErrorPopup(string.Format("Coordinate '{0}' already guessed. Try again!", coordLabel));
                 return;
             }
 
@@ -1006,6 +1072,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
             {
                 CheckAndMarkFullyRevealedWords();
             }
+
+            // Show popup message for player turn result
+            string resultText = result == GuessResult.Hit ? "Hit" : "Miss";
+            ShowTurnPopup(string.Format("{0} guessed {1} - {2}. {3}'s turn!",
+                _playerSetupData?.PlayerName ?? "Player", coordLabel, resultText,
+                _opponentSetupData?.PlayerName ?? "Opponent"));
 
             // Check win condition after coordinate guess
             CheckPlayerWinCondition();
@@ -1033,6 +1105,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             // Subscribe to controller events
             _wordGuessModeController.OnFeedbackRequested += ShowFeedback;
             _wordGuessModeController.OnTurnEnded += HandleWordGuessTurnEnded;
+            _wordGuessModeController.OnWordGuessProcessed += HandleWordGuessProcessed;
 
             // Subscribe word pattern rows to controller
             WordPatternRow[] rows = _opponentPanel.GetWordPatternRows();
@@ -1065,12 +1138,24 @@ namespace TecVooDoo.DontLoseYourHead.UI
             }
         }
 
+        /// <summary>
+        /// Handler for word guess processed - shows popup message for consistency.
+        /// </summary>
+        private void HandleWordGuessProcessed(int rowIndex, string guessedWord, bool wasCorrect)
+        {
+            string resultText = wasCorrect ? "Correct" : "Incorrect";
+            ShowTurnPopup(string.Format("{0} guessed word '{1}' - {2}. {3}'s turn!",
+                _playerSetupData?.PlayerName ?? "Player", guessedWord.ToUpper(), resultText,
+                _opponentSetupData?.PlayerName ?? "Opponent"));
+        }
+
         private void UnsubscribeFromWordGuessModeController()
         {
             if (_wordGuessModeController == null) return;
 
             _wordGuessModeController.OnFeedbackRequested -= ShowFeedback;
             _wordGuessModeController.OnTurnEnded -= HandleWordGuessTurnEnded;
+            _wordGuessModeController.OnWordGuessProcessed -= HandleWordGuessProcessed;
 
             if (_opponentPanel != null)
             {
@@ -1112,8 +1197,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 case GuessResult.Miss:
                     return WordGuessResult.Miss;
                 case GuessResult.AlreadyGuessed:
+                    ShowErrorPopup(string.Format("Word '{0}' already guessed. Try again!", word.ToUpper()));
                     return WordGuessResult.AlreadyGuessed;
                 case GuessResult.InvalidWord:
+                    ShowErrorPopup(string.Format("'{0}' is not a valid word. Try again!", word.ToUpper()));
                     return WordGuessResult.InvalidWord;
                 default:
                     return WordGuessResult.Miss;
@@ -1153,6 +1240,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         {
             if (_gameOver) return;
 
+            _totalTurns++;
             _wordGuessModeController?.ExitWordGuessMode();
 
             _isPlayerTurn = false;
@@ -1169,6 +1257,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         {
             if (_gameOver) return;
 
+            _totalTurns++;
             _isPlayerTurn = true;
             UpdateTurnIndicator();
 
@@ -1193,7 +1282,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 }
                 else
                 {
-                    _turnIndicatorText.text = "Executioner's Turn...";
+                    _turnIndicatorText.text = "EXECUTIONER's Turn...";
                 }
             }
         }
@@ -1405,6 +1494,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _executionerAI?.RecordRevealedLetter(letter);
             }
 
+            // Show popup message for AI turn result
+            string resultText = result == GuessResult.Hit ? "Hit" : "Miss";
+            ShowTurnPopup(string.Format("{0} guessed letter '{1}' - {2}. {3}'s turn!",
+                _opponentSetupData?.PlayerName ?? "Opponent", letter, resultText,
+                _playerSetupData?.PlayerName ?? "Player"));
+
             // Check opponent win condition
             CheckOpponentWinCondition();
 
@@ -1429,6 +1524,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
             {
                 _executionerAI?.RecordAIHit(row, col);
             }
+
+            // Show popup message for AI turn result
+            string resultText = result == GuessResult.Hit ? "Hit" : "Miss";
+            ShowTurnPopup(string.Format("{0} guessed {1} - {2}. {3}'s turn!",
+                _opponentSetupData?.PlayerName ?? "Opponent", coordLabel, resultText,
+                _playerSetupData?.PlayerName ?? "Player"));
 
             // Check opponent win condition
             CheckOpponentWinCondition();
@@ -1461,6 +1562,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _stateTracker.AddOpponentGuessedWord(word);
             }
 
+            // Show popup message for AI turn result
+            string resultText = result == GuessResult.Hit ? "Correct" : "Incorrect";
+            ShowTurnPopup(string.Format("{0} guessed word '{1}' - {2}. {3}'s turn!",
+                _opponentSetupData?.PlayerName ?? "Opponent", word.ToUpper(), resultText,
+                _playerSetupData?.PlayerName ?? "Player"));
+
             // Check opponent win condition
             CheckOpponentWinCondition();
 
@@ -1468,6 +1575,34 @@ namespace TecVooDoo.DontLoseYourHead.UI
             {
                 EndOpponentTurn();
             }
+        }
+
+        #endregion
+
+        #region Popup Messages
+
+        /// <summary>
+        /// Shows a popup message for turn changes and feedback.
+        /// </summary>
+        private void ShowTurnPopup(string message)
+        {
+            if (MessagePopup.Instance != null)
+            {
+                MessagePopup.Instance.ShowMessage(message);
+            }
+            Debug.Log($"[GameplayUI] Popup: {message}");
+        }
+
+        /// <summary>
+        /// Shows a popup for invalid player actions (already guessed, invalid word, etc.)
+        /// </summary>
+        private void ShowErrorPopup(string message)
+        {
+            if (MessagePopup.Instance != null)
+            {
+                MessagePopup.Instance.ShowMessage(message, 1.5f); // Shorter duration for errors
+            }
+            Debug.Log($"[GameplayUI] Error Popup: {message}");
         }
 
         #endregion
@@ -1508,11 +1643,33 @@ namespace TecVooDoo.DontLoseYourHead.UI
             {
                 _gameOver = true;
                 UpdateTurnIndicator();
+
+                // Send telemetry: Player won
+                PlaytestTelemetry.GameEnd(
+                    true,
+                    _playerMisses, _playerMissLimit,
+                    _opponentMisses, _opponentMissLimit,
+                    _totalTurns
+                );
+
+                OnGameEnded?.Invoke();
+                Debug.Log("[GameplayUI] Player won - OnGameEnded fired");
             }
             else if (_winChecker.CheckPlayerLoseCondition())
             {
                 _gameOver = true;
                 UpdateTurnIndicator();
+
+                // Send telemetry: Player lost (exceeded miss limit)
+                PlaytestTelemetry.GameEnd(
+                    false,
+                    _playerMisses, _playerMissLimit,
+                    _opponentMisses, _opponentMissLimit,
+                    _totalTurns
+                );
+
+                OnGameEnded?.Invoke();
+                Debug.Log("[GameplayUI] Player lost (miss limit) - OnGameEnded fired");
             }
         }
 
@@ -1527,11 +1684,33 @@ namespace TecVooDoo.DontLoseYourHead.UI
             {
                 _gameOver = true;
                 UpdateTurnIndicator();
+
+                // Send telemetry: Player lost (opponent found all words)
+                PlaytestTelemetry.GameEnd(
+                    false,
+                    _playerMisses, _playerMissLimit,
+                    _opponentMisses, _opponentMissLimit,
+                    _totalTurns
+                );
+
+                OnGameEnded?.Invoke();
+                Debug.Log("[GameplayUI] Opponent won - OnGameEnded fired");
             }
             else if (_winChecker.CheckOpponentLoseCondition())
             {
                 _gameOver = true;
                 UpdateTurnIndicator();
+
+                // Send telemetry: Player won (opponent exceeded miss limit)
+                PlaytestTelemetry.GameEnd(
+                    true,
+                    _playerMisses, _playerMissLimit,
+                    _opponentMisses, _opponentMissLimit,
+                    _totalTurns
+                );
+
+                OnGameEnded?.Invoke();
+                Debug.Log("[GameplayUI] Opponent lost (miss limit) - OnGameEnded fired");
             }
         }
 
@@ -1653,6 +1832,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         private void InitializeGuessProcessors()
         {
+            // Set hit colors on guessed word lists
+            // Player1 list shows player's guesses - use player's color
+            _player1GuessedWordList?.SetHitColor(_playerSetupData.PlayerColor);
+            // Player2 list shows opponent's guesses - use opponent's color
+            _player2GuessedWordList?.SetHitColor(_opponentSetupData.PlayerColor);
+
             // Create player's processor (guesses against opponent's data)
             _playerGuessProcessor = new GuessProcessor(
                 _opponentSetupData.PlacedWords.ConvertAll(w => new WordPlacementData

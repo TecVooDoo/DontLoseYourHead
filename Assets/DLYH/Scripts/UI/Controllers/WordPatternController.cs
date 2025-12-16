@@ -19,7 +19,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         public event Action<int> OnWordRowSelected;
         public event Action<int> OnCoordinateModeRequested;
+#pragma warning disable CS0067 // Event is required by IWordPatternController interface
         public event Action<int, string, List<Vector2Int>> OnWordPlaced;
+#pragma warning restore CS0067
         public event Action<int, bool> OnDeleteClicked;
 
         public int WordRowCount => _wordPatternRows.Count;

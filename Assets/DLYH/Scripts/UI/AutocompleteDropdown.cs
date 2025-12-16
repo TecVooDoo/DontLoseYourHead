@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
 using Sirenix.OdinInspector;
+using DG.Tweening;
 using System;
 using System.Collections.Generic;
 
@@ -433,22 +434,39 @@ private void UpdateItemDisplay()
 
             if (_canvasGroup != null)
             {
+                // Kill any existing tween on this canvas group
+                DG.Tweening.DOTween.Kill(_canvasGroup);
+
                 if (immediate)
                 {
                     _canvasGroup.alpha = visible ? 1f : 0f;
                     _canvasGroup.interactable = visible;
                     _canvasGroup.blocksRaycasts = visible;
+                    gameObject.SetActive(visible);
+                }
+                else if (visible)
+                {
+                    // Fade in
+                    gameObject.SetActive(true);
+                    _canvasGroup.interactable = true;
+                    _canvasGroup.blocksRaycasts = true;
+                    _canvasGroup.DOFade(1f, _fadeInDuration);
                 }
                 else
                 {
-                    // Use DOTween if available, otherwise immediate
-                    _canvasGroup.alpha = visible ? 1f : 0f;
-                    _canvasGroup.interactable = visible;
-                    _canvasGroup.blocksRaycasts = visible;
+                    // Fade out
+                    _canvasGroup.interactable = false;
+                    _canvasGroup.blocksRaycasts = false;
+                    _canvasGroup.DOFade(0f, _fadeOutDuration).OnComplete(() =>
+                    {
+                        gameObject.SetActive(false);
+                    });
                 }
             }
-
-            gameObject.SetActive(visible);
+            else
+            {
+                gameObject.SetActive(visible);
+            }
         }
         #endregion
 

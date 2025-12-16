@@ -233,8 +233,8 @@ Where:
 
 ### Win/Lose Conditions
 
-- **Win:** Reveal all opponent's letters OR opponent reaches their miss limit
-- **Lose:** Reach your miss limit OR opponent reveals all your words
+- **Win:** Reveal all opponent's letters in all words AND guess all grid positions for those words, OR opponent reaches their miss limit
+- **Lose:** Reach your miss limit, OR opponent reveals all your letters AND all grid positions for your words
 
 ---
 
