@@ -241,6 +241,25 @@ namespace DLYH.Telemetry
         }
 
         /// <summary>
+        /// Log player feedback submitted at end of game
+        /// </summary>
+        public void LogFeedback(string feedbackText, bool playerWon)
+        {
+            // Truncate feedback to reasonable length
+            string truncatedFeedback = feedbackText.Length > 1000
+                ? feedbackText.Substring(0, 1000)
+                : feedbackText;
+
+            Dictionary<string, object> data = new Dictionary<string, object>
+            {
+                { "feedback", truncatedFeedback },
+                { "player_won", playerWon }
+            };
+
+            LogEvent("player_feedback", data);
+        }
+
+        /// <summary>
         /// Log a custom event
         /// </summary>
         public void LogEvent(string eventType, Dictionary<string, object> eventData)
@@ -318,6 +337,17 @@ namespace DLYH.Telemetry
             if (Instance != null)
             {
                 Instance.LogEvent(eventType, eventData);
+            }
+        }
+
+        /// <summary>
+        /// Log player feedback from end-of-game screen
+        /// </summary>
+        public static void Feedback(string feedbackText, bool playerWon)
+        {
+            if (Instance != null)
+            {
+                Instance.LogFeedback(feedbackText, playerWon);
             }
         }
 

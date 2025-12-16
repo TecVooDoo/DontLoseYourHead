@@ -21,6 +21,7 @@ namespace DLYH.UI
         [SerializeField] private Button _newGameButton;
         [SerializeField] private Button _continueGameButton;
         [SerializeField] private Button _settingsButton;
+        [SerializeField] private Button _feedbackButton;
         [SerializeField] private Button _exitButton;
 
         [Header("Settings Panel")]
@@ -32,8 +33,14 @@ namespace DLYH.UI
         [Header("Gameplay Panel Reference")]
         [SerializeField] private GameplayUIController _gameplayUIController;
 
+        [Header("Feedback Panel")]
+        [SerializeField] private FeedbackPanel _feedbackPanel;
+
         // Track if a game is in progress (gameplay has started)
         private bool _gameInProgress = false;
+
+        // Track last game result for feedback panel
+        private bool _lastGamePlayerWon = false;
 
         private void Start()
         {
@@ -61,6 +68,11 @@ namespace DLYH.UI
                 _settingsButton.onClick.AddListener(OnSettingsClicked);
             }
 
+            if (_feedbackButton != null)
+            {
+                _feedbackButton.onClick.AddListener(OnFeedbackClicked);
+            }
+
             if (_exitButton != null)
             {
                 _exitButton.onClick.AddListener(OnExitClicked);
@@ -83,6 +95,11 @@ namespace DLYH.UI
                 _gameplayUIController.OnGameStarted += OnGameStarted;
                 _gameplayUIController.OnGameEnded += OnGameEnded;
             }
+
+            if (_feedbackPanel != null)
+            {
+                _feedbackPanel.OnFeedbackComplete += OnFeedbackComplete;
+            }
         }
 
         private void OnDestroy()
@@ -102,6 +119,11 @@ namespace DLYH.UI
                 _settingsButton.onClick.RemoveListener(OnSettingsClicked);
             }
 
+            if (_feedbackButton != null)
+            {
+                _feedbackButton.onClick.RemoveListener(OnFeedbackClicked);
+            }
+
             if (_exitButton != null)
             {
                 _exitButton.onClick.RemoveListener(OnExitClicked);
@@ -117,6 +139,11 @@ namespace DLYH.UI
                 _gameplayUIController.OnMainMenuRequested -= OnMainMenuRequestedFromGameplay;
                 _gameplayUIController.OnGameStarted -= OnGameStarted;
                 _gameplayUIController.OnGameEnded -= OnGameEnded;
+            }
+
+            if (_feedbackPanel != null)
+            {
+                _feedbackPanel.OnFeedbackComplete -= OnFeedbackComplete;
             }
         }
 
@@ -139,6 +166,12 @@ namespace DLYH.UI
         {
             Debug.Log("[MainMenuController] Settings clicked");
             ShowSettingsPanel();
+        }
+
+        private void OnFeedbackClicked()
+        {
+            Debug.Log("[MainMenuController] Feedback clicked");
+            ShowFeedbackFromMenu();
         }
 
         private void OnExitClicked()
@@ -165,10 +198,64 @@ namespace DLYH.UI
             Debug.Log("[MainMenuController] Game started - Continue button will be available");
         }
 
-        private void OnGameEnded()
+        private void OnGameEnded(bool playerWon)
         {
             _gameInProgress = false;
-            Debug.Log("[MainMenuController] Game ended - Continue button will be hidden");
+            _lastGamePlayerWon = playerWon;
+            Debug.Log($"[MainMenuController] Game ended - Player {(playerWon ? "won" : "lost")}");
+
+            // Show feedback panel after a short delay to let the win/lose popup show
+            if (_feedbackPanel != null)
+            {
+                // Use Invoke to delay showing feedback panel
+                Invoke(nameof(ShowFeedbackPanel), 2.5f);
+            }
+            else
+            {
+                // No feedback panel, go directly to main menu
+                ShowMainMenu();
+            }
+        }
+
+        private void ShowFeedbackPanel()
+        {
+            // Hide gameplay container
+            if (_gameplayContainer != null)
+            {
+                _gameplayContainer.SetActive(false);
+            }
+
+            // Show MainMenuContainer (FeedbackPanel is a child of it)
+            if (_mainMenuContainer != null)
+            {
+                _mainMenuContainer.SetActive(true);
+            }
+
+            // Hide the button container so only feedback panel shows
+            Transform buttonContainer = _mainMenuContainer?.transform.Find("ButtonContainer");
+            if (buttonContainer != null)
+            {
+                buttonContainer.gameObject.SetActive(false);
+            }
+
+            // Hide title text
+            Transform titleText = _mainMenuContainer?.transform.Find("TitleText");
+            if (titleText != null)
+            {
+                titleText.gameObject.SetActive(false);
+            }
+
+            // Show feedback panel
+            if (_feedbackPanel != null)
+            {
+                _feedbackPanel.Show(_lastGamePlayerWon);
+            }
+        }
+
+        private void OnFeedbackComplete()
+        {
+            Debug.Log("[MainMenuController] Feedback complete - returning to main menu");
+            ShowMainMenu();
         }
 
         #endregion
@@ -179,6 +266,21 @@ namespace DLYH.UI
         {
             SetContainerVisibility(mainMenu: true, setup: false, gameplay: false);
             HideSettingsPanel();
+            HideFeedbackPanel();
+
+            // Restore button container and title (hidden when showing feedback after game)
+            Transform buttonContainer = _mainMenuContainer?.transform.Find("ButtonContainer");
+            if (buttonContainer != null)
+            {
+                buttonContainer.gameObject.SetActive(true);
+            }
+
+            Transform titleText = _mainMenuContainer?.transform.Find("TitleText");
+            if (titleText != null)
+            {
+                titleText.gameObject.SetActive(true);
+            }
+
             UpdateContinueButtonVisibility();
         }
 
@@ -207,11 +309,30 @@ namespace DLYH.UI
             }
         }
 
+        /// <summary>
+        /// Show feedback panel from main menu (not after game end)
+        /// </summary>
+        public void ShowFeedbackFromMenu()
+        {
+            if (_feedbackPanel != null)
+            {
+                _feedbackPanel.ShowFromMenu();
+            }
+        }
+
         public void HideSettingsPanel()
         {
             if (_settingsPanel != null)
             {
                 _settingsPanel.SetActive(false);
+            }
+        }
+
+        public void HideFeedbackPanel()
+        {
+            if (_feedbackPanel != null)
+            {
+                _feedbackPanel.Hide();
             }
         }
 

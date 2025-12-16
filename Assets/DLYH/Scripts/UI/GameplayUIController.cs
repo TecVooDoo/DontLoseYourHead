@@ -120,8 +120,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// <summary>Fired when gameplay starts (after setup complete)</summary>
         public event System.Action OnGameStarted;
 
-        /// <summary>Fired when game ends (win/lose)</summary>
-        public event System.Action OnGameEnded;
+        /// <summary>Fired when game ends. Parameter indicates if player won.</summary>
+        public event System.Action<bool> OnGameEnded;
 
         #endregion
 
@@ -167,6 +167,17 @@ namespace TecVooDoo.DontLoseYourHead.UI
             Miss,
             AlreadyGuessed,
             InvalidWord
+        }
+
+        /// <summary>
+        /// Reason for game ending - used for proper game over messages
+        /// </summary>
+        private enum GameOverReason
+        {
+            AllWordsFound,              // Player found all opponent's words
+            MissLimitReached,           // Player exceeded miss limit
+            OpponentFoundAllWords,      // Opponent found all player's words
+            OpponentMissLimitReached    // Opponent exceeded miss limit
         }
 
         #endregion
@@ -1021,17 +1032,17 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 CheckAndMarkFullyRevealedWords();
             }
 
-            // Show popup message for player turn result
-            string resultText = result == GuessResult.Hit ? "Hit" : "Miss";
-            ShowTurnPopup(string.Format("{0} guessed letter '{1}' - {2}. {3}'s turn!",
-                _playerSetupData?.PlayerName ?? "Player", letter, resultText,
-                _opponentSetupData?.PlayerName ?? "Opponent"));
-
-            // Check win condition
+            // Check win condition BEFORE showing popup
             CheckPlayerWinCondition();
 
+            // Only show turn popup if game isn't over (game over has its own popup)
             if (!_gameOver)
             {
+                string resultText = result == GuessResult.Hit ? "Hit" : "Miss";
+                ShowTurnPopup(string.Format("{0} guessed letter '{1}' - {2}. {3}'s turn!",
+                    _playerSetupData?.PlayerName ?? "Player", letter, resultText,
+                    _opponentSetupData?.PlayerName ?? "Opponent"));
+
                 EndPlayerTurn();
             }
         }
@@ -1073,17 +1084,17 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 CheckAndMarkFullyRevealedWords();
             }
 
-            // Show popup message for player turn result
-            string resultText = result == GuessResult.Hit ? "Hit" : "Miss";
-            ShowTurnPopup(string.Format("{0} guessed {1} - {2}. {3}'s turn!",
-                _playerSetupData?.PlayerName ?? "Player", coordLabel, resultText,
-                _opponentSetupData?.PlayerName ?? "Opponent"));
-
-            // Check win condition after coordinate guess
+            // Check win condition BEFORE showing popup
             CheckPlayerWinCondition();
 
+            // Only show turn popup if game isn't over (game over has its own popup)
             if (!_gameOver)
             {
+                string resultText = result == GuessResult.Hit ? "Hit" : "Miss";
+                ShowTurnPopup(string.Format("{0} guessed {1} - {2}. {3}'s turn!",
+                    _playerSetupData?.PlayerName ?? "Player", coordLabel, resultText,
+                    _opponentSetupData?.PlayerName ?? "Opponent"));
+
                 EndPlayerTurn();
             }
         }
@@ -1143,10 +1154,14 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// </summary>
         private void HandleWordGuessProcessed(int rowIndex, string guessedWord, bool wasCorrect)
         {
-            string resultText = wasCorrect ? "Correct" : "Incorrect";
-            ShowTurnPopup(string.Format("{0} guessed word '{1}' - {2}. {3}'s turn!",
-                _playerSetupData?.PlayerName ?? "Player", guessedWord.ToUpper(), resultText,
-                _opponentSetupData?.PlayerName ?? "Opponent"));
+            // Only show turn popup if game isn't over (game over has its own popup)
+            if (!_gameOver)
+            {
+                string resultText = wasCorrect ? "Correct" : "Incorrect";
+                ShowTurnPopup(string.Format("{0} guessed word '{1}' - {2}. {3}'s turn!",
+                    _playerSetupData?.PlayerName ?? "Player", guessedWord.ToUpper(), resultText,
+                    _opponentSetupData?.PlayerName ?? "Opponent"));
+            }
         }
 
         private void UnsubscribeFromWordGuessModeController()
@@ -1494,17 +1509,17 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _executionerAI?.RecordRevealedLetter(letter);
             }
 
-            // Show popup message for AI turn result
-            string resultText = result == GuessResult.Hit ? "Hit" : "Miss";
-            ShowTurnPopup(string.Format("{0} guessed letter '{1}' - {2}. {3}'s turn!",
-                _opponentSetupData?.PlayerName ?? "Opponent", letter, resultText,
-                _playerSetupData?.PlayerName ?? "Player"));
-
-            // Check opponent win condition
+            // Check opponent win condition BEFORE showing popup
             CheckOpponentWinCondition();
 
+            // Only show turn popup if game isn't over (game over has its own popup)
             if (!_gameOver)
             {
+                string resultText = result == GuessResult.Hit ? "Hit" : "Miss";
+                ShowTurnPopup(string.Format("{0} guessed letter '{1}' - {2}. {3}'s turn!",
+                    _opponentSetupData?.PlayerName ?? "Opponent", letter, resultText,
+                    _playerSetupData?.PlayerName ?? "Player"));
+
                 EndOpponentTurn();
             }
         }
@@ -1525,17 +1540,17 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _executionerAI?.RecordAIHit(row, col);
             }
 
-            // Show popup message for AI turn result
-            string resultText = result == GuessResult.Hit ? "Hit" : "Miss";
-            ShowTurnPopup(string.Format("{0} guessed {1} - {2}. {3}'s turn!",
-                _opponentSetupData?.PlayerName ?? "Opponent", coordLabel, resultText,
-                _playerSetupData?.PlayerName ?? "Player"));
-
-            // Check opponent win condition
+            // Check opponent win condition BEFORE showing popup
             CheckOpponentWinCondition();
 
+            // Only show turn popup if game isn't over (game over has its own popup)
             if (!_gameOver)
             {
+                string resultText = result == GuessResult.Hit ? "Hit" : "Miss";
+                ShowTurnPopup(string.Format("{0} guessed {1} - {2}. {3}'s turn!",
+                    _opponentSetupData?.PlayerName ?? "Opponent", coordLabel, resultText,
+                    _playerSetupData?.PlayerName ?? "Player"));
+
                 EndOpponentTurn();
             }
         }
@@ -1562,17 +1577,17 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _stateTracker.AddOpponentGuessedWord(word);
             }
 
-            // Show popup message for AI turn result
-            string resultText = result == GuessResult.Hit ? "Correct" : "Incorrect";
-            ShowTurnPopup(string.Format("{0} guessed word '{1}' - {2}. {3}'s turn!",
-                _opponentSetupData?.PlayerName ?? "Opponent", word.ToUpper(), resultText,
-                _playerSetupData?.PlayerName ?? "Player"));
-
-            // Check opponent win condition
+            // Check opponent win condition BEFORE showing popup
             CheckOpponentWinCondition();
 
+            // Only show turn popup if game isn't over (game over has its own popup)
             if (!_gameOver)
             {
+                string resultText = result == GuessResult.Hit ? "Correct" : "Incorrect";
+                ShowTurnPopup(string.Format("{0} guessed word '{1}' - {2}. {3}'s turn!",
+                    _opponentSetupData?.PlayerName ?? "Opponent", word.ToUpper(), resultText,
+                    _playerSetupData?.PlayerName ?? "Player"));
+
                 EndOpponentTurn();
             }
         }
@@ -1603,6 +1618,41 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 MessagePopup.Instance.ShowMessage(message, 1.5f); // Shorter duration for errors
             }
             Debug.Log($"[GameplayUI] Error Popup: {message}");
+        }
+
+        /// <summary>
+        /// Shows a game over popup with appropriate message based on win/lose reason
+        /// </summary>
+        private void ShowGameOverPopup(bool playerWon, GameOverReason reason)
+        {
+            string playerName = _playerSetupData?.PlayerName ?? "Player";
+            string opponentName = _opponentSetupData?.PlayerName ?? "Opponent";
+            string message;
+
+            switch (reason)
+            {
+                case GameOverReason.AllWordsFound:
+                    message = $"{playerName} found all of {opponentName}'s words! VICTORY!";
+                    break;
+                case GameOverReason.MissLimitReached:
+                    message = $"{playerName} reached the miss limit. {opponentName} wins by default!";
+                    break;
+                case GameOverReason.OpponentFoundAllWords:
+                    message = $"{opponentName} found all of {playerName}'s words! DEFEATED!";
+                    break;
+                case GameOverReason.OpponentMissLimitReached:
+                    message = $"{opponentName} reached the miss limit. {playerName} wins by default!";
+                    break;
+                default:
+                    message = playerWon ? "VICTORY!" : "DEFEATED!";
+                    break;
+            }
+
+            if (MessagePopup.Instance != null)
+            {
+                MessagePopup.Instance.ShowMessage(message, 3f); // Longer duration for game over
+            }
+            Debug.Log($"[GameplayUI] Game Over Popup: {message}");
         }
 
         #endregion
@@ -1644,6 +1694,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _gameOver = true;
                 UpdateTurnIndicator();
 
+                // Show game over popup
+                ShowGameOverPopup(true, GameOverReason.AllWordsFound);
+
                 // Send telemetry: Player won
                 PlaytestTelemetry.GameEnd(
                     true,
@@ -1652,13 +1705,16 @@ namespace TecVooDoo.DontLoseYourHead.UI
                     _totalTurns
                 );
 
-                OnGameEnded?.Invoke();
+                OnGameEnded?.Invoke(true);
                 Debug.Log("[GameplayUI] Player won - OnGameEnded fired");
             }
             else if (_winChecker.CheckPlayerLoseCondition())
             {
                 _gameOver = true;
                 UpdateTurnIndicator();
+
+                // Show game over popup
+                ShowGameOverPopup(false, GameOverReason.MissLimitReached);
 
                 // Send telemetry: Player lost (exceeded miss limit)
                 PlaytestTelemetry.GameEnd(
@@ -1668,7 +1724,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
                     _totalTurns
                 );
 
-                OnGameEnded?.Invoke();
+                OnGameEnded?.Invoke(false);
                 Debug.Log("[GameplayUI] Player lost (miss limit) - OnGameEnded fired");
             }
         }
@@ -1685,6 +1741,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _gameOver = true;
                 UpdateTurnIndicator();
 
+                // Show game over popup
+                ShowGameOverPopup(false, GameOverReason.OpponentFoundAllWords);
+
                 // Send telemetry: Player lost (opponent found all words)
                 PlaytestTelemetry.GameEnd(
                     false,
@@ -1693,13 +1752,16 @@ namespace TecVooDoo.DontLoseYourHead.UI
                     _totalTurns
                 );
 
-                OnGameEnded?.Invoke();
+                OnGameEnded?.Invoke(false);
                 Debug.Log("[GameplayUI] Opponent won - OnGameEnded fired");
             }
             else if (_winChecker.CheckOpponentLoseCondition())
             {
                 _gameOver = true;
                 UpdateTurnIndicator();
+
+                // Show game over popup
+                ShowGameOverPopup(true, GameOverReason.OpponentMissLimitReached);
 
                 // Send telemetry: Player won (opponent exceeded miss limit)
                 PlaytestTelemetry.GameEnd(
@@ -1709,7 +1771,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
                     _totalTurns
                 );
 
-                OnGameEnded?.Invoke();
+                OnGameEnded?.Invoke(true);
                 Debug.Log("[GameplayUI] Opponent lost (miss limit) - OnGameEnded fired");
             }
         }
@@ -1924,7 +1986,37 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             _stateTracker.AddPlayerGuessedCoordinate(col, row);
 
+            // If hit, find the letter at this coordinate and add to known letters
+            if (result == GuessProcessor.GuessResult.Hit)
+            {
+                char? letter = FindLetterAtCoordinate(_opponentSetupData.PlacedWords, col, row);
+                if (letter.HasValue)
+                {
+                    _stateTracker.AddPlayerKnownLetter(char.ToUpper(letter.Value));
+                }
+            }
+
             return ConvertGuessResult(result);
+        }
+
+        /// <summary>
+        /// Find the letter at a given coordinate in the word placements
+        /// </summary>
+        private char? FindLetterAtCoordinate(List<WordPlacementData> words, int col, int row)
+        {
+            foreach (WordPlacementData word in words)
+            {
+                for (int i = 0; i < word.Word.Length; i++)
+                {
+                    int wordCol = word.StartCol + (i * word.DirCol);
+                    int wordRow = word.StartRow + (i * word.DirRow);
+                    if (wordCol == col && wordRow == row)
+                    {
+                        return word.Word[i];
+                    }
+                }
+            }
+            return null;
         }
 
         /// <summary>
@@ -2027,6 +2119,16 @@ namespace TecVooDoo.DontLoseYourHead.UI
             GuessProcessor.GuessResult result = _opponentGuessProcessor.ProcessCoordinateGuess(col, row);
 
             _stateTracker.AddOpponentGuessedCoordinate(col, row);
+
+            // If hit, find the letter at this coordinate and add to known letters
+            if (result == GuessProcessor.GuessResult.Hit)
+            {
+                char? letter = FindLetterAtCoordinate(_playerSetupData.PlacedWords, col, row);
+                if (letter.HasValue)
+                {
+                    _stateTracker.AddOpponentKnownLetter(char.ToUpper(letter.Value));
+                }
+            }
 
             return ConvertGuessResult(result);
         }
