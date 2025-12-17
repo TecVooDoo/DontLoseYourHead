@@ -26,6 +26,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         [Header("Container References")]
         [SerializeField] private GameObject _setupContainer;
         [SerializeField] private GameObject _gameplayContainer;
+        [SerializeField] private GameObject _helpOverlayPanel;
 
         [Header("Pre-Placed Panel References")]
         [SerializeField] private PlayerGridPanel _ownerPanel;
@@ -547,6 +548,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
             if (_gameplayContainer != null)
                 _gameplayContainer.SetActive(true);
 
+            if (_helpOverlayPanel != null)
+                _helpOverlayPanel.SetActive(true);
+
             if (_ownerPanel != null)
             {
                 _ownerPanel.gameObject.SetActive(true);
@@ -603,6 +607,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             if (_gameplayContainer != null)
                 _gameplayContainer.SetActive(false);
+
+            if (_helpOverlayPanel != null)
+                _helpOverlayPanel.SetActive(false);
 
             if (_setupContainer != null)
                 _setupContainer.SetActive(true);
@@ -2167,4 +2174,4 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         #endregion
     }
-}
+} 

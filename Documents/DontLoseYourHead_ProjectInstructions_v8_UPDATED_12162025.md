@@ -4,7 +4,16 @@
 **Developer:** TecVooDoo LLC
 **Designer:** Rune (Stephen Brandon)
 **Unity Version:** 6.3 (2D Template)
+**Project Path:** E:\Unity\DontLoseYourHead
 **Last Updated:** December 16, 2025
+
+---
+
+## IMPORTANT: Project Path
+
+**The Unity project is located at: `E:\Unity\DontLoseYourHead`**
+
+Do NOT use worktree paths like `C:\Users\steph\.claude-worktrees\...` - always use the E: drive path above for all file operations.
 
 ---
 
@@ -155,6 +164,28 @@ Examples:
 | DLYH_Architecture | Script catalog and code structure |
 | DESIGN_DECISIONS | History, lessons learned, version tracking |
 | DontLoseYourHead_ProjectInstructions | Development protocols (this document) |
+
+---
+
+## Cloudflare Infrastructure
+
+### Telemetry Worker (Already Deployed)
+- **Endpoint:** `dlyh-telemetry.runeduvall.workers.dev`
+- **Database:** D1 (dlyh-telemetry)
+- **Tables:** events, sessions
+
+### WebGL Hosting (Cloudflare Pages - TODO)
+- **Project Name:** dlyh (to be created)
+- **Deployment:** Manual upload or `npx wrangler pages deploy ./BuildFolder --project-name=dlyh`
+- **Build Path:** Unity WebGL build output folder
+
+### Deployment Steps (WebGL)
+1. Unity: File > Build Settings > WebGL > Build
+2. Choose output folder (e.g., `Builds/WebGL`)
+3. Either:
+   - **Dashboard:** Cloudflare Dashboard > Workers & Pages > Create > Pages > Upload assets
+   - **CLI:** `npx wrangler pages deploy ./Builds/WebGL --project-name=dlyh`
+4. Access at: `dlyh.pages.dev` (or custom domain if configured)
 
 ---
 

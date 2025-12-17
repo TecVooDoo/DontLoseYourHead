@@ -233,6 +233,41 @@ The rubber-banding system itself adapts if the player is consistently struggling
 - Removed: cums, fags, dicks, horny, faggot, orgasm, shitty, sodomy, whores (9 words)
 - Note: Word list filtered to best of ability; use Feedback to report missed words
 
+### Help Overlay System
+
+**Components:**
+- `HelpOverlay.cs` - Draggable help panel with gameplay instructions
+- Scrollable content with rich text formatting (colors for grid states)
+
+**Features:**
+- Shows automatically on first game of session
+- Hidden on subsequent games (player can toggle with "?" button)
+- Draggable panel with screen bounds clamping
+- Scroll view for lengthy help content
+- Static session tracking via `_hasShownThisSession`
+
+**Design Decisions:**
+- First-session auto-show teaches new players without being annoying on replay
+- Draggable so players can position it out of the way while reading
+- Uses `OnEnable` coroutine to show after GameplayUIController activates the panel
+
+### Tooltip System
+
+**Components:**
+- `ButtonTooltip.cs` - Hover tooltip trigger (attach to any UI element)
+- `TooltipPanel.cs` - Self-registering tooltip display panel
+
+**Features:**
+- Configurable hover delay (default 0.5s)
+- Auto-sizes to fit text content
+- Positions above button, with fallback below if off-screen
+- Screen edge clamping to keep tooltip visible
+
+**Design Decisions:**
+- Static panel registration allows single tooltip shared across all buttons
+- Uses New Input System (Mouse.current) for position
+- Panel auto-hides via TooltipPanel.Awake() registration
+
 ---
 
 ## Technical Debt and Future Considerations

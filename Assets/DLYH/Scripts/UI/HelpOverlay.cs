@@ -42,6 +42,9 @@ namespace DLYH.UI
         private Vector2 _dragOffset;
         private bool _isVisible;
 
+        // Track if help has been shown this session
+        private static bool _hasShownThisSession = false;
+
         #endregion
 
         #region Help Content
@@ -112,14 +115,11 @@ Click ""Guess Word"" button on a word row
             WireEvents();
             SetHelpContent();
 
-            // Start hidden or visible based on setting
-            if (_startHidden)
+            // First session visibility is handled in OnEnable via coroutine
+            // For subsequent games, respect _startHidden setting
+            if (_hasShownThisSession && _startHidden)
             {
                 Hide();
-            }
-            else
-            {
-                Show();
             }
         }
 
@@ -334,6 +334,25 @@ Click ""Guess Word"" button on a word row
         private void OnEnable()
         {
             _instance = this;
+
+            // Show help on first game of session when panel becomes active
+            if (!_hasShownThisSession)
+            {
+                // Delay slightly to ensure layout is ready
+                StartCoroutine(ShowOnFirstSession());
+            }
+        }
+
+        private System.Collections.IEnumerator ShowOnFirstSession()
+        {
+            yield return null; // Wait one frame for layout and Start() to run
+            yield return null; // Extra frame to ensure content is set
+            if (!_hasShownThisSession)
+            {
+                SetHelpContent(); // Ensure content is set before showing
+                Show();
+                _hasShownThisSession = true;
+            }
         }
 
         /// <summary>

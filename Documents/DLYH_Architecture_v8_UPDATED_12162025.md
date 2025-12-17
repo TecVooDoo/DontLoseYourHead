@@ -4,7 +4,7 @@
 **Date Created:** December 13, 2025
 **Last Updated:** December 16, 2025
 **Developer:** TecVooDoo LLC
-**Total Scripts:** 54
+**Total Scripts:** 57
 
 ---
 
@@ -41,7 +41,7 @@
 | Namespace | Scripts | Purpose |
 |-----------|---------|---------|
 | `TecVooDoo.DontLoseYourHead.UI` | 24 | Main UI scripts |
-| `DLYH.UI` | 3 | Main menu, settings, help overlay |
+| `DLYH.UI` | 6 | Main menu, settings, help overlay, tooltips |
 | `TecVooDoo.DontLoseYourHead.UI.Utilities` | 1 | RowDisplayBuilder |
 | `TecVooDoo.DontLoseYourHead.Core` | 4 | Game state/difficulty |
 | `DLYH.AI.Config` | 1 | AI configuration |
@@ -100,6 +100,9 @@ Assets/DLYH/Scripts/
     |-- MainMenuController.cs           (~150 lines)
     |-- MessagePopup.cs                 (~275 lines)
     |-- FeedbackPanel.cs                (~195 lines)
+    |-- HelpOverlay.cs                  (~380 lines)
+    |-- ButtonTooltip.cs                (~145 lines)
+    |-- TooltipPanel.cs                 (~30 lines)
     |-- PlayerGridPanel.cs              (~1,120 lines)
     |-- SettingsPanel.cs                (~270 lines)
     |-- SetupModeController.cs          (~150 lines)
