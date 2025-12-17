@@ -702,8 +702,9 @@ public void SetupForPlayer(int playerIndex)
 
             Debug.Log($"[SetupSettingsPanel] Grid size changed to: {_gridSize}x{_gridSize}");
 
-            // Grid size change clears words from grid - update Start button
+            // Grid size change clears words from grid - update button states
             UpdateStartButtonState();
+            UpdatePlaceRandomPositionsButtonState();
         }
 
         private void OnWordCountDropdownChanged(int value)

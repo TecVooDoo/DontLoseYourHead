@@ -4,7 +4,7 @@
 **Date Created:** December 13, 2025
 **Last Updated:** December 16, 2025
 **Developer:** TecVooDoo LLC
-**Total Scripts:** 53
+**Total Scripts:** 54
 
 ---
 
@@ -41,9 +41,9 @@
 | Namespace | Scripts | Purpose |
 |-----------|---------|---------|
 | `TecVooDoo.DontLoseYourHead.UI` | 24 | Main UI scripts |
+| `DLYH.UI` | 3 | Main menu, settings, help overlay |
 | `TecVooDoo.DontLoseYourHead.UI.Utilities` | 1 | RowDisplayBuilder |
 | `TecVooDoo.DontLoseYourHead.Core` | 4 | Game state/difficulty |
-| `DLYH.UI` | 1 | Main menu |
 | `DLYH.AI.Config` | 1 | AI configuration |
 | `DLYH.AI.Core` | 4 | AI controllers |
 | `DLYH.AI.Data` | 2 | AI data utilities |
@@ -218,6 +218,7 @@ Grid color/highlighting operations.
 | GuessedWordListController | ~180 | Guessed words display |
 | SettingsPanel | ~270 | Audio settings |
 | FeedbackPanel | ~195 | End-game/menu feedback collection |
+| HelpOverlay | ~290 | Draggable gameplay help panel |
 | AutocompleteDropdown | ~450 | Word suggestions |
 | AutocompleteItem | ~140 | Dropdown entry |
 
