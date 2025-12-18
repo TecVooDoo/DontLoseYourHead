@@ -399,4 +399,47 @@ The rubber-banding system itself adapts if the player is consistently struggling
 
 ---
 
+## Phase 5 Feature: Word Row Cell-Based Display
+
+### Design Decision
+
+**Current System:** WordPatternRow uses a TMP_Text field displaying letters/underscores as a formatted string (e.g., "C A T" or "_ _ _").
+
+**Proposed Change:** Replace text field with individual letter cells (non-clickable buttons or UI panels).
+
+### Rationale
+
+1. **Layout Consistency:** All word rows have identical structure regardless of word length
+2. **Flexible Word Lengths:** Players no longer locked into fixed 3/4/5/6 letter slots
+3. **Visual Consistency:** Matches grid cell aesthetic
+4. **Animation Ready:** Individual cells are easier DOTween targets for reveal effects
+5. **Simplified Logic:** No string formatting/parsing needed
+
+### Implementation Approach
+
+```
+WordPatternRow
++-- RowNumber (Text)
++-- LetterCellsContainer (HorizontalLayoutGroup)
+|   +-- LetterCell[0] (Button or Panel)
+|   +-- LetterCell[1]
+|   +-- LetterCell[2]
+|   +-- ... (8 cells total for max word length)
++-- CompassButton / GuessWordButton
+```
+
+**Cell Behavior:**
+- Setup mode: Cells fill left-to-right as player types
+- Gameplay mode: Shows underscore for unknown, letter when discovered
+- Unused cells: Hidden or empty (maintain spacing)
+- Max cells: 8 (supports 3-8 letter words)
+
+**Benefits over text field:**
+- No layout shifts between 3-letter and 6-letter words
+- Cells can have individual backgrounds, colors, animations
+- Backspace removes from rightmost filled cell
+- Clear visual feedback per letter position
+
+---
+
 **End of Design Decisions Document**

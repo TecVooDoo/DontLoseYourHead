@@ -76,6 +76,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
         [Header("Main Menu Access")]
         [SerializeField] private Button _mainMenuButton;
 
+        [Header("Guillotine Displays")]
+        [SerializeField] private GuillotineDisplay _player1Guillotine;
+        [SerializeField] private GuillotineDisplay _player2Guillotine;
+
         #endregion
 
         #region Private Fields
@@ -564,6 +568,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             }
 
             InitializeWordGuessModeController();
+            InitializeGuillotines();
             UpdateMissCounters();
             UpdateCenterPanelNames();
             UpdateTurnIndicator();
@@ -613,6 +618,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             if (_setupContainer != null)
                 _setupContainer.SetActive(true);
+
+            // Reset guillotines for next game
+            if (_player1Guillotine != null)
+                _player1Guillotine.Reset();
+            if (_player2Guillotine != null)
+                _player2Guillotine.Reset();
 
             _playerSetupData = null;
             _opponentSetupData = null;
@@ -1701,6 +1712,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _gameOver = true;
                 UpdateTurnIndicator();
 
+                // Trigger opponent guillotine defeat animation (player found all opponent's words)
+                TriggerOpponentGuillotineDefeatByWords();
+
                 // Show game over popup
                 ShowGameOverPopup(true, GameOverReason.AllWordsFound);
 
@@ -1719,6 +1733,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
             {
                 _gameOver = true;
                 UpdateTurnIndicator();
+
+                // Trigger guillotine game over animation for player
+                TriggerPlayerGuillotineGameOver();
 
                 // Show game over popup
                 ShowGameOverPopup(false, GameOverReason.MissLimitReached);
@@ -1748,6 +1765,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _gameOver = true;
                 UpdateTurnIndicator();
 
+                // Trigger player guillotine defeat animation (opponent found all player's words)
+                TriggerPlayerGuillotineDefeatByWords();
+
                 // Show game over popup
                 ShowGameOverPopup(false, GameOverReason.OpponentFoundAllWords);
 
@@ -1767,6 +1787,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _gameOver = true;
                 UpdateTurnIndicator();
 
+                // Trigger guillotine game over animation for opponent
+                TriggerOpponentGuillotineGameOver();
+
                 // Show game over popup
                 ShowGameOverPopup(true, GameOverReason.OpponentMissLimitReached);
 
@@ -1780,6 +1803,73 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
                 OnGameEnded?.Invoke(true);
                 Debug.Log("[GameplayUI] Opponent lost (miss limit) - OnGameEnded fired");
+            }
+        }
+
+        #endregion
+
+        #region Guillotine Display
+
+        private void InitializeGuillotines()
+        {
+            // Initialize player 1 guillotine (shows player's miss progress)
+            if (_player1Guillotine != null && _playerSetupData != null && _stateTracker != null)
+            {
+                _player1Guillotine.Initialize(_stateTracker.PlayerMissLimit, _playerSetupData.PlayerColor);
+            }
+
+            // Initialize player 2 guillotine (shows opponent's miss progress)
+            if (_player2Guillotine != null && _opponentSetupData != null && _stateTracker != null)
+            {
+                _player2Guillotine.Initialize(_stateTracker.OpponentMissLimit, _opponentSetupData.PlayerColor);
+            }
+        }
+
+        private void UpdatePlayerGuillotine()
+        {
+            if (_player1Guillotine != null && _stateTracker != null)
+            {
+                _player1Guillotine.UpdateMissCount(_stateTracker.PlayerMisses);
+            }
+        }
+
+        private void UpdateOpponentGuillotine()
+        {
+            if (_player2Guillotine != null && _stateTracker != null)
+            {
+                _player2Guillotine.UpdateMissCount(_stateTracker.OpponentMisses);
+            }
+        }
+
+        private void TriggerPlayerGuillotineGameOver()
+        {
+            if (_player1Guillotine != null)
+            {
+                _player1Guillotine.AnimateGameOver();
+            }
+        }
+
+        private void TriggerOpponentGuillotineGameOver()
+        {
+            if (_player2Guillotine != null)
+            {
+                _player2Guillotine.AnimateGameOver();
+            }
+        }
+
+        private void TriggerPlayerGuillotineDefeatByWords()
+        {
+            if (_player1Guillotine != null)
+            {
+                _player1Guillotine.AnimateDefeatByWordsFound();
+            }
+        }
+
+        private void TriggerOpponentGuillotineDefeatByWords()
+        {
+            if (_player2Guillotine != null)
+            {
+                _player2Guillotine.AnimateDefeatByWordsFound();
             }
         }
 
@@ -1864,6 +1954,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _player1MissCounter.text = _stateTracker.GetPlayerMissCounterText();
             }
 
+            // Update guillotine display
+            UpdatePlayerGuillotine();
+
             // Win/lose checking delegated to WinConditionChecker via CheckPlayerWinCondition
         }
 
@@ -1873,6 +1966,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
             {
                 _player2MissCounter.text = _stateTracker.GetOpponentMissCounterText();
             }
+
+            // Update guillotine display
+            UpdateOpponentGuillotine();
 
             // Win/lose checking delegated to WinConditionChecker via CheckOpponentWinCondition
         }

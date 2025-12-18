@@ -1,6 +1,6 @@
 # Don't Lose Your Head - Game Design Document
 
-**Version:** 9.0
+**Version:** 10.0
 **Date:** November 20, 2025
 **Last Updated:** December 17, 2025
 **Developer:** TecVooDoo LLC
@@ -229,6 +229,38 @@ Each player has a scrollable list under their guillotine showing:
 ### Auto-Hide Guess Word Buttons
 
 When a word is fully revealed through letter guessing (all letters discovered), the "Guess Word" button automatically hides since there's nothing left to guess.
+
+---
+
+## Guillotine Visual System
+
+### Purpose
+Each player has a guillotine display showing their progress toward the miss limit. The blade rises with each miss and drops when the player loses.
+
+### Components
+- **Frame:** Left post, right post, top beam (brown wood)
+- **Hash Marks:** Dynamically generated based on miss limit, displayed on the posts
+- **Blade Group:** Contains the blade beam and blade, animates up/down
+- **Lunette:** The neck restraint at the bottom
+- **Head:** Colored circle (player's color), sits in lunette
+- **Basket:** Catches the head when it falls
+
+### Animation Behaviors
+
+**On Miss:**
+- Blade rises smoothly to align with the next hash mark
+- DOTween animation with OutQuad easing
+
+**On Lose (Miss Limit Reached):**
+- Blade drops quickly to bottom
+- Head shakes briefly
+- Head falls into basket with bounce
+
+**On Lose (Opponent Found All Words):**
+- Blade rises dramatically to top
+- Pause for effect
+- Blade drops
+- Head shakes and falls into basket
 
 ---
 

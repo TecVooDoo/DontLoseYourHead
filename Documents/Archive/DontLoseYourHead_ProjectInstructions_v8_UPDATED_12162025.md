@@ -5,7 +5,7 @@
 **Designer:** Rune (Stephen Brandon)
 **Unity Version:** 6.3 (2D Template)
 **Project Path:** E:\Unity\DontLoseYourHead
-**Last Updated:** December 17, 2025
+**Last Updated:** December 16, 2025
 
 ---
 
@@ -60,13 +60,10 @@ Do NOT use worktree paths like `C:\Users\steph\.claude-worktrees\...` - always u
 
 Format: `OriginalFileName_v#_UPDATED_MMDDYYYY.ext`
 
-**IMPORTANT:** Increment the version number (v#) for EVERY update, even if updating multiple times on the same day. This prevents files from being overwritten.
-
 Examples:
-- `ProjectInstructions_v9_UPDATED_12172025.md`
-- `ProjectInstructions_v10_UPDATED_12172025.md` (second update same day)
-- `GDD_v9_UPDATED_12172025.md`
-- `DLYH_Architecture_v9_UPDATED_12172025.md`
+- `ProjectInstructions_v8_UPDATED_12162025.md`
+- `GDD_v8_UPDATED_12162025.md`
+- `DLYH_Architecture_v8_UPDATED_12162025.md`
 
 ---
 
@@ -172,16 +169,15 @@ Examples:
 
 ## Cloudflare Infrastructure
 
-### Telemetry Worker (COMPLETE)
+### Telemetry Worker (Already Deployed)
 - **Endpoint:** `dlyh-telemetry.runeduvall.workers.dev`
 - **Database:** D1 (dlyh-telemetry)
 - **Tables:** events, sessions
-- **Status:** Deployed and operational
 
-### WebGL Playtest Hosting (COMPLETE)
-- **URL:** `dlyh.pages.dev`
-- **Platform:** Cloudflare Pages
-- **Status:** Deployed and playtest link distributed (Dec 16, 2025)
+### WebGL Hosting (Cloudflare Pages - TODO)
+- **Project Name:** dlyh (to be created)
+- **Deployment:** Manual upload or `npx wrangler pages deploy ./BuildFolder --project-name=dlyh`
+- **Build Path:** Unity WebGL build output folder
 
 ### Deployment Steps (WebGL)
 1. Unity: File > Build Settings > WebGL > Build
@@ -189,46 +185,7 @@ Examples:
 3. Either:
    - **Dashboard:** Cloudflare Dashboard > Workers & Pages > Create > Pages > Upload assets
    - **CLI:** `npx wrangler pages deploy ./Builds/WebGL --project-name=dlyh`
-4. Access at: `dlyh.pages.dev`
-
----
-
-## Development Status
-
-### Completed Phases
-- Phase 1: Core Mechanics - COMPLETE
-- Phase 2: UI Implementation - COMPLETE
-- Phase 3: AI Opponent - COMPLETE
-
-### Phase 4: Polish and Features - IN PROGRESS
-
-| Item | Status |
-|------|--------|
-| Sound effects (UI audio system) | COMPLETE |
-| Profanity filtering | COMPLETE |
-| Help overlay / Tutorial | COMPLETE |
-| Feedback panel | COMPLETE |
-| Playtest telemetry | COMPLETE |
-| Tooltip system | COMPLETE |
-| Fix layout (ButtonBar, guillotine assembly) | COMPLETE |
-| Guillotine animations (raise on miss, drop on lose) | COMPLETE |
-| DOTween animations (reveals, transitions, feedback) | TODO |
-| Feel effects (screen shake, juice) | TODO |
-| Background music | TODO |
-| Dynamic music tempo (increase near miss limit) | TODO |
-| Mute buttons during gameplay (SFX and Music) | TODO |
-| Win/Loss tracker vs AI (session stats) | TODO |
-| Medieval/carnival themed monospace font | TODO |
-| UI skinning (medieval carnival theme) | TODO |
-| Character avatars | TODO |
-| Background art | TODO |
-
-### Phase 5: Multiplayer and Mobile - TODO
-
-| Item | Status |
-|------|--------|
-| 2-player networking mode | TODO |
-| Mobile implementation | TODO |
+4. Access at: `dlyh.pages.dev` (or custom domain if configured)
 
 ---
 

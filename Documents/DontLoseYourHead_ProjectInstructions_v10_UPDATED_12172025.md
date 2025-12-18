@@ -227,6 +227,7 @@ Examples:
 
 | Item | Status |
 |------|--------|
+| Word row cell-based display (replace text fields with individual letter cells) | TODO |
 | 2-player networking mode | TODO |
 | Mobile implementation | TODO |
 
@@ -249,6 +250,19 @@ Examples:
 - [ ] Use legacy Input class
 - [ ] Display full read tool calls
 - [ ] Use MCP for hierarchy modifications
+
+---
+
+## Known Issues / TODO for Next Session
+
+- Word rows compression on larger grids (11x11+) - needs investigation
+- Extend game over popup duration (2-3 more seconds)
+- Gameplay Guide scroll speed is too slow
+
+## Reminders for Future Implementation
+
+- Add tempo change triggers at 80% and 95% of miss limit for music
+- Random eye blink on severed head (future polish)
 
 ---
 
