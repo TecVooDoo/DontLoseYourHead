@@ -76,6 +76,17 @@ namespace DLYH.Audio
         private float _volumeCacheTime;
         private const float VOLUME_CACHE_DURATION = 1f;
 
+        private bool _isMuted;
+
+        #endregion
+
+        #region Properties
+
+        /// <summary>
+        /// Whether SFX is currently muted
+        /// </summary>
+        public bool IsMuted => _isMuted;
+
         #endregion
 
         #region Unity Lifecycle
@@ -135,6 +146,12 @@ namespace DLYH.Audio
         /// </summary>
         private float GetSFXVolume()
         {
+            // Return 0 if muted
+            if (_isMuted)
+            {
+                return 0f;
+            }
+
             // Refresh cache periodically
             if (Time.unscaledTime - _volumeCacheTime > VOLUME_CACHE_DURATION)
             {
@@ -341,6 +358,56 @@ namespace DLYH.Audio
             {
                 Instance.PlaySuccess();
             }
+        }
+
+        /// <summary>
+        /// Static shortcut to toggle SFX mute
+        /// </summary>
+        public static void ToggleMuteSFX()
+        {
+            if (Instance != null)
+            {
+                Instance.ToggleMute();
+            }
+        }
+
+        /// <summary>
+        /// Static check if SFX is muted
+        /// </summary>
+        public static bool IsSFXMuted()
+        {
+            return Instance != null && Instance.IsMuted;
+        }
+
+        #endregion
+
+        #region Mute Control
+
+        /// <summary>
+        /// Toggle SFX mute state
+        /// </summary>
+        public void ToggleMute()
+        {
+            _isMuted = !_isMuted;
+            Debug.Log(string.Format("[UIAudioManager] SFX {0}", _isMuted ? "muted" : "unmuted"));
+        }
+
+        /// <summary>
+        /// Mute SFX
+        /// </summary>
+        public void Mute()
+        {
+            _isMuted = true;
+            Debug.Log("[UIAudioManager] SFX muted");
+        }
+
+        /// <summary>
+        /// Unmute SFX
+        /// </summary>
+        public void Unmute()
+        {
+            _isMuted = false;
+            Debug.Log("[UIAudioManager] SFX unmuted");
         }
 
         #endregion
