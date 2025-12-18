@@ -15,8 +15,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
         public const int MAX_GRID_SIZE = 12;
         public const int MIN_GRID_SIZE = 6;
 
-        private const float MAX_CELL_SIZE = 65f;
-        private const float MIN_CELL_SIZE = 40f;
+        private const float MAX_CELL_SIZE = 55f;
+        private const float MIN_CELL_SIZE = 32f;
         private const float CELL_SPACING = 2f;
         #endregion
 
@@ -218,14 +218,18 @@ namespace TecVooDoo.DontLoseYourHead.UI
             float availableHeight = 1080f;
 
             // Fixed elements: header(~40) + word patterns(~120) + letter tracker(~80) + column labels(~30) + padding(~30)
-            float fixedElementsHeight = 300f;
+            float fixedElementsHeight = 380f;
             float maxGridHeight = availableHeight - fixedElementsHeight;
 
             // Calculate optimal cell size
             float optimalCellSize = (maxGridHeight - ((gridSize - 1) * CELL_SPACING)) / gridSize;
 
+            // For grids 9x9 and larger, use smaller cell sizes to fit better
+            float effectiveMaxCellSize = gridSize >= 9 ? 45f : MAX_CELL_SIZE;
+            float effectiveMinCellSize = gridSize >= 9 ? MIN_CELL_SIZE : 38f;
+
             // Clamp between min and max cell sizes
-            _currentCellSize = Mathf.Clamp(optimalCellSize, MIN_CELL_SIZE, MAX_CELL_SIZE);
+            _currentCellSize = Mathf.Clamp(optimalCellSize, effectiveMinCellSize, effectiveMaxCellSize);
 
             Debug.Log(string.Format("[GridLayoutManager] Grid {0}x{0}: optimal={1:F1}px, clamped={2:F1}px",
                 gridSize, optimalCellSize, _currentCellSize));

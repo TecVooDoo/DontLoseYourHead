@@ -31,7 +31,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
             /// <summary>Letter is currently selected/highlighted</summary>
             Selected,
             /// <summary>Letter is disabled and cannot be clicked</summary>
-            Disabled
+            Disabled,
+            /// <summary>Letter was revealed at end of game (not found during gameplay)</summary>
+            Revealed
         }
         #endregion
 
@@ -66,6 +68,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private Color _disabledColor = new Color(0.5f, 0.5f, 0.5f, 0.5f);
 
         [SerializeField]
+        private Color _revealedColor = new Color(1f, 0.85f, 0.4f, 1f); // Yellow for end-game reveal
+
+        [SerializeField]
         private Color _hoverColor = new Color(0.85f, 0.85f, 0.95f, 1f);
 
         [TitleGroup("Text Colors")]
@@ -80,6 +85,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         [SerializeField]
         private Color _disabledTextColor = new Color(0.3f, 0.3f, 0.3f, 1f);
+
+        [SerializeField]
+        private Color _revealedTextColor = Color.black;
         #endregion
 
         #region Private Fields
@@ -250,6 +258,18 @@ namespace TecVooDoo.DontLoseYourHead.UI
         public void MarkAsMiss()
         {
             SetState(LetterState.Miss);
+        }
+
+        /// <summary>
+        /// Marks this letter as revealed at end of game (not found during gameplay).
+        /// Only applies if the letter is currently in Normal state.
+        /// </summary>
+        public void MarkAsRevealed()
+        {
+            if (_currentState == LetterState.Normal)
+            {
+                SetState(LetterState.Revealed);
+            }
         }
 
         /// <summary>
@@ -435,6 +455,11 @@ private void AutoDetectLetter()
                 case LetterState.Disabled:
                     bgColor = _disabledColor;
                     textColor = _disabledTextColor;
+                    break;
+
+                case LetterState.Revealed:
+                    bgColor = _revealedColor;
+                    textColor = _revealedTextColor;
                     break;
 
                 case LetterState.Normal:

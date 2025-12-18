@@ -110,6 +110,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
         // Telemetry tracking
         private int _totalTurns = 0;
 
+        // Extra turn queue - stores words that grant extra turns (FIFO)
+        private Queue<string> _extraTurnQueue = new Queue<string>();
+
         // AI opponent settings are now dynamic based on player difficulty
         // Easy player = smaller AI grid (6-8), more words (4) = easier for player to find
         // Normal player = medium AI grid (8-10), random words (3-4) = balanced
@@ -151,6 +154,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private HashSet<char> _playerGuessedLetters => _stateTracker?.PlayerGuessedLetters ?? new HashSet<char>();
         private HashSet<Vector2Int> _playerGuessedCoordinates => _stateTracker?.PlayerGuessedCoordinates ?? new HashSet<Vector2Int>();
         private HashSet<int> _playerSolvedWordRows => _stateTracker?.PlayerSolvedWordRows ?? new HashSet<int>();
+
+        // Stores the pending game result to fire OnGameEnded after Continue is clicked
+        private bool? _pendingGameResult = null;
 
         private int _opponentMisses => _stateTracker?.OpponentMisses ?? 0;
         private int _opponentMissLimit => _stateTracker?.OpponentMissLimit ?? 0;
@@ -471,6 +477,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             if (_wordGuessFeedbackText != null)
                 _wordGuessFeedbackText.gameObject.SetActive(false);
+
+            // Subscribe to MessagePopup Continue button for game over flow
+            if (MessagePopup.Instance != null)
+            {
+                MessagePopup.Instance.OnContinueClicked += HandleGameOverContinue;
+            }
         }
 
         private void Update()
@@ -492,6 +504,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
             UnsubscribeFromPanelEvents();
             UnsubscribeFromWordGuessModeController();
             UnsubscribeFromAIEvents();
+
+            // Unsubscribe from MessagePopup Continue button
+            if (MessagePopup.Instance != null)
+            {
+                MessagePopup.Instance.OnContinueClicked -= HandleGameOverContinue;
+            }
         }
 
         /// <summary>
@@ -1044,10 +1062,14 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _executionerAI.RecordPlayerGuess(result == GuessResult.Hit);
             }
 
-            // Check if any words are now fully revealed via letters
+            // Check if any words are now fully revealed via letters - queue them for extra turns
             if (result == GuessResult.Hit)
             {
-                CheckAndMarkFullyRevealedWords();
+                List<string> completedWords = CheckAndMarkFullyRevealedWords();
+                foreach (string word in completedWords)
+                {
+                    _extraTurnQueue.Enqueue(word);
+                }
             }
 
             // Check win condition BEFORE showing popup
@@ -1056,12 +1078,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
             // Only show turn popup if game isn't over (game over has its own popup)
             if (!_gameOver)
             {
+                string playerName = _playerSetupData?.PlayerName ?? "Player";
                 string resultText = result == GuessResult.Hit ? "Hit" : "Miss";
-                ShowTurnPopup(string.Format("{0} guessed letter '{1}' - {2}. {3}'s turn!",
-                    _playerSetupData?.PlayerName ?? "Player", letter, resultText,
-                    _opponentSetupData?.PlayerName ?? "Opponent"));
 
-                EndPlayerTurn();
+                // Show guess result and handle extra turn logic
+                ShowGuessResultAndProcessTurn(
+                    string.Format("{0} guessed letter '{1}' - {2}.", playerName, letter, resultText));
             }
         }
 
@@ -1096,10 +1118,14 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _executionerAI.RecordPlayerGuess(result == GuessResult.Hit);
             }
 
-            // Check if any words are now fully revealed via coordinate guessing
+            // Check if any words are now fully revealed via coordinate guessing - queue them for extra turns
             if (result == GuessResult.Hit)
             {
-                CheckAndMarkFullyRevealedWords();
+                List<string> completedWords = CheckAndMarkFullyRevealedWords();
+                foreach (string word in completedWords)
+                {
+                    _extraTurnQueue.Enqueue(word);
+                }
             }
 
             // Check win condition BEFORE showing popup
@@ -1108,12 +1134,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
             // Only show turn popup if game isn't over (game over has its own popup)
             if (!_gameOver)
             {
+                string playerName = _playerSetupData?.PlayerName ?? "Player";
                 string resultText = result == GuessResult.Hit ? "Hit" : "Miss";
-                ShowTurnPopup(string.Format("{0} guessed {1} - {2}. {3}'s turn!",
-                    _playerSetupData?.PlayerName ?? "Player", coordLabel, resultText,
-                    _opponentSetupData?.PlayerName ?? "Opponent"));
 
-                EndPlayerTurn();
+                // Show guess result and handle extra turn logic
+                ShowGuessResultAndProcessTurn(
+                    string.Format("{0} guessed {1} - {2}.", playerName, coordLabel, resultText));
             }
         }
 
@@ -1161,24 +1187,29 @@ namespace TecVooDoo.DontLoseYourHead.UI
             // Check win condition after word guess
             CheckPlayerWinCondition();
 
-            if (!_gameOver)
-            {
-                EndPlayerTurn();
-            }
+            // Turn ending is handled in HandleWordGuessProcessed via ShowGuessResultAndProcessTurn
         }
 
         /// <summary>
-        /// Handler for word guess processed - shows popup message for consistency.
+        /// Handler for word guess processed - shows popup message and queues extra turn if correct.
         /// </summary>
         private void HandleWordGuessProcessed(int rowIndex, string guessedWord, bool wasCorrect)
         {
+            // Queue correct word guesses for extra turns
+            if (wasCorrect)
+            {
+                _extraTurnQueue.Enqueue(guessedWord.ToUpper());
+            }
+
             // Only show turn popup if game isn't over (game over has its own popup)
             if (!_gameOver)
             {
+                string playerName = _playerSetupData?.PlayerName ?? "Player";
                 string resultText = wasCorrect ? "Correct" : "Incorrect";
-                ShowTurnPopup(string.Format("{0} guessed word '{1}' - {2}. {3}'s turn!",
-                    _playerSetupData?.PlayerName ?? "Player", guessedWord.ToUpper(), resultText,
-                    _opponentSetupData?.PlayerName ?? "Opponent"));
+
+                // Show guess result and handle extra turn logic
+                ShowGuessResultAndProcessTurn(
+                    string.Format("{0} guessed word '{1}' - {2}.", playerName, guessedWord.ToUpper(), resultText));
             }
         }
 
@@ -1268,6 +1299,41 @@ namespace TecVooDoo.DontLoseYourHead.UI
         #endregion
 
         #region Turn Management
+
+        /// <summary>
+        /// Shows the guess result message, then checks if player has earned an extra turn.
+        /// If an extra turn is earned, appends the extra turn message.
+        /// Otherwise, appends opponent's turn message and ends the turn.
+        /// </summary>
+        /// <param name="guessResultMessage">The message describing the guess result (e.g., "Player guessed letter 'A' - Hit.")</param>
+        private void ShowGuessResultAndProcessTurn(string guessResultMessage)
+        {
+            if (_gameOver) return;
+
+            // Check if there's a queued extra turn
+            if (_extraTurnQueue.Count > 0)
+            {
+                string completedWord = _extraTurnQueue.Dequeue();
+
+                // Combine the guess result with the extra turn message
+                string message = string.Format("{0} You completed \"{1}\" - EXTRA TURN!",
+                    guessResultMessage, completedWord);
+                ShowTurnPopup(message);
+
+                Debug.Log($"[GameplayUI] Extra turn granted for completing word: {completedWord}. {_extraTurnQueue.Count} extra turns remaining in queue.");
+
+                // Don't end turn - player gets another turn
+                // Turn indicator stays as player's turn
+            }
+            else
+            {
+                // No extra turns - end player's turn normally
+                string opponentName = _opponentSetupData?.PlayerName ?? "Opponent";
+                string message = string.Format("{0} {1}'s turn!", guessResultMessage, opponentName);
+                ShowTurnPopup(message);
+                EndPlayerTurn();
+            }
+        }
 
         private void EndPlayerTurn()
         {
@@ -1668,9 +1734,26 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             if (MessagePopup.Instance != null)
             {
-                MessagePopup.Instance.ShowMessage(message, 3f); // Longer duration for game over
+                // Use game over message with Continue button (draggable, waits for click)
+                MessagePopup.Instance.ShowGameOverMessage(message);
             }
             Debug.Log($"[GameplayUI] Game Over Popup: {message}");
+        }
+
+        /// <summary>
+        /// Called when the Continue button is clicked on the game over popup.
+        /// Fires the pending OnGameEnded event to transition to feedback screen.
+        /// </summary>
+        private void HandleGameOverContinue()
+        {
+            if (_pendingGameResult.HasValue)
+            {
+                bool playerWon = _pendingGameResult.Value;
+                _pendingGameResult = null;
+
+                Debug.Log($"[GameplayUI] Continue clicked - firing OnGameEnded(playerWon: {playerWon})");
+                OnGameEnded?.Invoke(playerWon);
+            }
         }
 
         #endregion
@@ -1680,10 +1763,14 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// <summary>
         /// Check if any opponent word rows have all letters revealed via letter guessing.
         /// If so, mark them as solved to hide the Guess Word button.
+        /// Returns list of word names that were newly completed this turn.
         /// </summary>
-        private void CheckAndMarkFullyRevealedWords()
+        private List<string> CheckAndMarkFullyRevealedWords()
         {
-            if (_opponentPanel == null || _opponentSetupData == null || _winChecker == null) return;
+            List<string> completedWords = new List<string>();
+
+            if (_opponentPanel == null || _opponentSetupData == null || _winChecker == null)
+                return completedWords;
 
             WordPatternRow[] rows = _opponentPanel.GetWordPatternRows();
             List<int> newlyRevealed = _winChecker.FindNewlyRevealedWordRows(_opponentSetupData.PlacedWords);
@@ -1692,12 +1779,16 @@ namespace TecVooDoo.DontLoseYourHead.UI
             {
                 if (rowIndex < rows.Length && rows[rowIndex] != null)
                 {
+                    string word = _opponentSetupData.PlacedWords[rowIndex].Word.ToUpper();
                     Debug.Log(string.Format("[GameplayUI] Word row {0} fully revealed via letters: {1}",
-                        rowIndex + 1, _opponentSetupData.PlacedWords[rowIndex].Word));
+                        rowIndex + 1, word));
                     rows[rowIndex].MarkWordSolved();
                     _stateTracker.AddPlayerSolvedRow(rowIndex);
+                    completedWords.Add(word);
                 }
             }
+
+            return completedWords;
         }
 
         /// <summary>
@@ -1726,8 +1817,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
                     _totalTurns
                 );
 
-                OnGameEnded?.Invoke(true);
-                Debug.Log("[GameplayUI] Player won - OnGameEnded fired");
+                // Store pending result - OnGameEnded fires when Continue is clicked
+                _pendingGameResult = true;
+                Debug.Log("[GameplayUI] Player won - waiting for Continue click");
+
+                // Reveal any remaining unfound positions
+                RevealOpponentWordsAndPositions();
             }
             else if (_winChecker.CheckPlayerLoseCondition())
             {
@@ -1748,8 +1843,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
                     _totalTurns
                 );
 
-                OnGameEnded?.Invoke(false);
-                Debug.Log("[GameplayUI] Player lost (miss limit) - OnGameEnded fired");
+                // Store pending result - OnGameEnded fires when Continue is clicked
+                _pendingGameResult = false;
+                Debug.Log("[GameplayUI] Player lost (miss limit) - waiting for Continue click");
+
+                // Reveal opponent words at end of game
+                RevealOpponentWordsAndPositions();
             }
         }
 
@@ -1779,8 +1878,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
                     _totalTurns
                 );
 
-                OnGameEnded?.Invoke(false);
-                Debug.Log("[GameplayUI] Opponent won - OnGameEnded fired");
+                // Store pending result - OnGameEnded fires when Continue is clicked
+                _pendingGameResult = false;
+                Debug.Log("[GameplayUI] Opponent won - waiting for Continue click");
+
+                // Reveal opponent words at end of game
+                RevealOpponentWordsAndPositions();
             }
             else if (_winChecker.CheckOpponentLoseCondition())
             {
@@ -1801,9 +1904,73 @@ namespace TecVooDoo.DontLoseYourHead.UI
                     _totalTurns
                 );
 
-                OnGameEnded?.Invoke(true);
-                Debug.Log("[GameplayUI] Opponent lost (miss limit) - OnGameEnded fired");
+                // Store pending result - OnGameEnded fires when Continue is clicked
+                _pendingGameResult = true;
+                Debug.Log("[GameplayUI] Opponent lost (miss limit) - waiting for Continue click");
+
+                // Reveal any remaining unfound positions
+                RevealOpponentWordsAndPositions();
             }
+        }
+
+        #endregion
+
+        #region End Game Reveal
+
+        /// <summary>
+        /// Reveals all unfound opponent words, positions, and letters at end of game.
+        /// Only reveals elements that were not found during gameplay (keeps gameplay colors intact).
+        /// </summary>
+        private void RevealOpponentWordsAndPositions()
+        {
+            if (_opponentSetupData == null || _opponentPanel == null) return;
+
+            Debug.Log("[GameplayUI] Revealing unfound opponent words and positions...");
+
+            // 1. Reveal all letters in word pattern rows
+            WordPatternRow[] rows = _opponentPanel.GetWordPatternRows();
+            for (int i = 0; i < _opponentSetupData.PlacedWords.Count && i < rows.Length; i++)
+            {
+                if (rows[i] != null)
+                {
+                    rows[i].RevealAllLetters();
+                }
+            }
+
+            // 2. Reveal unfound grid positions (yellow) and reveal letters on yellow cells
+            foreach (WordPlacementData wordData in _opponentSetupData.PlacedWords)
+            {
+                int col = wordData.StartCol;
+                int row = wordData.StartRow;
+
+                for (int i = 0; i < wordData.Word.Length; i++)
+                {
+                    GridCellUI cell = _opponentPanel.GetCell(col, row);
+                    if (cell != null)
+                    {
+                        // MarkAsRevealed only affects cells that were not guessed during gameplay
+                        cell.MarkAsRevealed();
+                        // Also reveal any hidden letters (yellow cells, etc.) without changing color
+                        cell.RevealHiddenLetterKeepColor();
+                    }
+
+                    col += wordData.DirCol;
+                    row += wordData.DirRow;
+                }
+
+                // 3. Reveal unfound letters on letter tracker (yellow)
+                foreach (char letter in wordData.Word.ToUpper())
+                {
+                    LetterButton letterBtn = _opponentPanel.GetLetterButton(letter);
+                    if (letterBtn != null)
+                    {
+                        // MarkAsRevealed only affects letters that are in Normal state
+                        letterBtn.MarkAsRevealed();
+                    }
+                }
+            }
+
+            Debug.Log("[GameplayUI] End-of-game reveal complete");
         }
 
         #endregion
@@ -1830,6 +1997,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
             if (_player1Guillotine != null && _stateTracker != null)
             {
                 _player1Guillotine.UpdateMissCount(_stateTracker.PlayerMisses);
+                // Update both faces based on new danger levels
+                UpdateGuillotineFaces();
             }
         }
 
@@ -1838,6 +2007,25 @@ namespace TecVooDoo.DontLoseYourHead.UI
             if (_player2Guillotine != null && _stateTracker != null)
             {
                 _player2Guillotine.UpdateMissCount(_stateTracker.OpponentMisses);
+                // Update both faces based on new danger levels
+                UpdateGuillotineFaces();
+            }
+        }
+
+        private void UpdateGuillotineFaces()
+        {
+            if (_stateTracker == null) return;
+
+            // Player 1's face reacts to their own misses and opponent's misses
+            if (_player1Guillotine != null)
+            {
+                _player1Guillotine.UpdateFace(_stateTracker.OpponentMisses, _stateTracker.OpponentMissLimit);
+            }
+
+            // Player 2's face reacts to their own misses and player's misses
+            if (_player2Guillotine != null)
+            {
+                _player2Guillotine.UpdateFace(_stateTracker.PlayerMisses, _stateTracker.PlayerMissLimit);
             }
         }
 
@@ -1847,6 +2035,11 @@ namespace TecVooDoo.DontLoseYourHead.UI
             {
                 _player1Guillotine.AnimateGameOver();
             }
+            // Winner (player 2) gets evil smile
+            if (_player2Guillotine != null)
+            {
+                _player2Guillotine.SetExecutionFace(false);
+            }
         }
 
         private void TriggerOpponentGuillotineGameOver()
@@ -1854,6 +2047,11 @@ namespace TecVooDoo.DontLoseYourHead.UI
             if (_player2Guillotine != null)
             {
                 _player2Guillotine.AnimateGameOver();
+            }
+            // Winner (player 1) gets evil smile
+            if (_player1Guillotine != null)
+            {
+                _player1Guillotine.SetExecutionFace(false);
             }
         }
 
@@ -1863,6 +2061,11 @@ namespace TecVooDoo.DontLoseYourHead.UI
             {
                 _player1Guillotine.AnimateDefeatByWordsFound();
             }
+            // Winner (player 2) gets evil smile
+            if (_player2Guillotine != null)
+            {
+                _player2Guillotine.SetExecutionFace(false);
+            }
         }
 
         private void TriggerOpponentGuillotineDefeatByWords()
@@ -1870,6 +2073,11 @@ namespace TecVooDoo.DontLoseYourHead.UI
             if (_player2Guillotine != null)
             {
                 _player2Guillotine.AnimateDefeatByWordsFound();
+            }
+            // Winner (player 1) gets evil smile
+            if (_player1Guillotine != null)
+            {
+                _player1Guillotine.SetExecutionFace(false);
             }
         }
 
@@ -1989,6 +2197,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _opponentSetupData.GridSize,
                 _opponentSetupData.WordCount);
             _stateTracker.InitializePlayerState(missLimit);
+
+            // Clear any leftover extra turns from previous game
+            _extraTurnQueue.Clear();
         }
 
         #endregion
@@ -2089,15 +2300,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             _stateTracker.AddPlayerGuessedCoordinate(col, row);
 
-            // If hit, find the letter at this coordinate and add to known letters
-            if (result == GuessProcessor.GuessResult.Hit)
-            {
-                char? letter = FindLetterAtCoordinate(_opponentSetupData.PlacedWords, col, row);
-                if (letter.HasValue)
-                {
-                    _stateTracker.AddPlayerKnownLetter(char.ToUpper(letter.Value));
-                }
-            }
+            // NOTE: Do NOT add letters to known letters here!
+            // Coordinate hits for unknown letters result in yellow cells.
+            // Letters only become known through letter guessing or correct word guessing.
+            // The GuessProcessor handles green vs yellow cell display based on _knownLetters.
 
             return ConvertGuessResult(result);
         }

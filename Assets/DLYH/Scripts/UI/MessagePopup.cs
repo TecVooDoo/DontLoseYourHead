@@ -7,6 +7,8 @@ using UnityEngine.UI;
 using TMPro;
 using System.Collections;
 using Sirenix.OdinInspector;
+using UnityEngine.EventSystems;
+using System;
 
 namespace TecVooDoo.DontLoseYourHead.UI
 {
@@ -24,7 +26,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
     /// - Already guessed notifications (letter, coordinate, or word)
     /// - Any other transient feedback
     /// </summary>
-    public class MessagePopup : MonoBehaviour
+    public class MessagePopup : MonoBehaviour, IBeginDragHandler, IDragHandler
     {
         #region Singleton
 
@@ -62,12 +64,29 @@ namespace TecVooDoo.DontLoseYourHead.UI
         [Range(0.1f, 2f)]
         private float _fadeOutDuration = 0.3f;
 
+        [Header("Game Over Settings")]
+        [SerializeField, Tooltip("Continue button shown during game over messages")]
+        private Button _continueButton;
+
+        #endregion
+
+        #region Events
+
+        /// <summary>
+        /// Fired when the Continue button is clicked on a game over message.
+        /// </summary>
+        public event Action OnContinueClicked;
+
         #endregion
 
         #region Private Fields
 
         private Coroutine _currentPopupCoroutine;
         private CanvasGroup _canvasGroup;
+        private RectTransform _popupRect;
+        private RectTransform _canvasRect;
+        private Vector2 _dragOffset;
+        private bool _isGameOverMode;
 
         #endregion
 
@@ -88,6 +107,23 @@ namespace TecVooDoo.DontLoseYourHead.UI
             if (_canvasGroup == null && _popupContainer != null)
             {
                 _canvasGroup = _popupContainer.AddComponent<CanvasGroup>();
+            }
+
+            // Get RectTransform for dragging
+            _popupRect = _popupContainer?.GetComponent<RectTransform>();
+
+            // Find canvas for bounds
+            Canvas canvas = GetComponentInParent<Canvas>();
+            if (canvas != null)
+            {
+                _canvasRect = canvas.GetComponent<RectTransform>();
+            }
+
+            // Wire up continue button
+            if (_continueButton != null)
+            {
+                _continueButton.onClick.AddListener(HandleContinueClicked);
+                _continueButton.gameObject.SetActive(false);
             }
 
             // Ensure popup starts hidden
@@ -170,6 +206,21 @@ namespace TecVooDoo.DontLoseYourHead.UI
             {
                 _canvasGroup.alpha = 1f;
             }
+
+            // Reset game over mode
+            _isGameOverMode = false;
+
+            // Hide continue button
+            if (_continueButton != null)
+            {
+                _continueButton.gameObject.SetActive(false);
+            }
+
+            // Reset position to center for next use
+            if (_popupRect != null)
+            {
+                _popupRect.anchoredPosition = Vector2.zero;
+            }
         }
 
         /// <summary>
@@ -206,10 +257,13 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         #region Private Methods
 
-        private IEnumerator ShowAndHideCoroutine(float displayDuration)
+        private IEnumerator ShowAndHideCoroutine(float displayDuration, bool playSound = true)
         {
-            // Play popup sound
-            DLYH.Audio.UIAudioManager.PopupOpen();
+            // Play popup sound (skip when just resetting timer from drag)
+            if (playSound)
+            {
+                DLYH.Audio.UIAudioManager.PopupOpen();
+            }
 
             // Show the popup
             _popupContainer.SetActive(true);
@@ -244,6 +298,127 @@ namespace TecVooDoo.DontLoseYourHead.UI
             }
 
             _currentPopupCoroutine = null;
+        }
+
+        #endregion
+
+        #region Game Over Message
+
+        /// <summary>
+        /// Shows a game over message with Continue button. Does not auto-hide.
+        /// The popup is draggable so players can move it to see the board.
+        /// </summary>
+        /// <param name="message">The game over message to display</param>
+        public void ShowGameOverMessage(string message)
+        {
+            if (_popupContainer == null || _messageText == null)
+            {
+                Debug.LogWarning("[MessagePopup] Cannot show game over message - references not set!");
+                return;
+            }
+
+            // Ensure the MessagePopup GameObject itself is active
+            if (!gameObject.activeInHierarchy)
+            {
+                gameObject.SetActive(true);
+            }
+
+            // Stop any existing popup coroutine
+            if (_currentPopupCoroutine != null)
+            {
+                StopCoroutine(_currentPopupCoroutine);
+                _currentPopupCoroutine = null;
+            }
+
+            _isGameOverMode = true;
+
+            // Set the message text
+            _messageText.text = message;
+
+            // Show the popup and continue button
+            _popupContainer.SetActive(true);
+            if (_canvasGroup != null)
+            {
+                _canvasGroup.alpha = 1f;
+            }
+
+            if (_continueButton != null)
+            {
+                _continueButton.gameObject.SetActive(true);
+            }
+
+            // Reset position to center
+            if (_popupRect != null)
+            {
+                _popupRect.anchoredPosition = Vector2.zero;
+            }
+
+            // Play popup sound
+            DLYH.Audio.UIAudioManager.PopupOpen();
+
+            Debug.Log($"[MessagePopup] Showing game over message: {message}");
+        }
+
+        /// <summary>
+        /// Static helper to show a game over message.
+        /// </summary>
+        public static void ShowGameOver(string message)
+        {
+            if (Instance != null)
+            {
+                Instance.ShowGameOverMessage(message);
+            }
+            else
+            {
+                Debug.LogWarning($"[MessagePopup] No instance found! Game over message: {message}");
+            }
+        }
+
+        private void HandleContinueClicked()
+        {
+            Debug.Log("[MessagePopup] Continue button clicked");
+
+            // Play button click sound
+            DLYH.Audio.UIAudioManager.ButtonClick();
+
+            // Hide the popup
+            HideImmediate();
+
+            // Fire event
+            OnContinueClicked?.Invoke();
+        }
+
+        #endregion
+
+        #region Drag Handlers
+
+        public void OnBeginDrag(PointerEventData eventData)
+        {
+            if (_popupRect == null) return;
+
+            // Calculate offset from pointer to popup center
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                _canvasRect, eventData.position, eventData.pressEventCamera, out Vector2 localPoint);
+            _dragOffset = _popupRect.anchoredPosition - localPoint;
+        }
+
+        public void OnDrag(PointerEventData eventData)
+        {
+            if (_popupRect == null || _canvasRect == null) return;
+
+            // Convert screen position to local position
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                _canvasRect, eventData.position, eventData.pressEventCamera, out Vector2 localPoint);
+
+            // Apply new position with offset
+            _popupRect.anchoredPosition = localPoint + _dragOffset;
+
+            // If not in game over mode, reset the display timer (without replaying sound)
+            if (!_isGameOverMode && _currentPopupCoroutine != null)
+            {
+                StopCoroutine(_currentPopupCoroutine);
+                _currentPopupCoroutine = StartCoroutine(ShowAndHideCoroutine(_displayDuration, playSound: false));
+            }
         }
 
         #endregion

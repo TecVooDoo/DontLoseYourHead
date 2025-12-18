@@ -294,6 +294,40 @@ namespace TecVooDoo.DontLoseYourHead.UI
         }
 
         /// <summary>
+        /// Marks this cell as revealed at end of game (yellow color, shows letter).
+        /// Only applies if the cell has not been guessed during gameplay.
+        /// </summary>
+        public void MarkAsRevealed()
+        {
+            if (_hasBeenGuessed) return; // Do not override gameplay results
+
+            _hasBeenGuessed = true;
+            _isHitButLetterUnknown = false;
+
+            if (_background != null)
+            {
+                _background.color = _hitUnknownLetterColor; // Yellow
+            }
+
+            // Reveal the hidden letter
+            RevealHiddenLetter();
+        }
+
+        /// <summary>
+        /// Reveals the hidden letter on this cell at end of game without changing color.
+        /// Works on any cell that has a hidden letter (yellow cells, unrevealed cells, etc.)
+        /// </summary>
+        public void RevealHiddenLetterKeepColor()
+        {
+            // Reveal the hidden letter without changing color
+            if (_isLetterHidden && _hiddenLetter != '\0')
+            {
+                SetLetter(_hiddenLetter);
+                _isLetterHidden = false;
+            }
+        }
+
+        /// <summary>
         /// Resets the cell to its initial state (including gameplay state).
         /// </summary>
         public void Reset()

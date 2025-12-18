@@ -44,6 +44,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
         [SerializeField] private Color _hashMarkColor = new Color(0.4f, 0.25f, 0.1f, 1f);
         [SerializeField] private float _hashMarkWidth = 4f;
         [SerializeField] private float _hashMarkLength = 15f;
+
+        [Header("Face Controller")]
+        [SerializeField, Tooltip("Controller for head facial expressions")]
+        private HeadFaceController _faceController;
+        [SerializeField, Tooltip("True if this head should look left (towards opponent on right)")]
+        private bool _faceLooksLeft = true;
         #endregion
 
         #region Private Fields
@@ -74,6 +80,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
             if (_headImage != null)
             {
                 _headImage.color = playerColor;
+            }
+
+            // Initialize face controller
+            if (_faceController != null)
+            {
+                _faceController.Initialize(_faceLooksLeft);
             }
 
             // Calculate blade travel range
@@ -107,6 +119,32 @@ namespace TecVooDoo.DontLoseYourHead.UI
         }
 
         /// <summary>
+        /// Updates the head face based on both players' danger levels.
+        /// Call this after miss counts change.
+        /// </summary>
+        /// <param name="opponentMisses">Opponent's current misses</param>
+        /// <param name="opponentMissLimit">Opponent's miss limit</param>
+        public void UpdateFace(int opponentMisses, int opponentMissLimit)
+        {
+            if (_faceController != null)
+            {
+                _faceController.UpdateFace(_currentMisses, _missLimit, opponentMisses, opponentMissLimit);
+            }
+        }
+
+        /// <summary>
+        /// Sets the execution face (horror for executed, evil smile for winner).
+        /// </summary>
+        /// <param name="isBeingExecuted">True if this head is being executed</param>
+        public void SetExecutionFace(bool isBeingExecuted)
+        {
+            if (_faceController != null)
+            {
+                _faceController.SetExecutionFace(isBeingExecuted);
+            }
+        }
+
+        /// <summary>
         /// Plays the game over animation - blade drops and head falls into basket.
         /// Used when player loses by reaching miss limit.
         /// </summary>
@@ -114,9 +152,15 @@ namespace TecVooDoo.DontLoseYourHead.UI
         {
             if (!_isInitialized) return;
 
+            // Set horror face for execution
+            SetExecutionFace(true);
+
             // Kill any existing tweens
             DOTween.Kill(_bladeGroup);
             DOTween.Kill(_headTransform);
+
+            // Play execution sound (fast chop - sudden death from miss limit)
+            DLYH.Audio.GuillotineAudioManager.ExecutionFast();
 
             // Sequence: blade drops, then head falls
             Sequence gameOverSequence = DOTween.Sequence();
@@ -137,6 +181,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 gameOverSequence.Append(
                     _headTransform.DOShakeAnchorPos(_headFallDuration * 0.3f, 5f, 20)
                 );
+
+                // Play head removed sound when head starts falling
+                gameOverSequence.AppendCallback(() => DLYH.Audio.GuillotineAudioManager.HeadRemoved());
 
                 // Head falls toward basket
                 Vector2 basketPos = _basket.anchoredPosition;
@@ -165,9 +212,15 @@ namespace TecVooDoo.DontLoseYourHead.UI
         {
             if (!_isInitialized) return;
 
+            // Set horror face for execution
+            SetExecutionFace(true);
+
             // Kill any existing tweens
             DOTween.Kill(_bladeGroup);
             DOTween.Kill(_headTransform);
+
+            // Play blade raise sound for the dramatic raise
+            DLYH.Audio.GuillotineAudioManager.BladeRaise();
 
             Sequence defeatSequence = DOTween.Sequence();
 
@@ -181,6 +234,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
                 // Pause at top for dramatic effect
                 defeatSequence.AppendInterval(0.5f);
+
+                // Play slow/dramatic chop sound when blade drops
+                defeatSequence.AppendCallback(() => DLYH.Audio.GuillotineAudioManager.ExecutionSlow());
 
                 // Then drop!
                 defeatSequence.Append(
@@ -196,6 +252,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 defeatSequence.Append(
                     _headTransform.DOShakeAnchorPos(_headFallDuration * 0.3f, 5f, 20)
                 );
+
+                // Play head removed sound when head starts falling
+                defeatSequence.AppendCallback(() => DLYH.Audio.GuillotineAudioManager.HeadRemoved());
 
                 // Head falls toward basket
                 Vector2 basketPos = _basket.anchoredPosition;
@@ -337,6 +396,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             // Kill any existing tween
             DOTween.Kill(_bladeGroup);
+
+            // Play blade raise sound (rope stretch + blade movement)
+            DLYH.Audio.GuillotineAudioManager.BladeRaise();
 
             // Animate to new position
             _bladeGroup.DOAnchorPosY(targetY, _bladeRaiseDuration)

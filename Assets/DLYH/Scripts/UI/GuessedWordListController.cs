@@ -18,9 +18,19 @@ namespace TecVooDoo.DontLoseYourHead.UI
         [SerializeField] private Color _hitColor = new Color(0.2f, 0.8f, 0.2f, 1f); // Green
         [SerializeField] private Color _missColor = new Color(0.8f, 0.2f, 0.2f, 1f); // Red
 
+        [Header("Sizing")]
+        [SerializeField, Tooltip("Default height for word entries")]
+        private float _defaultEntryHeight = 25f;
+        [SerializeField, Tooltip("Minimum height for word entries when list is long")]
+        private float _minEntryHeight = 14f;
+        [SerializeField, Tooltip("Number of entries before scaling begins")]
+        private int _scaleThreshold = 4;
+
         // Internal tracking of guessed words
         private List<GuessedWordData> _guessedWords = new List<GuessedWordData>();
         private List<GameObject> _instantiatedEntries = new List<GameObject>();
+        private RectTransform _containerRect;
+        private float _defaultFontSize = 14f; // Cached from prefab
 
         /// <summary>
         /// Data structure to track a guessed word and its result.
@@ -79,6 +89,30 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// </summary>
         public int WordCount => _guessedWords.Count;
 
+        private void Awake()
+        {
+            _containerRect = GetComponent<RectTransform>();
+
+            // Configure VerticalLayoutGroup for proper sizing control
+            VerticalLayoutGroup layoutGroup = GetComponent<VerticalLayoutGroup>();
+            if (layoutGroup != null)
+            {
+                // Disable child force expand so our heights are respected
+                layoutGroup.childForceExpandHeight = false;
+                layoutGroup.childControlHeight = false;
+            }
+
+            // Cache default font size from prefab
+            if (_guessedWordPrefab != null)
+            {
+                TMP_Text prefabText = _guessedWordPrefab.GetComponentInChildren<TMP_Text>();
+                if (prefabText != null)
+                {
+                    _defaultFontSize = prefabText.fontSize;
+                }
+            }
+        }
+
         /// <summary>
         /// Sets the hit color used for correctly guessed words.
         /// Called during panel setup to apply the player's chosen color.
@@ -86,6 +120,48 @@ namespace TecVooDoo.DontLoseYourHead.UI
         public void SetHitColor(Color color)
         {
             _hitColor = color;
+        }
+
+        /// <summary>
+        /// Calculates the entry height based on number of words and available space.
+        /// </summary>
+        private float CalculateEntryHeight()
+        {
+            int wordCount = _guessedWords.Count;
+            if (wordCount <= _scaleThreshold)
+            {
+                return _defaultEntryHeight;
+            }
+
+            // Calculate available height from container
+            float availableHeight = 120f; // Default fallback
+            if (_containerRect != null)
+            {
+                // Force layout rebuild to get accurate rect size
+                Canvas.ForceUpdateCanvases();
+                availableHeight = _containerRect.rect.height;
+
+                // Fallback if height is still 0 or invalid
+                if (availableHeight <= 0f)
+                {
+                    availableHeight = 120f;
+                }
+            }
+
+            // Get actual spacing from VerticalLayoutGroup if present
+            float spacing = 2f;
+            VerticalLayoutGroup layoutGroup = GetComponent<VerticalLayoutGroup>();
+            if (layoutGroup != null)
+            {
+                spacing = layoutGroup.spacing;
+            }
+
+            // Account for spacing
+            float totalSpacing = (wordCount - 1) * spacing;
+            float heightPerEntry = (availableHeight - totalSpacing) / wordCount;
+
+            // Clamp between min and default
+            return Mathf.Clamp(heightPerEntry, _minEntryHeight, _defaultEntryHeight);
         }
 
         /// <summary>
@@ -112,16 +188,17 @@ namespace TecVooDoo.DontLoseYourHead.UI
         {
             DestroyAllEntries();
 
+            float entryHeight = CalculateEntryHeight();
             foreach (var wordData in _guessedWords)
             {
-                CreateWordEntry(wordData);
+                CreateWordEntry(wordData, entryHeight);
             }
         }
 
         /// <summary>
         /// Creates a single word entry UI element.
         /// </summary>
-        private void CreateWordEntry(GuessedWordData wordData)
+        private void CreateWordEntry(GuessedWordData wordData, float entryHeight)
         {
             if (_guessedWordPrefab == null)
             {
@@ -132,6 +209,21 @@ namespace TecVooDoo.DontLoseYourHead.UI
             GameObject entry = Instantiate(_guessedWordPrefab, transform);
             _instantiatedEntries.Add(entry);
 
+            // Set entry height
+            RectTransform entryRect = entry.GetComponent<RectTransform>();
+            if (entryRect != null)
+            {
+                entryRect.sizeDelta = new Vector2(entryRect.sizeDelta.x, entryHeight);
+            }
+
+            // Also set LayoutElement if present for proper layout group behavior
+            LayoutElement layoutElement = entry.GetComponent<LayoutElement>();
+            if (layoutElement != null)
+            {
+                layoutElement.preferredHeight = entryHeight;
+                layoutElement.minHeight = entryHeight;
+            }
+
             // Set background color
             Image backgroundImage = entry.GetComponent<Image>();
             if (backgroundImage != null)
@@ -139,11 +231,14 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 backgroundImage.color = wordData.IsHit ? _hitColor : _missColor;
             }
 
-            // Set text
+            // Set text and adjust font size if needed
             TMP_Text textComponent = entry.GetComponentInChildren<TMP_Text>();
             if (textComponent != null)
             {
                 textComponent.text = wordData.Word;
+                // Scale font size proportionally with entry height
+                float fontScale = entryHeight / _defaultEntryHeight;
+                textComponent.fontSize = Mathf.Max(8f, _defaultFontSize * fontScale);
             }
         }
 

@@ -32,6 +32,10 @@ namespace DLYH.UI
         [SerializeField] private ScrollRect _scrollRect;
 
         [Header("Settings")]
+        [SerializeField, Tooltip("Scroll wheel sensitivity (higher = faster scroll)")]
+        [Range(1f, 50f)]
+        private float _scrollSensitivity = 25f;
+
         [SerializeField] private bool _startHidden = true;
 
         #endregion
@@ -79,6 +83,12 @@ Click ""Guess Word"" button on a word row
 - Correct guess reveals the word!
 - <color=#F44336>WRONG guess = 2 misses!</color>
 
+<b>Extra Turns:</b>
+<color=#4CAF50>Complete a word = EXTRA TURN!</color>
+- When your guess completes a word (all letters revealed), you get another turn
+- This works for letter guesses, coordinate guesses, AND correct word guesses
+- Multiple words completed at once = multiple extra turns (one per word)
+
 <b>Win Conditions:</b>
 - Reveal ALL opponent's letters AND grid positions
 - OR opponent reaches their miss limit
@@ -86,6 +96,7 @@ Click ""Guess Word"" button on a word row
 <b>Tips:</b>
 - Use letter guesses to discover common letters (E, T, A, O)
 - Coordinate guesses near hits often find more letters
+- Completing words gives extra turns - be strategic!
 - Only guess words when you're confident!
 
 <i>Drag this panel to move it. Click X or ? to close.</i>";
@@ -113,6 +124,7 @@ Click ""Guess Word"" button on a word row
         private void Start()
         {
             WireEvents();
+            ConfigureScrollSpeed();
             SetHelpContent();
 
             // First session visibility is handled in OnEnable via coroutine
@@ -155,6 +167,14 @@ Click ""Guess Word"" button on a word row
             if (_helpToggleButton != null)
             {
                 _helpToggleButton.onClick.RemoveListener(OnToggleClicked);
+            }
+        }
+
+        private void ConfigureScrollSpeed()
+        {
+            if (_scrollRect != null)
+            {
+                _scrollRect.scrollSensitivity = _scrollSensitivity;
             }
         }
 

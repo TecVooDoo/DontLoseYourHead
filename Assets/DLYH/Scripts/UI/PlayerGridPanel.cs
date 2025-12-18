@@ -272,6 +272,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             CachePanelReferences();
             EnsureControllersInitialized();
             EnsureLayoutManagerInitialized();
+            EnsureWordPatternsMinHeight();
             ClearGrid();
             _coordinatePlacementController?.ClearAllPlacedWords();
 
@@ -299,6 +300,24 @@ namespace TecVooDoo.DontLoseYourHead.UI
             );
             _gridLayoutManager.CacheExistingLabels();
             _gridLayoutManager.OnCellCreated = HandleCellCreated;
+        }
+
+        /// <summary>
+        /// Ensures word patterns container has a minimum height to prevent compression on larger grids.
+        /// </summary>
+        private void EnsureWordPatternsMinHeight()
+        {
+            if (_wordPatternsContainer == null) return;
+
+            LayoutElement layoutElement = _wordPatternsContainer.GetComponent<LayoutElement>();
+            if (layoutElement == null)
+            {
+                layoutElement = _wordPatternsContainer.gameObject.AddComponent<LayoutElement>();
+            }
+
+            // Set minimum height to prevent compression on larger grids (11x11, 12x12)
+            layoutElement.minHeight = 100f;
+            layoutElement.flexibleHeight = 0f;
         }
 
         /// <summary>
