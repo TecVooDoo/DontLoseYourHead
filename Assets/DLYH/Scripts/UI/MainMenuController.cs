@@ -6,6 +6,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using System.Collections;
 using TecVooDoo.DontLoseYourHead.UI;
 
 namespace DLYH.UI
@@ -36,8 +37,46 @@ namespace DLYH.UI
         [Header("Feedback Panel")]
         [SerializeField] private FeedbackPanel _feedbackPanel;
 
+        [Header("Trivia Display")]
+        [SerializeField] private TextMeshProUGUI _triviaText;
+        [SerializeField] private float _triviaDisplayDuration = 5f;
+        [SerializeField] private float _triviaFadeDuration = 0.5f;
+
         // Track if a game is in progress (gameplay has started)
         private bool _gameInProgress = false;
+        private Coroutine _triviaCoroutine;
+
+        // Guillotine and beheading trivia facts
+        private static readonly string[] TriviaFacts = new string[]
+        {
+            "The guillotine was used in France until 1977.",
+            "Dr. Joseph-Ignace Guillotin proposed the device as a humane execution method.",
+            "During the Reign of Terror, over 16,000 were guillotined in France.",
+            "The guillotine was nicknamed 'The National Razor' in France.",
+            "Marie Antoinette was executed by guillotine on October 16, 1793.",
+            "King Louis XVI was guillotined on January 21, 1793.",
+            "The last public guillotine execution in France was in 1939.",
+            "Executioners in France were often from families that held the job for generations.",
+            "The guillotine blade falls at approximately 21 feet per second.",
+            "Some believe a severed head remains conscious for several seconds.",
+            "Anne Boleyn requested a skilled French swordsman for her execution.",
+            "Sir Walter Raleigh asked to see the axe before his beheading.",
+            "Charles I wore two shirts to his execution so he would not shiver from cold.",
+            "Mary, Queen of Scots required three blows of the axe.",
+            "The Tower of London saw only 7 beheadings - most were on Tower Hill.",
+            "Robespierre, architect of the Terror, was himself guillotined in 1794.",
+            "The Halifax Gibbet predated the French guillotine by centuries.",
+            "Scotland's 'Maiden' guillotine was used from 1564 to 1708.",
+            "Legend says the guillotine blade weighs about 88 pounds.",
+            "Heads were sometimes held up to the crowd after execution.",
+            "Some executioners became celebrities in revolutionary France.",
+            "The guillotine was considered more egalitarian than other methods.",
+            "Charlotte Corday was guillotined for assassinating Jean-Paul Marat.",
+            "Lavoisier, the father of chemistry, was guillotined in 1794.",
+            "The term 'guillotine' was not used until after Dr. Guillotin's proposal."
+        };
+
+        private int _currentTriviaIndex = -1;
 
         // Track last game result for feedback panel
         private bool _lastGamePlayerWon = false;
@@ -282,10 +321,12 @@ namespace DLYH.UI
             }
 
             UpdateContinueButtonVisibility();
+            StartTriviaRotation();
         }
 
         public void StartNewGame()
         {
+            StopTriviaRotation();
             SetContainerVisibility(mainMenu: false, setup: true, gameplay: false);
             UpdateContinueButtonVisibility();
 
@@ -297,6 +338,7 @@ namespace DLYH.UI
         {
             if (_gameInProgress)
             {
+                StopTriviaRotation();
                 SetContainerVisibility(mainMenu: false, setup: false, gameplay: true);
             }
         }
@@ -378,6 +420,76 @@ namespace DLYH.UI
 #else
             Application.Quit();
 #endif
+        }
+
+        #endregion
+
+        #region Trivia Display
+
+        private void StartTriviaRotation()
+        {
+            if (_triviaText == null) return;
+
+            StopTriviaRotation();
+            _triviaCoroutine = StartCoroutine(TriviaRotationCoroutine());
+        }
+
+        private void StopTriviaRotation()
+        {
+            if (_triviaCoroutine != null)
+            {
+                StopCoroutine(_triviaCoroutine);
+                _triviaCoroutine = null;
+            }
+
+            if (_triviaText != null)
+            {
+                _triviaText.gameObject.SetActive(false);
+            }
+        }
+
+        private IEnumerator TriviaRotationCoroutine()
+        {
+            _triviaText.gameObject.SetActive(true);
+
+            // Shuffle starting point
+            _currentTriviaIndex = Random.Range(0, TriviaFacts.Length);
+
+            while (true)
+            {
+                // Set new trivia text
+                _triviaText.text = TriviaFacts[_currentTriviaIndex];
+
+                // Fade in
+                yield return FadeTrivia(0f, 1f);
+
+                // Wait for display duration
+                yield return new WaitForSeconds(_triviaDisplayDuration);
+
+                // Fade out
+                yield return FadeTrivia(1f, 0f);
+
+                // Move to next trivia (wrap around)
+                _currentTriviaIndex = (_currentTriviaIndex + 1) % TriviaFacts.Length;
+            }
+        }
+
+        private IEnumerator FadeTrivia(float startAlpha, float endAlpha)
+        {
+            float elapsed = 0f;
+            Color color = _triviaText.color;
+
+            while (elapsed < _triviaFadeDuration)
+            {
+                elapsed += Time.deltaTime;
+                float t = elapsed / _triviaFadeDuration;
+                color.a = Mathf.Lerp(startAlpha, endAlpha, t);
+                _triviaText.color = color;
+                yield return null;
+            }
+
+            color.a = endAlpha;
+            _triviaText.color = color;
         }
 
         #endregion

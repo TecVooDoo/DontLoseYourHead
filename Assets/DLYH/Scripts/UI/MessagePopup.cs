@@ -272,7 +272,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
                     else
                     {
                         // Default to top area of screen so it doesn't cover center content
-                        _popupRect.anchoredPosition = GetDefaultTopPosition();
+                        _popupRect.anchoredPosition = GetDefaultBottomPosition();
                     }
                 }
             }
@@ -313,16 +313,14 @@ namespace TecVooDoo.DontLoseYourHead.UI
         }
 
         /// <summary>
-        /// Gets the default position at the top of the screen.
+        /// Gets the default position at the bottom of the gameplay area.
         /// </summary>
-        private Vector2 GetDefaultTopPosition()
+        private Vector2 GetDefaultBottomPosition()
         {
-            if (_canvasRect == null) return Vector2.zero;
-
-            // Position near top of canvas, leaving some margin
-            // Using about 35% from the top of the screen
-            float topY = _canvasRect.rect.height * 0.35f;
-            return new Vector2(0, topY);
+            // Fixed Y position that places popup at bottom of gameplay area
+            // With anchors at center and popup height 125, Y=62.5 places bottom edge at canvas center
+            // Adjust based on actual canvas setup - using positive Y to stay in visible area
+            return new Vector2(0, 62.5f);
         }
 
         /// <summary>
@@ -395,7 +393,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             // Position at top of screen so player can see the guillotine animation
             if (_popupRect != null)
             {
-                _popupRect.anchoredPosition = GetDefaultTopPosition();
+                _popupRect.anchoredPosition = GetDefaultBottomPosition();
             }
 
             // Play popup sound
