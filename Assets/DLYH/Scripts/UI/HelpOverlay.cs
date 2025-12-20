@@ -86,7 +86,7 @@ Click ""Guess Word"" button on a word row
 <b>Extra Turns:</b>
 <color=#4CAF50>Complete a word = EXTRA TURN!</color>
 - When your guess completes a word (all letters revealed), you get another turn
-- This works for letter guesses, coordinate guesses, AND correct word guesses
+- This works for letter guesses AND correct word guesses
 - Multiple words completed at once = multiple extra turns (one per word)
 
 <b>Win Conditions:</b>

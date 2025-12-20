@@ -597,6 +597,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             // Send telemetry for game start
             PlaytestTelemetry.GameStart(
+                _playerSetupData.PlayerName,
                 _playerSetupData.GridSize,
                 _playerSetupData.WordCount,
                 _playerSetupData.DifficultyLevel.ToString(),
@@ -604,6 +605,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _opponentSetupData.WordCount,
                 _opponentSetupData.DifficultyLevel.ToString()
             );
+
+            // Reset popup position for new game
+            MessagePopup.ResetPosition();
 
             // Notify that game has started
             OnGameStarted?.Invoke();
@@ -616,6 +620,11 @@ namespace TecVooDoo.DontLoseYourHead.UI
         /// </summary>
         public void ReturnToSetup()
         {
+            // Track if player abandoned a game in progress
+            if (_stateTracker != null && !_stateTracker.GameOver)
+            {
+                PlaytestTelemetry.GameAbandon("gameplay", _totalTurns);
+            }
 
             _wordGuessModeController?.ExitWordGuessMode();
             UnsubscribeFromPanelEvents();
@@ -1340,6 +1349,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             if (_gameOver) return;
 
             _totalTurns++;
+            PlaytestTelemetry.SetTurnNumber(_totalTurns);
             _wordGuessModeController?.ExitWordGuessMode();
 
             _isPlayerTurn = false;
@@ -1357,6 +1367,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             if (_gameOver) return;
 
             _totalTurns++;
+            PlaytestTelemetry.SetTurnNumber(_totalTurns);
             _isPlayerTurn = true;
             UpdateTurnIndicator();
 

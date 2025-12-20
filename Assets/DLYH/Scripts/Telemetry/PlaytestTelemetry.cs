@@ -55,6 +55,10 @@ namespace DLYH.Telemetry
         private Queue<TelemetryEvent> _eventQueue = new Queue<TelemetryEvent>();
         private bool _isSending = false;
 
+        // Track game state for abandon detection on quit
+        private bool _isGameInProgress = false;
+        private int _currentTurnNumber = 0;
+
         #endregion
 
         #region Properties
@@ -104,6 +108,12 @@ namespace DLYH.Telemetry
 
         private void OnApplicationQuit()
         {
+            // If game was in progress, log abandon before session end
+            if (_isGameInProgress)
+            {
+                LogGameAbandon("quit", _currentTurnNumber);
+            }
+
             // Send session end event
             LogEvent("session_end", null);
         }
@@ -176,11 +186,15 @@ namespace DLYH.Telemetry
         /// <summary>
         /// Log when a game starts
         /// </summary>
-        public void LogGameStart(int playerGridSize, int playerWordCount, string playerDifficulty,
+        public void LogGameStart(string playerName, int playerGridSize, int playerWordCount, string playerDifficulty,
                                   int opponentGridSize, int opponentWordCount, string opponentDifficulty)
         {
+            _isGameInProgress = true;
+            _currentTurnNumber = 0;
+
             Dictionary<string, object> data = new Dictionary<string, object>
             {
+                { "player_name", playerName ?? "Unknown" },
                 { "player_grid_size", playerGridSize },
                 { "player_word_count", playerWordCount },
                 { "player_difficulty", playerDifficulty },
@@ -198,6 +212,8 @@ namespace DLYH.Telemetry
         public void LogGameEnd(bool playerWon, int playerMisses, int playerMissLimit,
                                int opponentMisses, int opponentMissLimit, int totalTurns)
         {
+            _isGameInProgress = false;
+
             Dictionary<string, object> data = new Dictionary<string, object>
             {
                 { "player_won", playerWon },
@@ -227,10 +243,20 @@ namespace DLYH.Telemetry
         }
 
         /// <summary>
+        /// Update the current turn number for abandon tracking
+        /// </summary>
+        public void UpdateTurnNumber(int turnNumber)
+        {
+            _currentTurnNumber = turnNumber;
+        }
+
+        /// <summary>
         /// Log when player abandons a game (quits mid-game)
         /// </summary>
         public void LogGameAbandon(string phase, int turnNumber)
         {
+            _isGameInProgress = false;
+
             Dictionary<string, object> data = new Dictionary<string, object>
             {
                 { "phase", phase },
@@ -296,12 +322,12 @@ namespace DLYH.Telemetry
             }
         }
 
-        public static void GameStart(int playerGridSize, int playerWordCount, string playerDifficulty,
+        public static void GameStart(string playerName, int playerGridSize, int playerWordCount, string playerDifficulty,
                                       int opponentGridSize, int opponentWordCount, string opponentDifficulty)
         {
             if (Instance != null)
             {
-                Instance.LogGameStart(playerGridSize, playerWordCount, playerDifficulty,
+                Instance.LogGameStart(playerName, playerGridSize, playerWordCount, playerDifficulty,
                                        opponentGridSize, opponentWordCount, opponentDifficulty);
             }
         }
@@ -321,6 +347,14 @@ namespace DLYH.Telemetry
             if (Instance != null)
             {
                 Instance.LogGuess(guessType, isHit, guessValue);
+            }
+        }
+
+        public static void SetTurnNumber(int turnNumber)
+        {
+            if (Instance != null)
+            {
+                Instance.UpdateTurnNumber(turnNumber);
             }
         }
 

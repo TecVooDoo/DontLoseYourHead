@@ -87,6 +87,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private RectTransform _canvasRect;
         private Vector2 _dragOffset;
         private bool _isGameOverMode;
+        private Vector2 _lastDraggedPosition;
+        private bool _hasBeenDragged;
 
         #endregion
 
@@ -216,11 +218,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _continueButton.gameObject.SetActive(false);
             }
 
-            // Reset position to center for next use
-            if (_popupRect != null)
-            {
-                _popupRect.anchoredPosition = Vector2.zero;
-            }
+            // Don't reset position - preserve the player's dragged position for next popup
         }
 
         /// <summary>
@@ -263,6 +261,20 @@ namespace TecVooDoo.DontLoseYourHead.UI
             if (playSound)
             {
                 DLYH.Audio.UIAudioManager.PopupOpen();
+
+                // Position popup - use last dragged position if player has moved it, otherwise use top of screen
+                if (_popupRect != null)
+                {
+                    if (_hasBeenDragged)
+                    {
+                        _popupRect.anchoredPosition = _lastDraggedPosition;
+                    }
+                    else
+                    {
+                        // Default to top area of screen so it doesn't cover center content
+                        _popupRect.anchoredPosition = GetDefaultTopPosition();
+                    }
+                }
             }
 
             // Show the popup
@@ -298,6 +310,39 @@ namespace TecVooDoo.DontLoseYourHead.UI
             }
 
             _currentPopupCoroutine = null;
+        }
+
+        /// <summary>
+        /// Gets the default position at the top of the screen.
+        /// </summary>
+        private Vector2 GetDefaultTopPosition()
+        {
+            if (_canvasRect == null) return Vector2.zero;
+
+            // Position near top of canvas, leaving some margin
+            // Using about 35% from the top of the screen
+            float topY = _canvasRect.rect.height * 0.35f;
+            return new Vector2(0, topY);
+        }
+
+        /// <summary>
+        /// Resets the dragged position memory (call when starting a new game).
+        /// </summary>
+        public void ResetDraggedPosition()
+        {
+            _hasBeenDragged = false;
+            _lastDraggedPosition = Vector2.zero;
+        }
+
+        /// <summary>
+        /// Static helper to reset dragged position.
+        /// </summary>
+        public static void ResetPosition()
+        {
+            if (Instance != null)
+            {
+                Instance.ResetDraggedPosition();
+            }
         }
 
         #endregion
@@ -347,10 +392,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _continueButton.gameObject.SetActive(true);
             }
 
-            // Reset position to center
+            // Position at top of screen so player can see the guillotine animation
             if (_popupRect != null)
             {
-                _popupRect.anchoredPosition = Vector2.zero;
+                _popupRect.anchoredPosition = GetDefaultTopPosition();
             }
 
             // Play popup sound
@@ -412,6 +457,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             // Apply new position with offset
             _popupRect.anchoredPosition = localPoint + _dragOffset;
+
+            // Remember this position for future popups
+            _lastDraggedPosition = _popupRect.anchoredPosition;
+            _hasBeenDragged = true;
 
             // If not in game over mode, reset the display timer (without replaying sound)
             if (!_isGameOverMode && _currentPopupCoroutine != null)
