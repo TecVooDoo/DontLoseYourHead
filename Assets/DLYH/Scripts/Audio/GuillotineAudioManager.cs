@@ -40,15 +40,15 @@ namespace DLYH.Audio
         [SerializeField, Tooltip("Blade moving up sound (plays with rope stretch)")]
         private AudioClip _bladeRaise;
 
-        [Header("Blade Drop/Chop Sounds")]
-        [SerializeField, Tooltip("Fast chop sound for sudden execution")]
-        private AudioClip _chopFast;
+        [Header("Final Execution Sounds (3-part sequence)")]
+        [SerializeField, Tooltip("1. Final blade raise to top (plays first)")]
+        private AudioClip _finalGuillotineRaise;
 
-        [SerializeField, Tooltip("Slow/dramatic chop sound")]
-        private AudioClip _chopSlow;
+        [SerializeField, Tooltip("2. Hook unlock/release sound (plays after raise)")]
+        private AudioClip _finalHookUnlock;
 
-        [SerializeField, Tooltip("Blade moving down sound")]
-        private AudioClip _bladeDown;
+        [SerializeField, Tooltip("3. Final guillotine chop (plays when blade drops)")]
+        private AudioClip _finalGuillotineChop;
 
         [Header("Head Sounds")]
         [SerializeField, Tooltip("Sound when head is separated/removed")]
@@ -64,8 +64,14 @@ namespace DLYH.Audio
         [SerializeField, Range(0f, 1f), Tooltip("Volume for blade movement (relative to base)")]
         private float _bladeMovementVolume = 0.8f;
 
-        [SerializeField, Range(0f, 1f), Tooltip("Volume for chop sounds (relative to base)")]
-        private float _chopVolume = 1f;
+        [SerializeField, Range(0f, 1f), Tooltip("Volume for final raise sound (relative to base)")]
+        private float _finalRaiseVolume = 0.9f;
+
+        [SerializeField, Range(0f, 1f), Tooltip("Volume for hook unlock sound (relative to base)")]
+        private float _hookUnlockVolume = 0.85f;
+
+        [SerializeField, Range(0f, 1f), Tooltip("Volume for final chop sound (relative to base)")]
+        private float _finalChopVolume = 1f;
 
         [SerializeField, Range(0f, 1f), Tooltip("Volume for head removed sound (relative to base)")]
         private float _headRemovedVolume = 0.9f;
@@ -194,75 +200,50 @@ namespace DLYH.Audio
         }
 
         /// <summary>
-        /// Play blade drop sound (without chop).
-        /// Used for non-execution blade movements.
+        /// Play final guillotine raise sound (part 1 of execution sequence).
+        /// Called when blade rises to top before final drop.
         /// </summary>
-        public void PlayBladeDrop()
+        public void PlayFinalRaise()
         {
             float sfxVolume = GetSFXVolume();
             if (sfxVolume <= 0f) return;
 
-            if (_bladeDown != null)
+            if (_finalGuillotineRaise != null)
             {
-                float volume = _baseVolume * sfxVolume * _bladeMovementVolume;
-                _primaryAudioSource.PlayOneShot(_bladeDown, volume);
+                float volume = _baseVolume * sfxVolume * _finalRaiseVolume;
+                _primaryAudioSource.PlayOneShot(_finalGuillotineRaise, volume);
             }
         }
 
         /// <summary>
-        /// Play execution chop sound (fast version).
-        /// Used when player loses by reaching miss limit.
+        /// Play hook unlock sound (part 2 of execution sequence).
+        /// Called after blade reaches top, before drop.
         /// </summary>
-        public void PlayChopFast()
+        public void PlayHookUnlock()
         {
             float sfxVolume = GetSFXVolume();
             if (sfxVolume <= 0f) return;
 
-            if (_chopFast != null)
+            if (_finalHookUnlock != null)
             {
-                float volume = _baseVolume * sfxVolume * _chopVolume;
-                _primaryAudioSource.PlayOneShot(_chopFast, volume);
+                float volume = _baseVolume * sfxVolume * _hookUnlockVolume;
+                _primaryAudioSource.PlayOneShot(_finalHookUnlock, volume);
             }
         }
 
         /// <summary>
-        /// Play execution chop sound (slow/dramatic version).
-        /// Used when player loses by opponent finding all words.
+        /// Play final guillotine chop sound (part 3 of execution sequence).
+        /// Called when blade drops for the execution.
         /// </summary>
-        public void PlayChopSlow()
+        public void PlayFinalChop()
         {
             float sfxVolume = GetSFXVolume();
             if (sfxVolume <= 0f) return;
 
-            if (_chopSlow != null)
+            if (_finalGuillotineChop != null)
             {
-                float volume = _baseVolume * sfxVolume * _chopVolume;
-                _primaryAudioSource.PlayOneShot(_chopSlow, volume);
-            }
-        }
-
-        /// <summary>
-        /// Play the full execution sequence - blade drop with chop.
-        /// </summary>
-        /// <param name="useFastChop">True for fast chop, false for slow dramatic chop</param>
-        public void PlayExecution(bool useFastChop = true)
-        {
-            float sfxVolume = GetSFXVolume();
-            if (sfxVolume <= 0f) return;
-
-            float volume = _baseVolume * sfxVolume;
-
-            // Play blade down on primary
-            if (_bladeDown != null)
-            {
-                _primaryAudioSource.PlayOneShot(_bladeDown, volume * _bladeMovementVolume);
-            }
-
-            // Play chop on secondary
-            AudioClip chopClip = useFastChop ? _chopFast : _chopSlow;
-            if (chopClip != null)
-            {
-                _secondaryAudioSource.PlayOneShot(chopClip, volume * _chopVolume);
+                float volume = _baseVolume * sfxVolume * _finalChopVolume;
+                _primaryAudioSource.PlayOneShot(_finalGuillotineChop, volume);
             }
         }
 
@@ -287,7 +268,7 @@ namespace DLYH.Audio
         #region Static Convenience Methods
 
         /// <summary>
-        /// Static shortcut to play blade raise sounds
+        /// Static shortcut to play blade raise sounds (regular miss)
         /// </summary>
         public static void BladeRaise()
         {
@@ -298,24 +279,35 @@ namespace DLYH.Audio
         }
 
         /// <summary>
-        /// Static shortcut to play execution with fast chop
+        /// Static shortcut to play final raise sound (part 1 of execution)
         /// </summary>
-        public static void ExecutionFast()
+        public static void FinalRaise()
         {
             if (Instance != null)
             {
-                Instance.PlayExecution(useFastChop: true);
+                Instance.PlayFinalRaise();
             }
         }
 
         /// <summary>
-        /// Static shortcut to play execution with slow/dramatic chop
+        /// Static shortcut to play hook unlock sound (part 2 of execution)
         /// </summary>
-        public static void ExecutionSlow()
+        public static void HookUnlock()
         {
             if (Instance != null)
             {
-                Instance.PlayExecution(useFastChop: false);
+                Instance.PlayHookUnlock();
+            }
+        }
+
+        /// <summary>
+        /// Static shortcut to play final chop sound (part 3 of execution)
+        /// </summary>
+        public static void FinalChop()
+        {
+            if (Instance != null)
+            {
+                Instance.PlayFinalChop();
             }
         }
 

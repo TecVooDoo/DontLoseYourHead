@@ -34,10 +34,10 @@ namespace TecVooDoo.DontLoseYourHead.Core
         private const int WORD_MODIFIER_3_WORDS = 0;    // Baseline (harder)
         private const int WORD_MODIFIER_4_WORDS = -2;   // More letters = easier
 
-        // Difficulty modifiers
-        private const int DIFFICULTY_HARD = -4;
-        private const int DIFFICULTY_NORMAL = 0;
-        private const int DIFFICULTY_EASY = 4;
+        // Difficulty modifiers (extra misses granted)
+        private const int DIFFICULTY_HARD = 2;
+        private const int DIFFICULTY_NORMAL = 6;
+        private const int DIFFICULTY_EASY = 9;
 
         #region New Formula - Player vs Opponent
 
@@ -304,6 +304,6 @@ namespace TecVooDoo.DontLoseYourHead.Core
         }
 
         #endregion
-    }
-}
+    } 
+} 
  

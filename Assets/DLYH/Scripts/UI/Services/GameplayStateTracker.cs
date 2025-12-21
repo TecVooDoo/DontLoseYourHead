@@ -191,10 +191,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
         {
             switch (difficulty)
             {
-                case DifficultySetting.Easy: return 4;
-                case DifficultySetting.Normal: return 0;
-                case DifficultySetting.Hard: return -4;
-                default: return 0;
+                case DifficultySetting.Easy: return 9;
+                case DifficultySetting.Normal: return 6;
+                case DifficultySetting.Hard: return 2;
+                default: return 6;
             }
         }
 

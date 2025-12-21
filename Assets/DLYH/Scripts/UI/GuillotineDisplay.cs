@@ -40,6 +40,16 @@ namespace TecVooDoo.DontLoseYourHead.UI
         [SerializeField] private Ease _bladeRaiseEase = Ease.OutQuad;
         [SerializeField] private Ease _bladeDropEase = Ease.InQuad;
 
+        [Header("Final Execution Timing")]
+        [SerializeField, Tooltip("Pause before execution sequence begins")]
+        private float _pauseBeforeExecution = 3f;
+        [SerializeField, Tooltip("Duration for final blade raise to top")]
+        private float _finalRaiseDuration = 6f;
+        [SerializeField, Tooltip("Pause after raise before hook unlock")]
+        private float _pauseBeforeUnlock = 0.3f;
+        [SerializeField, Tooltip("Pause after hook unlock before blade drops")]
+        private float _pauseAfterUnlock = 0.4f;
+
         [Header("Visual Settings")]
         [SerializeField] private Color _hashMarkColor = new Color(0.4f, 0.25f, 0.1f, 1f);
         [SerializeField] private float _hashMarkWidth = 4f;
@@ -145,8 +155,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
         }
 
         /// <summary>
-        /// Plays the game over animation - blade drops and head falls into basket.
+        /// Plays the game over animation - blade rises to top, hook unlocks, blade drops.
         /// Used when player loses by reaching miss limit.
+        /// 3-part audio sequence: final raise, hook unlock, final chop.
         /// </summary>
         public void AnimateGameOver()
         {
@@ -159,15 +170,31 @@ namespace TecVooDoo.DontLoseYourHead.UI
             DOTween.Kill(_bladeGroup);
             DOTween.Kill(_headTransform);
 
-            // Play execution sound (fast chop - sudden death from miss limit)
-            DLYH.Audio.GuillotineAudioManager.ExecutionFast();
-
-            // Sequence: blade drops, then head falls
             Sequence gameOverSequence = DOTween.Sequence();
 
-            // Blade drops quickly to bottom
+            // Initial pause before execution begins
+            gameOverSequence.AppendInterval(_pauseBeforeExecution);
+
             if (_bladeGroup != null)
             {
+                // Part 1: Final blade raise to top with sound
+                gameOverSequence.AppendCallback(() => DLYH.Audio.GuillotineAudioManager.FinalRaise());
+                gameOverSequence.Append(
+                    _bladeGroup.DOAnchorPosY(_bladeEndY, _finalRaiseDuration)
+                        .SetEase(_bladeRaiseEase)
+                );
+
+                // Pause before hook unlock
+                gameOverSequence.AppendInterval(_pauseBeforeUnlock);
+
+                // Part 2: Hook unlock sound
+                gameOverSequence.AppendCallback(() => DLYH.Audio.GuillotineAudioManager.HookUnlock());
+
+                // Pause after unlock before drop
+                gameOverSequence.AppendInterval(_pauseAfterUnlock);
+
+                // Part 3: Final chop sound and blade drop
+                gameOverSequence.AppendCallback(() => DLYH.Audio.GuillotineAudioManager.FinalChop());
                 gameOverSequence.Append(
                     _bladeGroup.DOAnchorPosY(_bladeStartY, _bladeDropDuration)
                         .SetEase(_bladeDropEase)
@@ -206,7 +233,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         /// <summary>
         /// Plays the defeat animation when opponent wins by finding all words.
-        /// Blade rises to top, then drops for execution.
+        /// Blade rises to top, hook unlocks, then blade drops for execution.
+        /// 3-part audio sequence: final raise, hook unlock, final chop.
         /// </summary>
         public void AnimateDefeatByWordsFound()
         {
@@ -219,26 +247,31 @@ namespace TecVooDoo.DontLoseYourHead.UI
             DOTween.Kill(_bladeGroup);
             DOTween.Kill(_headTransform);
 
-            // Play blade raise sound for the dramatic raise
-            DLYH.Audio.GuillotineAudioManager.BladeRaise();
-
             Sequence defeatSequence = DOTween.Sequence();
 
-            // First, raise blade to top (dramatic pause before execution)
+            // Initial pause before execution begins
+            defeatSequence.AppendInterval(_pauseBeforeExecution);
+
             if (_bladeGroup != null)
             {
+                // Part 1: Final blade raise to top with sound
+                defeatSequence.AppendCallback(() => DLYH.Audio.GuillotineAudioManager.FinalRaise());
                 defeatSequence.Append(
-                    _bladeGroup.DOAnchorPosY(_bladeEndY, _bladeRaiseDuration * 2f)
-                        .SetEase(Ease.OutQuad)
+                    _bladeGroup.DOAnchorPosY(_bladeEndY, _finalRaiseDuration)
+                        .SetEase(_bladeRaiseEase)
                 );
 
-                // Pause at top for dramatic effect
-                defeatSequence.AppendInterval(0.5f);
+                // Pause before hook unlock
+                defeatSequence.AppendInterval(_pauseBeforeUnlock);
 
-                // Play slow/dramatic chop sound when blade drops
-                defeatSequence.AppendCallback(() => DLYH.Audio.GuillotineAudioManager.ExecutionSlow());
+                // Part 2: Hook unlock sound
+                defeatSequence.AppendCallback(() => DLYH.Audio.GuillotineAudioManager.HookUnlock());
 
-                // Then drop!
+                // Pause after unlock before drop
+                defeatSequence.AppendInterval(_pauseAfterUnlock);
+
+                // Part 3: Final chop sound and blade drop
+                defeatSequence.AppendCallback(() => DLYH.Audio.GuillotineAudioManager.FinalChop());
                 defeatSequence.Append(
                     _bladeGroup.DOAnchorPosY(_bladeStartY, _bladeDropDuration)
                         .SetEase(_bladeDropEase)
