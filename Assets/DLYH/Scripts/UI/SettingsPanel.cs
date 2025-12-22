@@ -41,6 +41,7 @@ namespace DLYH.UI
 
         private float _sfxVolume = DEFAULT_VOLUME;
         private float _musicVolume = DEFAULT_VOLUME;
+        private bool _openedFromGameplay = false;
 
         #endregion
 
@@ -185,9 +186,21 @@ namespace DLYH.UI
 
         private void OnBackClicked()
         {
-            Debug.Log("[SettingsPanel] Back clicked");
+            Debug.Log("[SettingsPanel] Back clicked - openedFromGameplay: " + _openedFromGameplay);
 
-            if (_mainMenuController != null)
+            if (_openedFromGameplay)
+            {
+                // Hide this panel and parent container to return to gameplay
+                _openedFromGameplay = false;
+                gameObject.SetActive(false);
+
+                // Hide the MainMenuContainer to return to gameplay view
+                if (transform.parent != null)
+                {
+                    transform.parent.gameObject.SetActive(false);
+                }
+            }
+            else if (_mainMenuController != null)
             {
                 _mainMenuController.HideSettingsPanel();
             }
@@ -266,6 +279,55 @@ namespace DLYH.UI
             SaveSettings();
 
             Debug.Log("[SettingsPanel] Reset to default values (50%)");
+        }
+
+        #endregion
+
+        #region Public Methods
+
+        /// <summary>
+        /// Show settings panel from gameplay (Back will return to game)
+        /// </summary>
+        public void ShowFromGameplay()
+        {
+            _openedFromGameplay = true;
+
+            // Ensure parent container (MainMenuContainer) is active so panel is visible
+            // But hide the button container and title so only settings shows
+            if (transform.parent != null)
+            {
+                transform.parent.gameObject.SetActive(true);
+
+                // Hide main menu elements while showing settings
+                Transform buttonContainer = transform.parent.Find("ButtonContainer");
+                if (buttonContainer != null)
+                {
+                    buttonContainer.gameObject.SetActive(false);
+                }
+                Transform titleText = transform.parent.Find("TitleText");
+                if (titleText != null)
+                {
+                    titleText.gameObject.SetActive(false);
+                }
+                Transform triviaText = transform.parent.Find("TriviaText");
+                if (triviaText != null)
+                {
+                    triviaText.gameObject.SetActive(false);
+                }
+            }
+
+            gameObject.SetActive(true);
+            Debug.Log("[SettingsPanel] Opened from gameplay");
+        }
+
+        /// <summary>
+        /// Show settings panel from main menu (Back will return to menu)
+        /// </summary>
+        public void ShowFromMenu()
+        {
+            _openedFromGameplay = false;
+            gameObject.SetActive(true);
+            Debug.Log("[SettingsPanel] Opened from main menu");
         }
 
         #endregion

@@ -330,8 +330,11 @@ namespace DLYH.UI
             SetContainerVisibility(mainMenu: false, setup: true, gameplay: false);
             UpdateContinueButtonVisibility();
 
-            // Setup panel initializes itself via SetupForPlayer() when activated
-            // No explicit reset needed here - the panel handles its own state
+            // Reset setup panel for new game
+            if (_setupSettingsPanel != null)
+            {
+                _setupSettingsPanel.ResetForNewGame();
+            }
         }
 
         public void ContinueGame()

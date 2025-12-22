@@ -17,6 +17,15 @@ namespace TecVooDoo.DontLoseYourHead.Editor
 
         private static readonly int[] WORD_LENGTHS = { 3, 4, 5, 6 };
 
+        // Banned words - drugs, profanity, slurs, and other inappropriate content
+        private static readonly HashSet<string> BANNED_WORDS = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
+        {
+            // Drugs
+            "heroin", "cocaine", "meth", "crack", "weed", "opium", "morphine",
+            "ecstasy", "molly", "dope", "smack", "coke",
+            // Add more banned words here as needed
+        };
+
         private string _statusMessage = "Ready to import words";
         private Vector2 _scrollPosition;
 
@@ -132,6 +141,7 @@ namespace TecVooDoo.DontLoseYourHead.Editor
         private List<string> FilterWordsByLength(string[] allWords, int length)
         {
             var filtered = new List<string>();
+            int bannedCount = 0;
 
             foreach (string word in allWords)
             {
@@ -143,9 +153,21 @@ namespace TecVooDoo.DontLoseYourHead.Editor
                 // Filter by length and only alphabetic characters
                 if (trimmedWord.Length == length && IsAlphabetic(trimmedWord))
                 {
+                    // Skip banned words
+                    if (BANNED_WORDS.Contains(trimmedWord))
+                    {
+                        bannedCount++;
+                        continue;
+                    }
+
                     // Convert to uppercase for consistency
                     filtered.Add(trimmedWord.ToUpper());
                 }
+            }
+
+            if (bannedCount > 0)
+            {
+                _statusMessage += "  (Filtered " + bannedCount + " banned words)\n";
             }
 
             // Remove duplicates and sort

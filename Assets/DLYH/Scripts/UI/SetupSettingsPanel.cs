@@ -247,6 +247,55 @@ public void SetupForPlayer(int playerIndex)
             return (_playerName, _playerColor);
         }
 
+        /// <summary>
+        /// Resets the setup panel for a new game.
+        /// Clears all placed words and resets the grid.
+        /// </summary>
+        public void ResetForNewGame()
+        {
+            Debug.Log("[SetupSettingsPanel] Resetting for new game...");
+
+            // Clear all placed words from the grid
+            if (_playerGridPanel != null)
+            {
+                _playerGridPanel.ClearAllPlacedWords();
+
+                // Reset all word pattern rows to empty
+                var wordPatternRows = _playerGridPanel.GetWordPatternRows();
+                if (wordPatternRows != null)
+                {
+                    foreach (var row in wordPatternRows)
+                    {
+                        if (row != null)
+                        {
+                            row.ResetToEmpty();
+                        }
+                    }
+                }
+
+                // Re-initialize the grid with current settings
+                _playerGridPanel.InitializeGrid(_gridSize);
+            }
+
+            // Reset player name to default
+            _playerName = "PLAYER1";
+            if (_playerNameInput != null)
+            {
+                _playerNameInput.text = _playerName;
+            }
+
+            // Re-initialize word rows with current word count
+            InitializeWordRows();
+
+            // Update button states
+            UpdatePickRandomWordsButtonState();
+            UpdatePlaceRandomPositionsButtonState();
+            UpdateStartButtonState();
+            UpdateMissLimitDisplay();
+
+            Debug.Log("[SetupSettingsPanel] Reset complete");
+        }
+
         #endregion
 
         #region Setup Methods

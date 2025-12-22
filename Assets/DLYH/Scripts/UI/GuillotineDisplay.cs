@@ -71,6 +71,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private List<RectTransform> _hashMarks = new List<RectTransform>();
         private bool _isInitialized;
         private Color _playerColor;
+        private Vector2 _originalHeadPosition;
+        private bool _headPositionStored = false;
         #endregion
 
         #region Public Methods
@@ -85,6 +87,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
             _missLimit = Mathf.Max(1, missLimit);
             _playerColor = playerColor;
             _currentMisses = 0;
+
+            // Store original head position before any animations (only once)
+            StoreOriginalHeadPosition();
 
             // Set head color
             if (_headImage != null)
@@ -316,6 +321,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
             _currentMisses = 0;
             ResetBladePosition();
             ResetHeadPosition();
+
+            // Reset face expression to default
+            if (_faceController != null)
+            {
+                _faceController.ResetFace();
+            }
         }
         #endregion
 
@@ -455,8 +466,25 @@ namespace TecVooDoo.DontLoseYourHead.UI
             if (_headTransform != null)
             {
                 DOTween.Kill(_headTransform);
-                // Head should be at its original position (set in prefab/scene)
-                // We store and restore this if needed
+
+                // Restore head to original position on lunette
+                if (_headPositionStored)
+                {
+                    _headTransform.anchoredPosition = _originalHeadPosition;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Stores the original head position. Call this on Awake/Start before any animations.
+        /// </summary>
+        private void StoreOriginalHeadPosition()
+        {
+            if (_headTransform != null && !_headPositionStored)
+            {
+                _originalHeadPosition = _headTransform.anchoredPosition;
+                _headPositionStored = true;
+                Debug.Log($"[GuillotineDisplay] Stored original head position: {_originalHeadPosition}");
             }
         }
         #endregion

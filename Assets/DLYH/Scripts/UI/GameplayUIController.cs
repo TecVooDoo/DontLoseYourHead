@@ -550,6 +550,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 }
             }
 
+            // Reset previous game state before starting new game
+            ResetGameplayState();
+
             CaptureSetupData();
             GenerateOpponentData();
             InitializePlayerState();
@@ -2190,6 +2193,54 @@ namespace TecVooDoo.DontLoseYourHead.UI
             UpdateOpponentGuillotine();
 
             // Win/lose checking delegated to WinConditionChecker via CheckOpponentWinCondition
+        }
+
+        #endregion
+
+        #region Game State Reset
+
+        /// <summary>
+        /// Resets all gameplay state for a new game.
+        /// Clears guessed word lists, letter tracker states, and grid cells.
+        /// </summary>
+        private void ResetGameplayState()
+        {
+            Debug.Log("[GameplayUI] Resetting gameplay state for new game...");
+
+            // Clear guessed word lists
+            if (_player1GuessedWordList != null)
+            {
+                _player1GuessedWordList.ClearAllWords();
+            }
+            if (_player2GuessedWordList != null)
+            {
+                _player2GuessedWordList.ClearAllWords();
+            }
+
+            // Reset letter tracker buttons on both panels
+            if (_ownerPanel != null)
+            {
+                _ownerPanel.ResetAllLetterButtons();
+            }
+            if (_opponentPanel != null)
+            {
+                _opponentPanel.ResetAllLetterButtons();
+            }
+
+            // Reset guillotines
+            if (_player1Guillotine != null)
+            {
+                _player1Guillotine.Reset();
+            }
+            if (_player2Guillotine != null)
+            {
+                _player2Guillotine.Reset();
+            }
+
+            // Clear pending game result
+            _pendingGameResult = null;
+
+            Debug.Log("[GameplayUI] Gameplay state reset complete");
         }
 
         #endregion
