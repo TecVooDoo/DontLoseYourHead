@@ -11,13 +11,14 @@ using DLYH.AI.Core;
 using DLYH.AI.Config;
 using DLYH.AI.Strategies;
 using DLYH.Telemetry;
+using DLYH.Networking;
 
 namespace TecVooDoo.DontLoseYourHead.UI
 {
     /// <summary>
     /// Controls the Gameplay UI phase, managing two PlayerGridPanel instances
     /// (owner and opponent) and handling the transition from Setup to Gameplay.
-    /// Now integrated with ExecutionerAI for single-player vs AI gameplay.
+    /// Supports both AI opponents (The Executioner) and remote network players via IOpponent interface.
     /// </summary>
     public class GameplayUIController : MonoBehaviour
     {
@@ -103,9 +104,11 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private GameplayStateTracker _stateTracker;
         private WinConditionChecker _winChecker;
 
-        // AI System
-        private ExecutionerAI _executionerAI;
-        private bool _aiInitialized = false;
+        // Opponent System (AI or Remote player via IOpponent interface)
+        private IOpponent _opponent;
+        private bool _opponentInitialized = false;
+
+        // Note: ExecutionerAI is now managed internally by LocalAIOpponent via IOpponent interface
 
         // Telemetry tracking
         private int _totalTurns = 0;
@@ -410,9 +413,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
         [GUIColor(1f, 0.8f, 0.4f)]
         private void TestTriggerAITurn()
         {
-            if (_executionerAI == null)
+            if (_opponent == null)
             {
-                Debug.LogWarning("[GameplayUI] AI not initialized!");
+                Debug.LogWarning("[GameplayUI] Opponent not initialized!");
                 return;
             }
 
@@ -661,8 +664,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
             _opponentGuessProcessor = null;
             _stateTracker = null;
             _winChecker = null;
-            _executionerAI = null;
-            _aiInitialized = false;
+            _opponent = null;
+            _opponentInitialized = false;
         }
 
         #endregion
@@ -1068,10 +1071,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 return;
             }
 
-            // Record for AI rubber-banding
-            if (_executionerAI != null)
+            // Record for opponent rubber-banding (AI) or state sync (network)
+            if (_opponent != null)
             {
-                _executionerAI.RecordPlayerGuess(result == GuessResult.Hit);
+                _opponent.RecordPlayerGuess(result == GuessResult.Hit);
             }
 
             // Check if any words are now fully revealed via letters - queue them for extra turns
@@ -1124,10 +1127,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 return;
             }
 
-            // Record for AI rubber-banding
-            if (_executionerAI != null)
+            // Record for opponent rubber-banding (AI) or state sync (network)
+            if (_opponent != null)
             {
-                _executionerAI.RecordPlayerGuess(result == GuessResult.Hit);
+                _opponent.RecordPlayerGuess(result == GuessResult.Hit);
             }
 
             // Check if any words are now fully revealed via coordinate guessing - queue them for extra turns
@@ -1260,10 +1263,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
         {
             GuessResult result = ProcessPlayerWordGuess(word, rowIndex);
 
-            // Record for AI rubber-banding
-            if (_executionerAI != null && result != GuessResult.AlreadyGuessed && result != GuessResult.InvalidWord)
+            // Record for opponent rubber-banding (AI) or state sync (network)
+            if (_opponent != null && result != GuessResult.AlreadyGuessed && result != GuessResult.InvalidWord)
             {
-                _executionerAI.RecordPlayerGuess(result == GuessResult.Hit);
+                _opponent.RecordPlayerGuess(result == GuessResult.Hit);
             }
 
             switch (result)
@@ -1358,8 +1361,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
             _isPlayerTurn = false;
             UpdateTurnIndicator();
 
-            // Trigger AI turn
-            if (_aiInitialized && _executionerAI != null)
+            // Trigger opponent turn
+            if (_opponentInitialized && _opponent != null)
             {
                 TriggerAITurn();
             }
@@ -1374,10 +1377,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
             _isPlayerTurn = true;
             UpdateTurnIndicator();
 
-            // Advance AI memory turn counter
-            if (_executionerAI != null)
+            // Advance opponent turn counter (memory for AI, sync for network)
+            if (_opponent != null)
             {
-                _executionerAI.AdvanceTurn();
+                _opponent.AdvanceTurn();
             }
         }
 
@@ -1407,53 +1410,126 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         #region AI System
 
-        private void InitializeAI()
+        /// <summary>
+        /// Initializes the opponent (AI or Remote player).
+        /// For single-player games, creates a LocalAIOpponent that wraps ExecutionerAI.
+        /// For multiplayer games, a RemotePlayerOpponent would be passed in.
+        /// </summary>
+        /// <param name="opponent">Optional pre-created opponent (for multiplayer). If null, creates AI opponent.</param>
+        private async void InitializeOpponent(IOpponent opponent = null)
         {
-            if (_aiConfig == null)
+            // If no opponent provided, create AI opponent for single-player
+            if (opponent == null)
             {
-                Debug.LogWarning("[GameplayUI] No AI config assigned! AI will not function.");
-                return;
-            }
+                if (_aiConfig == null)
+                {
+                    Debug.LogWarning("[GameplayUI] No AI config assigned! AI will not function.");
+                    return;
+                }
 
-            // Create ExecutionerAI as a component (it's a MonoBehaviour)
-            _executionerAI = gameObject.AddComponent<ExecutionerAI>();
+                // Build word list dictionary for AI word selection
+                Dictionary<int, WordListSO> wordLists = new Dictionary<int, WordListSO>();
+                if (_threeLetterWords != null) wordLists[3] = _threeLetterWords;
+                if (_fourLetterWords != null) wordLists[4] = _fourLetterWords;
+                if (_fiveLetterWords != null) wordLists[5] = _fiveLetterWords;
+                if (_sixLetterWords != null) wordLists[6] = _sixLetterWords;
 
-            // Set the config via reflection since _config is private
-            System.Reflection.FieldInfo configField = typeof(ExecutionerAI).GetField("_config",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            if (configField != null)
-            {
-                configField.SetValue(_executionerAI, _aiConfig);
+                // Create LocalAIOpponent
+                _opponent = OpponentFactory.CreateAIOpponent(_aiConfig, gameObject, wordLists);
             }
             else
             {
-                Debug.LogError("[GameplayUI] Could not set AI config via reflection!");
-                return;
+                _opponent = opponent;
             }
 
-            // Initialize AI with player difficulty
-            _executionerAI.Initialize(_playerSetupData.DifficultyLevel);
+            // Create PlayerSetupData from internal SetupData for IOpponent interface
+            var playerSetup = new PlayerSetupData
+            {
+                PlayerName = _playerSetupData.PlayerName,
+                PlayerColor = _playerSetupData.PlayerColor,
+                GridSize = _playerSetupData.GridSize,
+                WordCount = _playerSetupData.WordCount,
+                DifficultyLevel = _playerSetupData.DifficultyLevel,
+                WordLengths = _playerSetupData.WordLengths,
+                PlacedWords = _playerSetupData.PlacedWords
+            };
 
-            // Subscribe to AI events
-            _executionerAI.OnLetterGuess += HandleAILetterGuess;
-            _executionerAI.OnCoordinateGuess += HandleAICoordinateGuess;
-            _executionerAI.OnWordGuess += HandleAIWordGuess;
-            _executionerAI.OnThinkingStarted += HandleAIThinkingStarted;
-            _executionerAI.OnThinkingComplete += HandleAIThinkingComplete;
+            // Initialize opponent asynchronously
+            await _opponent.InitializeAsync(playerSetup);
 
-            _aiInitialized = true;
-            Debug.Log("[GameplayUI] AI initialized successfully!");
+            // Subscribe to opponent events
+            SubscribeToOpponentEvents();
+
+            _opponentInitialized = true;
+            Debug.Log($"[GameplayUI] Opponent initialized: {_opponent.OpponentName} (IsAI: {_opponent.IsAI})");
+        }
+
+        /// <summary>
+        /// Legacy method name for backwards compatibility.
+        /// </summary>
+        private void InitializeAI()
+        {
+            InitializeOpponent(null);
+        }
+
+        /// <summary>
+        /// Subscribe to IOpponent events for handling opponent guesses.
+        /// </summary>
+        private void SubscribeToOpponentEvents()
+        {
+            if (_opponent == null) return;
+
+            _opponent.OnLetterGuess += HandleAILetterGuess;
+            _opponent.OnCoordinateGuess += HandleAICoordinateGuess;
+            _opponent.OnWordGuess += HandleAIWordGuess;
+            _opponent.OnThinkingStarted += HandleAIThinkingStarted;
+            _opponent.OnThinkingComplete += HandleAIThinkingComplete;
+            _opponent.OnDisconnected += HandleOpponentDisconnected;
+            _opponent.OnReconnected += HandleOpponentReconnected;
         }
 
         private void UnsubscribeFromAIEvents()
         {
-            if (_executionerAI == null) return;
+            UnsubscribeFromOpponentEvents();
+        }
 
-            _executionerAI.OnLetterGuess -= HandleAILetterGuess;
-            _executionerAI.OnCoordinateGuess -= HandleAICoordinateGuess;
-            _executionerAI.OnWordGuess -= HandleAIWordGuess;
-            _executionerAI.OnThinkingStarted -= HandleAIThinkingStarted;
-            _executionerAI.OnThinkingComplete -= HandleAIThinkingComplete;
+        /// <summary>
+        /// Unsubscribe from IOpponent events and dispose the opponent.
+        /// </summary>
+        private void UnsubscribeFromOpponentEvents()
+        {
+            if (_opponent == null) return;
+
+            _opponent.OnLetterGuess -= HandleAILetterGuess;
+            _opponent.OnCoordinateGuess -= HandleAICoordinateGuess;
+            _opponent.OnWordGuess -= HandleAIWordGuess;
+            _opponent.OnThinkingStarted -= HandleAIThinkingStarted;
+            _opponent.OnThinkingComplete -= HandleAIThinkingComplete;
+            _opponent.OnDisconnected -= HandleOpponentDisconnected;
+            _opponent.OnReconnected -= HandleOpponentReconnected;
+
+            _opponent.Dispose();
+            _opponent = null;
+            _opponentInitialized = false;
+        }
+
+        /// <summary>
+        /// Handler for opponent disconnect events (network multiplayer only).
+        /// </summary>
+        private void HandleOpponentDisconnected()
+        {
+            Debug.Log("[GameplayUI] Opponent disconnected!");
+            MessagePopup.Show("Opponent disconnected. Waiting for reconnection...");
+            // TODO: Add reconnection timeout and forfeit logic
+        }
+
+        /// <summary>
+        /// Handler for opponent reconnect events (network multiplayer only).
+        /// </summary>
+        private void HandleOpponentReconnected()
+        {
+            Debug.Log("[GameplayUI] Opponent reconnected!");
+            MessagePopup.Show("Opponent reconnected!");
         }
 
         /// <summary>
@@ -1472,8 +1548,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
             // Copy hit letters (letters that exist in player's words)
             state.HitLetters = new HashSet<char>(_opponentKnownLetters);
 
-            // Get skill level from AI (if available)
-            state.SkillLevel = _executionerAI != null ? _executionerAI.CurrentSkill : 0.5f;
+            // Skill level is handled internally by LocalAIOpponent, use default for remote players
+            state.SkillLevel = 0.5f;
 
             // Calculate fill ratio (approximate letters / total cells)
             float avgWordLength = 4.5f; // Average of 3-6 letter words
@@ -1568,18 +1644,20 @@ namespace TecVooDoo.DontLoseYourHead.UI
         }
 
         /// <summary>
-        /// Trigger the AI to take its turn.
+        /// Trigger the opponent to take their turn.
+        /// For AI opponents, this runs the AI decision-making.
+        /// For remote opponents, this waits for the network response.
         /// </summary>
         private void TriggerAITurn()
         {
-            if (_gameOver || _isPlayerTurn || _executionerAI == null)
+            if (_gameOver || _isPlayerTurn || _opponent == null)
             {
                 return;
             }
 
             AIGameState gameState = BuildAIGameState();
-            // ExecuteTurnAsync returns UniTaskVoid which is fire-and-forget
-            _executionerAI.ExecuteTurnAsync(gameState).Forget();
+            // IOpponent.ExecuteTurn handles the turn asynchronously
+            _opponent.ExecuteTurn(gameState);
         }
 
         private void HandleAIThinkingStarted()
@@ -1601,10 +1679,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             GuessResult result = ProcessOpponentLetterGuess(letter);
 
-            // Record revealed letter for AI memory (ProcessOpponentLetterGuess handles state tracker)
+            // Record revealed letter for opponent memory (AI) or state sync (network)
             if (result == GuessResult.Hit)
             {
-                _executionerAI?.RecordRevealedLetter(letter);
+                _opponent?.RecordRevealedLetter(letter);
             }
 
             // Check opponent win condition BEFORE showing popup
@@ -1632,10 +1710,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             GuessResult result = ProcessOpponentCoordinateGuess(col, row);
 
-            // Record hit for AI memory (ProcessOpponentCoordinateGuess handles state tracker)
+            // Record hit for opponent memory (AI) or state sync (network)
             if (result == GuessResult.Hit)
             {
-                _executionerAI?.RecordAIHit(row, col);
+                _opponent?.RecordOpponentHit(row, col);
             }
 
             // Check opponent win condition BEFORE showing popup
@@ -1666,7 +1744,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             {
                 foreach (char letter in word.ToUpper())
                 {
-                    _executionerAI?.RecordRevealedLetter(letter);
+                    _opponent?.RecordRevealedLetter(letter);
                 }
             }
 
