@@ -1,0 +1,320 @@
+(업데이트 이미지 개수)
+0
+-----------------------------------------
+(영어)
+<size=16>AnyPortrait Update Log v1.6.2</size>
+(October 7, 2025)
+
+<size=13>Improvements</size>
+
+- <color=blue>Improved editor usability</color>
+    Due to a conflict between Unity Editor shortcuts and the Gizmo change shortcuts (default Q, W, E, R), these shortcuts have been fixed to no longer work when special keys like Ctrl are pressed.
+    The UI colors for non-changeable shortcuts in the Shortcut Settings dialog have been changed to better distinguish them in the Dark theme.
+    A UI has been added that allows numeric input of the mesh's pivot.
+    A button has been added to move the mesh pivot to the center of the vertices.
+    When modifying vertex positions in the Modify tab of a mesh, UVs are now automatically updated, and user edits are no longer possible.
+    Links to tutorials and contact pages in the Unity menu have been consolidated into a single "Tutorials and Support" menu.
+
+- The texture type of script functions that change custom properties, such as "SetMeshCustomImageAll," has been changed from Texture2D to Texture, allowing inputs such as RenderTexture.
+- Due to the separation of the Unity Asset Store, packages are rebuilt depending on the store they are uploaded to.
+
+
+
+<size=13>Fixed issues</size>
+
+- Thanks to active user participation, many Chinese translation errors have been corrected.
+- An issue has been fixed where an error would occur in a script function that batch-controlled materials when all meshes of a specific material were included in the mask system.
+- An issue has been fixed where compatibility warnings were occurred due to script API changes in Unity 6.2.
+
+
+
+
+-----------------------------------------
+(한국어)
+<size=16>AnyPortrait 업데이트 로그 v1.6.2</size>
+(2025년 10월 7일)
+
+<size=13>개선된 사항</size>
+
+- <color=blue>에디터 사용성 개선</color>
+    유니티 에디터 단축키와 기즈모 변경 단축키(기본값 Q, W, E, R)가 충돌되는 충돌되는 문제로 인하여, 해당 단축키는 Ctrl과 같은 특수키가 입력된 상태에서는 동작하지 않도록 수정됨
+    단축키 설정 다이얼로그에서 사용자가 변경할 수 없는 단축키 항목의 UI 색상이 Dark 테마에서 잘 구분되도록 변경됨
+    메시의 기준점(Pivot)을 숫자로 입력할 수 있는 UI가 추가됨
+    버텍스들의 중심으로 메시의 기준점을 이동시킬 수 있는 버튼이 추가됨
+    메시의 Modify 탭에서 버텍스의 위치를 수정하는 경우 UV가 자동으로 갱신되도록 변경되었으며, UV는 사용자가 수정할 수 없도록 변경됨
+    유니티 메뉴의 튜토리얼이나 문의 페이지로 연결되는 항목들이 "Tutorials ans Support"라는 메뉴로 통합됨
+
+- "SetMeshCustomImageAll"과 같은 커스텀 프로퍼티를 변경하는 스크립트 함수의 텍스쳐 타입이 Texture2D에서 Texture로 변경되어 RenderTexture 등을 입력할 수 있도록 개선됨
+- 유니티 에셋 스토어의 분리에 따라, 업로드되는 스토어 따라 다시 빌드됨
+
+
+
+<size=13>수정된 문제점</size>
+
+- 사용자의 적극적인 참여 덕분에 중국어 번역 오류가 상당 부분 수정됨
+- 특정 재질의 모든 메시들이 마스크 시스템에 포함된 경우, 재질을 일괄 제어하는 스크립트 함수에서 에러가 발생되는 문제가 수정됨
+- 유니티 6.2에서 스크립트 API 변경에 따른 호환성 문제가 수정됨
+
+
+
+
+-----------------------------------------
+(프랑스어)
+<size=16>Fichier de mise à jour AnyPortrait v1.6.2</size>
+(7 octobre 2025)
+
+<size=13>Améliorations</size>
+
+- <color=blue>Amélioration de la convivialité de l'éditeur</color>
+    En raison d'un conflit entre les raccourcis de l'éditeur Unity et les raccourcis de modification Gizmo (Q, W, E, R par défaut), ces raccourcis ont été corrigés et ne fonctionnent plus lorsque des touches spéciales comme Ctrl sont enfoncées.
+    Les couleurs de l'interface utilisateur des raccourcis non modifiables dans la boîte de dialogue Paramètres des raccourcis ont été modifiées afin de mieux les distinguer dans le thème sombre.
+    Une interface utilisateur permettant la saisie numérique du pivot du maillage a été ajoutée.
+    Un bouton permettant de déplacer le pivot du maillage au centre des sommets a été ajouté.
+    Lors de la modification de la position des sommets dans l'onglet Modifier d'un maillage, les UV sont désormais automatiquement mis à jour et les modifications utilisateur ne sont plus possibles.
+    Les liens vers les tutoriels et les pages de contact du menu Unity ont été regroupés dans un seul menu « Tutoriels and Support ».
+
+- Le type de texture des fonctions de script qui modifient les propriétés personnalisées, telles que « SetMeshCustomImageAll », est passé de Texture2D à Texture, autorisant des entrées telles que RenderTexture.
+- En raison de la séparation de l'Asset Store d'Unity, les packages sont reconstruits en fonction de l'emplacement où ils sont téléchargés.
+
+
+
+<size=13>Problème résolu</size>
+
+- De nombreuses erreurs de traduction chinoises ont été considérablement corrigées grâce à l'assistance active des utilisateurs.
+- Un problème a été résolu où une erreur se produisait dans une fonction de script qui contrôlait par lots les matériaux lorsque tous les maillages d'un matériau spécifique étaient inclus dans le système de masque.
+- Un problème a été résolu où des avertissements de compatibilité se produisaient en raison de modifications de l'API de script dans Unity 6.2.
+
+
+
+-----------------------------------------
+(독일어)
+<size=16>AnyPortrait-Aktualisierungsprotokoll v1.6.2</size>
+(7. Oktober 2025)
+
+<size=13>Verbesserungen</size>
+
+- <color=blue>Improved editor usability</color>
+    Aufgrund eines Konflikts zwischen den Tastaturkurzbefehlen des Unity-Editors und den Tastaturkurzbefehlen zum Ändern von Gizmo (Standard: Q, W, E, R) wurden diese Tastaturkurzbefehle so korrigiert, dass sie nicht mehr funktionieren, wenn Sondertasten wie Strg gedrückt werden.
+    Die UI-Farben für nicht änderbare Tastaturkurzbefehle im Dialogfeld „Tastaturkurzbefehleinstellungen“ wurden geändert, um sie im dunklen Design besser unterscheiden zu können.
+    Es wurde eine Benutzeroberfläche hinzugefügt, die die numerische Eingabe des Mesh-Drehpunkts ermöglicht.
+    Es wurde eine Schaltfläche hinzugefügt, um den Mesh-Drehpunkt in die Mitte der Scheitelpunkte zu verschieben.
+    Beim Ändern der Scheitelpunktpositionen im Tab „Ändern“ eines Meshs werden UVs jetzt automatisch aktualisiert, und Benutzerbearbeitungen sind nicht mehr möglich.
+    Links zu Tutorials und Kontaktseiten im Unity-Menü wurden in einem einzigen Menü „Tutorials und Support“ zusammengefasst.
+
+- Der Texturtyp von Skriptfunktionen, die benutzerdefinierte Eigenschaften ändern, wie z. B. „SetMeshCustomImageAll“, wurde von „Texture2D“ in „Texture“ geändert, wodurch Eingaben wie „RenderTexture“ möglich sind.
+- Aufgrund der Trennung des Unity Asset Store werden Pakete je nach Store, in den sie hochgeladen werden, neu erstellt.
+
+
+
+<size=13>Problem behoben</size>
+
+- Dank der aktiven Benutzerbeteiligung wurden viele chinesische Übersetzungsfehler korrigiert.
+- Ein Problem wurde behoben, bei dem ein Fehler in einer Skriptfunktion auftrat, die Materialien stapelweise steuerte, wenn alle Meshes eines bestimmten Materials im Maskensystem enthalten waren.
+- Ein Problem wurde behoben, bei dem aufgrund von Skript-API-Änderungen in Unity 6.2 Kompatibilitätswarnungen auftraten.
+
+
+
+
+-----------------------------------------
+(스페인어)
+<size=16>AnyPortrait Update Log v1.6.2</size>
+(7 de octubre de 2025)
+
+<size=13>Mejoras</size>
+
+- <color=blue>Usabilidad mejorada del editor</color>
+    Debido a un conflicto entre los atajos del Editor de Unity y los de cambio de Gizmo (predeterminados: Q, W, E, R), se ha corregido que estos atajos dejen de funcionar al presionar teclas especiales como Ctrl.
+    Se han cambiado los colores de la interfaz de usuario de los atajos no modificables en el cuadro de diálogo Configuración de atajos para distinguirlos mejor en el tema oscuro.
+    Se ha añadido una interfaz de usuario que permite la entrada numérica del pivote de la malla.
+    Se ha añadido un botón para mover el pivote de la malla al centro de los vértices.
+    Al modificar las posiciones de los vértices en la pestaña Modificar de una malla, los UV se actualizan automáticamente y el usuario ya no puede realizar ediciones.
+    Los enlaces a tutoriales y páginas de contacto del menú de Unity se han consolidado en un único menú "Tutoriales and Support".
+
+- El tipo de textura de las funciones de script que modifican propiedades personalizadas, como "SetMeshCustomImageAll", se ha cambiado de Texture2D a Texture, lo que permite entradas como RenderTexture.
+- Debido a la separación de Unity Asset Store, los paquetes se reconstruyen según la tienda a la que se cargan.
+
+
+
+<size=13>Problema solucionado</size>
+
+- Gracias a la participación activa de los usuarios, se han corregido muchos errores de traducción al chino.
+- Se ha solucionado un problema que provocaba un error en una función de script que controlaba materiales por lotes cuando todas las mallas de un material específico estaban incluidas en el sistema de máscaras.
+- Se ha solucionado un problema en el que aparecían advertencias de compatibilidad debido a cambios en la API de script en Unity 6.2.
+
+
+
+
+-----------------------------------------
+(이탈리아어)
+<size=16>Registro aggiornamenti AnyPortrait v1.6.2</size>
+(7 ottobre 2025)
+
+<size=13>Miglioramenti</size>
+
+- <color=blue>Migliorata l'usabilità dell'editor</color>
+    A causa di un conflitto tra le scorciatoie di Unity Editor e le scorciatoie di modifica di Gizmo (predefinite Q, W, E, R), queste scorciatoie sono state corrette e non funzionano più quando si premono tasti speciali come Ctrl.
+    I colori dell'interfaccia utente per le scorciatoie non modificabili nella finestra di dialogo Impostazioni scorciatoie sono stati modificati per distinguerle meglio nel tema Scuro.
+    È stata aggiunta un'interfaccia utente che consente l'inserimento numerico del perno della mesh.
+    È stato aggiunto un pulsante per spostare il perno della mesh al centro dei vertici.
+    Quando si modificano le posizioni dei vertici nella scheda Modifica di una mesh, gli UV vengono ora aggiornati automaticamente e le modifiche utente non sono più possibili.
+    I link ai tutorial e alle pagine dei contatti nel menu Unity sono stati consolidati in un unico menu "Tutorials and Support".
+
+- Il tipo di texture delle funzioni di script che modificano le proprietà personalizzate, come "SetMeshCustomImageAll", è stato modificato da Texture2D a Texture, consentendo input come RenderTexture.
+- A causa della separazione dell'Unity Asset Store, i pacchetti vengono ricostruiti a seconda dello store in cui vengono caricati.
+
+
+
+<size=13>Risolto il problema</size>
+
+- Grazie alla partecipazione attiva degli utenti, sono stati corretti molti errori di traduzione in cinese.
+- È stato risolto un problema che si verificava in una funzione di script che controllava in batch i materiali quando tutte le mesh di un materiale specifico erano incluse nel sistema di maschere.
+- È stato risolto un problema per cui venivano visualizzati avvisi di compatibilità a causa di modifiche all'API degli script in Unity 6.2.
+
+
+
+-----------------------------------------
+(덴마크어)
+<size=16>AnyPortrait Update Log v1.6.2</size>
+(7. oktober 2025)
+
+<size=13>Forbedringer</size>
+
+- <color=blue>Forbedret brugervenlighed i editoren</color> 
+    På grund af en konflikt mellem Unity Editor-genveje og Gizmo-genveje til ændring (standard Q, W, E, R), er disse genveje blevet rettet, så de ikke længere fungerer, når der trykkes på specialtaster som Ctrl.
+    Brugergrænsefladefarverne for ikke-ændrbare genveje i dialogboksen Genvejsindstillinger er blevet ændret for bedre at kunne skelne dem i det mørke tema.
+    En brugergrænseflade er blevet tilføjet, der tillader numerisk input af maskens pivot.
+    En knap er blevet tilføjet til at flytte maskens pivot til midten af ​​hjørnerne.
+    Når du ændrer hjørnepositioner i fanen Rediger i et maske, opdateres UV'er nu automatisk, og brugerredigeringer er ikke længere mulige.
+    Links til vejledninger og kontaktsider i Unity-menuen er blevet samlet i en enkelt "Tutorials and Support"-menu.
+
+- Teksturtypen for scriptfunktioner, der ændrer brugerdefinerede egenskaber, såsom "SetMeshCustomImageAll", er blevet ændret fra Texture2D til Texture, hvilket tillader input som RenderTexture.
+- På grund af adskillelsen af ​​Unity Asset Store genopbygges pakker afhængigt af det lager, de uploades til.
+
+
+
+<size=13>Faste problem</size>
+
+- Takket være aktiv brugerdeltagelse er mange kinesiske oversættelsesfejl blevet rettet.
+- Der er rettet et problem, hvor der opstod en fejl i en scriptfunktion, der batchstyrede materialer, når alle masker af et specifikt materiale var inkluderet i maskesystemet.
+- Der er løst et problem, hvor der opstod kompatibilitetsadvarsler på grund af ændringer i script-API'en i Unity 6.2.
+
+
+
+
+-----------------------------------------
+(일본어)
+<size=16> AnyPortrait更新ログv1.6.2</size>
+（2025年10月7日）
+
+<size=13>改善点</size>
+
+- <color=blue>エディタの使いやすさの向上</color>
+    Unity エディターのショートカットとギズモ変更ショートカット（デフォルトの Q、W、E、R）の競合により、Ctrl などの特殊キーを押した際にこれらのショートカットが機能しなくなるように修正されました。
+    ショートカット設定ダイアログ内の変更不可ショートカットの UI 色が変更され、ダークテーマでより見分けやすくなりました。
+    メッシュのピボットを数値入力できる UI が追加されました。
+    メッシュのピボットを頂点の中心に移動するボタンが追加されました。
+    メッシュの「修正」タブで頂点の位置を変更すると、UV が自動的に更新されるようになり、ユーザーによる編集はできなくなりました。
+    Unity メニュー内のチュートリアルと連絡先ページへのリンクが、「Tutorials and Support」メニューに統合されました。
+
+- 「SetMeshCustomImageAll」などのカスタムプロパティを変更するスクリプト関数のテクスチャタイプが「Texture2D」から「Texture」に変更され、「RenderTexture」などの入力が可能になりました。
+- 「Unity Asset Store」の分離により、パッケージはアップロード先のストアに応じて再構築されます。
+
+
+
+<size=13>修正された問題</size>
+
+- ユーザーの積極的な参加のおかげで、多くの中国語翻訳エラーが修正されました。
+- 特定のマテリアルのすべてのメッシュがマスクシステムに含まれている場合に、マテリアルを一括制御するスクリプト関数でエラーが発生する問題を修正しました。
+- 「Unity 6.2」でのスクリプトAPIの変更により互換性警告が発生する問題を修正しました。
+
+
+
+
+-----------------------------------------
+(중국어-번체)
+<size=16>AnyPortrait更新日誌v1.6.2</size>
+（2025年10月7日）
+
+<size=13>改進</size>
+
+- <color=blue>改進了編輯器的可用性</color>
+    由於 Unity 編輯器快捷鍵與 Gizmo 更改快捷鍵（預設為 Q、W、E、R）之間存在衝突，因此這些快捷鍵已修復，因此按下 Ctrl 等特殊鍵時將不再起作用。
+    「快捷鍵設定」對話方塊中不可更改的快捷鍵的 UI 顏色已更改，以便在深色主題中更好地區分它們。
+    新增了一個允許透過數字輸入網格樞軸的 UI。
+    新增了一個按鈕，用於將網格樞軸移動到頂點的中心。
+    在網格的「修改」標籤中修改頂點位置時，UV 現在會自動更新，使用者將無法再進行編輯。
+    Unity 選單中的教學和聯絡頁面連結已合併到單一「Tutorials and Support」選單中。
+
+- 更改自訂屬性的腳本函數（例如「SetMeshCustomImageAll」）的紋理類型已從 Texture2D 更改為 Texture，從而允許諸如 RenderTexture 之類的輸入。
+- 由於 Unity Asset Store 的分離，軟體包將根據其上傳到的商店進行重建。
+
+
+
+<size=13>修復了問題</size>
+
+- 感謝用戶的積極參與，許多中文翻譯錯誤已修正。
+- 修正了當特定材質的所有網格都包含在遮罩系統時，批量控製材質的腳本函數中會出現錯誤的問題。
+- 已修正由於 Unity 6.2 中的腳本 API 變更而出現相容性警告的問題。
+
+
+
+
+-----------------------------------------
+(중국어-간체)
+<size=16>AnyPortrait更新日志v1.6.2</size>
+（2025年10月7日）
+
+<size=13>改进</size>
+
+- <color=blue>改进了编辑器的可用性</color>
+    由于 Unity 编辑器快捷键与 Gizmo 更改快捷键（默认为 Q、W、E、R）之间存在冲突，这些快捷键已修复，按下 Ctrl 等特殊键时将不再起作用。
+    “快捷键设置”对话框中不可更改的快捷键的 UI 颜色已更改，以便在深色主题中更好地区分它们。
+    新增了一个允许通过数字输入网格枢轴的 UI。
+    新增了一个按钮，用于将网格枢轴移动到顶点的中心。
+    在网格的“修改”选项卡中修改顶点位置时，UV 现在会自动更新，用户将无法再进行编辑。
+    Unity 菜单中的教程和联系页面链接已合并到单个“Tutorials and Support”菜单中。
+
+- 更改自定义属性的脚本函数（例如“SetMeshCustomImageAll”）的纹理类型已从 Texture2D 更改为 Texture，从而允许诸如 RenderTexture 之类的输入。
+- 由于 Unity Asset Store 的分离，软件包将根据其上传到的商店进行重建。
+
+
+
+<size=13>修复了问题</size>
+
+- 感谢用户的积极参与，许多中文翻译错误已得到纠正。
+- 修复了当特定材质的所有网格都包含在遮罩系统时，批量控制材质的脚本函数中会出现错误的问题。
+- 已修正由于 Unity 6.2 中的脚本 API 变更而出现相容性警告的问题。
+
+
+
+
+-----------------------------------------
+(폴란드어)
+<size=16>Dziennik aktualizacji AnyPortret v1.6.2</size>
+(7 października 2025 r.)
+
+<size=13>Ulepszenia</size>
+
+- <color=blue>Ulepszona użyteczność edytora</color>
+    Z powodu konfliktu między skrótami klawiaturowymi edytora Unity a skrótami klawiaturowymi Gizmo (domyślne Q, W, E, R), te skróty zostały naprawione i nie działają już po naciśnięciu klawiszy specjalnych, takich jak Ctrl.
+    Kolory interfejsu użytkownika dla niezmiennych skrótów klawiaturowych w oknie dialogowym Ustawienia skrótów zostały zmienione, aby lepiej je odróżnić w ciemnym motywie.
+    Dodano interfejs użytkownika umożliwiający numeryczne wprowadzanie osi obrotu siatki.
+    Dodano przycisk przesuwający oś obrotu siatki do środka wierzchołków.
+    Podczas modyfikowania pozycji wierzchołków na karcie Modyfikuj siatki, UV są teraz automatycznie aktualizowane, a edycja przez użytkownika nie jest już możliwa.
+    Linki do samouczków i stron kontaktowych w menu Unity zostały połączone w jedno menu „Tutorials and Support”.
+
+- Typ tekstury funkcji skryptu zmieniających właściwości niestandardowe, takich jak „SetMeshCustomImageAll”, został zmieniony z Texture2D na Texture, co pozwala na wprowadzanie danych, takich jak RenderTexture.
+- Ze względu na oddzielenie Unity Asset Store, pakiety są przebudowywane w zależności od magazynu, do którego są przesyłane.
+
+
+
+<size=13>Naprawiono problem</size>
+
+- Dzięki aktywnemu udziałowi użytkowników poprawiono wiele błędów w tłumaczeniu na język chiński.
+- Naprawiono problem, który powodował błąd w funkcji skryptu, która sterowała wsadowo materiałami, gdy wszystkie siatki danego materiału były uwzględnione w systemie masek.
+- Naprawiono problem z pojawianiem się ostrzeżeń o niezgodnościach z powodu zmian w API skryptów w Unity 6.2.
+
+
+
+
+-----------------------------------------

@@ -203,7 +203,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         /// <summary>
         /// Updates all panel heights and cell sizes for the current grid size.
-        /// Skips dynamic sizing in Gameplay mode.
+        /// Skips dynamic sizing in Gameplay mode - uses prefab layout instead.
         /// </summary>
         public void UpdatePanelHeight(int gridSize, bool isGameplayMode)
         {

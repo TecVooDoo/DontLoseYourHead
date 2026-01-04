@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 529e8a70750751a48935cd04cb4fe401
+timeCreated: 1698798774
+licenseType: Store
+ShaderImporter:
+  defaultTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 111584
+  packageName: AnyPortrait | 2D Character Animation
+  packageVersion: 1.6.2
+  assetPath: Assets/AnyPortrait/Assets/Shaders/Unlit (v16)/apShader_Unlit16_AlphaMask.shader
+  uploadId: 804720

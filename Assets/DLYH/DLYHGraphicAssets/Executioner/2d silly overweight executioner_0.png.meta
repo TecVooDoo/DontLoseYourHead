@@ -1,0 +1,455 @@
+fileFormatVersion: 2
+guid: 15d75ffbac58875438dd4b6c94bf4a6c
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -4557941481096914646
+    second: 2d silly overweight executioner_0_0
+  - first:
+      213: 3044057350459775806
+    second: 2d silly overweight executioner_0_1
+  - first:
+      213: 4146248687968436062
+    second: 2d silly overweight executioner_0_2
+  - first:
+      213: 7658144667217190305
+    second: 2d silly overweight executioner_0_3
+  - first:
+      213: 3854901340565900540
+    second: 2d silly overweight executioner_0_4
+  - first:
+      213: 2022514679339339740
+    second: 2d silly overweight executioner_0_5
+  - first:
+      213: 1045477786645166267
+    second: 2d silly overweight executioner_0_6
+  - first:
+      213: -8735948439301943083
+    second: 2d silly overweight executioner_0_7
+  - first:
+      213: -3437650701975056913
+    second: 2d silly overweight executioner_0_8
+  - first:
+      213: -8699391652245166495
+    second: 2d silly overweight executioner_0_9
+  - first:
+      213: 1629162078378509919
+    second: 2d silly overweight executioner_0_10
+  - first:
+      213: -4415572519960766773
+    second: 2d silly overweight executioner_0_11
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 0
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WebGL
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WindowsStoreApps
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: 2d silly overweight executioner_0_0
+      rect:
+        serializedVersion: 2
+        x: 3
+        y: 1923
+        width: 110
+        height: 62
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a2953383f50feb0c0800000000000000
+      internalID: -4557941481096914646
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: 2d silly overweight executioner_0_1
+      rect:
+        serializedVersion: 2
+        x: 753
+        y: 1623
+        width: 506
+        height: 404
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e3b521a380aae3a20800000000000000
+      internalID: 3044057350459775806
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: 2d silly overweight executioner_0_2
+      rect:
+        serializedVersion: 2
+        x: 1278
+        y: 1863
+        width: 180
+        height: 149
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e5fb9c4c63f6a8930800000000000000
+      internalID: 4146248687968436062
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: 2d silly overweight executioner_0_3
+      rect:
+        serializedVersion: 2
+        x: 1473
+        y: 1863
+        width: 179
+        height: 149
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1ad58001002374a60800000000000000
+      internalID: 7658144667217190305
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: 2d silly overweight executioner_0_4
+      rect:
+        serializedVersion: 2
+        x: 1668
+        y: 1863
+        width: 77
+        height: 99
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cfc8b98585c5f7530800000000000000
+      internalID: 3854901340565900540
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: 2d silly overweight executioner_0_5
+      rect:
+        serializedVersion: 2
+        x: 1775
+        y: 1863
+        width: 76
+        height: 99
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cdfc807926a611c10800000000000000
+      internalID: 2022514679339339740
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: 2d silly overweight executioner_0_6
+      rect:
+        serializedVersion: 2
+        x: 3
+        y: 1458
+        width: 741
+        height: 444
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bb8fb8df188428e00800000000000000
+      internalID: 1045477786645166267
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: 2d silly overweight executioner_0_7
+      rect:
+        serializedVersion: 2
+        x: 1278
+        y: 1623
+        width: 592
+        height: 226
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5d09743fd2da3c680800000000000000
+      internalID: -8735948439301943083
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: 2d silly overweight executioner_0_8
+      rect:
+        serializedVersion: 2
+        x: 753
+        y: 1458
+        width: 735
+        height: 146
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fed87e666e20b40d0800000000000000
+      internalID: -3437650701975056913
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: 2d silly overweight executioner_0_9
+      rect:
+        serializedVersion: 2
+        x: 1503
+        y: 1458
+        width: 203
+        height: 146
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 166ade5326d854780800000000000000
+      internalID: -8699391652245166495
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: 2d silly overweight executioner_0_10
+      rect:
+        serializedVersion: 2
+        x: 1713
+        y: 1458
+        width: 203
+        height: 146
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f56c9435742fb9610800000000000000
+      internalID: 1629162078378509919
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: 2d silly overweight executioner_0_11
+      rect:
+        serializedVersion: 2
+        x: 3
+        y: 3
+        width: 1976
+        height: 1442
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bc613c3103cb8b2c0800000000000000
+      internalID: -4415572519960766773
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      2d silly overweight executioner_0_0: -4557941481096914646
+      2d silly overweight executioner_0_1: 3044057350459775806
+      2d silly overweight executioner_0_10: 1629162078378509919
+      2d silly overweight executioner_0_11: -4415572519960766773
+      2d silly overweight executioner_0_2: 4146248687968436062
+      2d silly overweight executioner_0_3: 7658144667217190305
+      2d silly overweight executioner_0_4: 3854901340565900540
+      2d silly overweight executioner_0_5: 2022514679339339740
+      2d silly overweight executioner_0_6: 1045477786645166267
+      2d silly overweight executioner_0_7: -8735948439301943083
+      2d silly overweight executioner_0_8: -3437650701975056913
+      2d silly overweight executioner_0_9: -8699391652245166495
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

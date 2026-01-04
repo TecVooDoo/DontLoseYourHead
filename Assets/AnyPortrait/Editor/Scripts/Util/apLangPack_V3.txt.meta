@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: b536f26a18ad3414198098a774f26c45
+TextScriptImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 111584
+  packageName: AnyPortrait | 2D Character Animation
+  packageVersion: 1.6.2
+  assetPath: Assets/AnyPortrait/Editor/Scripts/Util/apLangPack_V3.txt
+  uploadId: 804720

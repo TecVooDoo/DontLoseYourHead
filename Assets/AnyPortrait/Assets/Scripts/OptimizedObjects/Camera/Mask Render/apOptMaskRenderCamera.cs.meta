@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 4df1ba8de29a741159a85588d8830c66
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 111584
+  packageName: AnyPortrait | 2D Character Animation
+  packageVersion: 1.6.2
+  assetPath: Assets/AnyPortrait/Assets/Scripts/OptimizedObjects/Camera/Mask Render/apOptMaskRenderCamera.cs
+  uploadId: 804720

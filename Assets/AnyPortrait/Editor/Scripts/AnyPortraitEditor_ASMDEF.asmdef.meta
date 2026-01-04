@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 6780b2fe77cffc3428a89b4916c2f70f
+AssemblyDefinitionImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 111584
+  packageName: AnyPortrait | 2D Character Animation
+  packageVersion: 1.6.2
+  assetPath: Assets/AnyPortrait/Editor/Scripts/AnyPortraitEditor_ASMDEF.asmdef
+  uploadId: 804720

@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 170329c6976ecf74c8fcc0b9a17bfacf
+timeCreated: 1698798018
+licenseType: Store
+ShaderImporter:
+  defaultTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 111584
+  packageName: AnyPortrait | 2D Character Animation
+  packageVersion: 1.6.2
+  assetPath: Assets/AnyPortrait/Assets/Shaders/Unlit (v16)/apShader_Unlit16_T_Add.shader
+  uploadId: 804720

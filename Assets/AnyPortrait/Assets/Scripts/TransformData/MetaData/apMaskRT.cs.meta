@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 08fa7ee2c8a3d8940b0861a67d352d8e
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 111584
+  packageName: AnyPortrait | 2D Character Animation
+  packageVersion: 1.6.2
+  assetPath: Assets/AnyPortrait/Assets/Scripts/TransformData/MetaData/apMaskRT.cs
+  uploadId: 804720
