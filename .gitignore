@@ -76,3 +76,9 @@ crashlytics-build.properties
 
 # TextMesh Pro
 /[Aa]ssets/TextMesh Pro/
+
+# AnyPortrait auto-generated backups
+/AnyPortraitBackup/
+
+# Windows reserved names (artifacts)
+nul
