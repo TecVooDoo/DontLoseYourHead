@@ -508,11 +508,13 @@ namespace DLYH.Networking
             var sb = new System.Text.StringBuilder();
             foreach (var p in placements)
             {
+                // DirCol=1 means horizontal, DirRow=1 means vertical
+                string direction = p.DirCol == 1 ? "H" : "V";
                 sb.AppendFormat("{0}:{1},{2},{3};",
                     p.Word,
                     p.StartRow,
                     p.StartCol,
-                    p.Direction == WordPlacementData.PlacementDirection.Horizontal ? "H" : "V"
+                    direction
                 );
             }
 

@@ -9,7 +9,7 @@
       }
     },
     "com.cysharp.unitask": {
-      "version": "file:E:/Unity/newpackagedefaults/com.cysharp.unitask",
+      "version": "file:E:/Unity/DefaultUnityPackages/com.cysharp.unitask",
       "depth": 0,
       "source": "local",
       "dependencies": {}

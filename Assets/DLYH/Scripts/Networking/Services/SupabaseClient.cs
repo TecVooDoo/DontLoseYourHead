@@ -39,6 +39,11 @@ namespace DLYH.Networking.Services
             }
         }
 
+        public SupabaseClient(SupabaseConfig config, string accessToken) : this(config)
+        {
+            _accessToken = accessToken;
+        }
+
         // ============================================================
         // AUTHENTICATION
         // ============================================================

@@ -185,7 +185,8 @@ namespace DLYH.Networking.Services
             {
                 // Call logout endpoint (optional, just invalidates server-side)
                 string url = $"{_config.AuthUrl}/logout";
-                await _client.Post(url, "{}", _currentSession.AccessToken);
+                _client.SetAccessToken(_currentSession.AccessToken);
+                await _client.Post(url, "{}");
             }
 
             ClearSession();
