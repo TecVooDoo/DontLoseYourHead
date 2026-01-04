@@ -6,6 +6,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using DLYH.AI.Config;
+using DLYH.Networking.Services;
 using TecVooDoo.DontLoseYourHead.Core;
 
 namespace DLYH.Networking
@@ -34,18 +35,28 @@ namespace DLYH.Networking
         /// <summary>
         /// Creates a remote player opponent (for network multiplayer).
         /// </summary>
+        /// <param name="supabaseConfig">Supabase connection configuration</param>
         /// <param name="gameCode">The 6-character game code</param>
         /// <param name="isHost">Whether the local player is the host (player 1)</param>
         /// <returns>A new RemotePlayerOpponent instance</returns>
-        /// <remarks>
-        /// This will be implemented in Phase 5 when we add networking.
-        /// For now, returns null as a placeholder.
-        /// </remarks>
-        public static IOpponent CreateRemoteOpponent(string gameCode, bool isHost)
+        public static IOpponent CreateRemoteOpponent(
+            SupabaseConfig supabaseConfig,
+            string gameCode,
+            bool isHost)
         {
-            // TODO: Implement in Phase 5
-            Debug.LogWarning("[OpponentFactory] RemotePlayerOpponent not yet implemented");
-            return null;
+            if (supabaseConfig == null)
+            {
+                Debug.LogError("[OpponentFactory] SupabaseConfig is required for remote opponent");
+                return null;
+            }
+
+            if (string.IsNullOrEmpty(gameCode))
+            {
+                Debug.LogError("[OpponentFactory] Game code is required for remote opponent");
+                return null;
+            }
+
+            return new RemotePlayerOpponent(supabaseConfig, gameCode, isHost);
         }
     }
 }
