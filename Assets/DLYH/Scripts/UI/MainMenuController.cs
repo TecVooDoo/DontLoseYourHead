@@ -2,12 +2,15 @@
 // Controls the Main Menu navigation and container visibility
 // Created: December 13, 2025
 // Updated: December 14, 2025 - Added Continue Game, Main Menu from Setup/Gameplay
+// Updated: January 4, 2026 - Added 2-Player multiplayer support
 
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections;
 using TecVooDoo.DontLoseYourHead.UI;
+using DLYH.Networking.UI;
+using DLYH.Networking.Services;
 
 namespace DLYH.UI
 {
@@ -17,9 +20,11 @@ namespace DLYH.UI
         [SerializeField] private GameObject _mainMenuContainer;
         [SerializeField] private GameObject _setupContainer;
         [SerializeField] private GameObject _gameplayContainer;
+        [SerializeField] private GameObject _multiplayerLobbyContainer;
 
         [Header("Main Menu Buttons")]
         [SerializeField] private Button _newGameButton;
+        [SerializeField] private Button _twoPlayerButton;
         [SerializeField] private Button _continueGameButton;
         [SerializeField] private Button _settingsButton;
         [SerializeField] private Button _feedbackButton;
@@ -36,6 +41,10 @@ namespace DLYH.UI
 
         [Header("Feedback Panel")]
         [SerializeField] private FeedbackPanel _feedbackPanel;
+
+        [Header("Multiplayer")]
+        [SerializeField] private MultiplayerLobbyController _multiplayerLobby;
+        [SerializeField] private SupabaseConfig _supabaseConfig;
 
         [Header("Trivia Display")]
         [SerializeField] private TextMeshProUGUI _triviaText;
@@ -86,6 +95,7 @@ namespace DLYH.UI
             WireButtonEvents();
             WireSetupEvents();
             WireGameplayEvents();
+            WireMultiplayerEvents();
             ShowMainMenu();
             UpdateContinueButtonVisibility();
         }
@@ -95,6 +105,11 @@ namespace DLYH.UI
             if (_newGameButton != null)
             {
                 _newGameButton.onClick.AddListener(OnNewGameClicked);
+            }
+
+            if (_twoPlayerButton != null)
+            {
+                _twoPlayerButton.onClick.AddListener(OnTwoPlayerClicked);
             }
 
             if (_continueGameButton != null)
@@ -126,6 +141,16 @@ namespace DLYH.UI
             }
         }
 
+        private void WireMultiplayerEvents()
+        {
+            if (_multiplayerLobby != null)
+            {
+                _multiplayerLobby.OnCancel += OnMultiplayerCancelled;
+                _multiplayerLobby.OnGameReady += OnMultiplayerGameReady;
+                _multiplayerLobby.OnAIFallback += OnMultiplayerAIFallback;
+            }
+        }
+
         private void WireGameplayEvents()
         {
             if (_gameplayUIController != null)
@@ -146,6 +171,11 @@ namespace DLYH.UI
             if (_newGameButton != null)
             {
                 _newGameButton.onClick.RemoveListener(OnNewGameClicked);
+            }
+
+            if (_twoPlayerButton != null)
+            {
+                _twoPlayerButton.onClick.RemoveListener(OnTwoPlayerClicked);
             }
 
             if (_continueGameButton != null)
@@ -184,6 +214,13 @@ namespace DLYH.UI
             {
                 _feedbackPanel.OnFeedbackComplete -= OnFeedbackComplete;
             }
+
+            if (_multiplayerLobby != null)
+            {
+                _multiplayerLobby.OnCancel -= OnMultiplayerCancelled;
+                _multiplayerLobby.OnGameReady -= OnMultiplayerGameReady;
+                _multiplayerLobby.OnAIFallback -= OnMultiplayerAIFallback;
+            }
         }
 
         #region Button Handlers
@@ -193,6 +230,12 @@ namespace DLYH.UI
             Debug.Log("[MainMenuController] New Game clicked");
             _gameInProgress = false;
             StartNewGame();
+        }
+
+        private void OnTwoPlayerClicked()
+        {
+            Debug.Log("[MainMenuController] 2 Player clicked");
+            ShowMultiplayerLobby();
         }
 
         private void OnContinueGameClicked()
@@ -297,13 +340,35 @@ namespace DLYH.UI
             ShowMainMenu();
         }
 
+        private void OnMultiplayerCancelled()
+        {
+            Debug.Log("[MainMenuController] Multiplayer cancelled - returning to main menu");
+            ShowMainMenu();
+        }
+
+        private void OnMultiplayerGameReady(string gameCode, bool isHost)
+        {
+            Debug.Log($"[MainMenuController] Multiplayer game ready: {gameCode}, isHost: {isHost}");
+            // TODO: Start multiplayer game with RemotePlayerOpponent
+            // For now, go to setup with multiplayer flag
+            HideMultiplayerLobby();
+            StartNewGame(); // Will need to pass multiplayer info later
+        }
+
+        private void OnMultiplayerAIFallback()
+        {
+            Debug.Log("[MainMenuController] Multiplayer timeout - falling back to AI");
+            HideMultiplayerLobby();
+            StartNewGame(); // Start single player game with AI
+        }
+
         #endregion
 
         #region Navigation
 
         public void ShowMainMenu()
         {
-            SetContainerVisibility(mainMenu: true, setup: false, gameplay: false);
+            SetContainerVisibility(mainMenu: true, setup: false, gameplay: false, multiplayer: false);
             HideSettingsPanel();
             HideFeedbackPanel();
 
@@ -327,7 +392,7 @@ namespace DLYH.UI
         public void StartNewGame()
         {
             StopTriviaRotation();
-            SetContainerVisibility(mainMenu: false, setup: true, gameplay: false);
+            SetContainerVisibility(mainMenu: false, setup: true, gameplay: false, multiplayer: false);
             UpdateContinueButtonVisibility();
 
             // Reset setup panel for new game
@@ -342,7 +407,26 @@ namespace DLYH.UI
             if (_gameInProgress)
             {
                 StopTriviaRotation();
-                SetContainerVisibility(mainMenu: false, setup: false, gameplay: true);
+                SetContainerVisibility(mainMenu: false, setup: false, gameplay: true, multiplayer: false);
+            }
+        }
+
+        public void ShowMultiplayerLobby()
+        {
+            StopTriviaRotation();
+            SetContainerVisibility(mainMenu: false, setup: false, gameplay: false, multiplayer: true);
+
+            if (_multiplayerLobby != null)
+            {
+                _multiplayerLobby.Show();
+            }
+        }
+
+        public void HideMultiplayerLobby()
+        {
+            if (_multiplayerLobby != null)
+            {
+                _multiplayerLobby.Hide();
             }
         }
 
@@ -386,7 +470,7 @@ namespace DLYH.UI
             ShowMainMenu();
         }
 
-        private void SetContainerVisibility(bool mainMenu, bool setup, bool gameplay)
+        private void SetContainerVisibility(bool mainMenu, bool setup, bool gameplay, bool multiplayer = false)
         {
             if (_mainMenuContainer != null)
             {
@@ -401,6 +485,11 @@ namespace DLYH.UI
             if (_gameplayContainer != null)
             {
                 _gameplayContainer.SetActive(gameplay);
+            }
+
+            if (_multiplayerLobbyContainer != null)
+            {
+                _multiplayerLobbyContainer.SetActive(multiplayer);
             }
         }
 
