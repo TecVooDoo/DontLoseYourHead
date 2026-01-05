@@ -213,6 +213,20 @@ namespace TecVooDoo.DontLoseYourHead.UI
         }
 
         /// <summary>
+        /// Sets arbitrary text to display (for row labels like "1.", "2.", etc.).
+        /// </summary>
+        public void SetText(string text)
+        {
+            _currentLetter = '\0';
+
+            if (_letterText != null)
+            {
+                _letterText.text = text ?? "";
+                _letterText.color = _letterColor;
+            }
+        }
+
+        /// <summary>
         /// Clears the letter display (shows empty or underscore based on context).
         /// </summary>
         public void ClearLetter()
@@ -236,6 +250,20 @@ namespace TecVooDoo.DontLoseYourHead.UI
             {
                 _letterText.text = "_";
                 _letterText.color = _underscoreColor;
+            }
+        }
+
+        /// <summary>
+        /// Shows the cell as a blank white cell (no text, just background).
+        /// Used for empty letter cells that should appear as part of a continuous row.
+        /// </summary>
+        public void ShowBlank()
+        {
+            _currentLetter = '\0';
+
+            if (_letterText != null)
+            {
+                _letterText.text = "";
             }
         }
 

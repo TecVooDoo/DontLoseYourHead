@@ -63,11 +63,17 @@ namespace TecVooDoo.DontLoseYourHead.UI
         [SerializeField] private Transform _cellContainer;
         [SerializeField] private LetterCellUI _cellPrefab;
 
-        [Header("Action Icons")]
+        [Header("Action Icons - Active")]
         [SerializeField] private Sprite _selectIcon;
         [SerializeField] private Sprite _placeIcon;
         [SerializeField] private Sprite _deleteIcon;
         [SerializeField] private Sprite _guessWordIcon;
+
+        [Header("Action Icons - Inactive")]
+        [SerializeField] private Sprite _selectIconInactive;
+        [SerializeField] private Sprite _placeIconInactive;
+        [SerializeField] private Sprite _deleteIconInactive;
+        [SerializeField] private Sprite _guessWordIconInactive;
 
         [Header("Player Color")]
         [SerializeField] private Color _playerColor = Color.cyan;
@@ -233,13 +239,15 @@ namespace TecVooDoo.DontLoseYourHead.UI
         {
             if (RowLabelCell != null)
             {
-                RowLabelCell.SetLetter((char)('0' + (_rowIndex + 1))); // "1", "2", etc.
+                RowLabelCell.SetText((_rowIndex + 1).ToString() + "."); // "1.", "2.", etc.
                 RowLabelCell.SetState(LetterCellState.Default);
             }
         }
 
         /// <summary>
         /// Updates cell visibility based on word length.
+        /// Letter cells within word length show underscores.
+        /// Letter cells beyond word length show as blank white cells.
         /// </summary>
         private void UpdateCellVisibility()
         {
@@ -248,15 +256,19 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 int letterIndex = i - FIRST_LETTER_INDEX;
                 var cell = _allCells[i];
 
+                cell.Show();
+
                 if (letterIndex < _wordLength)
                 {
-                    cell.Show();
+                    // Active letter cell - shows underscore or letter
                     cell.SetContentType(CellContentType.Letter);
+                    cell.ShowUnderscore();
                 }
                 else
                 {
-                    cell.Hide();
-                    cell.SetContentType(CellContentType.Empty);
+                    // Unused cell - shows as blank white cell (part of continuous row)
+                    cell.SetContentType(CellContentType.Letter);
+                    cell.ShowBlank();
                 }
             }
         }
@@ -478,14 +490,21 @@ namespace TecVooDoo.DontLoseYourHead.UI
             _isPlaced = false;
             _isWordSolved = false;
 
-            // Reset letter cells
+            // Reset letter cells - active cells get underscore, unused get blank
             for (int i = 0; i < MAX_LETTER_CELLS; i++)
             {
                 var cell = GetLetterCell(i);
                 if (cell != null)
                 {
                     cell.Reset();
-                    cell.ShowUnderscore();
+                    if (i < _wordLength)
+                    {
+                        cell.ShowUnderscore();
+                    }
+                    else
+                    {
+                        cell.ShowBlank();
+                    }
                     cell.SetState(LetterCellState.Default);
                 }
             }
@@ -576,29 +595,37 @@ namespace TecVooDoo.DontLoseYourHead.UI
             if (_mode == WordRowMode.Setup)
             {
                 // Select always enabled
+                bool selectEnabled = true;
                 if (SelectCell != null)
                 {
-                    SelectCell.SetInteractive(true);
+                    SelectCell.SetInteractive(selectEnabled);
+                    SelectCell.SetIcon(selectEnabled ? _selectIcon : _selectIconInactive);
                 }
 
                 // Place enabled when word complete and not yet placed
+                bool placeEnabled = HasWord && !_isPlaced;
                 if (PlaceCell != null)
                 {
-                    PlaceCell.SetInteractive(HasWord && !_isPlaced);
+                    PlaceCell.SetInteractive(placeEnabled);
+                    PlaceCell.SetIcon(placeEnabled ? _placeIcon : _placeIconInactive);
                 }
 
                 // Delete enabled when there's content
+                bool deleteEnabled = _currentWord.Length > 0 || _isPlaced;
                 if (DeleteCell != null)
                 {
-                    DeleteCell.SetInteractive(_currentWord.Length > 0 || _isPlaced);
+                    DeleteCell.SetInteractive(deleteEnabled);
+                    DeleteCell.SetIcon(deleteEnabled ? _deleteIcon : _deleteIconInactive);
                 }
             }
             else if (_mode == WordRowMode.Gameplay)
             {
                 // Guess Word enabled when not solved
+                bool guessEnabled = !_isWordSolved;
                 if (SelectCell != null)
                 {
-                    SelectCell.SetInteractive(!_isWordSolved);
+                    SelectCell.SetInteractive(guessEnabled);
+                    SelectCell.SetIcon(guessEnabled ? _guessWordIcon : _guessWordIconInactive);
                 }
             }
         }
