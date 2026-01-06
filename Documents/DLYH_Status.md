@@ -1,10 +1,10 @@
 # Don't Lose Your Head - Project Status
 
-**Project:** Don't Lose Your Head
+**Project:** Don't Lose Your Head (DLYH)
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
-**Platform:** Unity 6.3 (6000.3.0f1)
+**Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 7
+**Document Version:** 10
 **Last Updated:** January 6, 2026
 
 ---
@@ -15,69 +15,167 @@
 
 **Key Innovation:** Asymmetric difficulty - mixed-skill players compete fairly with different grid sizes, word counts, and difficulty settings.
 
-**Current Phase:** Phase 4 (Polish) wrapping up, Phase 5 (UX + Multiplayer) starting
+**Current Phase:** Phase 0 (Refactor) - preparing codebase for UI Toolkit migration and multiplayer integration
 
-**Last Session (Jan 6, 2026):** Cell sizing partially fixed - cells now square (40x40) when prefab settings correct. Fixed row width issue by delaying initialization one frame (WaitForEndOfFrame) so RectTransform layout is calculated before reading container width. Rows now fit inside panel, but cells are vertically stretched again. Next session: investigate why cells stretch vertically at runtime despite correct prefab settings.
+**Last Session (Jan 6, 2026):** Consolidated project documentation. Established new development plan: refactor large scripts first, verify multiplayer networking, then implement UI Toolkit table-based UI. Pivoting away from uGUI prefab approach (LetterCellUI/WordPatternRowUI) to UI Toolkit.
+
+---
+
+## Development Priorities (Ordered)
+
+1. **Optimization and memory efficiency first** - no per-frame allocations, no per-frame LINQ
+2. **UX and player clarity second** - clear feedback, intuitive interactions
+3. **Future-proofing with SOLID architecture third** - small files, clear interfaces, documented structure
 
 ---
 
 ## Active TODO
 
-### Immediate (New UI System)
-- [x] Set CellContainer Horizontal Layout Group spacing to 0
-- [x] Create action button icon sprites (Select, Place, Delete, GuessWord)
-- [x] Save WordPatternRowUI as prefab
-- [x] Create WordPatternPanelUI script
-- [x] Build word pattern panel hierarchy (Background + RowContainer)
-- [ ] **TROUBLESHOOT: Cell vertical stretching** - Cells square in prefab but stretch vertically at runtime
-  - LetterCellUI prefab: 40x40 RectTransform, Layout Element Preferred 40x40, Flexible unchecked
-  - CellContainer: Horizontal Layout Group with Control Child Size OFF for both
-  - Row width now correct (fits in panel) after delayed initialization fix
-  - Cells still getting stretched vertically - may be CellContainer height or row height issue
-  - Try: Check if CellContainer has stretch anchors affecting height
-  - Try: Set explicit height on CellContainer or check Horizontal Layout Group height settings
-- [ ] Build complete Setup screen layout
-- [ ] Build complete Gameplay screen layout
-- [ ] Wire new UI to existing game systems
-- [ ] Test all DOTween animations
-- [ ] Remove/archive legacy WordPatternRow components
+### Immediate (Phase 0: Refactor)
+- [ ] Extract GameplayUIController (~2150 lines) into smaller controllers (<800 each)
+- [ ] Extract SetupSettingsPanel (~850 lines)
+- [ ] Extract PlayerGridPanel (~1120 lines)
+- [ ] Document new interfaces/controllers in Architecture section
+- [ ] Standardize namespace convention (choose TecVooDoo.DontLoseYourHead.* OR DLYH.*)
+- [ ] Verify game still works after each extraction (test in NewPlayTesting.unity)
 
-### Phase 4 Remaining (Polish)
-- [ ] DOTween animations (reveals, transitions, feedback)
-- [ ] Feel effects (screen shake, juice)
-- [ ] Win/Loss tracker vs AI (session stats)
-- [ ] Medieval/carnival themed monospace font
-- [ ] UI skinning (medieval carnival theme)
-- [ ] Character avatars
-- [ ] Background art
+### Next (Phase 0.5: Multiplayer Verification)
+- [ ] Create NetworkingTest.unity scene (minimal debug UI)
+- [ ] Wire IOpponent interface to refactored GameplayUIController
+- [ ] Test Host/Join with two Unity instances
+- [ ] Verify connection, setup exchange, turn events, state sync
+- [ ] Document any networking issues found
+- [ ] Delete test scene after verification (keep the wiring code)
 
-### Phase 5 (Future)
-- [ ] Setup screen UX redesign (wizard flow)
-- [ ] 2-player networking mode
-- [ ] Mobile implementation
-
-### Future Polish Ideas
-- [ ] Random eye blink on severed head
+### Then (Phases A-F: UI Toolkit Implementation)
+- [ ] Phase A: Table data model foundation (no visual changes)
+- [ ] Phase B: UI Toolkit table renderer MVP
+- [ ] Phase C: Setup wizard + placement using table UI
+- [ ] Phase D: Gameplay UI conversion
+- [ ] Phase E: Networking integration (wire existing code)
+- [ ] Phase F: Refactor and cleanup (remove legacy uGUI)
 
 ---
 
 ## What Works (Completed Features)
 
-**Core Mechanics:** Grid placement, word entry, letter/coordinate/word guessing, miss limit formula, win/lose conditions
+**Core Mechanics:**
+- Grid placement and word entry
+- Letter, coordinate, and word guessing
+- Miss limit calculation formula
+- Win and loss condition detection
+- Extra turn on word completion (queued if multiple)
 
-**AI Opponent ("The Executioner"):** Adaptive difficulty, rubber-banding, strategy selection (letter/coordinate/word), memory system, think time variation
+**AI Opponent ("The Executioner"):**
+- Adaptive difficulty with rubber-banding
+- Strategy switching (letter, coordinate, word guesses)
+- Memory-based decision making
+- Variable think times (0.8-2.5s)
+- Grid density analysis for strategy selection
 
-**Audio:** SFX system, background music with shuffle/crossfade, dynamic tempo on danger, mute buttons, guillotine sounds (3-part execution sequence)
+**Audio:**
+- Music playback with shuffle (Fisher-Yates) and crossfade (1.5s)
+- SFX system with mute controls
+- Dynamic tempo changes under danger (1.08x at 80%, 1.12x at 95%)
+- Guillotine execution sound sequence (3-part)
 
-**Polish:** Help overlay, feedback panel, tooltips, profanity/drug word filtering, telemetry system, trivia display, head face expressions, extra turn on word completion, version display, settings from gameplay
+**Telemetry:**
+- Cloudflare workers endpoint for event capture
+- Editor-accessible analytics dashboard
+- Session, game, guess, feedback, and error tracking
+
+**Networking (Scaffolded, Not Wired):**
+- IOpponent interface for opponent abstraction
+- LocalAIOpponent wrapping ExecutionerAI
+- RemotePlayerOpponent for network play
+- OpponentFactory for creating opponents
+- Supabase services (Auth, GameSession, Realtime, StateSynchronizer)
+- Lobby and WaitingRoom UI controllers (not integrated)
+
+**Polish:**
+- Help overlay and tooltips
+- Feedback panel
+- Profanity and drug word filtering
+- Head face expressions
+- Version display
 
 ---
 
-## What Doesn't Work / Known Issues
+## Known Issues
 
-- Legacy WordPatternRow uses text field (migrating to cell-based system)
-- Some scripts exceed 800 lines (GameplayUIController ~2150 lines needs extraction)
+**Architecture:**
+- GameplayUIController at ~2150 lines (needs extraction)
+- SetupSettingsPanel at ~850 lines (needs extraction)
+- PlayerGridPanel at ~1120 lines (needs extraction)
+- Inconsistent namespace convention (TecVooDoo.DontLoseYourHead.* vs DLYH.*)
+
+**UI (To Be Replaced):**
+- Legacy WordPatternRow uses text field (migrating to table-based system)
+- uGUI cell vertical stretching bug in LetterCellUI/WordPatternRowUI prefabs
 - Scene files can get accidentally modified - check git diff before commits
+
+**Networking:**
+- IOpponent interface exists but is not wired to GameplayUIController
+- Network play has never been tested end-to-end
+
+**Abandoned Work (Pivot to UI Toolkit):**
+- LetterCellUI.cs, WordPatternRowUI.cs, WordPatternPanelUI.cs - uGUI approach abandoned
+- NewUI/Prefabs/LetterCellUI.prefab, WordPatternRowUI.prefab - to be deleted after UI Toolkit complete
+- NewUIDesign.unity scene - to be deleted when recoding starts
+
+---
+
+## Implementation Plan
+
+### Phase 0: Refactor Large Scripts
+Extract oversized MonoBehaviours into smaller, focused controllers and services. Target: all files under 800 lines. Document interfaces as we go. Test after each extraction.
+
+**Files to extract:**
+- GameplayUIController.cs (~2150 lines)
+- SetupSettingsPanel.cs (~850 lines)
+- PlayerGridPanel.cs (~1120 lines)
+
+### Phase 0.5: Multiplayer Verification
+Create minimal test scene to verify networking works before building UI around it. This is throwaway work - just enough to validate the foundation.
+
+**Verify:**
+- Two instances can connect via game code
+- Setup data exchanges correctly
+- Turn events fire and sync
+- State remains consistent
+
+### Phase A: Foundation (No UI Changes)
+- Implement TableModel, TableCell, TableCellKind, TableCellState, CellOwner
+- Implement TableLayout and TableRegion for mapping
+- Implement ColorRules service
+- Unit test the model (no Unity UI dependencies)
+
+### Phase B: UI Toolkit Table MVP
+- Build table renderer using UI Toolkit (UXML/USS)
+- Generate all cells once (non-virtualized)
+- Update visuals via state changes only
+- No per-frame allocations
+
+### Phase C: Setup Wizard + Placement
+- Replace monolithic setup screen with guided wizard
+- Implement placement logic using table UI
+- Preserve existing placement rules and validation
+
+### Phase D: Gameplay UI Conversion
+- Convert gameplay grids to table UI
+- Wire table interactions to existing gameplay systems
+- Preserve AI, audio, and telemetry behavior
+
+### Phase E: Networking Integration
+- Wire IOpponent to gameplay flow (already scaffolded in Phase 0.5)
+- Implement phantom-AI fallback (5 second PVP timeout)
+- Ensure UI supports both PVP and Executioner modes
+
+### Phase F: Cleanup
+- Remove legacy uGUI components
+- Delete abandoned prefabs and scripts
+- Final refactor pass
+- Validate memory usage and allocations
 
 ---
 
@@ -87,16 +185,19 @@
 
 | Namespace | Scripts | Purpose |
 |-----------|---------|---------|
-| `TecVooDoo.DontLoseYourHead.UI` | 28 | Main UI scripts (including new UI) |
-| `DLYH.UI` | 6 | Main menu, settings, help, tooltips |
+| `TecVooDoo.DontLoseYourHead.UI` | 28 | Main UI scripts |
 | `TecVooDoo.DontLoseYourHead.UI.Utilities` | 1 | RowDisplayBuilder |
-| `TecVooDoo.DontLoseYourHead.Core` | 4 | Game state/difficulty |
+| `TecVooDoo.DontLoseYourHead.Core` | 4 | Game state, difficulty |
+| `DLYH.UI` | 6 | Main menu, settings, help, tooltips |
 | `DLYH.AI.Config` | 1 | AI configuration |
 | `DLYH.AI.Core` | 4 | AI controllers |
 | `DLYH.AI.Data` | 2 | AI data utilities |
 | `DLYH.AI.Strategies` | 4 | AI guess strategies |
 | `DLYH.Audio` | 5 | UI, guillotine, music audio |
 | `DLYH.Telemetry` | 1 | Playtest analytics |
+| `DLYH.Networking` | 4 | Opponent abstraction, factory |
+| `DLYH.Networking.Services` | 7 | Supabase, auth, realtime |
+| `DLYH.Networking.UI` | 3 | Lobby, waiting room |
 | `DLYH.Editor` | 1 | Telemetry Dashboard |
 
 ### Key Folders
@@ -108,45 +209,175 @@ Assets/DLYH/
     Audio/        - UIAudioManager, MusicManager, GuillotineAudioManager
     Core/         - Grid, Word, DifficultyCalculator
     Editor/       - TelemetryDashboard
+    Networking/   - IOpponent, LocalAIOpponent, RemotePlayerOpponent
+      Services/   - Supabase, Auth, Realtime, GameSession
+      UI/         - Lobby, WaitingRoom, ConnectionStatus
     Telemetry/    - PlaytestTelemetry
     UI/           - All UI controllers and components
       Controllers/ - Extracted controller classes
       Services/    - GuessProcessor, WinConditionChecker
-  NewUI/          - LetterCellUI.prefab
+  NewUI/          - [ABANDONED] LetterCellUI.prefab, WordPatternRowUI.prefab
   Scenes/
-    Main.unity    - Production scene
-    NewUIDesign.unity - Test scene for new UI
+    NewPlayTesting.unity - Current working scene (use this)
+    NewUIDesign.unity    - [TO DELETE] Test scene for abandoned UI approach
+    GuillotineTesting.unity - Guillotine visual testing
 ```
 
 ### Key Scripts
 
-| Script | Lines | Namespace | Purpose |
-|--------|-------|-----------|---------|
-| MainMenuController | ~455 | DLYH.UI | Game flow, menu navigation |
-| GameplayUIController | ~2150 | TecVooDoo...UI | Master gameplay controller |
-| SetupSettingsPanel | ~850 | TecVooDoo...UI | Player setup configuration |
-| PlayerGridPanel | ~1120 | TecVooDoo...UI | Single player grid display |
-| ExecutionerAI | ~493 | DLYH.AI.Core | AI opponent coordination |
-| LetterCellUI | ~543 | TecVooDoo...UI | Unified cell (letters/icons) |
-| WordPatternRowUI | ~655 | TecVooDoo...UI | Row manager (12 cells) |
+| Script | Lines | Purpose | Status |
+|--------|-------|---------|--------|
+| GameplayUIController | ~2150 | Master gameplay controller | NEEDS EXTRACTION |
+| SetupSettingsPanel | ~850 | Player setup configuration | NEEDS EXTRACTION |
+| PlayerGridPanel | ~1120 | Single player grid display | NEEDS EXTRACTION |
+| ExecutionerAI | ~493 | AI opponent coordination | OK |
+| IOpponent | ~177 | Opponent abstraction interface | OK (not wired) |
+| LocalAIOpponent | ~300 | AI wrapper for IOpponent | OK (not wired) |
+| RemotePlayerOpponent | ~400 | Network player opponent | OK (not wired) |
 
 ### Packages
 
 - Odin Inspector 4.0.1.2
 - DOTween Pro 1.0.386
-- Feel 5.9.1
+- Feel 5.9.1 (optional, screen effects only)
 - UniTask 2.5.10
 - New Input System 1.16.0
 - Classic_RPG_GUI (UI theme assets)
 
-### UI Icon Mapping (Classic_RPG_GUI/Parts/)
+---
 
-| Action | Active Icon | Inactive Icon |
-|--------|-------------|---------------|
-| Select | Mini_arrow_right2.png | Mini_arrow_right2_t.png |
-| Place | Mini_add.png | Mini_add_t.png |
-| Delete | Mini_exit.png | Mini_exit_t.png |
-| GuessWord | Mini_help.png | Mini_help_t.png |
+## UI Direction (Locked)
+
+**Technology:** Unity UI Toolkit (not uGUI)
+
+**Approach:** Unified table-style UI for:
+- Word rows
+- Column headers (A, B, C...)
+- Row headers (1, 2, 3...)
+- Grid cells
+
+**Separate Panels (not table):**
+- Setup wizard fields
+- Guillotine visuals
+- Guessed word list
+- HUD elements
+
+**Key Constraints:**
+- Non-virtualized table (cells generated once)
+- UI is pure view - game logic updates model, view renders it
+- No per-frame allocations
+- Model has no Unity UI references (testable)
+
+---
+
+## Multiplayer Model
+
+**Local Play:**
+- Single-player versus AI ("The Executioner")
+- Uses LocalAIOpponent wrapping ExecutionerAI
+
+**Two-Player Mode (Networked):**
+- Player vs Executioner (networked, both players fight same AI)
+- Player vs Player (PVP)
+- Uses RemotePlayerOpponent with Supabase realtime
+
+**Matchmaking Fallback:**
+- If PVP selected and no opponent found within 5 seconds
+- Spawn phantom AI with random player-style name (not "The Executioner")
+- Mirrors existing DAB implementation
+
+---
+
+## Color Rules (Hard Requirements)
+
+| Color | Usage | Selectable by Player? |
+|-------|-------|----------------------|
+| Red | System warnings, errors, PlacementInvalid | NO |
+| Yellow | System warnings, errors | NO |
+| Green | Setup placement feedback (PlacementValid) | YES (but won't show green feedback) |
+| Other colors | Player colors, reveal/hit feedback | YES |
+
+**Rules:**
+- During setup: green = valid placement, red = invalid placement
+- During gameplay: reveal/hit feedback uses player's chosen color
+- Red and Yellow only for system messages, never player feedback
+
+---
+
+## Table Model Spec
+
+> Note: This section will be archived to a separate file after Phase B completion.
+
+### Core Enums
+
+```
+TableCellKind:
+- Spacer         (empty/padding)
+- WordSlot       (word row letter slot)
+- HeaderCol      (column header: A, B, C...)
+- HeaderRow      (row header: 1, 2, 3...)
+- GridCell       (board cell)
+- KeyboardKey    (optional: gameplay keyboard)
+
+TableCellState:
+- None, Normal, Disabled, Hidden, Selected, Hovered, Locked, ReadOnly
+- PlacementValid, PlacementInvalid, PlacementPath, PlacementAnchor, PlacementSecond
+- Fog, Revealed, Hit, Miss, WrongWord, Warning
+
+CellOwner:
+- None, Player1, Player2, ExecutionerAI, PhantomAI
+```
+
+### Core Types
+
+```
+struct TableCell:
+- TableCellKind Kind
+- TableCellState State
+- CellOwner Owner
+- char TextChar        (prefer this for letters)
+- string TextString    (avoid, use pooled strings if needed)
+- int IntValue         (for header numbers)
+- int Row, Col         (cached coordinates)
+
+class TableModel:
+- int Rows, Cols
+- TableCell[,] Cells
+- int Version          (increments on change)
+- bool Dirty           (for view to check)
+- Methods: ClearAll(), GetCell(), SetCellChar/State/Kind/Owner(), MarkDirty()
+
+struct TableRegion:
+- string Name
+- int RowStart, ColStart, RowCount, ColCount
+
+class TableLayout:
+- TableRegion WordRowsRegion, ColHeaderRegion, RowHeaderRegion, GridRegion
+- static CreateForSetup(gridSize, wordCount)
+- static CreateForGameplay(gridSize, wordCount)
+
+class ColorRules:
+- bool IsSelectablePlayerColor(color)
+- UIColor GetPlacementColor(state)
+- UIColor GetGameplayColor(owner, state, p1Color, p2Color)
+```
+
+### Layout Formula
+
+```
+Rows = wordCount + 1 (col header) + gridSize
+Cols = 1 (row header) + gridSize
+```
+
+### Acceptance Checklist
+
+- [ ] TableModel constructed once, cleared/reused without allocations
+- [ ] TableLayout maps regions correctly for variable grid sizes
+- [ ] Setup can mark PlacementValid/Invalid/Path/Anchor/Second
+- [ ] Gameplay can mark Revealed/Hit/Miss with owner-based colors
+- [ ] Red and Yellow not selectable as player colors
+- [ ] Green only for setup placement feedback
+- [ ] Model has no Unity UI references, can be unit tested
 
 ---
 
@@ -239,12 +470,41 @@ YourDifficultyModifier: Easy=+4, Normal=+0, Hard=-4
 
 ### Music System (MusicManager)
 
-**Features:**
 - Shuffle playlist (Fisher-Yates), never repeats consecutively
 - Crossfade 1.5 seconds between tracks
 - Dynamic tempo: 1.0x (normal), 1.08x (80-94% danger), 1.12x (95%+ danger)
 
 **Static Methods:** `ToggleMuteMusic()`, `SetTension(float)`, `ResetMusicTension()`, `IsMusicMuted()`
+
+---
+
+## Telemetry
+
+**Endpoint:** `https://dlyh-telemetry.runeduvall.workers.dev`
+**Dashboard:** DLYH > Telemetry Dashboard (Unity Editor menu)
+
+### Events Tracked
+
+| Event | Data |
+|-------|------|
+| session_start | Platform, version, screen |
+| session_end | Auto on quit |
+| game_start | Player name, grids, words, difficulties |
+| game_end | Win/loss, misses, turns |
+| game_abandon | Phase, turn number |
+| player_guess | Type, hit/miss, value |
+| player_feedback | Text, win/loss context |
+| error | Unity errors with stack |
+
+### Cloudflare Endpoints
+
+| Endpoint | Purpose |
+|----------|---------|
+| `/event` POST | Receive events |
+| `/events` GET | Last 100 events |
+| `/summary` GET | Event type counts |
+| `/feedback` GET | Player comments |
+| `/stats` GET | Aggregated stats |
 
 ---
 
@@ -289,35 +549,22 @@ StartNewGame()
     -> Restore blade/head positions, HeadFaceController.ResetFace()
 ```
 
----
+### IOpponent Flow (Future)
 
-## Telemetry
+```
+GameStart
+  -> OpponentFactory.CreateAIOpponent() OR CreateRemoteOpponent()
+  -> opponent.InitializeAsync(localPlayerSetup)
+  -> [For AI: generate opponent setup]
+  -> [For Remote: exchange setup via Supabase]
 
-**Endpoint:** `https://dlyh-telemetry.runeduvall.workers.dev`
-**Dashboard:** DLYH > Telemetry Dashboard (Unity Editor menu)
-
-### Events Tracked
-
-| Event | Data |
-|-------|------|
-| session_start | Platform, version, screen |
-| session_end | Auto on quit |
-| game_start | Player name, grids, words, difficulties |
-| game_end | Win/loss, misses, turns |
-| game_abandon | Phase, turn number |
-| player_guess | Type, hit/miss, value |
-| player_feedback | Text, win/loss context |
-| error | Unity errors with stack |
-
-### Cloudflare Endpoints
-
-| Endpoint | Purpose |
-|----------|---------|
-| `/event` POST | Receive events |
-| `/events` GET | Last 100 events |
-| `/summary` GET | Event type counts |
-| `/feedback` GET | Player comments |
-| `/stats` GET | Aggregated stats |
+OpponentTurn
+  -> opponent.ExecuteTurn(gameState)
+  -> [AI: decision logic, think time]
+  -> [Remote: wait for network event]
+  -> opponent.OnLetterGuess/OnCoordinateGuess/OnWordGuess fires
+  -> GameplayUIController handles guess
+```
 
 ---
 
@@ -390,6 +637,29 @@ public int player_won;  // Parse as int
 public bool PlayerWon => player_won != 0;  // Convert
 ```
 
+### 6. Interface-First Extraction (NEW)
+
+```csharp
+// When extracting from large controller:
+// 1. Define interface first
+public interface IGuessHandler {
+    void HandleLetterGuess(char letter);
+    void HandleCoordinateGuess(int row, int col);
+    void HandleWordGuess(string word, int wordIndex);
+}
+
+// 2. Implement in extracted class
+public class GuessHandler : IGuessHandler { ... }
+
+// 3. Inject into controller
+public class GameplayUIController {
+    private IGuessHandler _guessHandler;
+    public void Initialize(IGuessHandler guessHandler) {
+        _guessHandler = guessHandler;
+    }
+}
+```
+
 ---
 
 ## Lessons Learned (Don't Repeat)
@@ -415,6 +685,8 @@ public bool PlayerWon => player_won != 0;  // Convert
 16. **SQLite booleans are integers** - parse as int, convert to bool
 17. **Drug words filtered** - heroin, cocaine, meth, crack, weed, opium, morphine, ecstasy, molly, dope, smack, coke
 18. **EditorWebRequest loading order** - set `_isLoading = false` BEFORE callback that may start next request
+19. **Test after each extraction** - verify game works before next extraction
+20. **Document interfaces immediately** - update Architecture section after each extraction
 
 ---
 
@@ -427,6 +699,26 @@ public bool PlayerWon => player_won != 0;  // Convert
 | Board not resetting | No reset logic | Call ResetGameplayState() on new game |
 | Guillotine head stuck | No stored position | Store original position on Initialize |
 | MessagePopup off-screen | Complex calculations | Use fixed Y for known anchors |
+| Cell vertical stretching | uGUI layout issues | Use UI Toolkit (pivot away from uGUI) |
+
+---
+
+## Cross-Project Reference
+
+**All TecVooDoo projects:** `E:\TecVooDoo\Projects\Documents\TecVooDoo_Projects.csv`
+
+---
+
+## Coding Standards (Enforced)
+
+- Prefer async/await (UniTask) over coroutines unless trivial
+- Avoid allocations in Update
+- No per-frame LINQ
+- Clear separation between logic and UI
+- ASCII-only documentation and identifiers
+- No `var` keyword - explicit types always
+- Files under 800 lines - extract when approaching
+- Interface-first extraction for large classes
 
 ---
 
@@ -453,6 +745,7 @@ After each work session, update this document:
 - [ ] Add any new issues to "What Doesn't Work"
 - [ ] Update "Last Session" with date and summary
 - [ ] Add new lessons to "Lessons Learned" if applicable
+- [ ] Update Architecture section if files were added/extracted
 - [ ] Increment version number in header
 
 ---
@@ -461,13 +754,39 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
-| 7 | Jan 6, 2026 | Fixed row width with delayed init, cell vertical stretch still needs fix |
-| 6 | Jan 5, 2026 | WordPatternPanelUI created, cell sizing troubleshooting needed |
-| 5 | Jan 5, 2026 | WordPatternRowUI complete with icons, active/inactive states, Classic_RPG_GUI integration |
-| 4 | Jan 5, 2026 | Removed shared doc pointers (captured in Lessons Learned), streamlined AI Rules |
-| 3 | Jan 5, 2026 | Enhanced with AI system, audio, patterns, data flows from archived v19 docs |
+| 10 | Jan 6, 2026 | Consolidated from DLYH_Status.md (v7), DLYH_Status_REWRITTEN.md (v9), and Table Model Spec. New plan: Phase 0 refactor, Phase 0.5 multiplayer verify, then UI Toolkit. Pivot from uGUI to UI Toolkit documented. |
+| 9 | Jan 6, 2026 | (REWRITTEN) Locked UI Toolkit + table approach, clarified networking |
+| 8 | Jan 6, 2026 | (REWRITTEN) Initial UI Toolkit redesign plan |
+| 7 | Jan 6, 2026 | Fixed row width with delayed init, cell vertical stretch issue |
+| 6 | Jan 5, 2026 | WordPatternPanelUI created, cell sizing troubleshooting |
+| 5 | Jan 5, 2026 | WordPatternRowUI complete with icons, Classic_RPG_GUI integration |
+| 4 | Jan 5, 2026 | Removed shared doc pointers, streamlined AI Rules |
+| 3 | Jan 5, 2026 | Enhanced with AI system, audio, patterns, data flows |
 | 2 | Jan 5, 2026 | Archived NewUI architecture doc |
 | 1 | Jan 4, 2026 | Initial consolidated document (replaces 4-doc system) |
+
+---
+
+## Next Session Instructions
+
+**Starting Point:** This document (DLYH_Status.md v10)
+
+**Scene to Use:** NewPlayTesting.unity
+
+**First Task:** Phase 0 - Extract GameplayUIController
+
+**Approach:**
+1. Read GameplayUIController.cs completely
+2. Identify logical groupings of functionality
+3. Define interfaces for each group
+4. Extract to separate files (Controllers/, Services/)
+5. Update Architecture section
+6. Test game works after each extraction
+
+**Do NOT:**
+- Touch NewUIDesign.unity (will be deleted)
+- Work on LetterCellUI/WordPatternRowUI (abandoned)
+- Start UI Toolkit work until refactor and multiplayer verify complete
 
 ---
 

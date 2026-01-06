@@ -1,0 +1,254 @@
+# DLYH Table Model Spec (ASCII-only)
+Purpose: Define the unified table data model used by UI Toolkit to render
+word rows + headers + grid cells for both Setup and Gameplay.
+
+Constraints:
+- Non-virtualized table (cells are generated once).
+- Optimization-first (no per-frame allocations; no per-frame LINQ).
+- UI is a pure view: game logic updates this model; view renders it.
+- ASCII only.
+- Red/Yellow are system colors only (not selectable as player colors).
+- Green is Setup placement feedback only.
+
+------------------------------------------------------------
+1) CORE TYPES (ENUMS)
+------------------------------------------------------------
+
+enum TableCellKind
+- Spacer            // empty cell or padding area
+- WordSlot          // word row letter slot (setup and gameplay)
+- HeaderCol         // column header cell (A, B, C...)
+- HeaderRow         // row header cell (1, 2, 3...)
+- GridCell          // actual board cell where letters can exist
+- KeyboardKey       // optional: for gameplay keyboard row, if you decide to include it in the table
+
+enum TableCellState
+- None              // default / uninitialized
+- Normal            // visible and interactive (if applicable)
+- Disabled          // not interactive; dimmed
+- Hidden            // invisible but occupies layout (rare)
+- Selected          // currently selected (cursor/focus)
+- Hovered           // pointer hover (desktop)
+- Locked            // fixed and cannot change (placed letter)
+- ReadOnly          // cannot edit but visible
+
+// Setup placement hint states (green/red system feedback)
+- PlacementValid    // valid target cell (green)
+- PlacementInvalid  // invalid target cell (red)
+- PlacementPath     // cells along the currently highlighted direction/path
+- PlacementAnchor   // first letter anchor cell
+- PlacementSecond   // second letter chosen cell (direction committed)
+
+// Gameplay states
+- Fog              // unknown/unrevealed state (if you represent fog explicitly)
+- Revealed         // cell has been revealed
+- Hit              // revealed and contains correct letter (or correct coordinate)
+- Miss             // guessed and empty/wrong
+- WrongWord        // optional: used for word guess feedback row, if needed
+- Warning          // generic warning (system accent only, not player color)
+
+enum CellOwner
+- None
+- Player1
+- Player2
+- ExecutionerAI     // when the board belongs to The Executioner
+- PhantomAI         // PVP fallback AI with random player-style name
+
+------------------------------------------------------------
+2) CORE TYPES (STRUCTS/CLASSES)
+------------------------------------------------------------
+
+Recommended: use a struct for the cell to reduce GC pressure.
+All tables are preallocated and reused.
+
+struct TableCell
+Fields (minimum):
+- TableCellKind Kind
+- TableCellState State
+- CellOwner Owner
+
+- char TextChar        // for single-letter display (A-Z, underscore, blank)
+- string TextString    // optional; avoid unless needed (for multi-char labels)
+- int IntValue         // optional; for header numbers, indexes, etc.
+
+- int Row              // model coordinate (cached for quick lookup)
+- int Col              // model coordinate (cached for quick lookup)
+
+Notes:
+- Prefer TextChar for almost everything. Use TextString only when required.
+- If TextString is used, store it in a shared pool/dictionary to avoid allocations.
+
+------------------------------------------------------------
+3) TABLE MODEL OBJECT
+------------------------------------------------------------
+
+class TableModel
+Fields:
+- int Rows
+- int Cols
+- TableCell[,] Cells
+
+- int Version          // increments when model changes; used to avoid redundant UI work
+- bool Dirty           // set true when any cell changed (view uses this)
+
+Methods (minimum):
+- TableModel(int rows, int cols)
+- void ClearAll()                      // resets everything to defaults (no allocations)
+- ref TableCell GetCell(int r, int c)  // returns by ref if using C# ref returns
+- void SetCellChar(int r, int c, char ch)
+- void SetCellState(int r, int c, TableCellState state)
+- void SetCellKind(int r, int c, TableCellKind kind)
+- void SetCellOwner(int r, int c, CellOwner owner)
+- void MarkDirty()
+
+Optimization requirements:
+- Do not allocate per update.
+- Do not rebuild Cells after construction.
+- Changes should be narrow: update only the cells that changed.
+
+Optional (recommended for performance):
+- Track a "changed cell list" with a preallocated ring buffer:
+  - int[] changedIndices; int changedCount;
+  - Encode (r,c) into index = r * Cols + c.
+  - View updates only changed cells.
+  - Reset changedCount to 0 after render.
+
+------------------------------------------------------------
+4) TABLE REGIONS (MAPPING)
+------------------------------------------------------------
+
+Goal: one model supports multiple UI regions (word rows, headers, grid).
+Define a region map so logic can write into regions without hardcoding
+magic numbers everywhere.
+
+struct TableRegion
+- string Name
+- int RowStart
+- int ColStart
+- int RowCount
+- int ColCount
+
+class TableLayout
+Fields:
+- TableRegion WordRowsRegion
+- TableRegion ColHeaderRegion
+- TableRegion RowHeaderRegion
+- TableRegion GridRegion
+
+- Optional: KeyboardRegion
+
+Methods:
+- static TableLayout CreateForSetup(int gridSize, int wordCount)
+- static TableLayout CreateForGameplay(int gridSize, int wordCount)
+
+Rules:
+- Setup and Gameplay can share the same base layout if desired.
+- Word rows are above the grid.
+- Headers surround the grid as needed.
+
+Example (conceptual):
+Rows:
+- Word rows (wordCount)
+- Column header row (1)
+- Grid rows (gridSize)
+
+Cols:
+- Row header col (1)
+- Grid cols (gridSize)
+
+This yields:
+Rows = wordCount + 1 + gridSize
+Cols = 1 + gridSize
+
+If you include extra spacing or UI affordances, do so via Spacer cells.
+
+------------------------------------------------------------
+5) PLAYER COLOR RULES (MODEL-LEVEL)
+------------------------------------------------------------
+
+Colors are not stored directly in TableCell.
+Store ownership and state only. The view resolves actual colors via
+a centralized rule service.
+
+class ColorRules
+- bool IsSelectablePlayerColor(PlayerColor c)
+  - returns false for Red and Yellow
+- UIColor GetPlacementColor(TableCellState state)
+  - PlacementValid -> green
+  - PlacementInvalid -> red
+  - others -> neutral
+- UIColor GetGameplayColor(CellOwner owner, TableCellState state, PlayerColor p1, PlayerColor p2)
+  - Reveal/Hit uses player color for that owner
+  - Never force green except when owner color is green
+  - Red/Yellow only for system warnings/errors
+
+Notes:
+- "System colors" are a UI concept. The model only knows state/owner.
+
+------------------------------------------------------------
+6) INPUT EVENTS (VIEW -> PRESENTER)
+------------------------------------------------------------
+
+The model does not process clicks. The presenter does.
+
+struct TableInputEvent
+- int Row
+- int Col
+- TableCellKind Kind
+- TableCellState State
+- bool IsPrimaryClick
+- bool IsSecondaryClick
+- bool IsHover
+- bool IsTouch
+
+Presenter interfaces:
+interface ITablePresenter
+- void OnCellInput(TableInputEvent evt)
+
+Rules:
+- No UI logic inside the model.
+- Presenter translates inputs into game actions and writes back into the model.
+
+------------------------------------------------------------
+7) STATE TRANSITIONS (MINIMUM REQUIRED)
+------------------------------------------------------------
+
+Setup placement:
+- Clear placement states each time the placement context changes:
+  - PlacementValid/Invalid/Path/Anchor/Second should be recomputed, not stacked
+- PlacementValid/Invalid are the only allowed uses of green/red.
+
+Gameplay:
+- Hit/Miss/Revealed are stable states.
+- Selected/Hovered are transient (view may choose not to store Hovered in the model).
+
+------------------------------------------------------------
+8) ANIMATION HOOKS (FUTURE-PROOFING)
+------------------------------------------------------------
+
+Do not embed animation in the model.
+Provide "events" or lightweight flags the view can observe.
+
+Option A (recommended):
+- Presenter calls view animation methods directly (preferred for control).
+
+Option B:
+- Add a transient "Effect" enum in TableCell:
+  - None, Pulse, OutlineFlash, Shake
+- The view consumes and clears it after playing.
+
+Keep it optional and minimal to avoid complexity.
+
+------------------------------------------------------------
+9) ACCEPTANCE CHECKLIST (DONE WHEN)
+------------------------------------------------------------
+
+- TableModel can be constructed once and cleared/reused without allocations.
+- TableLayout maps word rows + headers + grid correctly for variable grid sizes.
+- Setup placement can mark valid/invalid/path/anchor/second states.
+- Gameplay can mark revealed/hit/miss using owner-based coloring rules.
+- No player can select Red or Yellow.
+- Green only appears for setup placement feedback.
+- The model has no Unity UI references and can be unit tested.
+
+End of spec.
