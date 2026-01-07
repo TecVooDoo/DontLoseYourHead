@@ -12,6 +12,8 @@ using DLYH.AI.Config;
 using DLYH.AI.Strategies;
 using DLYH.Telemetry;
 using DLYH.Networking;
+// Type alias for cleaner code after extraction
+using GuessResult = TecVooDoo.DontLoseYourHead.UI.GuessProcessingManager.GuessResult;
 
 namespace TecVooDoo.DontLoseYourHead.UI
 {
@@ -93,9 +95,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private SetupSettingsPanel _setupSettingsPanel;
         private PlayerGridPanel _setupGridPanel;
 
-        // Guess processors for player and opponent
-        private GuessProcessor _playerGuessProcessor;
-        private GuessProcessor _opponentGuessProcessor;
+        // Guess processing manager (handles both player and opponent guesses)
+        private GuessProcessingManager _guessProcessingManager;
 
         // Word guess mode controller
         private WordGuessModeController _wordGuessModeController;
@@ -170,22 +171,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         #endregion
 
-        #region Guess Result Enum
-
-        /// <summary>
-        /// Result of a guess attempt - used to determine if turn should end
-        /// </summary>
-        private enum GuessResult
-        {
-            Hit,
-            Miss,
-            AlreadyGuessed,
-            InvalidWord
-        }
-
+        // GuessResult enum moved to GuessProcessingManager
         // GameOverReason enum moved to PopupMessageController
-
-        #endregion
 
 #if UNITY_EDITOR
 
@@ -654,8 +641,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             _playerSetupData = null;
             _opponentSetupData = null;
-            _playerGuessProcessor = null;
-            _opponentGuessProcessor = null;
+            _guessProcessingManager?.Dispose();
+            _guessProcessingManager = null;
             _stateTracker = null;
             _winChecker = null;
             _uiUpdater = null;
@@ -926,7 +913,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             if (result == GuessResult.AlreadyGuessed)
             {
-                ShowErrorPopup(string.Format("Letter '{0}' already guessed. Try again!", letter));
+                _popupController.ShowErrorPopup(string.Format("Letter '{0}' already guessed. Try again!", letter));
                 return;
             }
 
@@ -979,7 +966,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             if (result == GuessResult.AlreadyGuessed)
             {
-                ShowErrorPopup(string.Format("Coordinate '{0}' already guessed. Try again!", coordLabel));
+                _popupController.ShowErrorPopup(string.Format("Coordinate '{0}' already guessed. Try again!", coordLabel));
                 return;
             }
 
@@ -1129,10 +1116,10 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 case GuessResult.Miss:
                     return WordGuessResult.Miss;
                 case GuessResult.AlreadyGuessed:
-                    ShowErrorPopup(string.Format("Word '{0}' already guessed. Try again!", word.ToUpper()));
+                    _popupController.ShowErrorPopup(string.Format("Word '{0}' already guessed. Try again!", word.ToUpper()));
                     return WordGuessResult.AlreadyGuessed;
                 case GuessResult.InvalidWord:
-                    ShowErrorPopup(string.Format("'{0}' is not a valid word. Try again!", word.ToUpper()));
+                    _popupController.ShowErrorPopup(string.Format("'{0}' is not a valid word. Try again!", word.ToUpper()));
                     return WordGuessResult.InvalidWord;
                 default:
                     return WordGuessResult.Miss;
@@ -1186,7 +1173,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 // Combine the guess result with the extra turn message
                 string message = string.Format("{0} You completed \"{1}\" - EXTRA TURN!",
                     guessResultMessage, completedWord);
-                ShowTurnPopup(message);
+                _popupController.ShowTurnPopup(message);
 
                 Debug.Log($"[GameplayUI] Extra turn granted for completing word: {completedWord}. {_extraTurnQueue.Count} extra turns remaining in queue.");
 
@@ -1198,7 +1185,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 // No extra turns - end player's turn normally
                 string opponentName = _opponentSetupData?.PlayerName ?? "Opponent";
                 string message = string.Format("{0} {1}'s turn!", guessResultMessage, opponentName);
-                ShowTurnPopup(message);
+                _popupController.ShowTurnPopup(message);
                 EndPlayerTurn();
             }
         }
@@ -1329,10 +1316,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             if (!_gameOver)
             {
-                string resultText = wasHit ? "Hit" : "Miss";
-                ShowTurnPopup(string.Format("{0} guessed letter '{1}' - {2}. {3}'s turn!",
-                    _opponentSetupData?.PlayerName ?? "Opponent", letter, resultText,
-                    _playerSetupData?.PlayerName ?? "Player"));
+                _popupController.ShowOpponentLetterGuessResult(letter, wasHit,
+                    _opponentSetupData?.PlayerName ?? "Opponent",
+                    _playerSetupData?.PlayerName ?? "Player");
                 EndOpponentTurn();
             }
         }
@@ -1344,12 +1330,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             if (!_gameOver)
             {
-                string colLabel = ((char)('A' + col)).ToString();
-                string coordLabel = colLabel + (row + 1);
-                string resultText = wasHit ? "Hit" : "Miss";
-                ShowTurnPopup(string.Format("{0} guessed {1} - {2}. {3}'s turn!",
-                    _opponentSetupData?.PlayerName ?? "Opponent", coordLabel, resultText,
-                    _playerSetupData?.PlayerName ?? "Player"));
+                _popupController.ShowOpponentCoordinateGuessResult(col, row, wasHit,
+                    _opponentSetupData?.PlayerName ?? "Opponent",
+                    _playerSetupData?.PlayerName ?? "Player");
                 EndOpponentTurn();
             }
         }
@@ -1361,87 +1344,26 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
             if (!_gameOver)
             {
-                string resultText = wasCorrect ? "Correct" : "Incorrect";
-                ShowTurnPopup(string.Format("{0} guessed word '{1}' - {2}. {3}'s turn!",
-                    _opponentSetupData?.PlayerName ?? "Opponent", word.ToUpper(), resultText,
-                    _playerSetupData?.PlayerName ?? "Player"));
+                _popupController.ShowOpponentWordGuessResult(word, wasCorrect,
+                    _opponentSetupData?.PlayerName ?? "Opponent",
+                    _playerSetupData?.PlayerName ?? "Player");
                 EndOpponentTurn();
             }
         }
 
         private void HandleOpponentDisconnected()
         {
-            MessagePopup.Show("Opponent disconnected. Waiting for reconnection...");
+            _popupController.ShowOpponentDisconnected();
         }
 
         private void HandleOpponentReconnected()
         {
-            MessagePopup.Show("Opponent reconnected!");
+            _popupController.ShowOpponentReconnected();
         }
 
         #endregion
 
-        #region Popup Messages
-
-        /// <summary>
-        /// Shows a popup message for turn changes and feedback.
-        /// </summary>
-        private void ShowTurnPopup(string message)
-        {
-            if (MessagePopup.Instance != null)
-            {
-                MessagePopup.Instance.ShowMessage(message);
-            }
-            Debug.Log($"[GameplayUI] Popup: {message}");
-        }
-
-        /// <summary>
-        /// Shows a popup for invalid player actions (already guessed, invalid word, etc.)
-        /// </summary>
-        private void ShowErrorPopup(string message)
-        {
-            if (MessagePopup.Instance != null)
-            {
-                MessagePopup.Instance.ShowMessage(message, 1.5f); // Shorter duration for errors
-            }
-            Debug.Log($"[GameplayUI] Error Popup: {message}");
-        }
-
-        /// <summary>
-        /// Shows a game over popup with appropriate message based on win/lose reason
-        /// </summary>
-        private void ShowGameOverPopup(bool playerWon, GameOverReason reason)
-        {
-            string playerName = _playerSetupData?.PlayerName ?? "Player";
-            string opponentName = _opponentSetupData?.PlayerName ?? "Opponent";
-            string message;
-
-            switch (reason)
-            {
-                case GameOverReason.AllWordsFound:
-                    message = $"{playerName} found all of {opponentName}'s words! VICTORY!";
-                    break;
-                case GameOverReason.MissLimitReached:
-                    message = $"{playerName} reached the miss limit. {opponentName} wins by default!";
-                    break;
-                case GameOverReason.OpponentFoundAllWords:
-                    message = $"{opponentName} found all of {playerName}'s words! DEFEATED!";
-                    break;
-                case GameOverReason.OpponentMissLimitReached:
-                    message = $"{opponentName} reached the miss limit. {playerName} wins by default!";
-                    break;
-                default:
-                    message = playerWon ? "VICTORY!" : "DEFEATED!";
-                    break;
-            }
-
-            if (MessagePopup.Instance != null)
-            {
-                // Use game over message with Continue button (draggable, waits for click)
-                MessagePopup.Instance.ShowGameOverMessage(message);
-            }
-            Debug.Log($"[GameplayUI] Game Over Popup: {message}");
-        }
+        #region Game Over Continue Handler
 
         /// <summary>
         /// Called when the Continue button is clicked on the game over popup.
@@ -1510,7 +1432,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _uiUpdater?.TriggerOpponentGuillotineDefeatByWords();
 
                 // Show game over popup
-                ShowGameOverPopup(true, GameOverReason.AllWordsFound);
+                _popupController.ShowGameOverPopup(true, GameOverReason.AllWordsFound);
 
                 // Send telemetry: Player won
                 PlaytestTelemetry.GameEnd(
@@ -1536,7 +1458,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _uiUpdater?.TriggerPlayerGuillotineGameOver();
 
                 // Show game over popup
-                ShowGameOverPopup(false, GameOverReason.MissLimitReached);
+                _popupController.ShowGameOverPopup(false, GameOverReason.MissLimitReached);
 
                 // Send telemetry: Player lost (exceeded miss limit)
                 PlaytestTelemetry.GameEnd(
@@ -1571,7 +1493,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _uiUpdater?.TriggerPlayerGuillotineDefeatByWords();
 
                 // Show game over popup
-                ShowGameOverPopup(false, GameOverReason.OpponentFoundAllWords);
+                _popupController.ShowGameOverPopup(false, GameOverReason.OpponentFoundAllWords);
 
                 // Send telemetry: Player lost (opponent found all words)
                 PlaytestTelemetry.GameEnd(
@@ -1597,7 +1519,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 _uiUpdater?.TriggerOpponentGuillotineGameOver();
 
                 // Show game over popup
-                ShowGameOverPopup(true, GameOverReason.OpponentMissLimitReached);
+                _popupController.ShowGameOverPopup(true, GameOverReason.OpponentMissLimitReached);
 
                 // Send telemetry: Player won (opponent exceeded miss limit)
                 PlaytestTelemetry.GameEnd(
@@ -1769,164 +1691,49 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         #endregion
 
-        #region Guess Processors
+        #region Guess Processing (Delegated to GuessProcessingManager)
 
         private void InitializeGuessProcessors()
         {
             // Set hit colors on guessed word lists
-            // Player1 list shows player's guesses - use player's color
             _player1GuessedWordList?.SetHitColor(_playerSetupData.PlayerColor);
-            // Player2 list shows opponent's guesses - use opponent's color
             _player2GuessedWordList?.SetHitColor(_opponentSetupData.PlayerColor);
 
-            // Create player's processor (guesses against opponent's data)
-            _playerGuessProcessor = new GuessProcessor(
-                _opponentSetupData.PlacedWords.ConvertAll(w => new WordPlacementData
-                {
-                    Word = w.Word,
-                    StartCol = w.StartCol,
-                    StartRow = w.StartRow,
-                    DirCol = w.DirCol,
-                    DirRow = w.DirRow,
-                    RowIndex = w.RowIndex
-                }),
-                _opponentPanel,
-                "Player",
-                (amount) => { _stateTracker.AddPlayerMisses(amount); UpdatePlayerMissCounter(); },
-                (letter, state) => _opponentPanel.SetLetterState(letter, state),
-                word => IsValidWord(word),
-                (word, correct) => _player1GuessedWordList?.AddGuessedWord(word, correct)
-            );
-            _playerGuessProcessor.Initialize(_stateTracker.PlayerMissLimit);
-
-            // Create opponent's processor (guesses against player's data)
-            _opponentGuessProcessor = new GuessProcessor(
-                _playerSetupData.PlacedWords.ConvertAll(w => new WordPlacementData
-                {
-                    Word = w.Word,
-                    StartCol = w.StartCol,
-                    StartRow = w.StartRow,
-                    DirCol = w.DirCol,
-                    DirRow = w.DirRow,
-                    RowIndex = w.RowIndex
-                }),
-                _ownerPanel,
-                "Opponent",
-                (amount) => { _stateTracker.AddOpponentMisses(amount); UpdateOpponentMissCounter(); },
-                (letter, state) => _ownerPanel.SetLetterState(letter, state),
-                word => IsValidWord(word),
+            // Create and initialize guess processing manager
+            _guessProcessingManager = new GuessProcessingManager(_stateTracker);
+            _guessProcessingManager.SetPanels(_ownerPanel, _opponentPanel);
+            _guessProcessingManager.SetSetupData(_playerSetupData, _opponentSetupData);
+            _guessProcessingManager.SetCallbacks(
+                IsValidWord,
+                UpdatePlayerMissCounter,
+                UpdateOpponentMissCounter,
+                (word, correct) => _player1GuessedWordList?.AddGuessedWord(word, correct),
                 (word, correct) => _player2GuessedWordList?.AddGuessedWord(word, correct)
             );
-            _opponentGuessProcessor.Initialize(_stateTracker.OpponentMissLimit);
+            _guessProcessingManager.Initialize();
         }
 
-        /// <summary>
-        /// Convert GuessProcessor.GuessResult to local GuessResult enum
-        /// </summary>
-        private GuessResult ConvertGuessResult(GuessProcessor.GuessResult result)
+        private void InitializeOpponentState()
         {
-            switch (result)
-            {
-                case GuessProcessor.GuessResult.Hit:
-                    return GuessResult.Hit;
-                case GuessProcessor.GuessResult.Miss:
-                    return GuessResult.Miss;
-                case GuessProcessor.GuessResult.AlreadyGuessed:
-                    return GuessResult.AlreadyGuessed;
-                case GuessProcessor.GuessResult.InvalidWord:
-                    return GuessResult.InvalidWord;
-                default:
-                    return GuessResult.Miss;
-            }
+            int missLimit = GameplayStateTracker.CalculateMissLimit(
+                _opponentSetupData.DifficultyLevel,
+                _playerSetupData.GridSize,
+                _playerSetupData.WordCount);
+            _stateTracker.InitializeOpponentState(missLimit);
         }
 
-        /// <summary>
-        /// Process player guessing a letter against opponent's words
-        /// </summary>
-        private GuessResult ProcessPlayerLetterGuess(char letter)
-        {
-            GuessProcessor.GuessResult result = _playerGuessProcessor.ProcessLetterGuess(letter);
+        // Player guess processing - delegates to GuessProcessingManager
+        private GuessResult ProcessPlayerLetterGuess(char letter) => _guessProcessingManager.ProcessPlayerLetterGuess(letter);
+        private GuessResult ProcessPlayerCoordinateGuess(int col, int row) => _guessProcessingManager.ProcessPlayerCoordinateGuess(col, row);
+        private GuessResult ProcessPlayerWordGuess(string word, int rowIndex) => _guessProcessingManager.ProcessPlayerWordGuess(word, rowIndex);
 
-            if (result == GuessProcessor.GuessResult.Hit)
-            {
-                _stateTracker.AddPlayerKnownLetter(letter);
-            }
-            _stateTracker.AddPlayerGuessedLetter(letter);
-
-            return ConvertGuessResult(result);
-        }
+        // Opponent guess processing - delegates to GuessProcessingManager
+        private GuessResult ProcessOpponentLetterGuess(char letter) => _guessProcessingManager.ProcessOpponentLetterGuess(letter);
+        private GuessResult ProcessOpponentCoordinateGuess(int col, int row) => _guessProcessingManager.ProcessOpponentCoordinateGuess(col, row);
+        private GuessResult ProcessOpponentWordGuess(string word, int rowIndex) => _guessProcessingManager.ProcessOpponentWordGuess(word, rowIndex);
 
         /// <summary>
-        /// Process player guessing a coordinate on opponent's grid
-        /// </summary>
-        private GuessResult ProcessPlayerCoordinateGuess(int col, int row)
-        {
-            GuessProcessor.GuessResult result = _playerGuessProcessor.ProcessCoordinateGuess(col, row);
-
-            _stateTracker.AddPlayerGuessedCoordinate(col, row);
-
-            // NOTE: Do NOT add letters to known letters here!
-            // Coordinate hits for unknown letters result in yellow cells.
-            // Letters only become known through letter guessing or correct word guessing.
-            // The GuessProcessor handles green vs yellow cell display based on _knownLetters.
-
-            return ConvertGuessResult(result);
-        }
-
-        /// <summary>
-        /// Find the letter at a given coordinate in the word placements
-        /// </summary>
-        private char? FindLetterAtCoordinate(List<WordPlacementData> words, int col, int row)
-        {
-            foreach (WordPlacementData word in words)
-            {
-                for (int i = 0; i < word.Word.Length; i++)
-                {
-                    int wordCol = word.StartCol + (i * word.DirCol);
-                    int wordRow = word.StartRow + (i * word.DirRow);
-                    if (wordCol == col && wordRow == row)
-                    {
-                        return word.Word[i];
-                    }
-                }
-            }
-            return null;
-        }
-
-        /// <summary>
-        /// Process player guessing a complete word.
-        /// NOTE: Correct word guess reveals LETTERS but NOT grid positions.
-        /// Grid positions must be guessed via coordinate guessing for win condition.
-        /// </summary>
-        private GuessResult ProcessPlayerWordGuess(string word, int rowIndex)
-        {
-            GuessProcessor.GuessResult result = _playerGuessProcessor.ProcessWordGuess(word, rowIndex);
-
-            // Track solved rows via state tracker for UI button management
-            if (result == GuessProcessor.GuessResult.Hit)
-            {
-                _stateTracker.AddPlayerSolvedRow(rowIndex);
-
-                // When a word is correctly guessed, add all its letters as known
-                // NOTE: Do NOT add coordinates - those must be guessed via coordinate guessing
-                if (rowIndex < _opponentSetupData.PlacedWords.Count)
-                {
-                    WordPlacementData wordData = _opponentSetupData.PlacedWords[rowIndex];
-
-                    // Add all letters as known
-                    foreach (char c in wordData.Word.ToUpper())
-                    {
-                        _stateTracker.AddPlayerKnownLetter(c);
-                        _stateTracker.AddPlayerGuessedLetter(c);
-                    }
-                }
-            }
-
-            return ConvertGuessResult(result);
-        }
-
-        /// <summary>
-        /// Validate a word against the word bank
+        /// Validate a word against the word bank.
         /// </summary>
         private bool IsValidWord(string word)
         {
@@ -1935,12 +1742,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             string normalized = word.Trim().ToUpper();
             WordListSO wordList = GetWordListForLength(normalized.Length);
 
-            if (wordList == null)
-            {
-                return false;
-            }
-
-            return wordList.Contains(normalized);
+            return wordList != null && wordList.Contains(normalized);
         }
 
         private WordListSO GetWordListForLength(int length)
@@ -1953,90 +1755,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 case 6: return _sixLetterWords;
                 default: return null;
             }
-        }
-
-        #endregion
-
-        #region Opponent Guess Processing
-
-        private void InitializeOpponentState()
-        {
-            // Calculate miss limit and initialize opponent state
-            int missLimit = GameplayStateTracker.CalculateMissLimit(
-                _opponentSetupData.DifficultyLevel,
-                _playerSetupData.GridSize,
-                _playerSetupData.WordCount);
-            _stateTracker.InitializeOpponentState(missLimit);
-        }
-
-        /// <summary>
-        /// Process opponent guessing a letter against player's words
-        /// </summary>
-        private GuessResult ProcessOpponentLetterGuess(char letter)
-        {
-            GuessProcessor.GuessResult result = _opponentGuessProcessor.ProcessLetterGuess(letter);
-
-            if (result == GuessProcessor.GuessResult.Hit)
-            {
-                _stateTracker.AddOpponentKnownLetter(letter);
-            }
-            _stateTracker.AddOpponentGuessedLetter(letter);
-
-            return ConvertGuessResult(result);
-        }
-
-        /// <summary>
-        /// Process opponent guessing a coordinate on player's grid
-        /// </summary>
-        private GuessResult ProcessOpponentCoordinateGuess(int col, int row)
-        {
-            GuessProcessor.GuessResult result = _opponentGuessProcessor.ProcessCoordinateGuess(col, row);
-
-            _stateTracker.AddOpponentGuessedCoordinate(col, row);
-
-            // If hit, find the letter at this coordinate and add to known letters
-            if (result == GuessProcessor.GuessResult.Hit)
-            {
-                char? letter = FindLetterAtCoordinate(_playerSetupData.PlacedWords, col, row);
-                if (letter.HasValue)
-                {
-                    _stateTracker.AddOpponentKnownLetter(char.ToUpper(letter.Value));
-                }
-            }
-
-            return ConvertGuessResult(result);
-        }
-
-        /// <summary>
-        /// Process opponent guessing a complete word.
-        /// NOTE: Correct word guess reveals LETTERS but NOT grid positions.
-        /// Grid positions must be guessed via coordinate guessing for win condition.
-        /// </summary>
-        private GuessResult ProcessOpponentWordGuess(string word, int rowIndex)
-        {
-            GuessProcessor.GuessResult result = _opponentGuessProcessor.ProcessWordGuess(word, rowIndex);
-
-            // Track solved rows and update known letters for win condition
-            if (result == GuessProcessor.GuessResult.Hit)
-            {
-                _stateTracker.AddOpponentSolvedRow(rowIndex);
-
-                // When a word is correctly guessed, add all its letters as known
-                // NOTE: Do NOT add coordinates - those must be guessed via coordinate guessing
-                if (rowIndex < _playerSetupData.PlacedWords.Count)
-                {
-                    WordPlacementData wordData = _playerSetupData.PlacedWords[rowIndex];
-
-                    // Add all letters as known
-                    foreach (char c in wordData.Word.ToUpper())
-                    {
-                        _stateTracker.AddOpponentKnownLetter(c);
-                        _stateTracker.AddOpponentGuessedLetter(c);
-                    }
-                }
-            }
-
-            return ConvertGuessResult(result);
         }
 
         #endregion

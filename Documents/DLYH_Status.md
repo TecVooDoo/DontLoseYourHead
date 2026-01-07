@@ -4,7 +4,7 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 12
+**Document Version:** 13
 **Last Updated:** January 6, 2026
 
 ---
@@ -17,7 +17,7 @@
 
 **Current Phase:** Phase 0 (Refactor) - preparing codebase for UI Toolkit migration and multiplayer integration
 
-**Last Session (Jan 6, 2026):** Continued Phase 0 refactoring. Extracted OpponentTurnManager from GameplayUIController (~250 lines saved). Removed duplicate Guillotine and Miss Counter code by delegating to GameplayUIUpdater (~185 lines saved). File reduced from ~2481 to ~2043 lines (~440 lines total this session).
+**Last Session (Jan 6, 2026):** Third refactoring session. Extracted GuessProcessingManager (~365 lines) from GameplayUIController. Removed duplicate popup code by delegating to PopupMessageController. Removed Feel package (can re-add if needed). GameplayUIController reduced from ~2043 to ~1761 lines. Total reduction from original ~2619 to ~1761 (~33% smaller). Game tested and working.
 
 ---
 
@@ -41,7 +41,9 @@
 - [x] Extract GameplayUIController popup messages -> PopupMessageController (~250 lines)
 - [x] Extract GameplayUIController opponent system -> OpponentTurnManager (~380 lines)
 - [x] Remove duplicate Guillotine/MissCounter code (delegate to GameplayUIUpdater)
-- [ ] GameplayUIController reduced from ~2619 to ~2043 lines - continue extraction to target <800
+- [x] Extract GuessProcessingManager (~365 lines) - guess processing for player and opponent
+- [x] Remove duplicate popup code (delegate to PopupMessageController)
+- [ ] GameplayUIController at ~1761 lines (from ~2619, 33% reduction) - evaluate if further extraction needed
 - [ ] Extract SetupSettingsPanel (~850 lines)
 - [ ] Extract PlayerGridPanel (~1120 lines)
 - [ ] Document new interfaces/controllers in Architecture section
@@ -113,9 +115,9 @@
 ## Known Issues
 
 **Architecture:**
-- GameplayUIController at ~2043 lines (needs more extraction, target <800)
-- SetupSettingsPanel at ~850 lines (needs extraction)
-- PlayerGridPanel at ~1120 lines (needs extraction)
+- GameplayUIController at ~1761 lines (reduced 33% from ~2619, evaluate if further extraction makes sense)
+- SetupSettingsPanel at ~850 lines (may need extraction)
+- PlayerGridPanel at ~1120 lines (may need extraction)
 - Inconsistent namespace convention (TecVooDoo.DontLoseYourHead.* vs DLYH.*)
 
 **UI (To Be Replaced):**
@@ -137,12 +139,12 @@
 ## Implementation Plan
 
 ### Phase 0: Refactor Large Scripts
-Extract oversized MonoBehaviours into smaller, focused controllers and services. Target: all files under 800 lines. Document interfaces as we go. Test after each extraction.
+Extract oversized MonoBehaviours into smaller, focused controllers and services. Goal is maintainability and Claude Code compatibility (<1000 lines ideal, <800 preferred but not mandatory). Avoid refactoring for its own sake - extractions should reduce complexity, not add indirection.
 
-**Files to extract:**
-- GameplayUIController.cs (~2150 lines)
-- SetupSettingsPanel.cs (~850 lines)
-- PlayerGridPanel.cs (~1120 lines)
+**Status:**
+- GameplayUIController.cs: ~1761 lines (from ~2619, 33% reduction) - 5 controllers extracted
+- SetupSettingsPanel.cs: ~850 lines (not yet extracted)
+- PlayerGridPanel.cs: ~1120 lines (not yet extracted)
 
 ### Phase 0.5: Multiplayer Verification
 Create minimal test scene to verify networking works before building UI around it. This is throwaway work - just enough to validate the foundation.
@@ -214,10 +216,10 @@ Create minimal test scene to verify networking works before building UI around i
 **TecVooDoo.DontLoseYourHead.UI:**
 - GameplayUIController, PlayerGridPanel, SetupSettingsPanel, WordPatternRow
 - GridCellUI, LetterButton, GuillotineDisplay, MessagePopup
-- Controllers/: GameplayPanelConfigurator, GameplayUIUpdater, PopupMessageController, OpponentTurnManager
+- Controllers/: GameplayPanelConfigurator, GameplayUIUpdater, PopupMessageController, OpponentTurnManager, GuessProcessingManager
 - Services/: GuessProcessor, GameplayStateTracker, WinConditionChecker, WordGuessModeController
 - Data classes: SetupData (in GameplayPanelConfigurator), WordPlacementData (in GuessProcessor)
-- Enums: GameOverReason (in PopupMessageController), WordGuessResult
+- Enums: GameOverReason (in PopupMessageController), GuessResult (in GuessProcessingManager), WordGuessResult
 
 **TecVooDoo.DontLoseYourHead.Core:**
 - WordListSO, DifficultyCalculator, DifficultySetting, WordCountOption
@@ -269,9 +271,9 @@ Assets/DLYH/
 
 | Script | Lines | Purpose | Status |
 |--------|-------|---------|--------|
-| GameplayUIController | ~2043 | Master gameplay controller | PARTIAL (~576 lines extracted) |
-| SetupSettingsPanel | ~850 | Player setup configuration | NEEDS EXTRACTION |
-| PlayerGridPanel | ~1120 | Single player grid display | NEEDS EXTRACTION |
+| GameplayUIController | ~1761 | Master gameplay controller | PARTIAL (~858 lines extracted to 5 controllers) |
+| SetupSettingsPanel | ~850 | Player setup configuration | MAY NEED EXTRACTION |
+| PlayerGridPanel | ~1120 | Single player grid display | MAY NEED EXTRACTION |
 | ExecutionerAI | ~493 | AI opponent coordination | OK |
 | IOpponent | ~177 | Opponent abstraction interface | OK (not wired) |
 | LocalAIOpponent | ~300 | AI wrapper for IOpponent | OK (not wired) |
@@ -285,8 +287,9 @@ Assets/DLYH/
 | GameplayUIUpdater | ~380 | UI updates (miss counters, names, colors, guillotines) | GameplayUIController |
 | PopupMessageController | ~245 | Popup message display, GameOverReason enum | GameplayUIController |
 | OpponentTurnManager | ~380 | AI/opponent initialization, turn execution, game state building | GameplayUIController |
+| GuessProcessingManager | ~365 | Guess processing for player and opponent | GameplayUIController |
 | GameplayStateTracker | ~300 | State tracking (misses, letters, coordinates) | GameplayUIController (previous) |
-| GuessProcessor | ~350 | Guess processing logic | GameplayUIController (previous) |
+| GuessProcessor | ~350 | Low-level guess processing logic | GameplayUIController (previous) |
 | WinConditionChecker | ~150 | Win/lose condition checking | GameplayUIController (previous) |
 | WordGuessModeController | ~400 | Word guess keyboard mode | GameplayUIController (previous) |
 
@@ -294,10 +297,10 @@ Assets/DLYH/
 
 - Odin Inspector 4.0.1.2
 - DOTween Pro 1.0.386
-- Feel 5.9.1 (optional, screen effects only)
 - UniTask 2.5.10
 - New Input System 1.16.0
 - Classic_RPG_GUI (UI theme assets)
+- Feel - REMOVED (can re-add if needed for screen effects)
 
 ---
 
@@ -809,6 +812,7 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 13 | Jan 6, 2026 | Third refactor session. Extracted GuessProcessingManager (~365 lines). Removed duplicate popup code. Removed Feel package. GameplayUIController at ~1761 lines (33% reduction from ~2619). |
 | 12 | Jan 6, 2026 | Continued Phase 0. Extracted OpponentTurnManager (~380 lines). Removed duplicate Guillotine/MissCounter code. GameplayUIController now at ~2043 lines (from original ~2619). |
 | 11 | Jan 6, 2026 | Phase 0 started. Extracted 3 controllers from GameplayUIController (GameplayPanelConfigurator, GameplayUIUpdater, PopupMessageController). Fixed Claude Code and GitHub settings. |
 | 10 | Jan 6, 2026 | Consolidated from DLYH_Status.md (v7), DLYH_Status_REWRITTEN.md (v9), and Table Model Spec. New plan: Phase 0 refactor, Phase 0.5 multiplayer verify, then UI Toolkit. Pivot from uGUI to UI Toolkit documented. |
@@ -826,19 +830,26 @@ After each work session, update this document:
 
 ## Next Session Instructions
 
-**Starting Point:** This document (DLYH_Status.md v10)
+**Starting Point:** This document (DLYH_Status.md v13)
 
 **Scene to Use:** NewPlayTesting.unity
 
-**First Task:** Phase 0 - Extract GameplayUIController
+**Current State:**
+- GameplayUIController at ~1761 lines (5 controllers extracted, 33% reduction)
+- SetupSettingsPanel at ~850 lines (not yet extracted)
+- PlayerGridPanel at ~1120 lines (not yet extracted)
+- Game is working and tested
 
-**Approach:**
-1. Read GameplayUIController.cs completely
-2. Identify logical groupings of functionality
-3. Define interfaces for each group
-4. Extract to separate files (Controllers/, Services/)
-5. Update Architecture section
-6. Test game works after each extraction
+**Next Decision Point:** Evaluate whether to:
+1. Continue extracting from GameplayUIController (if Claude still struggles with it)
+2. Move to SetupSettingsPanel or PlayerGridPanel extraction
+3. Proceed to Phase 0.5 (Multiplayer Verification)
+
+**Extraction Guidance:**
+- Goal is Claude Code compatibility (<1000 lines ideal), not arbitrary targets
+- Only extract if it reduces complexity, not just line count
+- Large files cause duplicate code issues that need cleanup
+- Test after each extraction
 
 **Do NOT:**
 - Touch NewUIDesign.unity (will be deleted)
