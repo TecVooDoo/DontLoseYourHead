@@ -4,12 +4,7 @@ using TMPro;
 using System.Collections.Generic;
 using Sirenix.OdinInspector;
 using TecVooDoo.DontLoseYourHead.Core;
-using System.Linq;
-using UnityEngine.InputSystem;
-using Cysharp.Threading.Tasks;
-using DLYH.AI.Core;
 using DLYH.AI.Config;
-using DLYH.AI.Strategies;
 using DLYH.Telemetry;
 using DLYH.Networking;
 // Type alias for cleaner code after extraction
@@ -21,8 +16,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
     /// Controls the Gameplay UI phase, managing two PlayerGridPanel instances
     /// (owner and opponent) and handling the transition from Setup to Gameplay.
     /// Supports both AI opponents (The Executioner) and remote network players via IOpponent interface.
+    /// Editor testing functionality is in GameplayUIController.Editor.cs (partial class).
     /// </summary>
-    public class GameplayUIController : MonoBehaviour
+    public partial class GameplayUIController : MonoBehaviour
     {
         #region Serialized Fields
 
@@ -110,17 +106,16 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private GameplayUIUpdater _uiUpdater;
         private PopupMessageController _popupController;
         private OpponentTurnManager _opponentTurnManager;
+        private GameSetupDataCapture _setupDataCapture;
+
+        // Multiplayer support - injected opponent (null = use AI)
+        private IOpponent _injectedOpponent;
 
         // Telemetry tracking
         private int _totalTurns = 0;
 
         // Extra turn queue - stores words that grant extra turns (FIFO)
         private Queue<string> _extraTurnQueue = new Queue<string>();
-
-        // AI opponent settings are now dynamic based on player difficulty
-        // Easy player = smaller AI grid (6-8), more words (4) = easier for player to find
-        // Normal player = medium AI grid (8-10), random words (3-4) = balanced
-        // Hard player = larger AI grid (10-12), fewer words (3) = harder for player to find
 
         #endregion
 
@@ -155,8 +150,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private int _playerMisses => _stateTracker?.PlayerMisses ?? 0;
         private int _playerMissLimit => _stateTracker?.PlayerMissLimit ?? 0;
         private HashSet<char> _playerKnownLetters => _stateTracker?.PlayerKnownLetters ?? new HashSet<char>();
-        private HashSet<char> _playerGuessedLetters => _stateTracker?.PlayerGuessedLetters ?? new HashSet<char>();
-        private HashSet<Vector2Int> _playerGuessedCoordinates => _stateTracker?.PlayerGuessedCoordinates ?? new HashSet<Vector2Int>();
         private HashSet<int> _playerSolvedWordRows => _stateTracker?.PlayerSolvedWordRows ?? new HashSet<int>();
 
         // Stores the pending game result to fire OnGameEnded after Continue is clicked
@@ -165,250 +158,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private int _opponentMisses => _stateTracker?.OpponentMisses ?? 0;
         private int _opponentMissLimit => _stateTracker?.OpponentMissLimit ?? 0;
         private HashSet<char> _opponentKnownLetters => _stateTracker?.OpponentKnownLetters ?? new HashSet<char>();
-        private HashSet<char> _opponentGuessedLetters => _stateTracker?.OpponentGuessedLetters ?? new HashSet<char>();
-        private HashSet<Vector2Int> _opponentGuessedCoordinates => _stateTracker?.OpponentGuessedCoordinates ?? new HashSet<Vector2Int>();
-        private HashSet<int> _opponentSolvedWordRows => _stateTracker?.OpponentSolvedWordRows ?? new HashSet<int>();
 
         #endregion
 
         // GuessResult enum moved to GuessProcessingManager
         // GameOverReason enum moved to PopupMessageController
-
-#if UNITY_EDITOR
-
-        #region Editor Testing
-
-        [FoldoutGroup("Editor Testing")]
-        [SerializeField]
-        [GUIColor(0.8f, 1f, 0.8f)]
-        private string _testOpponentLetter = "E";
-
-        [FoldoutGroup("Editor Testing")]
-        [SerializeField]
-        [GUIColor(0.8f, 1f, 0.8f)]
-        private int _testOpponentCol = 0;
-
-        [FoldoutGroup("Editor Testing")]
-        [SerializeField]
-        [GUIColor(0.8f, 1f, 0.8f)]
-        private int _testOpponentRow = 0;
-
-        [FoldoutGroup("Editor Testing")]
-        [SerializeField]
-        [GUIColor(0.8f, 1f, 0.8f)]
-        private string _testOpponentWord = "RAW";
-
-        [FoldoutGroup("Editor Testing")]
-        [Button("Switch to Opponent Turn")]
-        [GUIColor(0.8f, 0.6f, 1f)]
-        private void TestSwitchToOpponentTurn()
-        {
-            if (_isPlayerTurn)
-            {
-                _isPlayerTurn = false;
-                Debug.Log("[GameplayUI] Switched to Opponent's turn (manual)");
-            }
-            else
-            {
-                Debug.Log("[GameplayUI] Already Opponent's turn!");
-            }
-        }
-
-        [FoldoutGroup("Editor Testing")]
-        [Button("Switch to Player Turn")]
-        [GUIColor(0.8f, 0.6f, 1f)]
-        private void TestSwitchToPlayerTurn()
-        {
-            if (!_isPlayerTurn)
-            {
-                _isPlayerTurn = true;
-                Debug.Log("[GameplayUI] Switched to Player's turn (manual)");
-            }
-            else
-            {
-                Debug.Log("[GameplayUI] Already Player's turn!");
-            }
-        }
-
-        [FoldoutGroup("Editor Testing")]
-        [Button("Simulate Opponent Letter Guess")]
-        [GUIColor(0.8f, 0.4f, 0.2f)]
-        private void TestSimulateOpponentLetter()
-        {
-            if (_playerSetupData == null || _playerSetupData.PlacedWords.Count == 0)
-            {
-                Debug.LogWarning("[GameplayUI] No player data - start gameplay first!");
-                return;
-            }
-
-            if (_isPlayerTurn)
-            {
-                Debug.LogWarning("[GameplayUI] It's player's turn! Use 'Switch to Opponent Turn' first.");
-                return;
-            }
-
-            char letter = _testOpponentLetter.Length > 0 ? char.ToUpper(_testOpponentLetter[0]) : 'E';
-            GuessResult result = ProcessOpponentLetterGuess(letter);
-
-            if (result == GuessResult.AlreadyGuessed)
-            {
-                Debug.Log(string.Format("[GameplayUI] Opponent already guessed letter '{0}' - try a different letter!", letter));
-                return;
-            }
-
-            Debug.Log(string.Format("[GameplayUI] Opponent guessed letter '{0}': {1}", letter, result == GuessResult.Hit ? "HIT" : "MISS"));
-            EndOpponentTurn();
-        }
-
-        [FoldoutGroup("Editor Testing")]
-        [Button("Simulate Opponent Coordinate Guess")]
-        [GUIColor(0.8f, 0.4f, 0.2f)]
-        private void TestSimulateOpponentCoordinate()
-        {
-            if (_playerSetupData == null || _playerSetupData.PlacedWords.Count == 0)
-            {
-                Debug.LogWarning("[GameplayUI] No player data - start gameplay first!");
-                return;
-            }
-
-            if (_isPlayerTurn)
-            {
-                Debug.LogWarning("[GameplayUI] It's player's turn! Use 'Switch to Opponent Turn' first.");
-                return;
-            }
-
-            string colLabel = ((char)('A' + _testOpponentCol)).ToString();
-            string coordLabel = colLabel + (_testOpponentRow + 1);
-
-            GuessResult result = ProcessOpponentCoordinateGuess(_testOpponentCol, _testOpponentRow);
-
-            if (result == GuessResult.AlreadyGuessed)
-            {
-                Debug.Log(string.Format("[GameplayUI] Opponent already guessed coordinate {0} - try a different cell!", coordLabel));
-                return;
-            }
-
-            Debug.Log(string.Format("[GameplayUI] Opponent guessed coordinate {0}: {1}", coordLabel, result == GuessResult.Hit ? "HIT" : "MISS"));
-            EndOpponentTurn();
-        }
-
-        [FoldoutGroup("Editor Testing")]
-        [Button("Simulate Opponent Word Guess")]
-        [GUIColor(0.8f, 0.4f, 0.2f)]
-        private void TestSimulateWordGuess()
-        {
-            if (_playerSetupData == null || _playerSetupData.PlacedWords.Count == 0)
-            {
-                Debug.LogWarning("[GameplayUI] No player data - start gameplay first!");
-                return;
-            }
-
-            if (_isPlayerTurn)
-            {
-                Debug.LogWarning("[GameplayUI] It's player's turn! Use 'Switch to Opponent Turn' first.");
-                return;
-            }
-
-            GuessResult result = ProcessOpponentWordGuess(_testOpponentWord, 0);
-
-            if (result == GuessResult.InvalidWord)
-            {
-                Debug.Log(string.Format("[GameplayUI] Opponent word '{0}' is not a valid English word - rejected!", _testOpponentWord));
-                return;
-            }
-
-            if (result == GuessResult.AlreadyGuessed)
-            {
-                Debug.Log(string.Format("[GameplayUI] Opponent already guessed word '{0}' - try a different word!", _testOpponentWord));
-                return;
-            }
-
-            Debug.Log(string.Format("[GameplayUI] Opponent guessed word '{0}': {1}",
-                _testOpponentWord, result == GuessResult.Hit ? "CORRECT" : "WRONG (+2 misses)"));
-            EndOpponentTurn();
-        }
-
-        [Button("Show Player's Words (Targets)")]
-        [GUIColor(0.5f, 0.7f, 1f)]
-        private void TestShowPlayerWords()
-        {
-            if (_playerSetupData == null || _playerSetupData.PlacedWords.Count == 0)
-            {
-                Debug.LogWarning("[GameplayUI] No player data!");
-                return;
-            }
-
-            Debug.Log("[GameplayUI] === Player's Words (Opponent's Targets) ===");
-            foreach (WordPlacementData word in _playerSetupData.PlacedWords)
-            {
-                string colLabel = ((char)('A' + word.StartCol)).ToString();
-                string coordLabel = colLabel + (word.StartRow + 1);
-                string direction = word.DirCol == 1 ? "Horizontal" : (word.DirRow == 1 ? "Vertical" : "Diagonal");
-
-                Debug.Log(string.Format("  {0}. {1} at {2} ({3})",
-                    word.RowIndex + 1, word.Word, coordLabel, direction));
-            }
-        }
-
-        [Button("Show Opponent's Words (Your Targets)")]
-        [GUIColor(0.5f, 0.7f, 1f)]
-        private void TestShowOpponentWords()
-        {
-            if (_opponentSetupData == null || _opponentSetupData.PlacedWords.Count == 0)
-            {
-                Debug.LogWarning("[GameplayUI] No opponent data!");
-                return;
-            }
-
-            Debug.Log("[GameplayUI] === Opponent's Words (Your Targets) ===");
-            foreach (WordPlacementData word in _opponentSetupData.PlacedWords)
-            {
-                string colLabel = ((char)('A' + word.StartCol)).ToString();
-                string coordLabel = colLabel + (word.StartRow + 1);
-                string direction = word.DirCol == 1 ? "Horizontal" : (word.DirRow == 1 ? "Vertical" : "Diagonal");
-
-                Debug.Log(string.Format("  {0}. {1} at {2} ({3})",
-                    word.RowIndex + 1, word.Word, coordLabel, direction));
-            }
-        }
-
-        [Button("Show Known Letters")]
-        [GUIColor(0.5f, 0.7f, 1f)]
-        private void TestShowKnownLetters()
-        {
-            List<char> playerSorted = new List<char>(_playerKnownLetters);
-            playerSorted.Sort();
-            List<char> opponentSorted = new List<char>(_opponentKnownLetters);
-            opponentSorted.Sort();
-
-            Debug.Log(string.Format("[GameplayUI] Your Known Letters: {0}",
-                playerSorted.Count > 0 ? string.Join(", ", playerSorted) : "(none)"));
-            Debug.Log(string.Format("[GameplayUI] Opponent's Known Letters: {0}",
-                opponentSorted.Count > 0 ? string.Join(", ", opponentSorted) : "(none)"));
-        }
-
-        [Button("Trigger AI Turn (Debug)")]
-        [GUIColor(1f, 0.8f, 0.4f)]
-        private void TestTriggerAITurn()
-        {
-            if (_opponentTurnManager == null || !_opponentTurnManager.IsOpponentInitialized)
-            {
-                Debug.LogWarning("[GameplayUI] Opponent not initialized!");
-                return;
-            }
-
-            if (_isPlayerTurn)
-            {
-                Debug.LogWarning("[GameplayUI] It's player's turn! Switch to opponent turn first.");
-                return;
-            }
-
-            _opponentTurnManager.TriggerOpponentTurn();
-        }
-
-        #endregion
-
-#endif
+        // Editor Testing region moved to GameplayUIController.Editor.cs (partial class)
 
         // SetupData class moved to GameplayPanelConfigurator.cs
 
@@ -493,6 +248,26 @@ namespace TecVooDoo.DontLoseYourHead.UI
         #endregion
 
         #region Public Methods
+
+        /// <summary>
+        /// Sets an external opponent (for multiplayer).
+        /// Call this before StartGameplay() to use a remote player instead of AI.
+        /// Pass null to use AI opponent (default behavior).
+        /// </summary>
+        public void SetOpponent(IOpponent opponent)
+        {
+            _injectedOpponent = opponent;
+            Debug.Log($"[GameplayUI] Opponent set: {(opponent != null ? opponent.OpponentName : "AI (default)")}");
+        }
+
+        /// <summary>
+        /// Gets the current opponent (AI or remote player).
+        /// Returns null if game hasn't started yet.
+        /// </summary>
+        public IOpponent GetCurrentOpponent()
+        {
+            return _opponentTurnManager?.Opponent;
+        }
 
         /// <summary>
         /// Called when the Start Game button is clicked in setup.
@@ -651,223 +426,31 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         #endregion
 
-        #region Data Capture
+        #region Data Capture (Delegated to GameSetupDataCapture)
 
         private void CaptureSetupData()
         {
-            if (_setupSettingsPanel == null)
-            {
-                Debug.LogError("[GameplayUI] SetupSettingsPanel reference missing!");
-                return;
-            }
-
-            if (_setupGridPanel == null)
-            {
-                Debug.LogError("[GameplayUI] Setup Grid Panel reference missing!");
-                return;
-            }
-
-            // Get settings using tuple methods
-            (string playerName, Color playerColor) = _setupSettingsPanel.GetPlayerSettings();
-            (int gridSize, WordCountOption wordCount, DifficultySetting difficulty) = _setupSettingsPanel.GetDifficultySettings();
-
-            _playerSetupData = new SetupData
-            {
-                PlayerName = playerName,
-                PlayerColor = playerColor,
-                GridSize = gridSize,
-                WordCount = (int)wordCount,
-                DifficultyLevel = difficulty,
-                WordLengths = DifficultyCalculator.GetWordLengths(wordCount)
-            };
-
-            WordPatternRow[] wordRows = _setupGridPanel.GetWordPatternRows();
-            if (wordRows != null)
-            {
-                int rowIndex = 0;
-                foreach (WordPatternRow row in wordRows)
-                {
-                    if (row != null && row.gameObject.activeSelf && row.HasWord && row.IsPlaced)
-                    {
-                        // Construct WordPlacementData from row properties
-                        WordPlacementData wordData = new WordPlacementData
-                        {
-                            Word = row.CurrentWord,
-                            StartCol = row.PlacedStartCol,
-                            StartRow = row.PlacedStartRow,
-                            DirCol = row.PlacedDirCol,
-                            DirRow = row.PlacedDirRow,
-                            RowIndex = rowIndex
-                        };
-                        _playerSetupData.PlacedWords.Add(wordData);
-                    }
-                    rowIndex++;
-                }
-            }
-
+            EnsureSetupDataCaptureInitialized();
+            _playerSetupData = _setupDataCapture.CapturePlayerSetupData();
         }
 
-        /// <summary>
-        /// Gets AI grid size and word count based on player's difficulty setting.
-        /// Adds variety while scaling appropriately with difficulty.
-        /// </summary>
-        /// <param name="playerDifficulty">The difficulty level chosen by the player</param>
-        /// <returns>Tuple of (gridSize, wordCount)</returns>
-        private (int gridSize, int wordCount) GetAISettingsForPlayerDifficulty(DifficultySetting playerDifficulty)
-        {
-            int gridSize;
-            int wordCount;
-
-            switch (playerDifficulty)
-            {
-                case DifficultySetting.Easy:
-                    // Player is on Easy = AI should be easier to beat
-                    // Smaller grids (6-8), more words (4) = easier to find AI's words
-                    int[] easyGrids = { 6, 7, 8 };
-                    gridSize = easyGrids[UnityEngine.Random.Range(0, easyGrids.Length)];
-                    wordCount = 4;
-                    Debug.Log($"[GameplayUI] AI Settings (Player Easy): {gridSize}x{gridSize} grid, {wordCount} words");
-                    break;
-
-                case DifficultySetting.Normal:
-                    // Player is on Normal = balanced challenge
-                    // Medium grids (8-10), random word count (3-4)
-                    int[] normalGrids = { 8, 9, 10 };
-                    gridSize = normalGrids[UnityEngine.Random.Range(0, normalGrids.Length)];
-                    wordCount = UnityEngine.Random.Range(0, 2) == 0 ? 3 : 4;
-                    Debug.Log($"[GameplayUI] AI Settings (Player Normal): {gridSize}x{gridSize} grid, {wordCount} words");
-                    break;
-
-                case DifficultySetting.Hard:
-                    // Player is on Hard = AI should be harder to beat
-                    // Larger grids (10-12), fewer words (3) = harder to find AI's words
-                    int[] hardGrids = { 10, 11, 12 };
-                    gridSize = hardGrids[UnityEngine.Random.Range(0, hardGrids.Length)];
-                    wordCount = 3;
-                    Debug.Log($"[GameplayUI] AI Settings (Player Hard): {gridSize}x{gridSize} grid, {wordCount} words");
-                    break;
-
-                default:
-                    // Fallback to medium settings
-                    gridSize = 8;
-                    wordCount = 3;
-                    Debug.LogWarning($"[GameplayUI] Unknown difficulty {playerDifficulty}, using default 8x8/3 words");
-                    break;
-            }
-
-            return (gridSize, wordCount);
-        }
-
-        /// <summary>
-        /// Generate opponent data using AISetupManager for intelligent word selection and placement.
-        /// AI settings vary based on player difficulty for variety and appropriate challenge.
-        /// </summary>
         private void GenerateOpponentData()
         {
-            // Get AI settings based on player's chosen difficulty
-            var (gridSize, wordCount) = GetAISettingsForPlayerDifficulty(_playerSetupData.DifficultyLevel);
-
-            int[] wordLengths = DifficultyCalculator.GetWordLengths(
-                wordCount == 3 ? WordCountOption.Three : WordCountOption.Four);
-
-            // Create AI setup manager
-            AISetupManager setupManager = new AISetupManager(gridSize, wordCount, wordLengths);
-
-            // Build word list dictionary
-            Dictionary<int, WordListSO> wordLists = new Dictionary<int, WordListSO>();
-            if (_threeLetterWords != null) wordLists[3] = _threeLetterWords;
-            if (_fourLetterWords != null) wordLists[4] = _fourLetterWords;
-            if (_fiveLetterWords != null) wordLists[5] = _fiveLetterWords;
-            if (_sixLetterWords != null) wordLists[6] = _sixLetterWords;
-
-            // Perform AI setup (select and place words)
-            bool setupSuccess = setupManager.PerformSetup(wordLists);
-
-            if (!setupSuccess)
-            {
-                Debug.LogError("[GameplayUI] AI setup failed! Using fallback.");
-                GenerateOpponentDataFallback();
-                return;
-            }
-
-            // Create opponent setup data from AI results
-            // Invert difficulty: Player Easy = Opponent Hard, Player Hard = Opponent Easy
-            DifficultySetting opponentDifficulty = GetInverseDifficulty(_playerSetupData.DifficultyLevel);
-
-            _opponentSetupData = new SetupData
-            {
-                PlayerName = "EXECUTIONER",
-                PlayerColor = new Color(0.1f, 0.15f, 0.3f, 1f), // Dark blue - evokes executioner's hood
-                GridSize = gridSize,
-                WordCount = wordCount,
-                DifficultyLevel = opponentDifficulty,
-                WordLengths = wordLengths,
-                PlacedWords = setupManager.Placements
-            };
-
-            Debug.Log(setupManager.GetDebugSummary());
-            Debug.Log($"[GameplayUI] Player difficulty: {_playerSetupData.DifficultyLevel}, Opponent difficulty: {opponentDifficulty}");
+            EnsureSetupDataCaptureInitialized();
+            _opponentSetupData = _setupDataCapture.GenerateOpponentData(_playerSetupData);
         }
 
-        /// <summary>
-        /// Fallback opponent data generation if AI setup fails.
-        /// Uses dynamic AI settings based on player difficulty.
-        /// </summary>
-        private void GenerateOpponentDataFallback()
+        private void EnsureSetupDataCaptureInitialized()
         {
-            // Invert difficulty for opponent
-            DifficultySetting opponentDifficulty = GetInverseDifficulty(_playerSetupData.DifficultyLevel);
-
-            // Get AI settings based on player's chosen difficulty
-            var (gridSize, wordCount) = GetAISettingsForPlayerDifficulty(_playerSetupData.DifficultyLevel);
-
-            int[] wordLengths = DifficultyCalculator.GetWordLengths(
-                wordCount == 3 ? WordCountOption.Three : WordCountOption.Four);
-
-            _opponentSetupData = new SetupData
+            if (_setupDataCapture == null)
             {
-                PlayerName = "EXECUTIONER",
-                PlayerColor = new Color(0.1f, 0.15f, 0.3f, 1f), // Dark blue - evokes executioner's hood
-                GridSize = gridSize,
-                WordCount = wordCount,
-                DifficultyLevel = opponentDifficulty,
-                WordLengths = wordLengths
-            };
+                Dictionary<int, WordListSO> wordLists = new Dictionary<int, WordListSO>();
+                if (_threeLetterWords != null) wordLists[3] = _threeLetterWords;
+                if (_fourLetterWords != null) wordLists[4] = _fourLetterWords;
+                if (_fiveLetterWords != null) wordLists[5] = _fiveLetterWords;
+                if (_sixLetterWords != null) wordLists[6] = _sixLetterWords;
 
-            // Simple fallback words
-            string[] fallbackWords = { "CAT", "ROAD", "SNORE", "BRIDGE" };
-            int fallbackWordCount = Mathf.Min(wordCount, fallbackWords.Length);
-
-            for (int i = 0; i < fallbackWordCount; i++)
-            {
-                WordPlacementData fallbackWord = new WordPlacementData
-                {
-                    Word = fallbackWords[i],
-                    StartCol = i,
-                    StartRow = i * 2,
-                    DirCol = 1,
-                    DirRow = 0,
-                    RowIndex = i
-                };
-                _opponentSetupData.PlacedWords.Add(fallbackWord);
-            }
-
-            Debug.LogWarning("[GameplayUI] Using fallback opponent data!");
-        }
-
-        /// <summary>
-        /// Get the inverse difficulty setting (Easy <-> Hard, Normal stays Normal)
-        /// </summary>
-        private DifficultySetting GetInverseDifficulty(DifficultySetting playerDifficulty)
-        {
-            switch (playerDifficulty)
-            {
-                case DifficultySetting.Easy:
-                    return DifficultySetting.Hard;
-                case DifficultySetting.Hard:
-                    return DifficultySetting.Easy;
-                default:
-                    return DifficultySetting.Normal;
+                _setupDataCapture = new GameSetupDataCapture(_setupSettingsPanel, _setupGridPanel, wordLists);
             }
         }
 
@@ -1305,8 +888,11 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 PlacedWords = _playerSetupData.PlacedWords
             };
 
-            // Initialize opponent
-            _opponentTurnManager.InitializeOpponent(playerSetup);
+            // Initialize opponent (use injected opponent for multiplayer, or null for AI)
+            _opponentTurnManager.InitializeOpponent(playerSetup, _injectedOpponent);
+
+            // Clear injected opponent after use (single use)
+            _injectedOpponent = null;
         }
 
         private void HandleOpponentLetterGuessProcessed(char letter, bool wasHit)

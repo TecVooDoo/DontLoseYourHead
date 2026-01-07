@@ -4,8 +4,8 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 13
-**Last Updated:** January 6, 2026
+**Document Version:** 16
+**Last Updated:** January 7, 2026
 
 ---
 
@@ -15,17 +15,19 @@
 
 **Key Innovation:** Asymmetric difficulty - mixed-skill players compete fairly with different grid sizes, word counts, and difficulty settings.
 
-**Current Phase:** Phase 0 (Refactor) - preparing codebase for UI Toolkit migration and multiplayer integration
+**Current Phase:** Phase 0.5 (Multiplayer Verification) - testing networking before UI Toolkit migration
 
-**Last Session (Jan 6, 2026):** Third refactoring session. Extracted GuessProcessingManager (~365 lines) from GameplayUIController. Removed duplicate popup code by delegating to PopupMessageController. Removed Feel package (can re-add if needed). GameplayUIController reduced from ~2043 to ~1761 lines. Total reduction from original ~2619 to ~1761 (~33% smaller). Game tested and working.
+**Last Session (Jan 7, 2026):** Sixth session - started Phase 0.5 multiplayer verification. Created NetworkingTestController.cs for debug Host/Join UI. Added SetOpponent() method to GameplayUIController to support IOpponent injection for multiplayer. Created NetworkingTest.unity scene (duplicate of NewPlayTesting). Deleted abandoned NewUIDesign.unity scene and LetterCellUI/WordPatternRowUI prefabs. Fixed JoinGame parameter mismatch bug.
 
 ---
 
 ## Development Priorities (Ordered)
 
-1. **Optimization and memory efficiency first** - no per-frame allocations, no per-frame LINQ
-2. **UX and player clarity second** - clear feedback, intuitive interactions
-3. **Future-proofing with SOLID architecture third** - small files, clear interfaces, documented structure
+1. **SOLID principles first** - single responsibility, open/closed, Liskov substitution, interface segregation, dependency inversion
+2. **Memory efficiency second** - no per-frame allocations, no per-frame LINQ, object pooling where appropriate
+3. **Clean code third** - readable, maintainable, consistent formatting
+4. **Self-documenting code fourth** - clear naming over comments; if code needs a comment, consider refactoring first
+5. **Platform best practices fifth** - Unity > C#, Cloudflare/Supabase > HTML/JS (platform-specific wins over language-generic)
 
 ---
 
@@ -43,16 +45,19 @@
 - [x] Remove duplicate Guillotine/MissCounter code (delegate to GameplayUIUpdater)
 - [x] Extract GuessProcessingManager (~365 lines) - guess processing for player and opponent
 - [x] Remove duplicate popup code (delegate to PopupMessageController)
-- [ ] GameplayUIController at ~1761 lines (from ~2619, 33% reduction) - evaluate if further extraction needed
-- [ ] Extract SetupSettingsPanel (~850 lines)
-- [ ] Extract PlayerGridPanel (~1120 lines)
+- [x] GameplayUIController at ~1321 lines (from ~2619, 50% reduction) - within acceptable range
+- [x] Housekeeping cleanup: SetupSettingsPanel (~1051 lines), PlayerGridPanel (~1060 lines) - unused code removed
+- [x] Verify game still works after cleanup - tested Jan 7, 2026
 - [ ] Document new interfaces/controllers in Architecture section
 - [ ] Standardize namespace convention (choose TecVooDoo.DontLoseYourHead.* OR DLYH.*)
 - [ ] Verify game still works after each extraction (test in NewPlayTesting.unity)
 
-### Next (Phase 0.5: Multiplayer Verification)
-- [ ] Create NetworkingTest.unity scene (minimal debug UI)
-- [ ] Wire IOpponent interface to refactored GameplayUIController
+### Current (Phase 0.5: Multiplayer Verification)
+- [x] Wire IOpponent interface to GameplayUIController (SetOpponent method added)
+- [x] Create NetworkingTestController.cs for debug Host/Join UI
+- [x] Create NetworkingTest.unity scene (duplicate of NewPlayTesting)
+- [x] Delete abandoned NewUIDesign.unity and LetterCellUI/WordPatternRowUI prefabs
+- [ ] Set up NetworkingTest.unity with debug UI panels (connection, waiting, setup)
 - [ ] Test Host/Join with two Unity instances
 - [ ] Verify connection, setup exchange, turn events, state sync
 - [ ] Document any networking issues found
@@ -115,9 +120,9 @@
 ## Known Issues
 
 **Architecture:**
-- GameplayUIController at ~1761 lines (reduced 33% from ~2619, evaluate if further extraction makes sense)
-- SetupSettingsPanel at ~850 lines (may need extraction)
-- PlayerGridPanel at ~1120 lines (may need extraction)
+- GameplayUIController at ~1321 lines (reduced 50% from ~2619, within acceptable range)
+- SetupSettingsPanel at ~1051 lines (reduced from ~1286, unused code removed)
+- PlayerGridPanel at ~1060 lines (reduced from ~1067, unused code removed)
 - Inconsistent namespace convention (TecVooDoo.DontLoseYourHead.* vs DLYH.*)
 
 **UI (To Be Replaced):**
@@ -142,9 +147,10 @@
 Extract oversized MonoBehaviours into smaller, focused controllers and services. Goal is maintainability and Claude Code compatibility (<1000 lines ideal, <800 preferred but not mandatory). Avoid refactoring for its own sake - extractions should reduce complexity, not add indirection.
 
 **Status:**
-- GameplayUIController.cs: ~1761 lines (from ~2619, 33% reduction) - 5 controllers extracted
-- SetupSettingsPanel.cs: ~850 lines (not yet extracted)
-- PlayerGridPanel.cs: ~1120 lines (not yet extracted)
+- GameplayUIController.cs: ~1321 lines (from ~2619, 50% reduction) - 7 extractions completed
+- SetupSettingsPanel.cs: ~1051 lines (from ~1286, unused code removed)
+- PlayerGridPanel.cs: ~1060 lines (from ~1067, unused code removed)
+- WordPatternRow.cs: ~1198 lines (at upper edge of range, no unused code found)
 
 ### Phase 0.5: Multiplayer Verification
 Create minimal test scene to verify networking works before building UI around it. This is throwaway work - just enough to validate the foundation.
@@ -271,9 +277,11 @@ Assets/DLYH/
 
 | Script | Lines | Purpose | Status |
 |--------|-------|---------|--------|
-| GameplayUIController | ~1761 | Master gameplay controller | PARTIAL (~858 lines extracted to 5 controllers) |
-| SetupSettingsPanel | ~850 | Player setup configuration | MAY NEED EXTRACTION |
-| PlayerGridPanel | ~1120 | Single player grid display | MAY NEED EXTRACTION |
+| GameplayUIController | ~1321 | Master gameplay controller | OK (~1298 lines extracted to 7 classes) |
+| GameplayUIController.Editor | ~230 | Editor testing (partial class) | OK (editor only) |
+| SetupSettingsPanel | ~1051 | Player setup configuration | OK (unused code removed) |
+| PlayerGridPanel | ~1060 | Single player grid display | OK (unused code removed) |
+| WordPatternRow | ~1198 | Word pattern row UI | OK (at upper edge, no unused code) |
 | ExecutionerAI | ~493 | AI opponent coordination | OK |
 | IOpponent | ~177 | Opponent abstraction interface | OK (not wired) |
 | LocalAIOpponent | ~300 | AI wrapper for IOpponent | OK (not wired) |
@@ -288,6 +296,8 @@ Assets/DLYH/
 | PopupMessageController | ~245 | Popup message display, GameOverReason enum | GameplayUIController |
 | OpponentTurnManager | ~380 | AI/opponent initialization, turn execution, game state building | GameplayUIController |
 | GuessProcessingManager | ~365 | Guess processing for player and opponent | GameplayUIController |
+| GameSetupDataCapture | ~240 | Player setup capture and AI opponent generation | GameplayUIController |
+| GameplayUIController.Editor | ~230 | Editor testing buttons (partial class) | GameplayUIController |
 | GameplayStateTracker | ~300 | State tracking (misses, letters, coordinates) | GameplayUIController (previous) |
 | GuessProcessor | ~350 | Low-level guess processing logic | GameplayUIController (previous) |
 | WinConditionChecker | ~150 | Win/lose condition checking | GameplayUIController (previous) |
@@ -775,8 +785,33 @@ public class GameplayUIController {
 - Clear separation between logic and UI
 - ASCII-only documentation and identifiers
 - No `var` keyword - explicit types always
-- Files under 800 lines - extract when approaching
-- Interface-first extraction for large classes
+
+### Refactoring Guidelines
+
+**Goal Range:** Files should be 800-1200 lines for optimal Claude compatibility. Files up to 1300 lines are acceptable if that's the minimum achievable without adding unnecessary complexity.
+
+**When to Refactor:**
+- Extract when a file exceeds 1200 lines AND has clear, separable responsibilities
+- Extract when duplicate code appears across multiple locations
+- Extract when a class has multiple unrelated responsibilities
+
+**When NOT to Refactor:**
+- Don't refactor to hit an arbitrary line count
+- Don't extract if it adds indirection without reducing complexity
+- Don't create helper classes for one-off operations
+- Don't extract if the code is cohesive and naturally belongs together
+
+**Refactoring Priorities:**
+1. Remove unused code and imports first
+2. Eliminate duplicate code second
+3. Extract genuinely separable responsibilities third
+4. Accept the result if further extraction would degrade the design
+
+**Post-Refactor Checklist:**
+- [ ] Verify game still works after each extraction
+- [ ] Remove any unused using statements
+- [ ] Update Architecture section with new files
+- [ ] Document new interfaces/controllers
 
 ---
 
@@ -812,6 +847,9 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 16 | Jan 7, 2026 | Sixth session - Phase 0.5 started. Created NetworkingTestController.cs (~367 lines) for debug Host/Join UI. Added SetOpponent() to GameplayUIController for IOpponent injection. Created NetworkingTest.unity scene. Deleted abandoned NewUIDesign.unity and LetterCellUI/WordPatternRowUI prefabs. Fixed JoinGame parameter mismatch. |
+| 15 | Jan 7, 2026 | Fifth session - housekeeping cleanup. Removed ~235 lines of unused dynamic sizing code from SetupSettingsPanel (1286->1051). Removed unused _panelLayoutElement from PlayerGridPanel (1067->1060). Verified WordPatternRow (1198 lines) has no unused code. All major UI scripts now within 800-1200 goal range. |
+| 14 | Jan 7, 2026 | Fourth refactor session. Extracted Editor Testing to partial class and Data Capture to GameSetupDataCapture. GameplayUIController at ~1321 lines (50% reduction from ~2619). Added Refactoring Guidelines to Coding Standards. |
 | 13 | Jan 6, 2026 | Third refactor session. Extracted GuessProcessingManager (~365 lines). Removed duplicate popup code. Removed Feel package. GameplayUIController at ~1761 lines (33% reduction from ~2619). |
 | 12 | Jan 6, 2026 | Continued Phase 0. Extracted OpponentTurnManager (~380 lines). Removed duplicate Guillotine/MissCounter code. GameplayUIController now at ~2043 lines (from original ~2619). |
 | 11 | Jan 6, 2026 | Phase 0 started. Extracted 3 controllers from GameplayUIController (GameplayPanelConfigurator, GameplayUIUpdater, PopupMessageController). Fixed Claude Code and GitHub settings. |
@@ -830,31 +868,25 @@ After each work session, update this document:
 
 ## Next Session Instructions
 
-**Starting Point:** This document (DLYH_Status.md v13)
+**Starting Point:** This document (DLYH_Status.md v16)
 
-**Scene to Use:** NewPlayTesting.unity
+**Scene to Use:** NetworkingTest.unity (for multiplayer testing) or NewPlayTesting.unity (for single player)
 
 **Current State:**
-- GameplayUIController at ~1761 lines (5 controllers extracted, 33% reduction)
-- SetupSettingsPanel at ~850 lines (not yet extracted)
-- PlayerGridPanel at ~1120 lines (not yet extracted)
-- Game is working and tested
+- Phase 0.5 in progress - multiplayer verification
+- NetworkingTestController.cs created (~367 lines) - debug Host/Join UI
+- GameplayUIController has SetOpponent() method for IOpponent injection
+- NetworkingTest.unity scene created (needs UI panel setup)
+- NewUIDesign.unity and LetterCellUI/WordPatternRowUI prefabs deleted
 
-**Next Decision Point:** Evaluate whether to:
-1. Continue extracting from GameplayUIController (if Claude still struggles with it)
-2. Move to SetupSettingsPanel or PlayerGridPanel extraction
-3. Proceed to Phase 0.5 (Multiplayer Verification)
-
-**Extraction Guidance:**
-- Goal is Claude Code compatibility (<1000 lines ideal), not arbitrary targets
-- Only extract if it reduces complexity, not just line count
-- Large files cause duplicate code issues that need cleanup
-- Test after each extraction
+**Next Step:** Continue Phase 0.5
+- Set up NetworkingTest.unity with debug UI panels (connection, waiting, setup)
+- Test Host/Join with two Unity instances
+- Verify connection, setup exchange, turn events, state sync
 
 **Do NOT:**
-- Touch NewUIDesign.unity (will be deleted)
-- Work on LetterCellUI/WordPatternRowUI (abandoned)
-- Start UI Toolkit work until refactor and multiplayer verify complete
+- Start UI Toolkit work until multiplayer verify complete
+- Refactor further unless genuinely needed
 
 ---
 

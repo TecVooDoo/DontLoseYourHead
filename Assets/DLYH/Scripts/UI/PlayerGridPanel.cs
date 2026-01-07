@@ -107,7 +107,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         #region Private Fields - State
         private RectTransform _panelRectTransform;
-        private LayoutElement _panelLayoutElement;
         private bool _isInitialized;
         private bool _eventsWired;
         private List<WordPatternRow> _wordPatternRows = new List<WordPatternRow>();
@@ -819,11 +818,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
             if (_panelRectTransform == null)
             {
                 _panelRectTransform = GetComponent<RectTransform>();
-            }
-
-            if (_panelLayoutElement == null)
-            {
-                _panelLayoutElement = GetComponent<LayoutElement>();
             }
 
             if (_gridWithRowLabelsRect == null && _gridContainer != null)

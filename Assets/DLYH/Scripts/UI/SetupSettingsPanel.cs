@@ -49,9 +49,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
 
         [SerializeField]
-        private TextMeshProUGUI _missLimitDisplay;
-
-        [SerializeField]
         private Button _startGameButton;
 
         [SerializeField]
@@ -95,28 +92,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         [SerializeField]
         private string _invalidWordMessage = "'{0}' is not a valid word!";
-
-        [TitleGroup("Dynamic Sizing")]
-        [SerializeField, Tooltip("The main content container with VerticalLayoutGroup")]
-        private RectTransform _contentContainer;
-
-        [SerializeField]
-        private float _minFontSize = 14f;
-
-        [SerializeField]
-        private float _maxFontSize = 24f;
-
-        [SerializeField]
-        private float _minElementHeight = 35f;
-
-        [SerializeField]
-        private float _maxElementHeight = 60f;
-
-        [SerializeField]
-        private float _minSpacing = 8f;
-
-        [SerializeField]
-        private float _maxSpacing = 20f;
 
         #endregion
 
@@ -172,9 +147,6 @@ namespace TecVooDoo.DontLoseYourHead.UI
             SetupWordValidation();
             SetupInvalidWordFeedback();
             InitializeWordRows();
-            UpdateMissLimitDisplay();
-
-            //ApplyDynamicSizing();
 
 
             // Subscribe to letter input events for routing to name field
@@ -291,7 +263,6 @@ public void SetupForPlayer(int playerIndex)
             UpdatePickRandomWordsButtonState();
             UpdatePlaceRandomPositionsButtonState();
             UpdateStartButtonState();
-            UpdateMissLimitDisplay();
 
             Debug.Log("[SetupSettingsPanel] Reset complete");
         }
@@ -312,8 +283,6 @@ public void SetupForPlayer(int playerIndex)
                 Debug.LogError("[SetupSettingsPanel] Player Name Input is not assigned!");
             if (_playerGridPanel == null)
                 Debug.LogError("[SetupSettingsPanel] Player Grid Panel is not assigned!");
-            if (_missLimitDisplay == null)
-                Debug.LogWarning("[SetupSettingsPanel] Miss Limit Display is not assigned - miss limit won't be shown!");
             if (_pickRandomWordsButton == null)
                 Debug.LogWarning("[SetupSettingsPanel] Pick Random Words Button is not assigned!");
             if (_colorButtonsContainer == null)
@@ -740,7 +709,6 @@ public void SetupForPlayer(int playerIndex)
             // Direct mapping: index 0 = 6, index 1 = 7, ... index 6 = 12
             _gridSize = value + 6;
 
-            UpdateMissLimitDisplay();
             OnGridSizeChanged?.Invoke(_gridSize);
 
             // Update PlayerGridPanel
@@ -765,7 +733,6 @@ public void SetupForPlayer(int playerIndex)
                 _ => WordCountOption.Three
             };
 
-            UpdateMissLimitDisplay();
             OnWordCountChanged?.Invoke(_wordCount);
 
             // Update PlayerGridPanel word rows
@@ -798,7 +765,6 @@ public void SetupForPlayer(int playerIndex)
                 _ => DifficultySetting.Normal
             };
 
-            UpdateMissLimitDisplay();
             Debug.Log($"[SetupSettingsPanel] Difficulty changed to: {_difficulty}");
         }
 
@@ -1057,206 +1023,6 @@ private void OnPickRandomWordsClicked()
                 _playerGridPanel.SetPlayerColor(_playerColor);
             }
 
-            UpdateMissLimitDisplay();
-        }
-
-        /// <summary>
-        /// Dynamically sizes all UI elements based on available panel height
-        /// </summary>
-        private void ApplyDynamicSizing()
-        {
-            if (_contentContainer == null)
-            {
-                Debug.LogWarning("[SetupSettingsPanel] Content container not assigned - skipping dynamic sizing");
-                return;
-            }
-
-            // Force layout update to get accurate dimensions
-            Canvas.ForceUpdateCanvases();
-
-            float availableHeight = _contentContainer.rect.height;
-            if (availableHeight <= 0)
-            {
-                Debug.LogWarning($"[SetupSettingsPanel] Invalid container height: {availableHeight}");
-                return;
-            }
-
-            // Count elements that need sizing
-            // Header row, Player Name, Color picker, Grid Size, Word Count, Difficulty, Miss Limit, Buttons = 8 rows
-            int elementCount = 8;
-            float totalPaddingAndSpacing = 40f; // Top/bottom padding estimate
-
-            // Calculate sizing factor (0 = minimum space, 1 = plenty of space)
-            float idealHeight = elementCount * _maxElementHeight + totalPaddingAndSpacing + (elementCount - 1) * _maxSpacing;
-            float minHeight = elementCount * _minElementHeight + totalPaddingAndSpacing + (elementCount - 1) * _minSpacing;
-            float sizeFactor = Mathf.Clamp01((availableHeight - minHeight) / (idealHeight - minHeight));
-
-            // Calculate actual sizes based on factor
-            float elementHeight = Mathf.Lerp(_minElementHeight, _maxElementHeight, sizeFactor);
-            float fontSize = Mathf.Lerp(_minFontSize, _maxFontSize, sizeFactor);
-            float spacing = Mathf.Lerp(_minSpacing, _maxSpacing, sizeFactor);
-
-            Debug.Log($"[SetupSettingsPanel] Dynamic sizing: Available={availableHeight:F0}px, Factor={sizeFactor:F2}, ElementH={elementHeight:F0}, Font={fontSize:F0}, Spacing={spacing:F0}");
-
-            // Apply spacing to VerticalLayoutGroup
-            var layoutGroup = _contentContainer.GetComponent<VerticalLayoutGroup>();
-            if (layoutGroup != null)
-            {
-                layoutGroup.spacing = spacing;
-                layoutGroup.padding = new RectOffset(
-                    Mathf.RoundToInt(spacing),
-                    Mathf.RoundToInt(spacing),
-                    Mathf.RoundToInt(spacing),
-                    Mathf.RoundToInt(spacing)
-                );
-            }
-
-            // Apply heights to child elements with LayoutElement
-            foreach (Transform child in _contentContainer)
-            {
-                var layoutElement = child.GetComponent<LayoutElement>();
-                if (layoutElement != null)
-                {
-                    layoutElement.preferredHeight = elementHeight;
-                    layoutElement.minHeight = elementHeight;
-                }
-
-                // Apply font sizes to TextMeshPro elements
-                ApplyFontSizeRecursive(child, fontSize);
-            }
-
-            // Apply specific sizes to known elements
-            ApplyElementSizes(elementHeight, fontSize);
-
-            // Force layout rebuild
-            LayoutRebuilder.ForceRebuildLayoutImmediate(_contentContainer);
-        }
-
-        /// <summary>
-        /// Recursively applies font size to all TMP text elements
-        /// Respects Auto Size settings - sets min/max instead of fixed size
-        /// </summary>
-        private void ApplyFontSizeRecursive(Transform parent, float fontSize)
-        {
-            var tmpText = parent.GetComponent<TMP_Text>();
-            if (tmpText != null)
-            {
-                ApplyTextSize(tmpText, fontSize);
-            }
-
-            foreach (Transform child in parent)
-            {
-                ApplyFontSizeRecursive(child, fontSize);
-            }
-        }
-
-        /// <summary>
-        /// Applies font size to a TMP text element, respecting Auto Size settings
-        /// </summary>
-        private void ApplyTextSize(TMP_Text tmpText, float fontSize)
-        {
-            if (tmpText == null) return;
-
-            if (tmpText.enableAutoSizing)
-            {
-                // Respect Auto Size - adjust the min/max range
-                tmpText.fontSizeMin = _minFontSize;
-                tmpText.fontSizeMax = fontSize;
-            }
-            else
-            {
-                // Fixed size - set directly
-                tmpText.fontSize = fontSize;
-            }
-        }
-
-        /// <summary>
-        /// Applies sizes to specific known UI elements
-        /// </summary>
-        private void ApplyElementSizes(float elementHeight, float fontSize)
-        {
-            // Player name input
-            if (_playerNameInput != null)
-            {
-                var inputLayout = _playerNameInput.GetComponent<LayoutElement>();
-                if (inputLayout == null)
-                    inputLayout = _playerNameInput.gameObject.AddComponent<LayoutElement>();
-                inputLayout.preferredHeight = elementHeight;
-                inputLayout.minHeight = elementHeight;
-
-                _playerNameInput.pointSize = fontSize;
-            }
-
-            // Dropdowns
-            ApplyDropdownSizing(_gridSizeDropdown, elementHeight, fontSize);
-            ApplyDropdownSizing(_wordCountDropdown, elementHeight, fontSize);
-            ApplyDropdownSizing(_difficultyDropdown, elementHeight, fontSize);
-
-            // Buttons
-            ApplyButtonSizing(_pickRandomWordsButton, elementHeight, fontSize);
-            ApplyButtonSizing(_placeRandomPositionsButton, elementHeight, fontSize);
-
-            // Miss limit display - respect Auto Size
-            if (_missLimitDisplay != null)
-            {
-                ApplyTextSize(_missLimitDisplay, fontSize);
-            }
-
-            // Color buttons container - slightly larger for touch targets
-            if (_colorButtonsContainer != null)
-            {
-                var colorLayout = _colorButtonsContainer.GetComponent<LayoutElement>();
-                if (colorLayout == null)
-                    colorLayout = _colorButtonsContainer.gameObject.AddComponent<LayoutElement>();
-                colorLayout.preferredHeight = elementHeight * 1.2f;
-                colorLayout.minHeight = elementHeight * 1.2f;
-            }
-        }
-
-        private void ApplyDropdownSizing(TMP_Dropdown dropdown, float height, float fontSize)
-        {
-            if (dropdown == null) return;
-
-            var layout = dropdown.GetComponent<LayoutElement>();
-            if (layout == null)
-                layout = dropdown.gameObject.AddComponent<LayoutElement>();
-            layout.preferredHeight = height;
-            layout.minHeight = height;
-
-            // Caption text - respect Auto Size
-            var captionText = dropdown.captionText;
-            if (captionText != null)
-                ApplyTextSize(captionText, fontSize);
-
-            // Item text template - respect Auto Size
-            var itemText = dropdown.itemText;
-            if (itemText != null)
-                ApplyTextSize(itemText, fontSize);
-        }
-
-        private void ApplyButtonSizing(Button button, float height, float fontSize)
-        {
-            if (button == null) return;
-
-            var layout = button.GetComponent<LayoutElement>();
-            if (layout == null)
-                layout = button.gameObject.AddComponent<LayoutElement>();
-            layout.preferredHeight = height;
-            layout.minHeight = height;
-
-            // Respect Auto Size on button text
-            var buttonText = button.GetComponentInChildren<TMP_Text>();
-            if (buttonText != null)
-                ApplyTextSize(buttonText, fontSize);
-        }
-
-
-private void UpdateMissLimitDisplay()
-        {
-            // Miss limit is now calculated at gameplay start using opponent's grid settings
-            // This preview has been removed from Setup UI as it was displaying incorrect values
-            // (was using player's own settings instead of opponent's settings)
-            // See DifficultyCalculator.CalculateMissLimitForPlayer() for the correct formula
         }
 
         #endregion
