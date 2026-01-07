@@ -104,11 +104,11 @@ namespace TecVooDoo.DontLoseYourHead.UI
         private GameplayStateTracker _stateTracker;
         private WinConditionChecker _winChecker;
 
-        // Opponent System (AI or Remote player via IOpponent interface)
-        private IOpponent _opponent;
-        private bool _opponentInitialized = false;
-
-        // Note: ExecutionerAI is now managed internally by LocalAIOpponent via IOpponent interface
+        // Extracted controllers
+        private GameplayPanelConfigurator _panelConfigurator;
+        private GameplayUIUpdater _uiUpdater;
+        private PopupMessageController _popupController;
+        private OpponentTurnManager _opponentTurnManager;
 
         // Telemetry tracking
         private int _totalTurns = 0;
@@ -183,16 +183,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             InvalidWord
         }
 
-        /// <summary>
-        /// Reason for game ending - used for proper game over messages
-        /// </summary>
-        private enum GameOverReason
-        {
-            AllWordsFound,              // Player found all opponent's words
-            MissLimitReached,           // Player exceeded miss limit
-            OpponentFoundAllWords,      // Opponent found all player's words
-            OpponentMissLimitReached    // Opponent exceeded miss limit
-        }
+        // GameOverReason enum moved to PopupMessageController
 
         #endregion
 
@@ -413,7 +404,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
         [GUIColor(1f, 0.8f, 0.4f)]
         private void TestTriggerAITurn()
         {
-            if (_opponent == null)
+            if (_opponentTurnManager == null || !_opponentTurnManager.IsOpponentInitialized)
             {
                 Debug.LogWarning("[GameplayUI] Opponent not initialized!");
                 return;
@@ -425,30 +416,14 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 return;
             }
 
-            TriggerAITurn();
+            _opponentTurnManager.TriggerOpponentTurn();
         }
 
         #endregion
 
 #endif
 
-        #region Data Structures
-
-        /// <summary>
-        /// Data structure to hold captured setup information
-        /// </summary>
-        private class SetupData
-        {
-            public string PlayerName;
-            public Color PlayerColor;
-            public int GridSize;
-            public int WordCount;
-            public DifficultySetting DifficultyLevel;
-            public int[] WordLengths;
-            public List<WordPlacementData> PlacedWords = new List<WordPlacementData>();
-        }
-
-        #endregion
+        // SetupData class moved to GameplayPanelConfigurator.cs
 
         #region Unity Lifecycle
 
@@ -481,11 +456,12 @@ namespace TecVooDoo.DontLoseYourHead.UI
             if (_wordGuessFeedbackText != null)
                 _wordGuessFeedbackText.gameObject.SetActive(false);
 
-            // Subscribe to MessagePopup Continue button for game over flow
-            if (MessagePopup.Instance != null)
-            {
-                MessagePopup.Instance.OnContinueClicked += HandleGameOverContinue;
-            }
+            // Initialize popup controller (handles MessagePopup subscription internally)
+            _popupController = new PopupMessageController();
+            _popupController.OnGameOverContinueClicked += HandleGameOverContinue;
+
+            // Initialize panel configurator
+            _panelConfigurator = new GameplayPanelConfigurator();
         }
 
         private void Update()
@@ -506,13 +482,16 @@ namespace TecVooDoo.DontLoseYourHead.UI
             }
             UnsubscribeFromPanelEvents();
             UnsubscribeFromWordGuessModeController();
-            UnsubscribeFromAIEvents();
 
-            // Unsubscribe from MessagePopup Continue button
-            if (MessagePopup.Instance != null)
+            // Dispose extracted controllers
+            if (_popupController != null)
             {
-                MessagePopup.Instance.OnContinueClicked -= HandleGameOverContinue;
+                _popupController.OnGameOverContinueClicked -= HandleGameOverContinue;
+                _popupController.Dispose();
             }
+
+            // Cleanup opponent manager
+            _opponentTurnManager?.Dispose();
         }
 
         /// <summary>
@@ -582,20 +561,31 @@ namespace TecVooDoo.DontLoseYourHead.UI
             if (_ownerPanel != null)
             {
                 _ownerPanel.gameObject.SetActive(true);
-                ConfigureOwnerPanel();
+                _panelConfigurator.ConfigureOwnerPanel(_ownerPanel, _playerSetupData, _opponentSetupData.PlayerColor);
             }
 
             if (_opponentPanel != null)
             {
                 _opponentPanel.gameObject.SetActive(true);
-                ConfigureOpponentPanel();
+                _panelConfigurator.ConfigureOpponentPanel(_opponentPanel, _opponentSetupData, _playerSetupData.PlayerColor);
+                SubscribeToPanelEvents();
             }
 
             InitializeWordGuessModeController();
-            InitializeGuillotines();
-            UpdateMissCounters();
-            UpdateCenterPanelNames();
-            UpdateTurnIndicator();
+
+            // Initialize UI updater with all references
+            _uiUpdater = new GameplayUIUpdater(
+                _player1MissCounter, _player2MissCounter,
+                _player1MissLabelBackground, _player2MissLabelBackground,
+                _player1NameLabel, _player2NameLabel,
+                _player1ColorIndicator, _player2ColorIndicator,
+                _player1GuessedWordsLabelBackground, _player2GuessedWordsLabelBackground,
+                _turnIndicatorText,
+                _player1Guillotine, _player2Guillotine);
+            _uiUpdater.Initialize(_stateTracker, _playerSetupData, _opponentSetupData);
+
+            // Initialize popup controller with setup data
+            _popupController.Initialize(_playerSetupData, _opponentSetupData);
 
             // Game starts with player's turn
             _isPlayerTurn = true;
@@ -635,7 +625,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             _wordGuessModeController?.ExitWordGuessMode();
             UnsubscribeFromPanelEvents();
             UnsubscribeFromWordGuessModeController();
-            UnsubscribeFromAIEvents();
+            _opponentTurnManager?.Dispose();
 
             if (_ownerPanel != null)
                 _ownerPanel.gameObject.SetActive(false);
@@ -652,11 +642,15 @@ namespace TecVooDoo.DontLoseYourHead.UI
             if (_setupContainer != null)
                 _setupContainer.SetActive(true);
 
-            // Reset guillotines for next game
-            if (_player1Guillotine != null)
-                _player1Guillotine.Reset();
-            if (_player2Guillotine != null)
-                _player2Guillotine.Reset();
+            // Reset guillotines via UI updater if available, otherwise directly
+            _uiUpdater?.ResetGuillotines();
+            if (_uiUpdater == null)
+            {
+                if (_player1Guillotine != null)
+                    _player1Guillotine.Reset();
+                if (_player2Guillotine != null)
+                    _player2Guillotine.Reset();
+            }
 
             _playerSetupData = null;
             _opponentSetupData = null;
@@ -664,8 +658,8 @@ namespace TecVooDoo.DontLoseYourHead.UI
             _opponentGuessProcessor = null;
             _stateTracker = null;
             _winChecker = null;
-            _opponent = null;
-            _opponentInitialized = false;
+            _uiUpdater = null;
+            _opponentTurnManager = null;
         }
 
         #endregion
@@ -892,142 +886,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         #endregion
 
-        #region Panel Configuration
-
-
-        private void ConfigureOwnerPanel()
-        {
-            if (_ownerPanel == null || _playerSetupData == null)
-            {
-                Debug.LogError("[GameplayUI] Cannot configure owner panel - missing references!");
-                return;
-            }
-
-            _ownerPanel.InitializeGrid(_playerSetupData.GridSize);
-            _ownerPanel.SetPlayerName(_playerSetupData.PlayerName);
-            _ownerPanel.SetPlayerColor(_playerSetupData.PlayerColor);
-            _ownerPanel.SetMode(PlayerGridPanel.PanelMode.Gameplay);
-            _ownerPanel.CacheWordPatternRows();
-
-            // Set hit color to opponent's color (opponent guesses on this panel)
-            _ownerPanel.SetGuesserHitColor(_opponentSetupData.PlayerColor);
-
-            foreach (WordPlacementData wordData in _playerSetupData.PlacedWords)
-            {
-                PlaceWordOnPanelRevealed(_ownerPanel, wordData);
-
-                WordPatternRow row = _ownerPanel.GetWordPatternRow(wordData.RowIndex);
-                if (row != null)
-                {
-                    row.SetGameplayWord(wordData.Word);
-                    row.RevealAllLetters();
-                    row.SetAsOwnerPanel();
-                }
-                else
-                {
-                    Debug.LogError(string.Format("[GameplayUI] Owner row {0} is NULL! Cannot set word '{1}'", wordData.RowIndex, wordData.Word));
-                }
-            }
-
-            int wordCount = _playerSetupData.PlacedWords.Count;
-            WordPatternRow[] allRows = _ownerPanel.GetWordPatternRows();
-            if (allRows != null)
-            {
-                for (int i = 0; i < allRows.Length; i++)
-                {
-                    if (allRows[i] != null)
-                    {
-                        bool shouldBeActive = i < wordCount;
-                        allRows[i].gameObject.SetActive(shouldBeActive);
-                        allRows[i].SetAsOwnerPanel();
-                    }
-                }
-            }
-        }
-
-        private void ConfigureOpponentPanel()
-        {
-            if (_opponentPanel == null || _opponentSetupData == null)
-            {
-                Debug.LogError("[GameplayUI] Cannot configure opponent panel - missing references!");
-                return;
-            }
-
-            _opponentPanel.InitializeGrid(_opponentSetupData.GridSize);
-            _opponentPanel.SetMode(PlayerGridPanel.PanelMode.Gameplay);
-            _opponentPanel.SetPlayerName(_opponentSetupData.PlayerName);
-            _opponentPanel.SetPlayerColor(_opponentSetupData.PlayerColor);
-            _opponentPanel.CacheWordPatternRows();
-
-            // Set hit color to player's color (player guesses on this panel)
-            _opponentPanel.SetGuesserHitColor(_playerSetupData.PlayerColor);
-
-            foreach (WordPlacementData wordData in _opponentSetupData.PlacedWords)
-            {
-                PlaceWordOnPanelHidden(_opponentPanel, wordData);
-
-                WordPatternRow row = _opponentPanel.GetWordPatternRow(wordData.RowIndex);
-                if (row != null)
-                {
-                    row.SetGameplayWord(wordData.Word);
-                    row.ResetRevealedLetters();
-                    // Note: SetGameplayWord already configures row for opponent display
-                }
-            }
-
-            int wordCount = _opponentSetupData.PlacedWords.Count;
-            WordPatternRow[] allRows = _opponentPanel.GetWordPatternRows();
-            if (allRows != null)
-            {
-                for (int i = 0; i < allRows.Length; i++)
-                {
-                    if (allRows[i] != null)
-                    {
-                        bool shouldBeActive = i < wordCount;
-                        allRows[i].gameObject.SetActive(shouldBeActive);
-                        // Note: SetGameplayWord already configures row for opponent display
-                    }
-                }
-            }
-
-            SubscribeToPanelEvents();
-        }
-
-        private void PlaceWordOnPanelRevealed(PlayerGridPanel panel, WordPlacementData wordData)
-        {
-            for (int i = 0; i < wordData.Word.Length; i++)
-            {
-                int col = wordData.StartCol + (i * wordData.DirCol);
-                int rowIdx = wordData.StartRow + (i * wordData.DirRow);
-                char letter = wordData.Word[i];
-
-                GridCellUI cell = panel.GetCell(col, rowIdx);
-                if (cell != null)
-                {
-                    cell.SetLetter(letter);
-                    cell.SetState(CellState.Filled);
-                }
-            }
-        }
-
-        private void PlaceWordOnPanelHidden(PlayerGridPanel panel, WordPlacementData wordData)
-        {
-            for (int i = 0; i < wordData.Word.Length; i++)
-            {
-                int col = wordData.StartCol + (i * wordData.DirCol);
-                int rowIdx = wordData.StartRow + (i * wordData.DirRow);
-                char letter = wordData.Word[i];
-
-                GridCellUI cell = panel.GetCell(col, rowIdx);
-                if (cell != null)
-                {
-                    // For hidden letters (opponent grid), use SetHiddenLetter
-                    cell.SetHiddenLetter(letter);
-                }
-            }
-        }
-
-        #endregion
+        // Panel Configuration methods moved to GameplayPanelConfigurator.cs
 
         #region Panel Events
 
@@ -1072,10 +931,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             }
 
             // Record for opponent rubber-banding (AI) or state sync (network)
-            if (_opponent != null)
-            {
-                _opponent.RecordPlayerGuess(result == GuessResult.Hit);
-            }
+            _opponentTurnManager?.RecordPlayerGuess(result == GuessResult.Hit);
 
             // Check if any words are now fully revealed via letters - queue them for extra turns
             if (result == GuessResult.Hit)
@@ -1128,10 +984,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             }
 
             // Record for opponent rubber-banding (AI) or state sync (network)
-            if (_opponent != null)
-            {
-                _opponent.RecordPlayerGuess(result == GuessResult.Hit);
-            }
+            _opponentTurnManager?.RecordPlayerGuess(result == GuessResult.Hit);
 
             // Check if any words are now fully revealed via coordinate guessing - queue them for extra turns
             if (result == GuessResult.Hit)
@@ -1264,9 +1117,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
             GuessResult result = ProcessPlayerWordGuess(word, rowIndex);
 
             // Record for opponent rubber-banding (AI) or state sync (network)
-            if (_opponent != null && result != GuessResult.AlreadyGuessed && result != GuessResult.InvalidWord)
+            if (result != GuessResult.AlreadyGuessed && result != GuessResult.InvalidWord)
             {
-                _opponent.RecordPlayerGuess(result == GuessResult.Hit);
+                _opponentTurnManager?.RecordPlayerGuess(result == GuessResult.Hit);
             }
 
             switch (result)
@@ -1362,9 +1215,9 @@ namespace TecVooDoo.DontLoseYourHead.UI
             UpdateTurnIndicator();
 
             // Trigger opponent turn
-            if (_opponentInitialized && _opponent != null)
+            if (_opponentTurnManager != null && _opponentTurnManager.IsOpponentInitialized)
             {
-                TriggerAITurn();
+                _opponentTurnManager.TriggerOpponentTurn();
             }
         }
 
@@ -1378,10 +1231,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
             UpdateTurnIndicator();
 
             // Advance opponent turn counter (memory for AI, sync for network)
-            if (_opponent != null)
-            {
-                _opponent.AdvanceTurn();
-            }
+            _opponentTurnManager?.AdvanceTurn();
         }
 
         private void UpdateTurnIndicator()
@@ -1408,41 +1258,55 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         #endregion
 
-        #region AI System
+        #region Opponent System
 
         /// <summary>
-        /// Initializes the opponent (AI or Remote player).
-        /// For single-player games, creates a LocalAIOpponent that wraps ExecutionerAI.
-        /// For multiplayer games, a RemotePlayerOpponent would be passed in.
+        /// Initialize the opponent turn manager and AI opponent.
         /// </summary>
-        /// <param name="opponent">Optional pre-created opponent (for multiplayer). If null, creates AI opponent.</param>
-        private async void InitializeOpponent(IOpponent opponent = null)
+        private void InitializeAI()
         {
-            // If no opponent provided, create AI opponent for single-player
-            if (opponent == null)
-            {
-                if (_aiConfig == null)
+            // Build word list dictionary
+            Dictionary<int, WordListSO> wordLists = new Dictionary<int, WordListSO>();
+            if (_threeLetterWords != null) wordLists[3] = _threeLetterWords;
+            if (_fourLetterWords != null) wordLists[4] = _fourLetterWords;
+            if (_fiveLetterWords != null) wordLists[5] = _fiveLetterWords;
+            if (_sixLetterWords != null) wordLists[6] = _sixLetterWords;
+
+            // Create opponent turn manager
+            _opponentTurnManager = new OpponentTurnManager(_aiConfig, gameObject, wordLists);
+
+            // Set callbacks for guess processing (returns true if hit)
+            _opponentTurnManager.SetGuessCallbacks(
+                letter => ProcessOpponentLetterGuess(letter) == GuessResult.Hit,
+                (col, row) => ProcessOpponentCoordinateGuess(col, row) == GuessResult.Hit,
+                (word, rowIndex) =>
                 {
-                    Debug.LogWarning("[GameplayUI] No AI config assigned! AI will not function.");
-                    return;
+                    GuessResult result = ProcessOpponentWordGuess(word, rowIndex);
+                    if (result != GuessResult.AlreadyGuessed && result != GuessResult.InvalidWord)
+                    {
+                        _stateTracker.AddOpponentGuessedWord(word);
+                    }
+                    return result == GuessResult.Hit;
                 }
+            );
 
-                // Build word list dictionary for AI word selection
-                Dictionary<int, WordListSO> wordLists = new Dictionary<int, WordListSO>();
-                if (_threeLetterWords != null) wordLists[3] = _threeLetterWords;
-                if (_fourLetterWords != null) wordLists[4] = _fourLetterWords;
-                if (_fiveLetterWords != null) wordLists[5] = _fiveLetterWords;
-                if (_sixLetterWords != null) wordLists[6] = _sixLetterWords;
+            // Set state accessor callbacks
+            _opponentTurnManager.SetStateCallbacks(
+                () => _gameOver,
+                () => _isPlayerTurn
+            );
 
-                // Create LocalAIOpponent
-                _opponent = OpponentFactory.CreateAIOpponent(_aiConfig, gameObject, wordLists);
-            }
-            else
-            {
-                _opponent = opponent;
-            }
+            // Set player data for AI game state building
+            _opponentTurnManager.SetPlayerData(_playerSetupData, _stateTracker);
 
-            // Create PlayerSetupData from internal SetupData for IOpponent interface
+            // Subscribe to opponent events
+            _opponentTurnManager.OnLetterGuessProcessed += HandleOpponentLetterGuessProcessed;
+            _opponentTurnManager.OnCoordinateGuessProcessed += HandleOpponentCoordinateGuessProcessed;
+            _opponentTurnManager.OnWordGuessProcessed += HandleOpponentWordGuessProcessed;
+            _opponentTurnManager.OnOpponentDisconnected += HandleOpponentDisconnected;
+            _opponentTurnManager.OnOpponentReconnected += HandleOpponentReconnected;
+
+            // Create PlayerSetupData for IOpponent interface
             var playerSetup = new PlayerSetupData
             {
                 PlayerName = _playerSetupData.PlayerName,
@@ -1454,318 +1318,65 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 PlacedWords = _playerSetupData.PlacedWords
             };
 
-            // Initialize opponent asynchronously
-            await _opponent.InitializeAsync(playerSetup);
-
-            // Subscribe to opponent events
-            SubscribeToOpponentEvents();
-
-            _opponentInitialized = true;
-            Debug.Log($"[GameplayUI] Opponent initialized: {_opponent.OpponentName} (IsAI: {_opponent.IsAI})");
+            // Initialize opponent
+            _opponentTurnManager.InitializeOpponent(playerSetup);
         }
 
-        /// <summary>
-        /// Legacy method name for backwards compatibility.
-        /// </summary>
-        private void InitializeAI()
+        private void HandleOpponentLetterGuessProcessed(char letter, bool wasHit)
         {
-            InitializeOpponent(null);
-        }
-
-        /// <summary>
-        /// Subscribe to IOpponent events for handling opponent guesses.
-        /// </summary>
-        private void SubscribeToOpponentEvents()
-        {
-            if (_opponent == null) return;
-
-            _opponent.OnLetterGuess += HandleAILetterGuess;
-            _opponent.OnCoordinateGuess += HandleAICoordinateGuess;
-            _opponent.OnWordGuess += HandleAIWordGuess;
-            _opponent.OnThinkingStarted += HandleAIThinkingStarted;
-            _opponent.OnThinkingComplete += HandleAIThinkingComplete;
-            _opponent.OnDisconnected += HandleOpponentDisconnected;
-            _opponent.OnReconnected += HandleOpponentReconnected;
-        }
-
-        private void UnsubscribeFromAIEvents()
-        {
-            UnsubscribeFromOpponentEvents();
-        }
-
-        /// <summary>
-        /// Unsubscribe from IOpponent events and dispose the opponent.
-        /// </summary>
-        private void UnsubscribeFromOpponentEvents()
-        {
-            if (_opponent == null) return;
-
-            _opponent.OnLetterGuess -= HandleAILetterGuess;
-            _opponent.OnCoordinateGuess -= HandleAICoordinateGuess;
-            _opponent.OnWordGuess -= HandleAIWordGuess;
-            _opponent.OnThinkingStarted -= HandleAIThinkingStarted;
-            _opponent.OnThinkingComplete -= HandleAIThinkingComplete;
-            _opponent.OnDisconnected -= HandleOpponentDisconnected;
-            _opponent.OnReconnected -= HandleOpponentReconnected;
-
-            _opponent.Dispose();
-            _opponent = null;
-            _opponentInitialized = false;
-        }
-
-        /// <summary>
-        /// Handler for opponent disconnect events (network multiplayer only).
-        /// </summary>
-        private void HandleOpponentDisconnected()
-        {
-            Debug.Log("[GameplayUI] Opponent disconnected!");
-            MessagePopup.Show("Opponent disconnected. Waiting for reconnection...");
-            // TODO: Add reconnection timeout and forfeit logic
-        }
-
-        /// <summary>
-        /// Handler for opponent reconnect events (network multiplayer only).
-        /// </summary>
-        private void HandleOpponentReconnected()
-        {
-            Debug.Log("[GameplayUI] Opponent reconnected!");
-            MessagePopup.Show("Opponent reconnected!");
-        }
-
-        /// <summary>
-        /// Build AIGameState from current game state for AI decision making.
-        /// </summary>
-        private AIGameState BuildAIGameState()
-        {
-            AIGameState state = new AIGameState();
-
-            state.GridSize = _playerSetupData.GridSize;
-            state.WordCount = _playerSetupData.WordCount;
-
-            // Copy guessed letters (all letters AI has tried)
-            state.GuessedLetters = new HashSet<char>(_opponentGuessedLetters);
-
-            // Copy hit letters (letters that exist in player's words)
-            state.HitLetters = new HashSet<char>(_opponentKnownLetters);
-
-            // Skill level is handled internally by LocalAIOpponent, use default for remote players
-            state.SkillLevel = 0.5f;
-
-            // Calculate fill ratio (approximate letters / total cells)
-            float avgWordLength = 4.5f; // Average of 3-6 letter words
-            state.FillRatio = (_playerSetupData.WordCount * avgWordLength) / (_playerSetupData.GridSize * _playerSetupData.GridSize);
-
-            // Copy ALL guessed coordinates (not just hits) so AI knows what NOT to guess
-            state.GuessedCoordinates = new HashSet<(int, int)>();
-            foreach (Vector2Int coord in _opponentGuessedCoordinates)
-            {
-                state.GuessedCoordinates.Add((coord.y, coord.x)); // Note: (row, col)
-            }
-
-            // Convert coordinates from Vector2Int to tuples - only track hits
-            state.HitCoordinates = new HashSet<(int, int)>();
-
-            foreach (Vector2Int coord in _opponentGuessedCoordinates)
-            {
-                // Check if this was a hit by checking if a letter exists there
-                bool wasHit = false;
-                foreach (WordPlacementData word in _playerSetupData.PlacedWords)
-                {
-                    for (int i = 0; i < word.Word.Length; i++)
-                    {
-                        int col = word.StartCol + (i * word.DirCol);
-                        int row = word.StartRow + (i * word.DirRow);
-                        if (col == coord.x && row == coord.y)
-                        {
-                            wasHit = true;
-                            break;
-                        }
-                    }
-                    if (wasHit) break;
-                }
-
-                if (wasHit)
-                {
-                    state.HitCoordinates.Add((coord.y, coord.x)); // Note: (row, col)
-                }
-            }
-
-            // Build word patterns from player's words
-            state.WordPatterns = new List<string>();
-            foreach (WordPlacementData word in _playerSetupData.PlacedWords)
-            {
-                System.Text.StringBuilder pattern = new System.Text.StringBuilder();
-                for (int i = 0; i < word.Word.Length; i++)
-                {
-                    char letter = word.Word[i];
-                    if (_opponentKnownLetters.Contains(letter))
-                    {
-                        pattern.Append(letter);
-                    }
-                    else
-                    {
-                        pattern.Append('_');
-                    }
-                }
-                state.WordPatterns.Add(pattern.ToString());
-            }
-
-            // Populate word bank for AI word guessing - only include words of relevant lengths
-            state.WordBank = new HashSet<string>();
-            HashSet<int> neededLengths = new HashSet<int>();
-            foreach (WordPlacementData word in _playerSetupData.PlacedWords)
-            {
-                neededLengths.Add(word.Word.Length);
-            }
-
-            foreach (int length in neededLengths)
-            {
-                WordListSO wordList = GetWordListForLength(length);
-                if (wordList != null && wordList.Words != null)
-                {
-                    foreach (string word in wordList.Words)
-                    {
-                        state.WordBank.Add(word.ToUpper());
-                    }
-                }
-            }
-
-            // Initialize WordsSolved list (all false initially, updated as words are solved)
-            state.WordsSolved = new List<bool>();
-            foreach (WordPlacementData word in _playerSetupData.PlacedWords)
-            {
-                state.WordsSolved.Add(_opponentSolvedWordRows.Contains(word.RowIndex));
-            }
-
-            // Copy previously guessed words so AI doesn't repeat them
-            state.GuessedWords = new HashSet<string>(_stateTracker.OpponentGuessedWords);
-
-            return state;
-        }
-
-        /// <summary>
-        /// Trigger the opponent to take their turn.
-        /// For AI opponents, this runs the AI decision-making.
-        /// For remote opponents, this waits for the network response.
-        /// </summary>
-        private void TriggerAITurn()
-        {
-            if (_gameOver || _isPlayerTurn || _opponent == null)
-            {
-                return;
-            }
-
-            AIGameState gameState = BuildAIGameState();
-            // IOpponent.ExecuteTurn handles the turn asynchronously
-            _opponent.ExecuteTurn(gameState);
-        }
-
-        private void HandleAIThinkingStarted()
-        {
-            Debug.Log("[GameplayUI] AI is thinking...");
-            // Could show a visual indicator here
-        }
-
-        private void HandleAIThinkingComplete()
-        {
-            Debug.Log("[GameplayUI] AI finished thinking.");
-        }
-
-        private void HandleAILetterGuess(char letter)
-        {
-            if (_gameOver) return;
-
-            Debug.Log(string.Format("[GameplayUI] AI guesses letter: {0}", letter));
-
-            GuessResult result = ProcessOpponentLetterGuess(letter);
-
-            // Record revealed letter for opponent memory (AI) or state sync (network)
-            if (result == GuessResult.Hit)
-            {
-                _opponent?.RecordRevealedLetter(letter);
-            }
-
             // Check opponent win condition BEFORE showing popup
             CheckOpponentWinCondition();
 
-            // Only show turn popup if game isn't over (game over has its own popup)
             if (!_gameOver)
             {
-                string resultText = result == GuessResult.Hit ? "Hit" : "Miss";
+                string resultText = wasHit ? "Hit" : "Miss";
                 ShowTurnPopup(string.Format("{0} guessed letter '{1}' - {2}. {3}'s turn!",
                     _opponentSetupData?.PlayerName ?? "Opponent", letter, resultText,
                     _playerSetupData?.PlayerName ?? "Player"));
-
                 EndOpponentTurn();
             }
         }
 
-        private void HandleAICoordinateGuess(int row, int col)
+        private void HandleOpponentCoordinateGuessProcessed(int col, int row, bool wasHit)
         {
-            if (_gameOver) return;
-
-            string colLabel = ((char)('A' + col)).ToString();
-            string coordLabel = colLabel + (row + 1);
-            Debug.Log(string.Format("[GameplayUI] AI guesses coordinate: {0}", coordLabel));
-
-            GuessResult result = ProcessOpponentCoordinateGuess(col, row);
-
-            // Record hit for opponent memory (AI) or state sync (network)
-            if (result == GuessResult.Hit)
-            {
-                _opponent?.RecordOpponentHit(row, col);
-            }
-
             // Check opponent win condition BEFORE showing popup
             CheckOpponentWinCondition();
 
-            // Only show turn popup if game isn't over (game over has its own popup)
             if (!_gameOver)
             {
-                string resultText = result == GuessResult.Hit ? "Hit" : "Miss";
+                string colLabel = ((char)('A' + col)).ToString();
+                string coordLabel = colLabel + (row + 1);
+                string resultText = wasHit ? "Hit" : "Miss";
                 ShowTurnPopup(string.Format("{0} guessed {1} - {2}. {3}'s turn!",
                     _opponentSetupData?.PlayerName ?? "Opponent", coordLabel, resultText,
                     _playerSetupData?.PlayerName ?? "Player"));
-
                 EndOpponentTurn();
             }
         }
 
-        private void HandleAIWordGuess(string word, int rowIndex)
+        private void HandleOpponentWordGuessProcessed(string word, int rowIndex, bool wasCorrect)
         {
-            if (_gameOver) return;
-
-            Debug.Log(string.Format("[GameplayUI] AI guesses word: {0} (row {1})", word, rowIndex + 1));
-
-            GuessResult result = ProcessOpponentWordGuess(word, rowIndex);
-
-            // Record revealed letters for AI memory (ProcessOpponentWordGuess handles state tracker)
-            if (result == GuessResult.Hit)
-            {
-                foreach (char letter in word.ToUpper())
-                {
-                    _opponent?.RecordRevealedLetter(letter);
-                }
-            }
-
-            if (result != GuessResult.AlreadyGuessed && result != GuessResult.InvalidWord)
-            {
-                _stateTracker.AddOpponentGuessedWord(word);
-            }
-
             // Check opponent win condition BEFORE showing popup
             CheckOpponentWinCondition();
 
-            // Only show turn popup if game isn't over (game over has its own popup)
             if (!_gameOver)
             {
-                string resultText = result == GuessResult.Hit ? "Correct" : "Incorrect";
+                string resultText = wasCorrect ? "Correct" : "Incorrect";
                 ShowTurnPopup(string.Format("{0} guessed word '{1}' - {2}. {3}'s turn!",
                     _opponentSetupData?.PlayerName ?? "Opponent", word.ToUpper(), resultText,
                     _playerSetupData?.PlayerName ?? "Player"));
-
                 EndOpponentTurn();
             }
+        }
+
+        private void HandleOpponentDisconnected()
+        {
+            MessagePopup.Show("Opponent disconnected. Waiting for reconnection...");
+        }
+
+        private void HandleOpponentReconnected()
+        {
+            MessagePopup.Show("Opponent reconnected!");
         }
 
         #endregion
@@ -1896,7 +1507,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 UpdateTurnIndicator();
 
                 // Trigger opponent guillotine defeat animation (player found all opponent's words)
-                TriggerOpponentGuillotineDefeatByWords();
+                _uiUpdater?.TriggerOpponentGuillotineDefeatByWords();
 
                 // Show game over popup
                 ShowGameOverPopup(true, GameOverReason.AllWordsFound);
@@ -1922,7 +1533,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 UpdateTurnIndicator();
 
                 // Trigger guillotine game over animation for player
-                TriggerPlayerGuillotineGameOver();
+                _uiUpdater?.TriggerPlayerGuillotineGameOver();
 
                 // Show game over popup
                 ShowGameOverPopup(false, GameOverReason.MissLimitReached);
@@ -1957,7 +1568,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 UpdateTurnIndicator();
 
                 // Trigger player guillotine defeat animation (opponent found all player's words)
-                TriggerPlayerGuillotineDefeatByWords();
+                _uiUpdater?.TriggerPlayerGuillotineDefeatByWords();
 
                 // Show game over popup
                 ShowGameOverPopup(false, GameOverReason.OpponentFoundAllWords);
@@ -1983,7 +1594,7 @@ namespace TecVooDoo.DontLoseYourHead.UI
                 UpdateTurnIndicator();
 
                 // Trigger guillotine game over animation for opponent
-                TriggerOpponentGuillotineGameOver();
+                _uiUpdater?.TriggerOpponentGuillotineGameOver();
 
                 // Show game over popup
                 ShowGameOverPopup(true, GameOverReason.OpponentMissLimitReached);
@@ -2067,210 +1678,24 @@ namespace TecVooDoo.DontLoseYourHead.UI
 
         #endregion
 
-        #region Guillotine Display
+        // Guillotine Display methods delegated to _uiUpdater (GameplayUIUpdater.cs)
 
-        private void InitializeGuillotines()
+        #region Miss Counter (Delegated to GameplayUIUpdater)
+
+        /// <summary>
+        /// Update player's miss counter and guillotine via the UI updater.
+        /// </summary>
+        private void UpdatePlayerMissCounter()
         {
-            // Initialize player 1 guillotine (shows player's miss progress)
-            if (_player1Guillotine != null && _playerSetupData != null && _stateTracker != null)
-            {
-                _player1Guillotine.Initialize(_stateTracker.PlayerMissLimit, _playerSetupData.PlayerColor);
-            }
-
-            // Initialize player 2 guillotine (shows opponent's miss progress)
-            if (_player2Guillotine != null && _opponentSetupData != null && _stateTracker != null)
-            {
-                _player2Guillotine.Initialize(_stateTracker.OpponentMissLimit, _opponentSetupData.PlayerColor);
-            }
-        }
-
-        private void UpdatePlayerGuillotine()
-        {
-            if (_player1Guillotine != null && _stateTracker != null)
-            {
-                _player1Guillotine.UpdateMissCount(_stateTracker.PlayerMisses);
-                // Update both faces based on new danger levels
-                UpdateGuillotineFaces();
-            }
-        }
-
-        private void UpdateOpponentGuillotine()
-        {
-            if (_player2Guillotine != null && _stateTracker != null)
-            {
-                _player2Guillotine.UpdateMissCount(_stateTracker.OpponentMisses);
-                // Update both faces based on new danger levels
-                UpdateGuillotineFaces();
-            }
-        }
-
-        private void UpdateGuillotineFaces()
-        {
-            if (_stateTracker == null) return;
-
-            // Player 1's face reacts to their own misses and opponent's misses
-            if (_player1Guillotine != null)
-            {
-                _player1Guillotine.UpdateFace(_stateTracker.OpponentMisses, _stateTracker.OpponentMissLimit);
-            }
-
-            // Player 2's face reacts to their own misses and player's misses
-            if (_player2Guillotine != null)
-            {
-                _player2Guillotine.UpdateFace(_stateTracker.PlayerMisses, _stateTracker.PlayerMissLimit);
-            }
-        }
-
-        private void TriggerPlayerGuillotineGameOver()
-        {
-            if (_player1Guillotine != null)
-            {
-                _player1Guillotine.AnimateGameOver();
-            }
-            // Winner (player 2) gets evil smile
-            if (_player2Guillotine != null)
-            {
-                _player2Guillotine.SetExecutionFace(false);
-            }
-        }
-
-        private void TriggerOpponentGuillotineGameOver()
-        {
-            if (_player2Guillotine != null)
-            {
-                _player2Guillotine.AnimateGameOver();
-            }
-            // Winner (player 1) gets evil smile
-            if (_player1Guillotine != null)
-            {
-                _player1Guillotine.SetExecutionFace(false);
-            }
-        }
-
-        private void TriggerPlayerGuillotineDefeatByWords()
-        {
-            if (_player1Guillotine != null)
-            {
-                _player1Guillotine.AnimateDefeatByWordsFound();
-            }
-            // Winner (player 2) gets evil smile
-            if (_player2Guillotine != null)
-            {
-                _player2Guillotine.SetExecutionFace(false);
-            }
-        }
-
-        private void TriggerOpponentGuillotineDefeatByWords()
-        {
-            if (_player2Guillotine != null)
-            {
-                _player2Guillotine.AnimateDefeatByWordsFound();
-            }
-            // Winner (player 1) gets evil smile
-            if (_player1Guillotine != null)
-            {
-                _player1Guillotine.SetExecutionFace(false);
-            }
-        }
-
-        #endregion
-
-        #region Miss Counter
-
-        private void UpdateMissCounters()
-        {
-            if (_player1MissCounter != null && _stateTracker != null)
-            {
-                _player1MissCounter.text = _stateTracker.GetPlayerMissCounterText();
-            }
-
-            if (_player2MissCounter != null && _stateTracker != null)
-            {
-                _player2MissCounter.text = _stateTracker.GetOpponentMissCounterText();
-            }
-        }
-
-        private void UpdateCenterPanelNames()
-        {
-            if (_player1NameLabel != null && _playerSetupData != null)
-            {
-                _player1NameLabel.text = _playerSetupData.PlayerName;
-            }
-
-            if (_player2NameLabel != null && _opponentSetupData != null)
-            {
-                _player2NameLabel.text = _opponentSetupData.PlayerName;
-            }
-
-            if (_player1ColorIndicator != null && _playerSetupData != null)
-            {
-                _player1ColorIndicator.color = _playerSetupData.PlayerColor;
-            }
-
-            if (_player2ColorIndicator != null && _opponentSetupData != null)
-            {
-                _player2ColorIndicator.color = _opponentSetupData.PlayerColor;
-            }
-
-            // Apply player colors to miss counter labels and guessed word list labels
-            ApplyPlayerColorsToLabels();
+            _uiUpdater?.UpdatePlayerMissCounter();
         }
 
         /// <summary>
-        /// Sets the background Image color of miss counter labels and guessed word list labels
-        /// to match each player's chosen color.
+        /// Update opponent's miss counter and guillotine via the UI updater.
         /// </summary>
-        private void ApplyPlayerColorsToLabels()
-        {
-            // Player 1 label backgrounds
-            if (_playerSetupData != null)
-            {
-                Color player1Color = _playerSetupData.PlayerColor;
-
-                if (_player1MissLabelBackground != null)
-                    _player1MissLabelBackground.color = player1Color;
-
-                if (_player1GuessedWordsLabelBackground != null)
-                    _player1GuessedWordsLabelBackground.color = player1Color;
-            }
-
-            // Player 2 (opponent) label backgrounds
-            if (_opponentSetupData != null)
-            {
-                Color player2Color = _opponentSetupData.PlayerColor;
-
-                if (_player2MissLabelBackground != null)
-                    _player2MissLabelBackground.color = player2Color;
-
-                if (_player2GuessedWordsLabelBackground != null)
-                    _player2GuessedWordsLabelBackground.color = player2Color;
-            }
-        }
-
-        private void UpdatePlayerMissCounter()
-        {
-            if (_player1MissCounter != null && _stateTracker != null)
-            {
-                _player1MissCounter.text = _stateTracker.GetPlayerMissCounterText();
-            }
-
-            // Update guillotine display
-            UpdatePlayerGuillotine();
-
-            // Win/lose checking delegated to WinConditionChecker via CheckPlayerWinCondition
-        }
-
         private void UpdateOpponentMissCounter()
         {
-            if (_player2MissCounter != null && _stateTracker != null)
-            {
-                _player2MissCounter.text = _stateTracker.GetOpponentMissCounterText();
-            }
-
-            // Update guillotine display
-            UpdateOpponentGuillotine();
-
-            // Win/lose checking delegated to WinConditionChecker via CheckOpponentWinCondition
+            _uiUpdater?.UpdateOpponentMissCounter();
         }
 
         #endregion

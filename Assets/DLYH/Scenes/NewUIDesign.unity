@@ -265,7 +265,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7455211}
-  - component: {fileID: 7455212}
   m_Layer: 0
   m_Name: arm_left_Mesh
   m_TagString: Untagged
@@ -288,18 +287,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2049055616}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &7455212
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7455210}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6e703e45d72db8041bdcd65e55e02bd2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: com.rainyrizzle.anyportrait::AnyPortrait.apMesh
 --- !u!1 &7456706
 GameObject:
   m_ObjectHideFlags: 0
@@ -594,7 +581,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 63525136}
-  - component: {fileID: 63525137}
   m_Layer: 0
   m_Name: eyes_Mesh
   m_TagString: Untagged
@@ -617,18 +603,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2049055616}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &63525137
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 63525135}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6e703e45d72db8041bdcd65e55e02bd2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: com.rainyrizzle.anyportrait::AnyPortrait.apMesh
 --- !u!1 &77692528
 GameObject:
   m_ObjectHideFlags: 0
@@ -702,7 +676,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 79956499}
-  - component: {fileID: 79956500}
   m_Layer: 0
   m_Name: Reference_Mesh
   m_TagString: Untagged
@@ -725,18 +698,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2049055616}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &79956500
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 79956498}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6e703e45d72db8041bdcd65e55e02bd2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: com.rainyrizzle.anyportrait::AnyPortrait.apMesh
 --- !u!1 &80030755
 GameObject:
   m_ObjectHideFlags: 0
@@ -1041,7 +1002,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 106577168}
-  - component: {fileID: 106577169}
   m_Layer: 0
   m_Name: 2d silly overweight executioner
   m_TagString: Untagged
@@ -1064,18 +1024,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1959979679}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &106577169
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 106577167}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 179489bbaa24b0a4fba54ddb542eff95, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: com.rainyrizzle.anyportrait::AnyPortrait.apMeshGroup
 --- !u!1 &122896118
 GameObject:
   m_ObjectHideFlags: 0
@@ -1395,7 +1343,6 @@ RectTransform:
   m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 970345561}
   - {fileID: 1608185428}
   - {fileID: 1628787178}
   - {fileID: 928873974}
@@ -1406,6 +1353,7 @@ RectTransform:
   - {fileID: 573695740}
   - {fileID: 388623820}
   - {fileID: 758470027}
+  - {fileID: 1725029964}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -2651,6 +2599,41 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 254823210}
   m_CullTransparentMesh: 1
+--- !u!1 &265099697
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 265099698}
+  m_Layer: 5
+  m_Name: RowContainer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &265099698
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 265099697}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1725029964}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: -32, y: -32}
+  m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &276013462
 GameObject:
   m_ObjectHideFlags: 0
@@ -4459,7 +4442,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 391302172}
-  - component: {fileID: 391302173}
   m_Layer: 0
   m_Name: torso_Mesh
   m_TagString: Untagged
@@ -4482,18 +4464,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2049055616}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &391302173
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 391302171}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6e703e45d72db8041bdcd65e55e02bd2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: com.rainyrizzle.anyportrait::AnyPortrait.apMesh
 --- !u!1 &406863824
 GameObject:
   m_ObjectHideFlags: 0
@@ -5537,7 +5507,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 470091359}
-  - component: {fileID: 470091360}
   m_Layer: 0
   m_Name: groin_Mesh
   m_TagString: Untagged
@@ -5560,18 +5529,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2049055616}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &470091360
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 470091358}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6e703e45d72db8041bdcd65e55e02bd2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: com.rainyrizzle.anyportrait::AnyPortrait.apMesh
 --- !u!1 &475580743
 GameObject:
   m_ObjectHideFlags: 0
@@ -5930,7 +5887,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 503668724}
-  - component: {fileID: 503668725}
   m_Layer: 0
   m_Name: hood_Mesh
   m_TagString: Untagged
@@ -5953,18 +5909,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2049055616}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &503668725
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 503668723}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6e703e45d72db8041bdcd65e55e02bd2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: com.rainyrizzle.anyportrait::AnyPortrait.apMesh
 --- !u!1 &509177636
 GameObject:
   m_ObjectHideFlags: 0
@@ -6232,7 +6176,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 523659837}
-  - component: {fileID: 523659838}
   m_Layer: 0
   m_Name: chest_Mesh
   m_TagString: Untagged
@@ -6255,18 +6198,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2049055616}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &523659838
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 523659836}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6e703e45d72db8041bdcd65e55e02bd2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: com.rainyrizzle.anyportrait::AnyPortrait.apMesh
 --- !u!1 &524132335
 GameObject:
   m_ObjectHideFlags: 0
@@ -7878,7 +7809,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 685589643}
-  - component: {fileID: 685589644}
   m_Layer: 0
   m_Name: boot_right_MeshGroup
   m_TagString: Untagged
@@ -7901,18 +7831,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1959979679}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &685589644
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 685589642}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 179489bbaa24b0a4fba54ddb542eff95, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: com.rainyrizzle.anyportrait::AnyPortrait.apMeshGroup
 --- !u!1 &710169562
 GameObject:
   m_ObjectHideFlags: 0
@@ -8162,7 +8080,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 744823437}
-  - component: {fileID: 744823438}
   m_Layer: 0
   m_Name: "lowerleg\_+\_upperleg_Mesh"
   m_TagString: Untagged
@@ -8185,18 +8102,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2049055616}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &744823438
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 744823436}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6e703e45d72db8041bdcd65e55e02bd2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: com.rainyrizzle.anyportrait::AnyPortrait.apMesh
 --- !u!1 &754500579
 GameObject:
   m_ObjectHideFlags: 0
@@ -9291,7 +9196,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 810011427}
-  - component: {fileID: 810011428}
   m_Layer: 0
   m_Name: Modifier - Rigging
   m_TagString: Untagged
@@ -9314,18 +9218,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1392792693}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &810011428
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 810011426}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 68d67bedbbd74e842b0c2fab32fda5f5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: com.rainyrizzle.anyportrait::AnyPortrait.apModifier_Rigging
 --- !u!1 &813847529
 GameObject:
   m_ObjectHideFlags: 0
@@ -10867,65 +10759,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 965054867}
   m_CullTransparentMesh: 1
---- !u!1 &970345560
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 970345561}
-  - component: {fileID: 970345562}
-  m_Layer: 5
-  m_Name: WordPatternRowUI
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!224 &970345561
-RectTransform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 970345560}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 2109158930}
-  m_Father: {fileID: 138650375}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0.5}
-  m_AnchorMax: {x: 1, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 100}
-  m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &970345562
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 970345560}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 349d2e10a217da04ab527a8b0b0a7d37, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TecVooDoo.DontLoseYourHead.UI.WordPatternRowUI
-  _rowIndex: 0
-  _wordLength: 3
-  _mode: 0
-  _cellContainer: {fileID: 2109158930}
-  _cellPrefab: {fileID: 3522727529820748562, guid: ddbb6b7d810d30648a5c6aaa519589e2, type: 3}
-  _selectIcon: {fileID: 0}
-  _placeIcon: {fileID: 0}
-  _deleteIcon: {fileID: 0}
-  _guessWordIcon: {fileID: 0}
-  _playerColor: {r: 0, g: 1, b: 1, a: 1}
 --- !u!1 &970450370
 GameObject:
   m_ObjectHideFlags: 0
@@ -16404,7 +16237,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1155645531}
-  - component: {fileID: 1155645532}
   m_Layer: 0
   m_Name: belt_Mesh
   m_TagString: Untagged
@@ -16427,18 +16259,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2049055616}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1155645532
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1155645530}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6e703e45d72db8041bdcd65e55e02bd2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: com.rainyrizzle.anyportrait::AnyPortrait.apMesh
 --- !u!1 &1168160231
 GameObject:
   m_ObjectHideFlags: 0
@@ -20811,7 +20631,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1396654966}
-  - component: {fileID: 1396654965}
   m_Layer: 0
   m_Name: Executioner
   m_TagString: Untagged
@@ -20819,18 +20638,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1396654965
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1396654964}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 08e5468fa1bf05b4896cd7b2ef8664ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: com.rainyrizzle.anyportrait::AnyPortrait.apPortrait
 --- !u!4 &1396654966
 Transform:
   m_ObjectHideFlags: 0
@@ -20856,7 +20663,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1398567320}
-  - component: {fileID: 1398567321}
   m_Layer: 0
   m_Name: boot_Mesh
   m_TagString: Untagged
@@ -20879,18 +20685,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2049055616}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1398567321
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1398567319}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6e703e45d72db8041bdcd65e55e02bd2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: com.rainyrizzle.anyportrait::AnyPortrait.apMesh
 --- !u!1 &1410504336
 GameObject:
   m_ObjectHideFlags: 0
@@ -21058,7 +20852,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1412212285}
-  - component: {fileID: 1412212286}
   m_Layer: 0
   m_Name: face_Mesh
   m_TagString: Untagged
@@ -21081,18 +20874,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2049055616}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1412212286
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1412212284}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6e703e45d72db8041bdcd65e55e02bd2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: com.rainyrizzle.anyportrait::AnyPortrait.apMesh
 --- !u!1 &1413602588
 GameObject:
   m_ObjectHideFlags: 0
@@ -21823,7 +21604,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1446908413}
-  - component: {fileID: 1446908414}
   m_Layer: 0
   m_Name: hand_right_Mesh
   m_TagString: Untagged
@@ -21846,18 +21626,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2049055616}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1446908414
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1446908412}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6e703e45d72db8041bdcd65e55e02bd2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: com.rainyrizzle.anyportrait::AnyPortrait.apMesh
 --- !u!1 &1455438824
 GameObject:
   m_ObjectHideFlags: 0
@@ -22493,7 +22261,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1501616550}
-  - component: {fileID: 1501616551}
   m_Layer: 0
   m_Name: leg_left_Mesh
   m_TagString: Untagged
@@ -22516,18 +22283,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2049055616}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1501616551
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1501616549}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6e703e45d72db8041bdcd65e55e02bd2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: com.rainyrizzle.anyportrait::AnyPortrait.apMesh
 --- !u!1 &1503331833
 GameObject:
   m_ObjectHideFlags: 0
@@ -23244,7 +22999,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1577172010}
-  - component: {fileID: 1577172011}
   m_Layer: 0
   m_Name: boot_left_MeshGroup
   m_TagString: Untagged
@@ -23267,18 +23021,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1959979679}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1577172011
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1577172009}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 179489bbaa24b0a4fba54ddb542eff95, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: com.rainyrizzle.anyportrait::AnyPortrait.apMeshGroup
 --- !u!1 &1578194320
 GameObject:
   m_ObjectHideFlags: 0
@@ -23774,7 +23516,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1600353875}
-  - component: {fileID: 1600353876}
   m_Layer: 0
   m_Name: arm_right_Mesh
   m_TagString: Untagged
@@ -23797,18 +23538,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2049055616}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1600353876
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1600353874}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6e703e45d72db8041bdcd65e55e02bd2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: com.rainyrizzle.anyportrait::AnyPortrait.apMesh
 --- !u!1 &1608185427
 GameObject:
   m_ObjectHideFlags: 0
@@ -24727,6 +24456,66 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1709676278}
   m_CullTransparentMesh: 1
+--- !u!1 &1725029963
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1725029964}
+  - component: {fileID: 1725029965}
+  m_Layer: 5
+  m_Name: WordPatternPanel
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1725029964
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1725029963}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1814318466}
+  - {fileID: 265099698}
+  m_Father: {fileID: 138650375}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 360, y: 800}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1725029965
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1725029963}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f36b154604ae1b146a41ef7585d405e4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TecVooDoo.DontLoseYourHead.UI.WordPatternPanelUI
+  _activeRowCount: 3
+  _mode: 0
+  _defaultWordLength: 3
+  _rowContainer: {fileID: 265099698}
+  _rowPrefab: {fileID: 593517136812684794, guid: 4f6622eabc281cd4291447c94c1fdc1c, type: 3}
+  _rowSpacing: 5
+  _rowHeight: 50
+  _rowWidth: 600
+  _panelBackground: {fileID: 1814318467}
+  _playerColor: {r: 0, g: 1, b: 1, a: 1}
 --- !u!1 &1729253441
 GameObject:
   m_ObjectHideFlags: 3
@@ -24736,7 +24525,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1729253442}
-  - component: {fileID: 1729253443}
   m_Layer: 0
   m_Name: hand_left_Mesh
   m_TagString: Untagged
@@ -24759,18 +24547,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2049055616}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1729253443
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1729253441}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6e703e45d72db8041bdcd65e55e02bd2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: com.rainyrizzle.anyportrait::AnyPortrait.apMesh
 --- !u!1 &1734187632
 GameObject:
   m_ObjectHideFlags: 0
@@ -25435,6 +25211,81 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
+--- !u!1 &1814318465
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1814318466}
+  - component: {fileID: 1814318468}
+  - component: {fileID: 1814318467}
+  m_Layer: 5
+  m_Name: Background
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1814318466
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1814318465}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1725029964}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1814318467
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1814318465}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 21300000, guid: 4cd9629e210f77e43835d58fe29886f4, type: 3}
+  m_Type: 1
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &1814318468
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1814318465}
+  m_CullTransparentMesh: 1
 --- !u!1 &1823067140
 GameObject:
   m_ObjectHideFlags: 0
@@ -27511,7 +27362,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2005692543}
-  - component: {fileID: 2005692544}
   m_Layer: 0
   m_Name: leg_right_MeshGroup
   m_TagString: Untagged
@@ -27534,18 +27384,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1959979679}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2005692544
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2005692542}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 179489bbaa24b0a4fba54ddb542eff95, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: com.rainyrizzle.anyportrait::AnyPortrait.apMeshGroup
 --- !u!1 &2018636808
 GameObject:
   m_ObjectHideFlags: 0
@@ -28510,89 +28348,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2103706116}
   m_CullTransparentMesh: 1
---- !u!1 &2109158929
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2109158930}
-  - component: {fileID: 2109158932}
-  - component: {fileID: 2109158931}
-  m_Layer: 5
-  m_Name: CellContainer
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!224 &2109158930
-RectTransform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2109158929}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 970345561}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
-  m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &2109158931
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2109158929}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 306cc8c2b49d7114eaa3623786fc2126, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.LayoutElement
-  m_IgnoreLayout: 0
-  m_MinWidth: -1
-  m_MinHeight: -1
-  m_PreferredWidth: -1
-  m_PreferredHeight: -1
-  m_FlexibleWidth: 1
-  m_FlexibleHeight: -1
-  m_LayoutPriority: 1
---- !u!114 &2109158932
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2109158929}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 30649d3a9faa99c48a7b1166b86bf2a0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.HorizontalLayoutGroup
-  m_Padding:
-    m_Left: 0
-    m_Right: 0
-    m_Top: 0
-    m_Bottom: 0
-  m_ChildAlignment: 3
-  m_Spacing: 4
-  m_ChildForceExpandWidth: 1
-  m_ChildForceExpandHeight: 0
-  m_ChildControlWidth: 1
-  m_ChildControlHeight: 1
-  m_ChildScaleWidth: 0
-  m_ChildScaleHeight: 0
-  m_ReverseArrangement: 0
 --- !u!1 &2118484569
 GameObject:
   m_ObjectHideFlags: 0
@@ -28803,7 +28558,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2132252235}
-  - component: {fileID: 2132252236}
   m_Layer: 0
   m_Name: boot_Mesh
   m_TagString: Untagged
@@ -28826,18 +28580,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2049055616}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2132252236
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2132252234}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6e703e45d72db8041bdcd65e55e02bd2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: com.rainyrizzle.anyportrait::AnyPortrait.apMesh
 --- !u!1 &2137820594
 GameObject:
   m_ObjectHideFlags: 0

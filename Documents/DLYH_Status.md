@@ -4,7 +4,7 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 10
+**Document Version:** 12
 **Last Updated:** January 6, 2026
 
 ---
@@ -17,7 +17,7 @@
 
 **Current Phase:** Phase 0 (Refactor) - preparing codebase for UI Toolkit migration and multiplayer integration
 
-**Last Session (Jan 6, 2026):** Consolidated project documentation. Established new development plan: refactor large scripts first, verify multiplayer networking, then implement UI Toolkit table-based UI. Pivoting away from uGUI prefab approach (LetterCellUI/WordPatternRowUI) to UI Toolkit.
+**Last Session (Jan 6, 2026):** Continued Phase 0 refactoring. Extracted OpponentTurnManager from GameplayUIController (~250 lines saved). Removed duplicate Guillotine and Miss Counter code by delegating to GameplayUIUpdater (~185 lines saved). File reduced from ~2481 to ~2043 lines (~440 lines total this session).
 
 ---
 
@@ -31,8 +31,17 @@
 
 ## Active TODO
 
+### Environment Fix (Before Coding)
+- [x] Fix Claude Code tool approvals - updated E:\Unity\.claude\settings.local.json with broad permissions
+- [x] Fix GitHub account default - deleted Rune1172 and stephenmbrandon credentials (TecVooDoo remains)
+
 ### Immediate (Phase 0: Refactor)
-- [ ] Extract GameplayUIController (~2150 lines) into smaller controllers (<800 each)
+- [x] Extract GameplayUIController panel configuration -> GameplayPanelConfigurator (~140 lines)
+- [x] Extract GameplayUIController UI updates -> GameplayUIUpdater (~290 lines)
+- [x] Extract GameplayUIController popup messages -> PopupMessageController (~250 lines)
+- [x] Extract GameplayUIController opponent system -> OpponentTurnManager (~380 lines)
+- [x] Remove duplicate Guillotine/MissCounter code (delegate to GameplayUIUpdater)
+- [ ] GameplayUIController reduced from ~2619 to ~2043 lines - continue extraction to target <800
 - [ ] Extract SetupSettingsPanel (~850 lines)
 - [ ] Extract PlayerGridPanel (~1120 lines)
 - [ ] Document new interfaces/controllers in Architecture section
@@ -104,7 +113,7 @@
 ## Known Issues
 
 **Architecture:**
-- GameplayUIController at ~2150 lines (needs extraction)
+- GameplayUIController at ~2043 lines (needs more extraction, target <800)
 - SetupSettingsPanel at ~850 lines (needs extraction)
 - PlayerGridPanel at ~1120 lines (needs extraction)
 - Inconsistent namespace convention (TecVooDoo.DontLoseYourHead.* vs DLYH.*)
@@ -200,22 +209,55 @@ Create minimal test scene to verify networking works before building UI around i
 | `DLYH.Networking.UI` | 3 | Lobby, waiting room |
 | `DLYH.Editor` | 1 | Telemetry Dashboard |
 
+### Key Types by Namespace
+
+**TecVooDoo.DontLoseYourHead.UI:**
+- GameplayUIController, PlayerGridPanel, SetupSettingsPanel, WordPatternRow
+- GridCellUI, LetterButton, GuillotineDisplay, MessagePopup
+- Controllers/: GameplayPanelConfigurator, GameplayUIUpdater, PopupMessageController, OpponentTurnManager
+- Services/: GuessProcessor, GameplayStateTracker, WinConditionChecker, WordGuessModeController
+- Data classes: SetupData (in GameplayPanelConfigurator), WordPlacementData (in GuessProcessor)
+- Enums: GameOverReason (in PopupMessageController), WordGuessResult
+
+**TecVooDoo.DontLoseYourHead.Core:**
+- WordListSO, DifficultyCalculator, DifficultySetting, WordCountOption
+
+**DLYH.AI.Core:**
+- ExecutionerAI, AISetupManager, DifficultyAdapter
+
+**DLYH.AI.Config:**
+- ExecutionerConfigSO
+
+**DLYH.AI.Strategies:**
+- IGuessStrategy, AIGameState, LetterFrequencyStrategy, CoordinateStrategy, WordGuessStrategy
+
+**DLYH.Networking:**
+- IOpponent, LocalAIOpponent, RemotePlayerOpponent, OpponentFactory
+- PlayerSetupData
+
 ### Key Folders
 
 ```
 Assets/DLYH/
   Scripts/
-    AI/           - ExecutionerAI, strategies, rubber-banding
-    Audio/        - UIAudioManager, MusicManager, GuillotineAudioManager
-    Core/         - Grid, Word, DifficultyCalculator
-    Editor/       - TelemetryDashboard
-    Networking/   - IOpponent, LocalAIOpponent, RemotePlayerOpponent
-      Services/   - Supabase, Auth, Realtime, GameSession
-      UI/         - Lobby, WaitingRoom, ConnectionStatus
-    Telemetry/    - PlaytestTelemetry
-    UI/           - All UI controllers and components
-      Controllers/ - Extracted controller classes
-      Services/    - GuessProcessor, WinConditionChecker
+    AI/
+      Config/     - ExecutionerConfigSO.cs (DLYH.AI.Config)
+      Core/       - ExecutionerAI, AISetupManager, DifficultyAdapter, MemoryManager (DLYH.AI.Core)
+      Data/       - GridAnalyzer, LetterFrequency (DLYH.AI.Data)
+      Strategies/ - IGuessStrategy, Letter/Coordinate/WordGuessStrategy (DLYH.AI.Strategies)
+    Audio/        - UIAudioManager, MusicManager, GuillotineAudioManager (DLYH.Audio)
+    Core/         - WordListSO, DifficultyCalculator, DifficultySetting (TecVooDoo.DontLoseYourHead.Core)
+    Editor/       - TelemetryDashboard (DLYH.Editor)
+    Networking/   - IOpponent, LocalAIOpponent, RemotePlayerOpponent, OpponentFactory (DLYH.Networking)
+      Services/   - Supabase, Auth, Realtime, GameSession (DLYH.Networking.Services)
+      UI/         - Lobby, WaitingRoom, ConnectionStatus (DLYH.Networking.UI)
+    Telemetry/    - PlaytestTelemetry (DLYH.Telemetry)
+    UI/           - Main UI scripts (TecVooDoo.DontLoseYourHead.UI)
+      Controllers/ - Extracted controllers: GameplayPanelConfigurator, GameplayUIUpdater,
+                    PopupMessageController, OpponentTurnManager, CoordinatePlacementController, etc.
+      Interfaces/ - IGridControllers.cs
+      Services/   - GuessProcessor, GameplayStateTracker, WinConditionChecker, WordValidationService
+      Utilities/  - RowDisplayBuilder (TecVooDoo.DontLoseYourHead.UI.Utilities)
   NewUI/          - [ABANDONED] LetterCellUI.prefab, WordPatternRowUI.prefab
   Scenes/
     NewPlayTesting.unity - Current working scene (use this)
@@ -227,13 +269,26 @@ Assets/DLYH/
 
 | Script | Lines | Purpose | Status |
 |--------|-------|---------|--------|
-| GameplayUIController | ~2150 | Master gameplay controller | NEEDS EXTRACTION |
+| GameplayUIController | ~2043 | Master gameplay controller | PARTIAL (~576 lines extracted) |
 | SetupSettingsPanel | ~850 | Player setup configuration | NEEDS EXTRACTION |
 | PlayerGridPanel | ~1120 | Single player grid display | NEEDS EXTRACTION |
 | ExecutionerAI | ~493 | AI opponent coordination | OK |
 | IOpponent | ~177 | Opponent abstraction interface | OK (not wired) |
 | LocalAIOpponent | ~300 | AI wrapper for IOpponent | OK (not wired) |
 | RemotePlayerOpponent | ~400 | Network player opponent | OK (not wired) |
+
+### Extracted Controllers (Phase 0)
+
+| Controller | Lines | Purpose | Extracted From |
+|------------|-------|---------|---------------|
+| GameplayPanelConfigurator | ~175 | Panel setup for owner/opponent grids, SetupData class | GameplayUIController |
+| GameplayUIUpdater | ~380 | UI updates (miss counters, names, colors, guillotines) | GameplayUIController |
+| PopupMessageController | ~245 | Popup message display, GameOverReason enum | GameplayUIController |
+| OpponentTurnManager | ~380 | AI/opponent initialization, turn execution, game state building | GameplayUIController |
+| GameplayStateTracker | ~300 | State tracking (misses, letters, coordinates) | GameplayUIController (previous) |
+| GuessProcessor | ~350 | Guess processing logic | GameplayUIController (previous) |
+| WinConditionChecker | ~150 | Win/lose condition checking | GameplayUIController (previous) |
+| WordGuessModeController | ~400 | Word guess keyboard mode | GameplayUIController (previous) |
 
 ### Packages
 
@@ -754,6 +809,8 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 12 | Jan 6, 2026 | Continued Phase 0. Extracted OpponentTurnManager (~380 lines). Removed duplicate Guillotine/MissCounter code. GameplayUIController now at ~2043 lines (from original ~2619). |
+| 11 | Jan 6, 2026 | Phase 0 started. Extracted 3 controllers from GameplayUIController (GameplayPanelConfigurator, GameplayUIUpdater, PopupMessageController). Fixed Claude Code and GitHub settings. |
 | 10 | Jan 6, 2026 | Consolidated from DLYH_Status.md (v7), DLYH_Status_REWRITTEN.md (v9), and Table Model Spec. New plan: Phase 0 refactor, Phase 0.5 multiplayer verify, then UI Toolkit. Pivot from uGUI to UI Toolkit documented. |
 | 9 | Jan 6, 2026 | (REWRITTEN) Locked UI Toolkit + table approach, clarified networking |
 | 8 | Jan 6, 2026 | (REWRITTEN) Initial UI Toolkit redesign plan |

@@ -226,6 +226,7 @@ GameObject:
   - component: {fileID: 5865737600527156051}
   - component: {fileID: 1927991192703039814}
   - component: {fileID: 3522727529820748562}
+  - component: {fileID: 4831485746142212166}
   m_Layer: 5
   m_Name: LetterCellUI
   m_TagString: Untagged
@@ -252,7 +253,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 40, y: 40}
+  m_SizeDelta: {x: 40, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4440564509526263047
 CanvasRenderer:
@@ -350,3 +351,17 @@ MonoBehaviour:
   _underscoreColor: {r: 0.4, g: 0.4, b: 0.4, a: 1}
   _defaultAnimDuration: 0.2
   _defaultEase: 6
+--- !u!114 &4831485746142212166
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8561437397132343072}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 86710e43de46f6f4bac7c8e50813a599, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.AspectRatioFitter
+  m_AspectMode: 1
+  m_AspectRatio: 1
