@@ -4,8 +4,8 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 19
-**Last Updated:** January 7, 2026
+**Document Version:** 20
+**Last Updated:** January 8, 2026
 
 ---
 
@@ -15,9 +15,9 @@
 
 **Key Innovation:** Asymmetric difficulty - mixed-skill players compete fairly with different grid sizes, word counts, and difficulty settings.
 
-**Current Phase:** Phase 0.5 COMPLETE - ready for Phase A (UI Toolkit)
+**Current Phase:** Phase A & B COMPLETE - ready for Phase C (Setup wizard + placement)
 
-**Last Session (Jan 7, 2026):** Eighth session - **Phase 0.5 multiplayer verification COMPLETE!** Resolved blocking issue by creating PlayerService.cs that creates player records in the `players` table without requiring Supabase Auth (matching DAB's approach). Fixed GetPlayerCount query (session_players has no `id` column - use `player_number`). Both Unity instances successfully connected: game creation, player record creation, game joining, and player count polling all working. Anonymous users in Supabase can now be disabled. NetworkGameManager integration deferred to Phase 1 (still uses AuthService).
+**Last Session (Jan 8, 2026):** Tenth session - **Phase A & B COMPLETE!** Created table data model foundation (TableCellKind, TableCellState, CellOwner, TableCell, TableRegion, TableLayout, TableModel, ColorRules) in DLYH.TableUI namespace. Built UI Toolkit renderer (TableView.cs) with USS styling. Created TableViewTest.cs for scene testing. Table renders correctly: word rows, column/row headers, grid cells. Click interactions work (state cycling). Added Setup Wizard Flow and simplified Multiplayer Model to status doc.
 
 ---
 
@@ -76,8 +76,8 @@
 - [ ] Update NetworkGameManager to use PlayerService instead of AuthService (Phase 1)
 
 ### Then (Phases A-F: UI Toolkit Implementation)
-- [ ] Phase A: Table data model foundation (no visual changes)
-- [ ] Phase B: UI Toolkit table renderer MVP
+- [x] Phase A: Table data model foundation (no visual changes) - COMPLETE
+- [x] Phase B: UI Toolkit table renderer MVP - COMPLETE
 - [ ] Phase C: Setup wizard + placement using table UI
 - [ ] Phase D: Gameplay UI conversion
 - [ ] Phase E: Networking integration (wire existing code)
@@ -259,6 +259,11 @@ Create minimal test scene to verify networking works before building UI around i
 **DLYH.AI.Strategies:**
 - IGuessStrategy, AIGameState, LetterFrequencyStrategy, CoordinateStrategy, WordGuessStrategy
 
+**DLYH.TableUI (NEW - Phase A/B):**
+- TableCellKind, TableCellState, CellOwner (enums)
+- TableCell (struct), TableRegion (struct)
+- TableLayout, TableModel, ColorRules, TableView, TableViewTest
+
 **DLYH.Networking:**
 - IOpponent, LocalAIOpponent, RemotePlayerOpponent, OpponentFactory
 - PlayerSetupData
@@ -292,10 +297,16 @@ Assets/DLYH/
       Interfaces/ - IGridControllers.cs
       Services/   - GuessProcessor, GameplayStateTracker, WinConditionChecker, WordValidationService
       Utilities/  - RowDisplayBuilder (TecVooDoo.DontLoseYourHead.UI.Utilities)
-  NewUI/          - [ABANDONED] LetterCellUI.prefab, WordPatternRowUI.prefab
+  NewUI/          - UI Toolkit implementation (DLYH.TableUI)
+    Scripts/      - TableCellKind, TableCellState, CellOwner, TableCell, TableRegion,
+                    TableLayout, TableModel, ColorRules, TableView, TableViewTest
+    USS/          - TableView.uss (cell styling)
+    UXML/         - TableView.uxml (container template)
+    Prefabs/      - (empty, for future use)
   Scenes/
-    NewPlayTesting.unity - Current working scene (use this)
-    NewUIDesign.unity    - [TO DELETE] Test scene for abandoned UI approach
+    NewPlayTesting.unity - Current working scene (single player)
+    NetworkingTest.unity - Multiplayer testing (keep for Phase 1)
+    NewUIScene.unity     - UI Toolkit development scene
     GuillotineTesting.unity - Guillotine visual testing
 ```
 
@@ -364,21 +375,68 @@ Assets/DLYH/
 
 ---
 
+## Setup Wizard Flow (Phase C Reference)
+
+Progressive disclosure pattern (like DAB). Single screen with show/hide panels.
+
+```
+Setup Screen
+├── Player Profile (always visible)
+│   ├── Name input
+│   └── Color picker
+│
+├── Step 1: "How do you want to play?"
+│   ├── [vs The Executioner] → Show solo options
+│   └── [vs Another Player] → Show matchmaking
+│
+├── Solo Options (hidden until selected)
+│   ├── Grid size (6x6 to 12x12)
+│   ├── Word count (3 or 4)
+│   ├── Difficulty (Easy/Normal/Hard)
+│   └── [Start Game] → Word placement phase
+│
+├── Matchmaking (hidden until selected)
+│   ├── Grid size selection
+│   ├── [Find Opponent] → Queue + 5-6s timeout → phantom AI fallback
+│   ├── [Invite Friend] → Generate game code
+│   └── [Join Game] → Enter code input
+│
+└── Word Placement Phase
+    ├── Table UI shows word rows + grid
+    ├── Player places words on their grid
+    └── [Ready] → Exchange setup, start gameplay
+```
+
+**Navigation:**
+- Forward: click option cards to reveal next step
+- Back: hide current panel, show previous
+- No page transitions - all panels on single screen
+
+---
+
 ## Multiplayer Model
 
-**Local Play:**
-- Single-player versus AI ("The Executioner")
-- Uses LocalAIOpponent wrapping ExecutionerAI
+**Game Modes (Simplified):**
+- **vs The Executioner** - Local single-player against branded AI
+- **vs Another Player** - Online PVP (or phantom AI fallback)
 
-**Two-Player Mode (Networked):**
-- Player vs Executioner (networked, both players fight same AI)
-- Player vs Player (PVP)
-- Uses RemotePlayerOpponent with Supabase realtime
+**Phantom AI Fallback:**
+- If PVP matchmaking finds no opponent within 5-6 seconds
+- Spawn AI with random human-style name (e.g., "FluffyKitty", "Bob", "xXSlayerXx")
+- Player doesn't know it's AI - appears as real opponent
+- Uses same ExecutionerAI logic, just different display name
 
-**Matchmaking Fallback:**
-- If PVP selected and no opponent found within 5 seconds
-- Spawn phantom AI with random player-style name (not "The Executioner")
-- Mirrors existing DAB implementation
+**Implementation:**
+- LocalAIOpponent: wraps ExecutionerAI for "vs The Executioner" mode
+- RemotePlayerOpponent: real network player OR phantom AI (isPhantom flag)
+- Phantom uses ExecutionerAI internally but displays fake name/color
+
+**Phantom Name Pool (examples):**
+```
+FluffyKitty, Bob, WordNinja, LetterLord, xXSlayerXx,
+GrammarQueen, SpellMaster, VowelHunter, AlphabetKing,
+PuzzlePro, BrainStorm, QuickThinker, WordSmith
+```
 
 ---
 
@@ -873,6 +931,7 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 20 | Jan 8, 2026 | Tenth session - **Phase A & B COMPLETE!** Created DLYH.TableUI namespace with table data model (8 files) and UI Toolkit renderer. TableView renders word rows, headers, grid. Click interactions work. Added Setup Wizard Flow and simplified Multiplayer Model (phantom AI pattern) to status doc. |
 | 19 | Jan 7, 2026 | Ninth session - Project restored to E: drive. Housekeeping: deleted orphaned .csproj files (42) and AnyPortrait .txt files (6) from removed packages. Consolidated Claude Code permissions into E:\.claude\settings.json, deleted redundant E:\Unity\.claude folder. Created NewUIScene.unity for Phase A work. |
 | 18 | Jan 7, 2026 | Eighth session - **Phase 0.5 COMPLETE!** Created PlayerService.cs (~385 lines) to create player records without Supabase Auth (matches DAB pattern). Fixed GetPlayerCount query (session_players has no `id` column). Both Unity instances connect successfully. Anonymous users can now be disabled in Supabase. |
 | 17 | Jan 7, 2026 | Seventh session - continued Phase 0.5. Added OnGUI debug panel for Virtual Player testing. Fixed schema mismatches (removed player_name/player_color, null for created_by). Hit blocking issue: session_players.player_id NOT NULL + FK to players prevents anonymous join. Project copied to C: drive for MPPM testing (E: not NTFS). |
@@ -897,27 +956,28 @@ After each work session, update this document:
 
 ## Next Session Instructions
 
-**Starting Point:** This document (DLYH_Status.md v19)
+**Starting Point:** This document (DLYH_Status.md v20)
 
-**Scene to Use:** NewPlayTesting.unity (for single player), NetworkingTest.unity (for multiplayer testing), or NewUIScene.unity (for UI Toolkit work)
+**Scene to Use:** NewUIScene.unity (for UI Toolkit work - Phase C)
 
 **Current State:**
-- Phase 0.5 COMPLETE - multiplayer database operations verified
-- Ready for Phase A (UI Toolkit table data model)
-- Project restored to E: drive
+- Phase A & B COMPLETE - table data model and UI Toolkit renderer working
+- Ready for Phase C (Setup wizard + placement)
+- TableViewTest.cs in NewUIScene demonstrates table rendering and click interactions
 
-**Supabase Notes:**
-- Anonymous users can now be DISABLED in Supabase dashboard
-- PlayerService creates records in `players` table with display_name + is_ai=false
-- auth_id field is nullable (matches DAB's approach for guests)
+**Phase C Tasks:**
+- Create wizard panels (player profile, mode selection, options)
+- Implement word placement logic on the table
+- Handle placement states (anchor, path, valid/invalid feedback)
+- See "Setup Wizard Flow" section for UI structure
 
-**Phase 1 TODO (Later):**
-- Update NetworkGameManager to use PlayerService instead of AuthService
-- Test full multiplayer gameplay (setup exchange, turns, state sync)
-- Wire RemotePlayerOpponent to actual gameplay
+**Namespace Decision:**
+- New UI code uses `DLYH.TableUI` namespace
+- Existing code stays in original namespaces (no migration needed)
 
 **Do NOT:**
-- Delete NetworkingTest.unity scene yet (may need for Phase 1 testing)
+- Delete NetworkingTest.unity scene yet (may need for Phase E)
+- Polish visuals yet (save for Phase F)
 
 ---
 

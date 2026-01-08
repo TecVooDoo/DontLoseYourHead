@@ -1,0 +1,223 @@
+/* TableView.uss - Styles for the unified table UI */
+
+/* === Container === */
+
+.table-container {
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+}
+
+.table-root {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.table-row {
+    flex-direction: row;
+    align-items: stretch;
+}
+
+/* === Base Cell === */
+
+.table-cell {
+    width: 40px;
+    height: 40px;
+    margin: 1px;
+    border-radius: 4px;
+    align-items: center;
+    justify-content: center;
+    border-width: 1px;
+    border-color: rgba(60, 60, 70, 1);
+    background-color: rgba(38, 38, 46, 1);
+    transition-property: background-color, border-color;
+    transition-duration: 0.15s;
+}
+
+.table-cell:hover {
+    border-color: rgba(100, 100, 120, 1);
+}
+
+.table-cell-label {
+    font-size: 18px;
+    color: rgba(220, 220, 220, 1);
+    -unity-text-align: middle-center;
+    -unity-font-style: bold;
+}
+
+/* === Cell Kinds === */
+
+.cell-spacer {
+    background-color: transparent;
+    border-width: 0;
+}
+
+.cell-word-slot {
+    background-color: rgba(45, 45, 55, 1);
+    border-color: rgba(70, 70, 85, 1);
+}
+
+.cell-header-col {
+    background-color: rgba(50, 50, 62, 1);
+    border-color: rgba(70, 70, 85, 1);
+}
+
+.cell-header-row {
+    background-color: rgba(50, 50, 62, 1);
+    border-color: rgba(70, 70, 85, 1);
+}
+
+.cell-grid {
+    background-color: rgba(38, 38, 46, 1);
+    border-color: rgba(60, 60, 70, 1);
+}
+
+/* === Cell States === */
+
+.state-none {
+    background-color: rgba(38, 38, 46, 1);
+}
+
+.state-normal {
+    background-color: rgba(45, 45, 55, 1);
+}
+
+.state-disabled {
+    background-color: rgba(76, 76, 76, 0.5);
+    opacity: 0.5;
+}
+
+.state-hidden {
+    visibility: hidden;
+}
+
+.state-selected {
+    border-width: 2px;
+    border-color: rgba(255, 255, 255, 0.8);
+}
+
+.state-hovered {
+    background-color: rgba(55, 55, 68, 1);
+}
+
+.state-locked {
+    background-color: rgba(60, 60, 70, 1);
+}
+
+.state-read-only {
+    background-color: rgba(50, 50, 62, 1);
+}
+
+/* === Placement States (Setup) === */
+
+.state-placement-valid {
+    background-color: rgba(51, 204, 77, 1);
+    border-color: rgba(71, 224, 97, 1);
+}
+
+.state-placement-invalid {
+    background-color: rgba(204, 51, 51, 1);
+    border-color: rgba(224, 71, 71, 1);
+}
+
+.state-placement-path {
+    background-color: rgba(100, 100, 140, 0.7);
+    border-color: rgba(120, 120, 160, 1);
+}
+
+.state-placement-anchor {
+    border-width: 2px;
+    border-color: rgba(255, 255, 255, 0.9);
+}
+
+.state-placement-second {
+    border-width: 2px;
+    border-color: rgba(200, 200, 255, 0.8);
+}
+
+/* === Gameplay States === */
+
+.state-fog {
+    background-color: rgba(64, 64, 77, 1);
+}
+
+.state-revealed {
+    background-color: rgba(102, 102, 115, 1);
+}
+
+.state-hit {
+    /* Color set dynamically based on owner */
+    border-width: 2px;
+}
+
+.state-miss {
+    background-color: rgba(102, 102, 115, 1);
+}
+
+.state-wrong-word {
+    background-color: rgba(204, 51, 51, 1);
+    border-color: rgba(224, 71, 71, 1);
+}
+
+.state-warning {
+    background-color: rgba(230, 204, 51, 1);
+    border-color: rgba(250, 224, 71, 1);
+}
+
+/* === Owner Colors (applied dynamically, these are fallbacks) === */
+
+.owner-player1 {
+    background-color: rgba(51, 102, 230, 1);
+}
+
+.owner-player2 {
+    background-color: rgba(153, 51, 204, 1);
+}
+
+.owner-executioner {
+    background-color: rgba(153, 26, 38, 1);
+}
+
+.owner-phantom {
+    background-color: rgba(128, 128, 153, 1);
+}
+
+/* === Text Colors === */
+
+.text-light {
+    color: rgba(240, 240, 240, 1);
+}
+
+.text-dark {
+    color: rgba(30, 30, 30, 1);
+}
+
+/* === Responsive Sizing === */
+
+.cell-size-small {
+    width: 32px;
+    height: 32px;
+}
+
+.cell-size-small .table-cell-label {
+    font-size: 14px;
+}
+
+.cell-size-medium {
+    width: 40px;
+    height: 40px;
+}
+
+.cell-size-medium .table-cell-label {
+    font-size: 18px;
+}
+
+.cell-size-large {
+    width: 48px;
+    height: 48px;
+}
+
+.cell-size-large .table-cell-label {
+    font-size: 22px;
+}
