@@ -4,7 +4,7 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 16
+**Document Version:** 19
 **Last Updated:** January 7, 2026
 
 ---
@@ -15,9 +15,9 @@
 
 **Key Innovation:** Asymmetric difficulty - mixed-skill players compete fairly with different grid sizes, word counts, and difficulty settings.
 
-**Current Phase:** Phase 0.5 (Multiplayer Verification) - testing networking before UI Toolkit migration
+**Current Phase:** Phase 0.5 COMPLETE - ready for Phase A (UI Toolkit)
 
-**Last Session (Jan 7, 2026):** Sixth session - started Phase 0.5 multiplayer verification. Created NetworkingTestController.cs for debug Host/Join UI. Added SetOpponent() method to GameplayUIController to support IOpponent injection for multiplayer. Created NetworkingTest.unity scene (duplicate of NewPlayTesting). Deleted abandoned NewUIDesign.unity scene and LetterCellUI/WordPatternRowUI prefabs. Fixed JoinGame parameter mismatch bug.
+**Last Session (Jan 7, 2026):** Eighth session - **Phase 0.5 multiplayer verification COMPLETE!** Resolved blocking issue by creating PlayerService.cs that creates player records in the `players` table without requiring Supabase Auth (matching DAB's approach). Fixed GetPlayerCount query (session_players has no `id` column - use `player_number`). Both Unity instances successfully connected: game creation, player record creation, game joining, and player count polling all working. Anonymous users in Supabase can now be disabled. NetworkGameManager integration deferred to Phase 1 (still uses AuthService).
 
 ---
 
@@ -52,16 +52,28 @@
 - [ ] Standardize namespace convention (choose TecVooDoo.DontLoseYourHead.* OR DLYH.*)
 - [ ] Verify game still works after each extraction (test in NewPlayTesting.unity)
 
-### Current (Phase 0.5: Multiplayer Verification)
+### Current (Phase 0.5: Multiplayer Verification) - COMPLETE
 - [x] Wire IOpponent interface to GameplayUIController (SetOpponent method added)
 - [x] Create NetworkingTestController.cs for debug Host/Join UI
 - [x] Create NetworkingTest.unity scene (duplicate of NewPlayTesting)
 - [x] Delete abandoned NewUIDesign.unity and LetterCellUI/WordPatternRowUI prefabs
-- [ ] Set up NetworkingTest.unity with debug UI panels (connection, waiting, setup)
-- [ ] Test Host/Join with two Unity instances
-- [ ] Verify connection, setup exchange, turn events, state sync
-- [ ] Document any networking issues found
-- [ ] Delete test scene after verification (keep the wiring code)
+- [x] Add runtime OnGUI debug panel for Virtual Player testing
+- [x] Fix JoinGame schema mismatch (remove player_name/player_color)
+- [x] Fix created_by FK error (pass null for anonymous users)
+- [x] Test game creation - works (game code generated, host polling)
+- [x] **RESOLVED:** session_players.player_id FK issue
+  - Created PlayerService.cs to create player records in `players` table (no auth required)
+  - Matches DAB's approach: display_name + is_ai=false, auth_id is nullable
+  - Different player names = different player records (for testing on same machine)
+- [x] Fix GetPlayerCount query (session_players has no `id` column, use `player_number`)
+- [x] Test Host/Join with two Unity instances - **SUCCESS!**
+  - Both instances create unique player records
+  - Host creates game, joins as player 1
+  - Client joins with game code as player 2
+  - Both detect 2 players connected
+- [x] Document networking issues found (see Lessons Learned)
+- [ ] Delete test scene after UI Toolkit complete (keep the wiring code)
+- [ ] Update NetworkGameManager to use PlayerService instead of AuthService (Phase 1)
 
 ### Then (Phases A-F: UI Toolkit Implementation)
 - [ ] Phase A: Table data model foundation (no visual changes)
@@ -100,13 +112,15 @@
 - Editor-accessible analytics dashboard
 - Session, game, guess, feedback, and error tracking
 
-**Networking (Scaffolded, Not Wired):**
+**Networking (Phase 0.5 Complete):**
 - IOpponent interface for opponent abstraction
 - LocalAIOpponent wrapping ExecutionerAI
 - RemotePlayerOpponent for network play
 - OpponentFactory for creating opponents
 - Supabase services (Auth, GameSession, Realtime, StateSynchronizer)
+- PlayerService for creating player records without auth (NEW)
 - Lobby and WaitingRoom UI controllers (not integrated)
+- Database operations verified: player creation, game creation, game joining
 
 **Polish:**
 - Help overlay and tooltips
@@ -131,8 +145,14 @@
 - Scene files can get accidentally modified - check git diff before commits
 
 **Networking:**
-- IOpponent interface exists but is not wired to GameplayUIController
-- Network play has never been tested end-to-end
+- IOpponent interface wired to GameplayUIController (SetOpponent method)
+- Phase 0.5 verification COMPLETE - database operations working
+- PlayerService.cs creates player records without Supabase Auth (matches DAB)
+- NetworkGameManager still uses AuthService (needs update for Phase 1)
+- Full multiplayer gameplay not yet tested (setup exchange, turns, state sync)
+
+**Audio:**
+- Music crossfading/switching too frequently (should only switch at end of track)
 
 **Abandoned Work (Pivot to UI Toolkit):**
 - LetterCellUI.cs, WordPatternRowUI.cs, WordPatternPanelUI.cs - uGUI approach abandoned
@@ -213,7 +233,7 @@ Create minimal test scene to verify networking works before building UI around i
 | `DLYH.Audio` | 5 | UI, guillotine, music audio |
 | `DLYH.Telemetry` | 1 | Playtest analytics |
 | `DLYH.Networking` | 4 | Opponent abstraction, factory |
-| `DLYH.Networking.Services` | 7 | Supabase, auth, realtime |
+| `DLYH.Networking.Services` | 8 | Supabase, auth, player, realtime |
 | `DLYH.Networking.UI` | 3 | Lobby, waiting room |
 | `DLYH.Editor` | 1 | Telemetry Dashboard |
 
@@ -242,6 +262,12 @@ Create minimal test scene to verify networking works before building UI around i
 **DLYH.Networking:**
 - IOpponent, LocalAIOpponent, RemotePlayerOpponent, OpponentFactory
 - PlayerSetupData
+
+**DLYH.Networking.Services:**
+- SupabaseClient, SupabaseConfig, SupabaseResponse
+- AuthService, GameSessionService, PlayerService (NEW)
+- GameSubscription, GameStateSynchronizer
+- PlayerRecord, GameSession, SessionPlayer, DLYHGameState
 
 ### Key Folders
 
@@ -847,6 +873,9 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 19 | Jan 7, 2026 | Ninth session - Project restored to E: drive. Housekeeping: deleted orphaned .csproj files (42) and AnyPortrait .txt files (6) from removed packages. Consolidated Claude Code permissions into E:\.claude\settings.json, deleted redundant E:\Unity\.claude folder. Created NewUIScene.unity for Phase A work. |
+| 18 | Jan 7, 2026 | Eighth session - **Phase 0.5 COMPLETE!** Created PlayerService.cs (~385 lines) to create player records without Supabase Auth (matches DAB pattern). Fixed GetPlayerCount query (session_players has no `id` column). Both Unity instances connect successfully. Anonymous users can now be disabled in Supabase. |
+| 17 | Jan 7, 2026 | Seventh session - continued Phase 0.5. Added OnGUI debug panel for Virtual Player testing. Fixed schema mismatches (removed player_name/player_color, null for created_by). Hit blocking issue: session_players.player_id NOT NULL + FK to players prevents anonymous join. Project copied to C: drive for MPPM testing (E: not NTFS). |
 | 16 | Jan 7, 2026 | Sixth session - Phase 0.5 started. Created NetworkingTestController.cs (~367 lines) for debug Host/Join UI. Added SetOpponent() to GameplayUIController for IOpponent injection. Created NetworkingTest.unity scene. Deleted abandoned NewUIDesign.unity and LetterCellUI/WordPatternRowUI prefabs. Fixed JoinGame parameter mismatch. |
 | 15 | Jan 7, 2026 | Fifth session - housekeeping cleanup. Removed ~235 lines of unused dynamic sizing code from SetupSettingsPanel (1286->1051). Removed unused _panelLayoutElement from PlayerGridPanel (1067->1060). Verified WordPatternRow (1198 lines) has no unused code. All major UI scripts now within 800-1200 goal range. |
 | 14 | Jan 7, 2026 | Fourth refactor session. Extracted Editor Testing to partial class and Data Capture to GameSetupDataCapture. GameplayUIController at ~1321 lines (50% reduction from ~2619). Added Refactoring Guidelines to Coding Standards. |
@@ -868,25 +897,27 @@ After each work session, update this document:
 
 ## Next Session Instructions
 
-**Starting Point:** This document (DLYH_Status.md v16)
+**Starting Point:** This document (DLYH_Status.md v19)
 
-**Scene to Use:** NetworkingTest.unity (for multiplayer testing) or NewPlayTesting.unity (for single player)
+**Scene to Use:** NewPlayTesting.unity (for single player), NetworkingTest.unity (for multiplayer testing), or NewUIScene.unity (for UI Toolkit work)
 
 **Current State:**
-- Phase 0.5 in progress - multiplayer verification
-- NetworkingTestController.cs created (~367 lines) - debug Host/Join UI
-- GameplayUIController has SetOpponent() method for IOpponent injection
-- NetworkingTest.unity scene created (needs UI panel setup)
-- NewUIDesign.unity and LetterCellUI/WordPatternRowUI prefabs deleted
+- Phase 0.5 COMPLETE - multiplayer database operations verified
+- Ready for Phase A (UI Toolkit table data model)
+- Project restored to E: drive
 
-**Next Step:** Continue Phase 0.5
-- Set up NetworkingTest.unity with debug UI panels (connection, waiting, setup)
-- Test Host/Join with two Unity instances
-- Verify connection, setup exchange, turn events, state sync
+**Supabase Notes:**
+- Anonymous users can now be DISABLED in Supabase dashboard
+- PlayerService creates records in `players` table with display_name + is_ai=false
+- auth_id field is nullable (matches DAB's approach for guests)
+
+**Phase 1 TODO (Later):**
+- Update NetworkGameManager to use PlayerService instead of AuthService
+- Test full multiplayer gameplay (setup exchange, turns, state sync)
+- Wire RemotePlayerOpponent to actual gameplay
 
 **Do NOT:**
-- Start UI Toolkit work until multiplayer verify complete
-- Refactor further unless genuinely needed
+- Delete NetworkingTest.unity scene yet (may need for Phase 1 testing)
 
 ---
 

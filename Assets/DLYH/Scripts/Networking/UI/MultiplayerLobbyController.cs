@@ -369,7 +369,7 @@ namespace DLYH.Networking.UI
             _isHost = true;
 
             // Join as player 1
-            await _sessionService.JoinGame(game.Id, session.UserId, 1, "Player 1", "#4CAF50");
+            await _sessionService.JoinGame(game.Id, session.UserId, 1);
 
             // Show waiting UI
             SetState(LobbyState.WaitingHost);
@@ -428,7 +428,7 @@ namespace DLYH.Networking.UI
             }
 
             // Join as player 2
-            bool joined = await _sessionService.JoinGame(gameCode, session.UserId, 2, "Player 2", "#2196F3");
+            bool joined = await _sessionService.JoinGame(gameCode, session.UserId, 2);
             if (!joined)
             {
                 ShowJoinError("Failed to join game");
@@ -479,7 +479,7 @@ namespace DLYH.Networking.UI
             _isHost = true;
 
             // Join as player 1
-            await _sessionService.JoinGame(game.Id, session.UserId, 1, "Player 1", "#4CAF50");
+            await _sessionService.JoinGame(game.Id, session.UserId, 1);
 
             // Poll for player 2 with timeout
             while (_matchmakingActive && Time.realtimeSinceStartup - _matchmakingStartTime < _matchmakingTimeoutSeconds)

@@ -2,7 +2,7 @@ namespace TecVooDoo.DontLoseYourHead.Core
 {
     /// <summary>
     /// Available grid sizes for gameplay (6x6 through 12x12)
-    /// Value equals the grid dimension
+    /// Value equals the grid dimension 
     /// </summary>
     public enum GridSizeOption
     {

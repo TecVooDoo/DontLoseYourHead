@@ -112,9 +112,9 @@ namespace DLYH.Networking.Services
             Debug.Log("[AuthService] Creating new anonymous user...");
 
             string url = $"{_config.AuthUrl}/signup";
-            string body = "{\"data\":{}}"; // Empty data for anonymous signup
+            string body = "{}"; // Empty body for anonymous signup
 
-            var response = await _client.Post(url, body);
+            var response = await _client.PostToUrl(url, body);
 
             if (response.Success)
             {
@@ -153,7 +153,7 @@ namespace DLYH.Networking.Services
             string url = $"{_config.AuthUrl}/token?grant_type=refresh_token";
             string body = $"{{\"refresh_token\":\"{_currentSession.RefreshToken}\"}}";
 
-            var response = await _client.Post(url, body);
+            var response = await _client.PostToUrl(url, body);
 
             if (response.Success)
             {
@@ -186,7 +186,7 @@ namespace DLYH.Networking.Services
                 // Call logout endpoint (optional, just invalidates server-side)
                 string url = $"{_config.AuthUrl}/logout";
                 _client.SetAccessToken(_currentSession.AccessToken);
-                await _client.Post(url, "{}");
+                await _client.PostToUrl(url, "{}");
             }
 
             ClearSession();

@@ -279,12 +279,10 @@ namespace DLYH.Networking.Services
         /// Adds a player to a game session.
         /// </summary>
         /// <param name="gameCode">Game code to join</param>
-        /// <param name="playerId">Player's ID (from players table)</param>
+        /// <param name="playerId">Player's ID (auth user ID, can be null for anonymous)</param>
         /// <param name="playerNumber">1 or 2</param>
-        /// <param name="playerName">Display name</param>
-        /// <param name="playerColor">Color as hex string (e.g., "#FF0000")</param>
         /// <returns>True if successful</returns>
-        public async UniTask<bool> JoinGame(string gameCode, string playerId, int playerNumber, string playerName, string playerColor)
+        public async UniTask<bool> JoinGame(string gameCode, string playerId, int playerNumber)
         {
             var sb = new StringBuilder();
             sb.Append("{");
@@ -295,9 +293,7 @@ namespace DLYH.Networking.Services
                 sb.AppendFormat("\"player_id\":\"{0}\",", playerId);
             }
 
-            sb.AppendFormat("\"player_number\":{0},", playerNumber);
-            sb.AppendFormat("\"player_name\":\"{0}\",", EscapeJson(playerName ?? "Player"));
-            sb.AppendFormat("\"player_color\":\"{0}\"", playerColor ?? "#FFFFFF");
+            sb.AppendFormat("\"player_number\":{0}", playerNumber);
             sb.Append("}");
 
             var response = await _client.Post(TABLE_SESSION_PLAYERS, sb.ToString());
@@ -317,33 +313,29 @@ namespace DLYH.Networking.Services
         /// </summary>
         public async UniTask<int> GetPlayerCount(string gameCode)
         {
-            var response = await _client.Get(TABLE_SESSION_PLAYERS, $"session_id=eq.{gameCode}&select=id");
+            // Select player_number since session_players doesn't have an 'id' column
+            var response = await _client.Get(TABLE_SESSION_PLAYERS, $"session_id=eq.{gameCode}&select=player_number");
 
-            if (!response.Success || string.IsNullOrEmpty(response.Body))
+            if (!response.Success)
             {
+                Debug.LogWarning($"[GameSessionService] GetPlayerCount failed for {gameCode}: {response.Error}");
                 return 0;
             }
 
-            // Count array elements (simple approach: count '[' minus ']' or count ',' + 1)
-            if (response.Body == "[]")
+            if (string.IsNullOrEmpty(response.Body) || response.Body == "[]")
             {
+                Debug.Log($"[GameSessionService] GetPlayerCount for {gameCode}: 0 (empty response)");
                 return 0;
             }
 
-            int count = 1;
-            foreach (char c in response.Body)
-            {
-                if (c == ',') count++;
-            }
-
-            // Subtract commas within objects (rough heuristic: if more than 2 commas, divide by expected fields)
-            // Better: just count opening braces
-            count = 0;
+            // Count opening braces to count objects in array
+            int count = 0;
             foreach (char c in response.Body)
             {
                 if (c == '{') count++;
             }
 
+            Debug.Log($"[GameSessionService] GetPlayerCount for {gameCode}: {count}");
             return count;
         }
 
@@ -577,9 +569,7 @@ namespace DLYH.Networking.Services
                 {
                     SessionId = ExtractStringField(playerJson, "session_id"),
                     PlayerId = ExtractStringField(playerJson, "player_id"),
-                    PlayerNumber = ExtractIntField(playerJson, "player_number"),
-                    PlayerName = ExtractStringField(playerJson, "player_name"),
-                    PlayerColor = ExtractStringField(playerJson, "player_color")
+                    PlayerNumber = ExtractIntField(playerJson, "player_number")
                 };
 
                 index++;
@@ -652,8 +642,6 @@ namespace DLYH.Networking.Services
         public string SessionId;
         public string PlayerId;
         public int PlayerNumber;    // 1 or 2
-        public string PlayerName;
-        public string PlayerColor;
     }
 
     /// <summary>

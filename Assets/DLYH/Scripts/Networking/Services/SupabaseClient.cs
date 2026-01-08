@@ -147,6 +147,17 @@ namespace DLYH.Networking.Services
             return await SendRequest(url, "POST", json ?? "{}");
         }
 
+        /// <summary>
+        /// Perform a POST to a full URL (for Auth endpoints).
+        /// </summary>
+        /// <param name="fullUrl">Complete URL to post to</param>
+        /// <param name="json">JSON body</param>
+        /// <returns>Response</returns>
+        public async UniTask<SupabaseResponse> PostToUrl(string fullUrl, string json)
+        {
+            return await SendRequest(fullUrl, "POST", json);
+        }
+
         // ============================================================
         // URL BUILDING
         // ============================================================

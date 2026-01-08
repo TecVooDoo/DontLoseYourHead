@@ -1,7 +1,7 @@
 // SupabaseConfig.cs
 // ScriptableObject for Supabase configuration
 // Created: January 4, 2026
-// Developer: TecVooDoo LLC
+// Developer: TecVooDoo LLC 
 
 using UnityEngine;
 
