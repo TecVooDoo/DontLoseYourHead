@@ -1,0 +1,134 @@
+/* MainMenu.uss - Styles for the main menu */
+
+/* === Root Container === */
+
+.main-menu-root {
+    flex-grow: 1;
+    background-color: rgb(18, 18, 24);
+    align-items: center;
+    justify-content: center;
+}
+
+/* === Menu Content (Centered) === */
+
+.menu-content {
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+}
+
+/* === Title Section === */
+
+.title-section {
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.title-text {
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    letter-spacing: 4px;
+}
+
+.title-line1 {
+    font-size: 56px;
+    color: rgb(220, 220, 230);
+}
+
+.title-line2 {
+    font-size: 64px;
+    color: rgb(0, 220, 180);
+    margin-top: -8px;
+}
+
+/* === Tagline === */
+
+.tagline {
+    font-size: 16px;
+    color: rgb(140, 140, 160);
+    -unity-font-style: italic;
+    -unity-text-align: middle-center;
+    margin-bottom: 48px;
+}
+
+/* === Menu Buttons === */
+
+.menu-buttons {
+    align-items: center;
+    min-width: 280px;
+}
+
+.menu-button {
+    width: 100%;
+    height: 50px;
+    margin: 8px 0;
+    padding: 12px 32px;
+    font-size: 18px;
+    border-radius: 8px;
+    -unity-font-style: bold;
+    transition-property: background-color, border-color, scale;
+    transition-duration: 0.15s;
+}
+
+.menu-button:hover {
+    scale: 1.02;
+}
+
+.menu-button:active {
+    scale: 0.98;
+}
+
+/* Primary Button (Start Game) */
+
+.menu-button.primary {
+    background-color: rgb(0, 140, 120);
+    border-color: rgb(0, 180, 150);
+    border-width: 2px;
+    color: rgb(255, 255, 255);
+}
+
+.menu-button.primary:hover {
+    background-color: rgb(0, 160, 140);
+}
+
+.menu-button.primary:active {
+    background-color: rgb(0, 120, 100);
+}
+
+/* Secondary Buttons */
+
+.menu-button.secondary {
+    background-color: rgb(40, 40, 50);
+    border-color: rgb(70, 70, 85);
+    border-width: 1px;
+    color: rgb(180, 180, 190);
+}
+
+.menu-button.secondary:hover {
+    background-color: rgb(50, 50, 62);
+    border-color: rgb(90, 90, 105);
+    color: rgb(220, 220, 230);
+}
+
+.menu-button.secondary:active {
+    background-color: rgb(35, 35, 45);
+}
+
+/* === Footer === */
+
+.footer {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+}
+
+.version-label {
+    font-size: 12px;
+    color: rgb(80, 80, 100);
+}
+
+/* === Utility Classes === */
+
+.hidden {
+    display: none;
+}

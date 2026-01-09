@@ -4,8 +4,8 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 22
-**Last Updated:** January 8, 2026
+**Document Version:** 23
+**Last Updated:** January 9, 2026
 
 ---
 
@@ -15,15 +15,16 @@
 
 **Key Innovation:** Asymmetric difficulty - mixed-skill players compete fairly with different grid sizes, word counts, and difficulty settings.
 
-**Current Phase:** Phase C IN PROGRESS - Setup wizard working, placement panel next
+**Current Phase:** Phase C IN PROGRESS - Main menu complete, placement panel next
 
-**Last Session (Jan 8, 2026):** Twelfth session - **Setup Wizard UI working!** Created SetupWizard.uxml/uss/controller with progressive card-based disclosure pattern (inspired by DAB). Cards collapse to summary when user moves to next step, expandable to edit previous choices. Flow: Profile (name + color) -> Grid Size -> Word Count -> Difficulty -> Mode Selection. All collapse/expand logic working correctly. Mode card shows 1 Player/2 Players options with Start Game button.
+**Last Session (Jan 9, 2026):** Thirteenth session - **Main Menu working!** Created MainMenu.uxml/uss with title, tagline, and buttons. Created UIFlowController.cs to manage screen transitions (Main Menu -> Setup Wizard). Fixed TemplateContainer sizing issue. Deleted old UIRoot and TableTest GameObjects that were conflicting. Flow: Main Menu -> Setup Wizard -> (placement next).
 
 **TODO for next session:**
-- Create Main Menu screen (title + "Start Game" button)
 - Rethink the "How many players?" section - current 1 Player/2 Players buttons need clearer UX design
 - Wire word placement panel to table UI
 - Test full flow: Menu -> Setup -> Placement
+- Add marquee with cycling guillotine facts to Main Menu (later)
+- Add feedback button to Main Menu (later)
 
 ---
 
@@ -976,6 +977,7 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 23 | Jan 9, 2026 | Thirteenth session - **Main Menu working!** Created MainMenu.uxml/uss with title, tagline, buttons. Created UIFlowController.cs for screen transitions. Fixed TemplateContainer sizing. Deleted conflicting UIRoot/TableTest GameObjects. Flow: Main Menu -> Setup Wizard working. Next: placement panel, "How many players?" UX. |
 | 22 | Jan 8, 2026 | Twelfth session - **Setup Wizard UI working!** Created SetupWizard.uxml/uss/controller with progressive card-based disclosure. Cards collapse to summary line when moving forward, clickable to re-expand. Flow: Profile -> Grid -> Words -> Difficulty -> Mode. All collapse/expand sequences correct. Notes for next session: Main Menu needed, rethink "How many players?" UX. |
 | 21 | Jan 8, 2026 | Eleventh session - Reviewed DAB UI for inspiration. Simplified game modes: 1 Player (vs AI) and 2 Players (online only, no pass-and-play due to hidden info). Updated Setup Wizard Flow with UI/UX principles. Added End Game Vision section (dramatic guillotine finale for Phase F). |
 | 20 | Jan 8, 2026 | Tenth session - **Phase A & B COMPLETE!** Created DLYH.TableUI namespace with table data model (8 files) and UI Toolkit renderer. TableView renders word rows, headers, grid. Click interactions work. Added Setup Wizard Flow and simplified Multiplayer Model (phantom AI pattern) to status doc. |
@@ -1014,20 +1016,21 @@ After each work session, update this document:
 - SetupWizard.uxml/uss define the UI structure and styling
 
 **Files Created This Session:**
-- `Assets/DLYH/NewUI/Scripts/SetupWizardController.cs` - Progressive card wizard controller
-- `Assets/DLYH/NewUI/Scripts/WordPlacementController.cs` - Word placement logic (stub)
-- `Assets/DLYH/NewUI/UXML/SetupWizard.uxml` - Card-based wizard layout
-- `Assets/DLYH/NewUI/USS/SetupWizard.uss` - Dark theme styling with collapse states
+- `Assets/DLYH/NewUI/Scripts/UIFlowController.cs` - Screen flow manager (Main Menu <-> Setup Wizard)
+- `Assets/DLYH/NewUI/Scripts/MainMenuController.cs` - Main menu controller (unused, logic in UIFlowController)
+- `Assets/DLYH/NewUI/UXML/MainMenu.uxml` - Main menu layout with title, tagline, buttons
+- `Assets/DLYH/NewUI/USS/MainMenu.uss` - Dark theme styling for main menu
 
 **Priority Tasks for Next Session:**
-1. **Create Main Menu screen** - Simple title + "Start Game" button to launch setup wizard
-2. **Rethink "How many players?" UX** - Current 1 Player/2 Players buttons work but need clearer design
+1. **Rethink "How many players?" UX** - Current 1 Player/2 Players buttons work but need clearer design
    - Consider: What happens after clicking each option?
    - 1 Player should feel immediate (Start Game button appears)
    - 2 Players has multiple sub-options (Find Opponent, Invite, Join)
    - Maybe different card layout or clearer visual hierarchy?
-3. **Wire word placement panel** - Connect to table UI after "Start Game" clicked
-4. **Test full flow** - Menu -> Setup wizard -> Placement -> Ready
+2. **Wire word placement panel** - Connect to table UI after "Start Game" clicked
+3. **Test full flow** - Menu -> Setup wizard -> Placement -> Ready
+4. **Add marquee with guillotine facts** - Cycling historical facts on main menu (later)
+5. **Add feedback button** - On main menu (later)
 
 **Namespace Decision:**
 - New UI code uses `DLYH.TableUI` namespace

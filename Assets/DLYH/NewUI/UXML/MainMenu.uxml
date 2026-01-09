@@ -1,0 +1,33 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="../USS/MainMenu.uss" />
+
+    <ui:VisualElement name="main-menu-root" class="main-menu-root">
+
+        <!-- Centered Content -->
+        <ui:VisualElement name="menu-content" class="menu-content">
+
+            <!-- Title Section -->
+            <ui:VisualElement name="title-section" class="title-section">
+                <ui:Label name="title-line1" text="DON'T LOSE" class="title-text title-line1" />
+                <ui:Label name="title-line2" text="YOUR HEAD" class="title-text title-line2" />
+            </ui:VisualElement>
+
+            <!-- Tagline -->
+            <ui:Label name="tagline" text="A game of words and wits" class="tagline" />
+
+            <!-- Menu Buttons -->
+            <ui:VisualElement name="menu-buttons" class="menu-buttons">
+                <ui:Button name="btn-start-game" text="START GAME" class="menu-button primary" />
+                <ui:Button name="btn-how-to-play" text="How to Play" class="menu-button secondary" />
+                <ui:Button name="btn-settings" text="Settings" class="menu-button secondary" />
+            </ui:VisualElement>
+
+        </ui:VisualElement>
+
+        <!-- Footer -->
+        <ui:VisualElement name="footer" class="footer">
+            <ui:Label name="version-label" text="v0.1" class="version-label" />
+        </ui:VisualElement>
+
+    </ui:VisualElement>
+</ui:UXML>
