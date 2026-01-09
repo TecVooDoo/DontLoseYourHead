@@ -1,0 +1,545 @@
+/* SetupWizard.uss - Styles for the setup wizard UI */
+
+/* === Root Container === */
+
+.setup-wizard-root {
+    flex-grow: 1;
+    background-color: rgb(24, 24, 30);
+    padding: 20px;
+    align-items: center;
+}
+
+/* === Header === */
+
+.header {
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.title {
+    font-size: 32px;
+    color: rgb(0, 220, 180);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+/* === Cards Container === */
+
+.cards-container {
+    flex-grow: 1;
+    max-width: 450px;
+    width: 100%;
+}
+
+.cards-container > .unity-scroll-view__content-container {
+    padding: 10px;
+}
+
+/* === Setup Card === */
+
+.setup-card {
+    padding: 20px;
+    margin-bottom: 12px;
+    background-color: rgb(32, 32, 40);
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: rgb(50, 50, 60);
+    transition-property: opacity, translate, scale;
+    transition-duration: 0.3s;
+    transition-timing-function: ease-out;
+    opacity: 1;
+    scale: 1;
+    translate: 0 0;
+}
+
+.setup-card.hidden {
+    display: none;
+}
+
+.setup-card.revealing {
+    opacity: 0;
+    scale: 0.95;
+    translate: 0 -10px;
+}
+
+.setup-card.collapsed {
+    padding: 12px 20px;
+    margin-bottom: 8px;
+    cursor: pointer;
+}
+
+.setup-card.collapsed:hover {
+    background-color: rgb(38, 38, 48);
+    border-color: rgb(70, 70, 85);
+}
+
+/* === Card Summary (Collapsed State) === */
+
+.card-summary {
+    flex-direction: row;
+    align-items: center;
+}
+
+.card-summary.hidden {
+    display: none;
+}
+
+.summary-color-badge {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    margin-right: 10px;
+}
+
+.summary-text {
+    font-size: 16px;
+    color: rgb(200, 200, 210);
+    -unity-font-style: bold;
+}
+
+.summary-label {
+    font-size: 13px;
+    color: rgb(120, 120, 130);
+    margin-right: 8px;
+}
+
+.summary-value {
+    font-size: 16px;
+    color: rgb(0, 200, 170);
+    -unity-font-style: bold;
+}
+
+/* === Card Content (Expanded State) === */
+
+.card-content {
+    transition-property: opacity;
+    transition-duration: 0.2s;
+}
+
+.card-content.hidden {
+    display: none;
+}
+
+.card-section {
+    margin-bottom: 16px;
+}
+
+.card-section:last-child {
+    margin-bottom: 0;
+}
+
+.section-label {
+    font-size: 16px;
+    color: rgb(200, 200, 210);
+    margin-bottom: 8px;
+    -unity-font-style: bold;
+}
+
+.hint-text {
+    font-size: 12px;
+    color: rgb(140, 140, 150);
+    margin-top: 6px;
+    -unity-font-style: italic;
+}
+
+/* === Text Input === */
+
+.text-input {
+    min-height: 44px;
+    font-size: 18px;
+    background-color: rgb(24, 24, 30);
+    border-color: rgb(60, 60, 70);
+    border-width: 1px;
+    border-radius: 6px;
+    padding: 0;
+    color: rgb(220, 220, 220);
+}
+
+.text-input:focus {
+    border-color: rgb(0, 180, 150);
+}
+
+.text-input > .unity-text-field__input {
+    background-color: transparent;
+    border-width: 0;
+    color: rgb(220, 220, 220);
+    padding: 8px 12px;
+    margin: 0;
+    -unity-text-align: middle-left;
+}
+
+.code-input {
+    max-width: 150px;
+    font-size: 24px;
+    -unity-text-align: middle-center;
+    letter-spacing: 4px;
+}
+
+/* === Color Picker === */
+
+.color-picker {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.color-swatch {
+    width: 40px;
+    height: 40px;
+    margin: 4px;
+    border-radius: 6px;
+    border-width: 2px;
+    border-color: transparent;
+    transition-property: border-color, scale;
+    transition-duration: 0.15s;
+}
+
+.color-swatch:hover {
+    scale: 1.1;
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.color-swatch.selected {
+    border-color: rgb(255, 255, 255);
+    border-width: 3px;
+}
+
+/* === Option Buttons === */
+
+.option-buttons {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.option-buttons-vertical {
+    flex-direction: column;
+    margin-top: 8px;
+}
+
+.option-button {
+    min-width: 70px;
+    height: 36px;
+    margin: 4px;
+    padding: 8px 16px;
+    font-size: 14px;
+    background-color: rgb(40, 40, 50);
+    border-color: rgb(70, 70, 85);
+    border-width: 1px;
+    border-radius: 6px;
+    color: rgb(200, 200, 210);
+    transition-property: background-color, border-color;
+    transition-duration: 0.15s;
+}
+
+.option-button:hover {
+    background-color: rgb(50, 50, 62);
+    border-color: rgb(90, 90, 105);
+}
+
+.option-button.selected {
+    background-color: rgb(0, 100, 90);
+    border-color: rgb(0, 180, 150);
+    color: rgb(255, 255, 255);
+}
+
+/* === Mode Buttons (side by side) === */
+
+.mode-cards {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.mode-card {
+    flex-grow: 1;
+    min-width: 120px;
+    padding: 12px 16px;
+    margin: 4px;
+    background-color: rgb(40, 40, 50);
+    border-color: rgb(70, 70, 85);
+    border-width: 1px;
+    border-radius: 6px;
+    transition-property: background-color, border-color;
+    transition-duration: 0.15s;
+    align-items: center;
+}
+
+.mode-card:hover {
+    background-color: rgb(50, 50, 62);
+    border-color: rgb(90, 90, 105);
+}
+
+.mode-card.selected {
+    background-color: rgb(0, 100, 90);
+    border-color: rgb(0, 180, 150);
+}
+
+.mode-card-title {
+    font-size: 15px;
+    color: rgb(220, 220, 220);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.mode-card.selected .mode-card-title {
+    color: rgb(255, 255, 255);
+}
+
+.mode-card-desc {
+    font-size: 11px;
+    color: rgb(140, 140, 150);
+    -unity-text-align: middle-center;
+    margin-top: 2px;
+}
+
+.mode-card.selected .mode-card-desc {
+    color: rgb(200, 220, 215);
+}
+
+/* === Multiplayer Options === */
+
+.multiplayer-options {
+    flex-direction: column;
+    margin-top: 16px;
+}
+
+.multiplayer-options.hidden {
+    display: none;
+}
+
+.join-game-section {
+    margin-top: 16px;
+}
+
+.join-game-section.hidden {
+    display: none;
+}
+
+.join-game-row {
+    flex-direction: row;
+    align-items: center;
+}
+
+.join-game-row .code-input {
+    flex-grow: 1;
+    margin-right: 8px;
+}
+
+.join-button {
+    min-width: 80px;
+}
+
+/* === Action Buttons === */
+
+.action-button {
+    height: 44px;
+    margin: 6px 0;
+    padding: 10px 20px;
+    font-size: 16px;
+    background-color: rgb(40, 40, 50);
+    border-color: rgb(70, 70, 85);
+    border-width: 1px;
+    border-radius: 6px;
+    color: rgb(200, 200, 210);
+    transition-property: background-color, border-color;
+    transition-duration: 0.15s;
+}
+
+.action-button:hover {
+    background-color: rgb(50, 50, 62);
+    border-color: rgb(90, 90, 105);
+}
+
+.action-button.secondary {
+    background-color: rgb(50, 40, 40);
+    border-color: rgb(90, 70, 70);
+}
+
+.action-button.secondary:hover {
+    background-color: rgb(65, 50, 50);
+    border-color: rgb(110, 85, 85);
+}
+
+/* === Start/Ready Button === */
+
+.start-button {
+    height: 50px;
+    margin-top: 16px;
+    padding: 12px 32px;
+    font-size: 20px;
+    background-color: rgb(0, 140, 120);
+    border-color: rgb(0, 180, 150);
+    border-width: 2px;
+    border-radius: 8px;
+    color: rgb(255, 255, 255);
+    -unity-font-style: bold;
+    transition-property: background-color, scale;
+    transition-duration: 0.15s;
+}
+
+.start-button:hover {
+    background-color: rgb(0, 160, 140);
+    scale: 1.02;
+}
+
+.start-button:active {
+    background-color: rgb(0, 120, 100);
+    scale: 0.98;
+}
+
+/* === Back Button === */
+
+.back-button {
+    height: 36px;
+    margin-top: 12px;
+    padding: 8px 16px;
+    font-size: 14px;
+    background-color: transparent;
+    border-color: rgb(100, 100, 115);
+    border-width: 1px;
+    border-radius: 6px;
+    color: rgb(160, 160, 170);
+}
+
+.back-button:hover {
+    background-color: rgb(40, 40, 50);
+    border-color: rgb(120, 120, 135);
+    color: rgb(200, 200, 210);
+}
+
+/* === Placement Panel === */
+
+.placement-panel {
+    min-width: 400px;
+    padding: 20px;
+    margin: 10px;
+    background-color: rgb(32, 32, 40);
+    border-radius: 8px;
+    align-items: center;
+}
+
+.placement-header {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.player-color-badge {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    margin-right: 10px;
+}
+
+.player-name-display {
+    font-size: 24px;
+    color: rgb(220, 220, 220);
+    -unity-font-style: bold;
+}
+
+.placement-instructions {
+    font-size: 14px;
+    color: rgb(160, 160, 170);
+    margin-bottom: 16px;
+    -unity-text-align: middle-center;
+}
+
+/* === Table Container === */
+
+.table-container {
+    margin: 16px 0;
+    padding: 10px;
+    background-color: rgb(24, 24, 30);
+    border-radius: 8px;
+}
+
+/* Import table styles */
+.table-root {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+/* === Letter Keyboard === */
+
+.letter-keyboard {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 520px;
+    margin: 16px 0;
+}
+
+.letter-key {
+    width: 36px;
+    height: 36px;
+    margin: 2px;
+    font-size: 16px;
+    background-color: rgb(50, 50, 62);
+    border-color: rgb(70, 70, 85);
+    border-width: 1px;
+    border-radius: 4px;
+    color: rgb(200, 200, 210);
+    align-items: center;
+    justify-content: center;
+    -unity-font-style: bold;
+    transition-property: background-color, border-color;
+    transition-duration: 0.1s;
+}
+
+.letter-key:hover {
+    background-color: rgb(60, 60, 75);
+    border-color: rgb(90, 90, 105);
+}
+
+.letter-key.used {
+    background-color: rgb(80, 80, 95);
+    color: rgb(140, 140, 150);
+}
+
+.letter-key.selected {
+    background-color: rgb(0, 120, 100);
+    border-color: rgb(0, 180, 150);
+    color: rgb(255, 255, 255);
+}
+
+/* === Placement Actions === */
+
+.placement-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: 12px 0;
+}
+
+.placement-actions .action-button {
+    margin: 4px 8px;
+}
+
+/* === Utility Classes === */
+
+.hidden {
+    display: none;
+}
+
+.disabled {
+    opacity: 0.5;
+}
+
+/* === Responsive Adjustments === */
+
+/* Narrow screens: stack panels vertically */
+@media (max-width: 800px) {
+    .setup-content {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .settings-panel {
+        max-width: none;
+    }
+
+    .placement-panel {
+        max-width: none;
+    }
+}

@@ -3,7 +3,7 @@ using UnityEngine;
 namespace DLYH.TableUI
 {
     /// <summary>
-    /// Defines color rules for the table UI.
+    /// Defines color rules for the table UI. 
     /// Enforces hard requirements:
     /// - Red/Yellow: System warnings only, never player-selectable
     /// - Green: Setup placement feedback only (PlacementValid)

@@ -4,7 +4,7 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 20
+**Document Version:** 22
 **Last Updated:** January 8, 2026
 
 ---
@@ -15,9 +15,15 @@
 
 **Key Innovation:** Asymmetric difficulty - mixed-skill players compete fairly with different grid sizes, word counts, and difficulty settings.
 
-**Current Phase:** Phase A & B COMPLETE - ready for Phase C (Setup wizard + placement)
+**Current Phase:** Phase C IN PROGRESS - Setup wizard working, placement panel next
 
-**Last Session (Jan 8, 2026):** Tenth session - **Phase A & B COMPLETE!** Created table data model foundation (TableCellKind, TableCellState, CellOwner, TableCell, TableRegion, TableLayout, TableModel, ColorRules) in DLYH.TableUI namespace. Built UI Toolkit renderer (TableView.cs) with USS styling. Created TableViewTest.cs for scene testing. Table renders correctly: word rows, column/row headers, grid cells. Click interactions work (state cycling). Added Setup Wizard Flow and simplified Multiplayer Model to status doc.
+**Last Session (Jan 8, 2026):** Twelfth session - **Setup Wizard UI working!** Created SetupWizard.uxml/uss/controller with progressive card-based disclosure pattern (inspired by DAB). Cards collapse to summary when user moves to next step, expandable to edit previous choices. Flow: Profile (name + color) -> Grid Size -> Word Count -> Difficulty -> Mode Selection. All collapse/expand logic working correctly. Mode card shows 1 Player/2 Players options with Start Game button.
+
+**TODO for next session:**
+- Create Main Menu screen (title + "Start Game" button)
+- Rethink the "How many players?" section - current 1 Player/2 Players buttons need clearer UX design
+- Wire word placement panel to table UI
+- Test full flow: Menu -> Setup -> Placement
 
 ---
 
@@ -379,33 +385,41 @@ Assets/DLYH/
 
 Progressive disclosure pattern (like DAB). Single screen with show/hide panels.
 
+**Game Modes (Simplified):**
+- **1 Player** - vs The Executioner AI (same experience local or online, online tracks stats)
+- **2 Players** - Online only (real opponent OR phantom AI fallback after 5-6 seconds)
+
+Note: No local 2-player pass-and-play - defeats the purpose of hidden word/grid information.
+
 ```
-Setup Screen
-├── Player Profile (always visible)
-│   ├── Name input
-│   └── Color picker
+Setup Screen (always visible)
+├── Name input
+├── Color picker (excluding red/yellow)
+├── Grid Size (6x6 to 12x12)
+├── Word Count (3 or 4)
+├── Difficulty (Easy/Normal/Hard)
 │
-├── Step 1: "How do you want to play?"
-│   ├── [vs The Executioner] → Show solo options
-│   └── [vs Another Player] → Show matchmaking
-│
-├── Solo Options (hidden until selected)
-│   ├── Grid size (6x6 to 12x12)
-│   ├── Word count (3 or 4)
-│   ├── Difficulty (Easy/Normal/Hard)
-│   └── [Start Game] → Word placement phase
-│
-├── Matchmaking (hidden until selected)
-│   ├── Grid size selection
-│   ├── [Find Opponent] → Queue + 5-6s timeout → phantom AI fallback
-│   ├── [Invite Friend] → Generate game code
-│   └── [Join Game] → Enter code input
+├── How many players?
+│   ├── [1 Player] - "Play against The Executioner AI"
+│   │   └── [START GAME] → Word placement phase
+│   └── [2 Players] - "Play against another person"
+│       ├── [Find Opponent] → Queue + 5-6s timeout → phantom AI fallback
+│       ├── [Invite Friend] → Generate game code
+│       └── [Join Game] → Enter code input
 │
 └── Word Placement Phase
     ├── Table UI shows word rows + grid
+    ├── Letter tracker doubles as keyboard (mobile-friendly input)
     ├── Player places words on their grid
     └── [Ready] → Exchange setup, start gameplay
 ```
+
+**UI/UX Principles (learned from current implementation):**
+- No numbered steps - good UI doesn't need instructions
+- Progressive disclosure - don't show table until settings are chosen
+- One decision at a time - reduce cognitive load
+- Hide letter tracker during initial setup (only show during word placement)
+- Settings (grid, words, difficulty) define YOUR setup; in 2-player, opponent picks independently
 
 **Navigation:**
 - Forward: click option cards to reveal next step
@@ -437,6 +451,37 @@ FluffyKitty, Bob, WordNinja, LetterLord, xXSlayerXx,
 GrammarQueen, SpellMaster, VowelHunter, AlphabetKing,
 PuzzlePro, BrainStorm, QuickThinker, WordSmith
 ```
+
+---
+
+## End Game Vision (Phase F or Later)
+
+**Current Problem:** Game end is anticlimactic - blade drops in a tiny corner while grids still dominate the screen. The game is called "Don't Lose Your Head" but the guillotine moment doesn't feel like an event.
+
+**Proposed Flow:**
+```
+Game ends (win condition met)
+  → Grids fade out
+  → Dedicated guillotine scene appears
+  → Two guillotines prominent (winner and loser)
+  → Executioner character pulls lever
+  → Loser's blade drops (slight slow-mo)
+  → Head falls into basket
+  → Dramatic pause
+  → Results display
+  → [Play Again] button immediately accessible
+```
+
+**Design Goals:**
+- **Thematic payoff** - The guillotine moment should MEAN something
+- **Emotional punctuation** - Clear "end" beat instead of just stopping
+- **Spectacle for both outcomes** - Watch opponent's head roll OR get a dramatic death scene
+- **Streamable/shareable** - A good end animation is clip-worthy
+- **Quick enough for replays** - 3-4 seconds total, not tedious
+
+**Audio:** Already have 3-part guillotine sequence (rope stretch + raise, hook unlock, chop)
+
+**Note:** Save for Phase F or later - focus on setup/gameplay UI first.
 
 ---
 
@@ -931,6 +976,8 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 22 | Jan 8, 2026 | Twelfth session - **Setup Wizard UI working!** Created SetupWizard.uxml/uss/controller with progressive card-based disclosure. Cards collapse to summary line when moving forward, clickable to re-expand. Flow: Profile -> Grid -> Words -> Difficulty -> Mode. All collapse/expand sequences correct. Notes for next session: Main Menu needed, rethink "How many players?" UX. |
+| 21 | Jan 8, 2026 | Eleventh session - Reviewed DAB UI for inspiration. Simplified game modes: 1 Player (vs AI) and 2 Players (online only, no pass-and-play due to hidden info). Updated Setup Wizard Flow with UI/UX principles. Added End Game Vision section (dramatic guillotine finale for Phase F). |
 | 20 | Jan 8, 2026 | Tenth session - **Phase A & B COMPLETE!** Created DLYH.TableUI namespace with table data model (8 files) and UI Toolkit renderer. TableView renders word rows, headers, grid. Click interactions work. Added Setup Wizard Flow and simplified Multiplayer Model (phantom AI pattern) to status doc. |
 | 19 | Jan 7, 2026 | Ninth session - Project restored to E: drive. Housekeeping: deleted orphaned .csproj files (42) and AnyPortrait .txt files (6) from removed packages. Consolidated Claude Code permissions into E:\.claude\settings.json, deleted redundant E:\Unity\.claude folder. Created NewUIScene.unity for Phase A work. |
 | 18 | Jan 7, 2026 | Eighth session - **Phase 0.5 COMPLETE!** Created PlayerService.cs (~385 lines) to create player records without Supabase Auth (matches DAB pattern). Fixed GetPlayerCount query (session_players has no `id` column). Both Unity instances connect successfully. Anonymous users can now be disabled in Supabase. |
@@ -956,20 +1003,31 @@ After each work session, update this document:
 
 ## Next Session Instructions
 
-**Starting Point:** This document (DLYH_Status.md v20)
+**Starting Point:** This document (DLYH_Status.md v22)
 
 **Scene to Use:** NewUIScene.unity (for UI Toolkit work - Phase C)
 
 **Current State:**
 - Phase A & B COMPLETE - table data model and UI Toolkit renderer working
-- Ready for Phase C (Setup wizard + placement)
-- TableViewTest.cs in NewUIScene demonstrates table rendering and click interactions
+- Phase C IN PROGRESS - Setup wizard working with progressive card collapse
+- SetupWizardController.cs manages wizard flow
+- SetupWizard.uxml/uss define the UI structure and styling
 
-**Phase C Tasks:**
-- Create wizard panels (player profile, mode selection, options)
-- Implement word placement logic on the table
-- Handle placement states (anchor, path, valid/invalid feedback)
-- See "Setup Wizard Flow" section for UI structure
+**Files Created This Session:**
+- `Assets/DLYH/NewUI/Scripts/SetupWizardController.cs` - Progressive card wizard controller
+- `Assets/DLYH/NewUI/Scripts/WordPlacementController.cs` - Word placement logic (stub)
+- `Assets/DLYH/NewUI/UXML/SetupWizard.uxml` - Card-based wizard layout
+- `Assets/DLYH/NewUI/USS/SetupWizard.uss` - Dark theme styling with collapse states
+
+**Priority Tasks for Next Session:**
+1. **Create Main Menu screen** - Simple title + "Start Game" button to launch setup wizard
+2. **Rethink "How many players?" UX** - Current 1 Player/2 Players buttons work but need clearer design
+   - Consider: What happens after clicking each option?
+   - 1 Player should feel immediate (Start Game button appears)
+   - 2 Players has multiple sub-options (Find Opponent, Invite, Join)
+   - Maybe different card layout or clearer visual hierarchy?
+3. **Wire word placement panel** - Connect to table UI after "Start Game" clicked
+4. **Test full flow** - Menu -> Setup wizard -> Placement -> Ready
 
 **Namespace Decision:**
 - New UI code uses `DLYH.TableUI` namespace

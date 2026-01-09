@@ -1,0 +1,175 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="../USS/SetupWizard.uss" />
+
+    <!-- Main container -->
+    <ui:VisualElement name="setup-wizard-root" class="setup-wizard-root">
+
+        <!-- Header -->
+        <ui:VisualElement name="header" class="header">
+            <ui:Label name="title" text="Start a Game" class="title" />
+        </ui:VisualElement>
+
+        <!-- Cards Container - scrollable if needed -->
+        <ui:ScrollView name="cards-container" class="cards-container">
+
+            <!-- Card 1: Player Profile (Name + Color) - Always visible -->
+            <ui:VisualElement name="card-profile" class="setup-card">
+                <!-- Collapsed Summary (hidden when expanded) -->
+                <ui:VisualElement name="profile-summary" class="card-summary hidden">
+                    <ui:VisualElement name="profile-color-badge" class="summary-color-badge" />
+                    <ui:Label name="profile-summary-text" text="Player" class="summary-text" />
+                </ui:VisualElement>
+                <!-- Expanded Content -->
+                <ui:VisualElement name="profile-content" class="card-content">
+                    <ui:VisualElement name="name-section" class="card-section">
+                        <ui:Label text="What should we call you?" class="section-label" />
+                        <ui:TextField name="player-name-input" value="Player" class="text-input" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="color-section" class="card-section">
+                        <ui:Label text="Your Color" class="section-label" />
+                        <ui:VisualElement name="color-picker" class="color-picker">
+                            <!-- Color swatches generated dynamically -->
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <!-- Card 2: Grid Size - Hidden until profile interacted -->
+            <ui:VisualElement name="card-grid-size" class="setup-card hidden">
+                <!-- Collapsed Summary -->
+                <ui:VisualElement name="grid-summary" class="card-summary hidden">
+                    <ui:Label text="Grid" class="summary-label" />
+                    <ui:Label name="grid-summary-text" text="6x6" class="summary-value" />
+                </ui:VisualElement>
+                <!-- Expanded Content -->
+                <ui:VisualElement name="grid-content" class="card-content">
+                    <ui:Label text="Grid Size" class="section-label" />
+                    <ui:VisualElement name="grid-size-options" class="option-buttons">
+                        <ui:Button name="grid-6" text="6x6" class="option-button" />
+                        <ui:Button name="grid-7" text="7x7" class="option-button" />
+                        <ui:Button name="grid-8" text="8x8" class="option-button" />
+                        <ui:Button name="grid-9" text="9x9" class="option-button" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="grid-size-options-row2" class="option-buttons">
+                        <ui:Button name="grid-10" text="10x10" class="option-button" />
+                        <ui:Button name="grid-11" text="11x11" class="option-button" />
+                        <ui:Button name="grid-12" text="12x12" class="option-button" />
+                    </ui:VisualElement>
+                    <ui:Label text="Larger grid = harder for opponent to find your words" class="hint-text" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <!-- Card 3: Word Count - Hidden until grid size selected -->
+            <ui:VisualElement name="card-word-count" class="setup-card hidden">
+                <!-- Collapsed Summary -->
+                <ui:VisualElement name="words-summary" class="card-summary hidden">
+                    <ui:Label text="Words" class="summary-label" />
+                    <ui:Label name="words-summary-text" text="3" class="summary-value" />
+                </ui:VisualElement>
+                <!-- Expanded Content -->
+                <ui:VisualElement name="words-content" class="card-content">
+                    <ui:Label text="Number of Words" class="section-label" />
+                    <ui:VisualElement name="word-count-options" class="option-buttons">
+                        <ui:Button name="words-3" text="3 Words" class="option-button" />
+                        <ui:Button name="words-4" text="4 Words" class="option-button" />
+                    </ui:VisualElement>
+                    <ui:Label text="Fewer words = harder for opponent to find" class="hint-text" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <!-- Card 4: Difficulty - Hidden until word count selected -->
+            <ui:VisualElement name="card-difficulty" class="setup-card hidden">
+                <!-- Collapsed Summary -->
+                <ui:VisualElement name="difficulty-summary" class="card-summary hidden">
+                    <ui:Label text="Difficulty" class="summary-label" />
+                    <ui:Label name="difficulty-summary-text" text="Normal" class="summary-value" />
+                </ui:VisualElement>
+                <!-- Expanded Content -->
+                <ui:VisualElement name="difficulty-content" class="card-content">
+                    <ui:Label text="Difficulty" class="section-label" />
+                    <ui:VisualElement name="difficulty-options" class="option-buttons">
+                        <ui:Button name="diff-easy" text="Easy" class="option-button" />
+                        <ui:Button name="diff-normal" text="Normal" class="option-button" />
+                        <ui:Button name="diff-hard" text="Hard" class="option-button" />
+                    </ui:VisualElement>
+                    <ui:Label text="Higher difficulty = fewer mistakes allowed" class="hint-text" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <!-- Card 5: Mode Selection - Hidden until difficulty selected -->
+            <ui:VisualElement name="card-mode" class="setup-card hidden">
+                <ui:Label text="How many players?" class="section-label" />
+                <ui:VisualElement name="mode-cards" class="mode-cards">
+                    <ui:VisualElement name="mode-1player" class="mode-card">
+                        <ui:Label text="1 Player" class="mode-card-title" />
+                        <ui:Label text="vs The Executioner" class="mode-card-desc" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="mode-2player" class="mode-card">
+                        <ui:Label text="2 Players" class="mode-card-title" />
+                        <ui:Label text="vs Another Person" class="mode-card-desc" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- Start Game Button (shown when 1 Player selected) -->
+                <ui:Button name="btn-start-game" text="START GAME" class="start-button hidden" />
+
+                <!-- Multiplayer Options (shown when 2 Players selected) -->
+                <ui:VisualElement name="multiplayer-options" class="multiplayer-options hidden">
+                    <ui:Button name="btn-find-opponent" text="Find Opponent" class="action-button" />
+                    <ui:Button name="btn-invite-friend" text="Invite Friend" class="action-button" />
+                    <ui:Button name="btn-join-game" text="Join Game" class="action-button" />
+                </ui:VisualElement>
+
+                <!-- Join Game Input (shown when Join Game clicked) -->
+                <ui:VisualElement name="join-game-section" class="join-game-section hidden">
+                    <ui:Label text="Enter Game Code" class="section-label" />
+                    <ui:VisualElement class="join-game-row">
+                        <ui:TextField name="game-code-input" max-length="6" class="text-input code-input" />
+                        <ui:Button name="btn-join-with-code" text="Join" class="action-button join-button" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+        </ui:ScrollView>
+
+        <!-- Placement Panel (shown after settings complete) -->
+        <ui:VisualElement name="placement-panel" class="placement-panel hidden">
+
+            <!-- Player Header -->
+            <ui:VisualElement name="placement-header" class="placement-header">
+                <ui:VisualElement name="player-color-badge" class="player-color-badge" />
+                <ui:Label name="player-name-display" text="PLAYER" class="player-name-display" />
+            </ui:VisualElement>
+
+            <!-- Instructions -->
+            <ui:Label name="placement-instructions" text="Place your words on the grid" class="placement-instructions" />
+
+            <!-- Table Container (TableView attaches here) -->
+            <ui:VisualElement name="table-container" class="table-container">
+                <ui:VisualElement name="table-root" class="table-root">
+                    <!-- TableView generates content here -->
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <!-- Letter Keyboard -->
+            <ui:VisualElement name="letter-keyboard" class="letter-keyboard">
+                <!-- Letter buttons generated dynamically -->
+            </ui:VisualElement>
+
+            <!-- Placement Actions -->
+            <ui:VisualElement name="placement-actions" class="placement-actions">
+                <ui:Button name="btn-random-words" text="Random Words" class="action-button" />
+                <ui:Button name="btn-random-placement" text="Random Placement" class="action-button" />
+                <ui:Button name="btn-clear-placement" text="Clear" class="action-button secondary" />
+            </ui:VisualElement>
+
+            <!-- Ready Button -->
+            <ui:Button name="btn-ready" text="READY" class="start-button" />
+
+            <!-- Back Button -->
+            <ui:Button name="btn-back-to-settings" text="Back" class="back-button" />
+
+        </ui:VisualElement>
+
+    </ui:VisualElement>
+</ui:UXML>
