@@ -3,20 +3,24 @@
 /* === Container === */
 
 .table-container {
-    flex-grow: 1;
+    flex-grow: 0;
+    flex-shrink: 0;
     align-items: center;
     justify-content: center;
     padding: 10px;
+    overflow: visible;
 }
 
 .table-root {
     flex-direction: column;
     align-items: stretch;
+    overflow: visible;
 }
 
 .table-row {
     flex-direction: row;
     align-items: stretch;
+    overflow: visible;
 }
 
 /* === Base Cell === */
@@ -220,4 +224,186 @@
 
 .cell-size-large .table-cell-label {
     font-size: 22px;
+}
+
+/* === Word Rows Container === */
+
+.word-rows-container {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 5px 10px;
+    margin-bottom: 10px;
+    border-bottom-width: 2px;
+    border-bottom-color: rgba(70, 70, 85, 1);
+}
+
+/* === Word Row === */
+
+.word-row {
+    flex-direction: row;
+    align-items: center;
+    margin: 3px 0;
+    padding: 4px 0;
+}
+
+.word-row-number {
+    width: 28px;
+    font-size: 16px;
+    color: rgba(180, 180, 190, 1);
+    -unity-text-align: middle-right;
+    -unity-font-style: bold;
+    margin-right: 8px;
+}
+
+.word-row-letters {
+    flex-direction: row;
+    align-items: center;
+}
+
+.word-row-letter-cell {
+    width: 36px;
+    height: 36px;
+    margin: 1px;
+    border-radius: 4px;
+    align-items: center;
+    justify-content: center;
+    border-width: 1px;
+    border-color: rgba(70, 70, 85, 1);
+    background-color: rgba(45, 45, 55, 1);
+    transition-property: background-color, border-color;
+    transition-duration: 0.15s;
+}
+
+.word-row-letter-cell:hover {
+    border-color: rgba(100, 100, 120, 1);
+    background-color: rgba(55, 55, 68, 1);
+}
+
+.word-row-letter-label {
+    font-size: 18px;
+    color: rgba(140, 140, 150, 1);
+    -unity-text-align: middle-center;
+    -unity-font-style: bold;
+}
+
+/* Filled letter cell */
+.word-row-letter-cell.word-row-filled {
+    background-color: rgba(55, 55, 68, 1);
+    border-color: rgba(90, 90, 105, 1);
+}
+
+.word-row-letter-cell.word-row-filled .word-row-letter-label {
+    color: rgba(220, 220, 220, 1);
+}
+
+/* === Word Row Spacer === */
+
+.word-row-spacer {
+    flex-grow: 1;
+    min-width: 20px;
+}
+
+/* === Word Row Control Buttons === */
+
+.word-row-control-button {
+    width: 36px;
+    height: 36px;
+    margin-left: 4px;
+    border-radius: 4px;
+    border-width: 1px;
+    font-size: 16px;
+    -unity-font-style: bold;
+    background-color: rgba(50, 50, 62, 1);
+    border-color: rgba(70, 70, 85, 1);
+    color: rgba(180, 180, 190, 1);
+    transition-property: background-color, border-color;
+    transition-duration: 0.15s;
+}
+
+.word-row-control-button:hover {
+    background-color: rgba(65, 65, 80, 1);
+    border-color: rgba(100, 100, 120, 1);
+}
+
+.word-row-control-button:disabled {
+    opacity: 0.4;
+    background-color: rgba(40, 40, 50, 1);
+}
+
+.word-row-placement-button {
+    color: rgba(100, 200, 120, 1);
+}
+
+.word-row-placement-button:hover {
+    background-color: rgba(50, 80, 60, 1);
+    border-color: rgba(80, 160, 100, 1);
+}
+
+.word-row-clear-button {
+    color: rgba(200, 100, 100, 1);
+}
+
+.word-row-clear-button:hover {
+    background-color: rgba(80, 50, 50, 1);
+    border-color: rgba(160, 80, 80, 1);
+}
+
+.word-row-guess-button {
+    width: auto;
+    min-width: 70px;
+    padding: 0 12px;
+    font-size: 14px;
+    color: rgba(100, 180, 220, 1);
+}
+
+.word-row-guess-button:hover {
+    background-color: rgba(50, 70, 90, 1);
+    border-color: rgba(80, 140, 180, 1);
+}
+
+/* === Word Row States === */
+
+.word-row-active {
+    background-color: rgba(45, 50, 60, 0.5);
+    border-radius: 4px;
+}
+
+.word-row-active .word-row-letter-cell {
+    border-color: rgba(120, 140, 180, 1);
+}
+
+.word-row-placed .word-row-letter-cell {
+    border-width: 2px;
+}
+
+/* === Responsive Word Row Sizing === */
+
+.word-row-size-small .word-row-letter-cell {
+    width: 30px;
+    height: 30px;
+}
+
+.word-row-size-small .word-row-letter-label {
+    font-size: 14px;
+}
+
+.word-row-size-small .word-row-control-button {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+}
+
+.word-row-size-large .word-row-letter-cell {
+    width: 42px;
+    height: 42px;
+}
+
+.word-row-size-large .word-row-letter-label {
+    font-size: 20px;
+}
+
+.word-row-size-large .word-row-control-button {
+    width: 42px;
+    height: 42px;
+    font-size: 18px;
 }

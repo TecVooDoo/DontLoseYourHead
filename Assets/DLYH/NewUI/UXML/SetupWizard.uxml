@@ -142,12 +142,17 @@
             </ui:VisualElement>
 
             <!-- Instructions -->
-            <ui:Label name="placement-instructions" text="Place your words on the grid" class="placement-instructions" />
+            <ui:Label name="placement-instructions" text="Enter your words and place them on the grid" class="placement-instructions" />
 
-            <!-- Table Container (TableView attaches here) -->
+            <!-- Word Rows Container (WordRowsContainer attaches here) -->
+            <ui:VisualElement name="word-rows-container" class="word-rows-container">
+                <!-- WordRowsContainer generates word row content here -->
+            </ui:VisualElement>
+
+            <!-- Grid Table Container (TableView attaches here) -->
             <ui:VisualElement name="table-container" class="table-container">
                 <ui:VisualElement name="table-root" class="table-root">
-                    <!-- TableView generates content here -->
+                    <!-- TableView generates grid content here -->
                 </ui:VisualElement>
             </ui:VisualElement>
 

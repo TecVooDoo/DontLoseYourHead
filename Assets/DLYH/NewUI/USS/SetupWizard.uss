@@ -445,19 +445,33 @@
     -unity-text-align: middle-center;
 }
 
+/* === Word Rows Container (in placement panel) === */
+
+.placement-panel .word-rows-container {
+    width: 100%;
+    margin-bottom: 8px;
+    border-bottom-width: 1px;
+    border-bottom-color: rgb(50, 50, 60);
+    padding-bottom: 8px;
+}
+
 /* === Table Container === */
 
 .table-container {
-    margin: 16px 0;
+    margin: 8px 0;
     padding: 10px;
     background-color: rgb(24, 24, 30);
     border-radius: 8px;
+    overflow: visible;
+    align-items: center;
+    justify-content: center;
 }
 
 /* Import table styles */
 .table-root {
     flex-direction: column;
     align-items: stretch;
+    overflow: visible;
 }
 
 /* === Letter Keyboard === */

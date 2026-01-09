@@ -3,7 +3,8 @@ using System;
 namespace DLYH.TableUI
 {
     /// <summary>
-    /// The data model for a table UI. Contains all cell data and tracks changes.
+    /// The data model for the grid table UI. Contains cell data for headers and grid.
+    /// Word rows are managed separately by WordRowsContainer.
     /// Designed to be allocated once and reused via Clear() to avoid GC pressure.
     /// No Unity UI dependencies - can be unit tested independently.
     /// </summary>
@@ -133,12 +134,6 @@ namespace DLYH.TableUI
                 return TableCell.CreateRowHeader(row, col, headerNum);
             }
 
-            // Check if in word rows region
-            if (_layout.WordRowsRegion.Contains(row, col))
-            {
-                return TableCell.CreateWordSlot(row, col);
-            }
-
             // Default to spacer (e.g., top-left corner)
             return TableCell.CreateSpacer(row, col);
         }
@@ -216,25 +211,7 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
-        /// Sets a word slot cell's letter.
-        /// </summary>
-        public void SetWordSlotLetter(int wordIndex, int letterIndex, char letter)
-        {
-            (int row, int col) = _layout.WordSlotToTable(wordIndex, letterIndex);
-            SetCellChar(row, col, letter);
-        }
-
-        /// <summary>
-        /// Sets a word slot cell's state.
-        /// </summary>
-        public void SetWordSlotState(int wordIndex, int letterIndex, TableCellState state)
-        {
-            (int row, int col) = _layout.WordSlotToTable(wordIndex, letterIndex);
-            SetCellState(row, col, state);
-        }
-
-        /// <summary>
-        /// Sets a grid cell's letter.
+        /// Sets a grid cell's letter using grid-local coordinates.
         /// </summary>
         public void SetGridCellLetter(int gridRow, int gridCol, char letter)
         {
@@ -243,7 +220,7 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
-        /// Sets a grid cell's state.
+        /// Sets a grid cell's state using grid-local coordinates.
         /// </summary>
         public void SetGridCellState(int gridRow, int gridCol, TableCellState state)
         {
@@ -252,7 +229,7 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
-        /// Sets a grid cell's owner.
+        /// Sets a grid cell's owner using grid-local coordinates.
         /// </summary>
         public void SetGridCellOwner(int gridRow, int gridCol, CellOwner owner)
         {
@@ -266,15 +243,6 @@ namespace DLYH.TableUI
         public TableCell GetGridCell(int gridRow, int gridCol)
         {
             (int row, int col) = _layout.GridToTable(gridRow, gridCol);
-            return GetCell(row, col);
-        }
-
-        /// <summary>
-        /// Gets a word slot cell using word/letter indices.
-        /// </summary>
-        public TableCell GetWordSlot(int wordIndex, int letterIndex)
-        {
-            (int row, int col) = _layout.WordSlotToTable(wordIndex, letterIndex);
             return GetCell(row, col);
         }
 

@@ -33,7 +33,7 @@ namespace DLYH.TableUI
         private TableModel _tableModel;
         private TableView _tableView;
         private TableLayout _tableLayout;
-        private WordPlacementController _placementController;
+        private WordRowsContainer _wordRowsContainer;
 
         private void Awake()
         {
@@ -224,11 +224,12 @@ namespace DLYH.TableUI
             // Create layout based on setup data
             _tableLayout = TableLayout.CreateForSetup(data.GridSize, data.WordCount);
 
-            // Create table model
+            // Create table model (grid only - word rows are separate)
             _tableModel = new TableModel();
             _tableModel.Initialize(_tableLayout);
 
-            // Find the table container in the wizard's placement panel
+            // Find containers in the wizard's placement panel
+            VisualElement wordRowsContainer = _setupWizardScreen.Q<VisualElement>("word-rows-container");
             VisualElement tableContainer = _setupWizardScreen.Q<VisualElement>("table-container");
 
             if (tableContainer == null)
@@ -237,20 +238,36 @@ namespace DLYH.TableUI
                 return;
             }
 
-            // Create table view
+            // Create word rows container (separate from grid)
+            _wordRowsContainer = new WordRowsContainer(data.WordCount, _tableLayout.WordLengths);
+            _wordRowsContainer.SetPlayerColor(data.PlayerColor);
+
+            // Add word rows to UI - either in dedicated container or before table
+            if (wordRowsContainer != null)
+            {
+                wordRowsContainer.Clear();
+                wordRowsContainer.Add(_wordRowsContainer.Root);
+            }
+            else
+            {
+                // Insert before table container
+                int tableIndex = tableContainer.parent.IndexOf(tableContainer);
+                tableContainer.parent.Insert(tableIndex, _wordRowsContainer.Root);
+            }
+
+            // Create table view (grid only)
             _tableView = new TableView(tableContainer);
             _tableView.SetPlayerColors(data.PlayerColor, ColorRules.SelectableColors[1]);
             _tableView.Bind(_tableModel);
 
-            // Create placement controller
-            _placementController = new WordPlacementController();
-            _placementController.Initialize(_tableModel, _tableView, _tableLayout, data.PlayerColor);
-
-            // Wire up placement events
-            _placementController.OnWordPlaced += (index, word) =>
-                Debug.Log($"[UIFlowController] Word {index + 1} placed: {word}");
-            _placementController.OnAllWordsPlaced += () =>
+            // Wire up word row events
+            _wordRowsContainer.OnPlacementRequested += HandlePlacementRequested;
+            _wordRowsContainer.OnWordCleared += HandleWordCleared;
+            _wordRowsContainer.OnAllWordsPlaced += () =>
                 Debug.Log("[UIFlowController] All words placed - ready!");
+
+            // Wire up grid cell clicks for placement
+            _tableView.OnCellClicked += HandleGridCellClicked;
 
             // Wire up letter keyboard
             VisualElement keyboard = _setupWizardScreen.Q<VisualElement>("letter-keyboard");
@@ -261,18 +278,161 @@ namespace DLYH.TableUI
                     if (child is Button keyButton && keyButton.text.Length == 1)
                     {
                         char letter = keyButton.text[0];
-                        keyButton.clicked += () => _placementController?.AddLetterToSelectedWord(letter);
+                        keyButton.clicked += () => HandleLetterKeyPressed(letter);
                     }
                 }
             }
 
-            Debug.Log($"[UIFlowController] Table initialized: {_tableLayout.TotalRows}x{_tableLayout.TotalCols}");
+            // Wire up placement action buttons
+            Button randomWordsBtn = _setupWizardScreen.Q<Button>("btn-random-words");
+            Button randomPlacementBtn = _setupWizardScreen.Q<Button>("btn-random-placement");
+            Button clearPlacementBtn = _setupWizardScreen.Q<Button>("btn-clear-placement");
+
+            if (randomWordsBtn != null)
+            {
+                randomWordsBtn.clicked += HandleRandomWords;
+            }
+            if (randomPlacementBtn != null)
+            {
+                randomPlacementBtn.clicked += HandleRandomPlacement;
+            }
+            if (clearPlacementBtn != null)
+            {
+                clearPlacementBtn.clicked += () =>
+                {
+                    _wordRowsContainer?.ClearAll();
+                    ClearGridPlacements();
+                    Debug.Log("[UIFlowController] Cleared all placements");
+                };
+            }
+
+            // Wire up Ready button
+            Button readyBtn = _setupWizardScreen.Q<Button>("btn-ready");
+            if (readyBtn != null)
+            {
+                readyBtn.clicked += HandleReadyClicked;
+            }
+
+            Debug.Log($"[UIFlowController] Table initialized: {_tableLayout.TotalRows}x{_tableLayout.TotalCols}, {data.WordCount} word rows");
+        }
+
+        // === Word Entry Handlers ===
+
+        private void HandleLetterKeyPressed(char letter)
+        {
+            // TODO: Add letter to currently active word row
+            // This will be integrated with autocomplete later
+            int activeRow = _wordRowsContainer?.ActiveRowIndex ?? -1;
+            if (activeRow >= 0)
+            {
+                string currentWord = _wordRowsContainer.GetWord(activeRow);
+                int maxLength = _wordRowsContainer.GetWordLength(activeRow);
+                if (currentWord.Length < maxLength)
+                {
+                    _wordRowsContainer.SetWord(activeRow, currentWord + letter);
+                }
+            }
+        }
+
+        private void HandlePlacementRequested(int wordIndex, string word)
+        {
+            Debug.Log($"[UIFlowController] Placement requested for word {wordIndex + 1}: {word}");
+            // TODO: Enter placement mode, highlight valid starting cells
+            // This will be connected to PlacementAdapter later
+        }
+
+        private void HandleWordCleared(int wordIndex)
+        {
+            Debug.Log($"[UIFlowController] Word {wordIndex + 1} cleared");
+            // TODO: Clear word from grid if it was placed
+        }
+
+        private void HandleGridCellClicked(int row, int col, TableCell cell)
+        {
+            // Only handle grid cell clicks
+            if (cell.Kind != TableCellKind.GridCell) return;
+
+            Debug.Log($"[UIFlowController] Grid cell clicked: ({row}, {col})");
+            // TODO: Handle placement via PlacementAdapter
+        }
+
+        private void ClearGridPlacements()
+        {
+            // Reset all grid cells to fog state
+            if (_tableModel == null || _tableLayout == null) return;
+
+            for (int gridRow = 0; gridRow < _tableLayout.GridSize; gridRow++)
+            {
+                for (int gridCol = 0; gridCol < _tableLayout.GridSize; gridCol++)
+                {
+                    (int tableRow, int tableCol) = _tableLayout.GridToTable(gridRow, gridCol);
+                    _tableModel.SetCellChar(tableRow, tableCol, '\0');
+                    _tableModel.SetCellState(tableRow, tableCol, TableCellState.Fog);
+                    _tableModel.SetCellOwner(tableRow, tableCol, CellOwner.None);
+                }
+            }
+        }
+
+        // === Placement Handlers ===
+
+        private void HandleRandomWords()
+        {
+            if (_wordRowsContainer == null || _tableLayout == null) return;
+
+            // Get random words from word lists
+            // TODO: Integrate with actual WordValidationService
+            // These are placeholder words matching the expected lengths (3, 4, 5, 6)
+            string[] testWords = { "AXE", "HEAD", "BLADE", "THRONE" };
+
+            for (int i = 0; i < _tableLayout.WordCount && i < testWords.Length; i++)
+            {
+                int expectedLength = _tableLayout.GetWordLength(i);
+                if (i < testWords.Length && testWords[i].Length == expectedLength)
+                {
+                    _wordRowsContainer.SetWord(i, testWords[i]);
+                }
+            }
+
+            Debug.Log("[UIFlowController] Random words assigned");
+        }
+
+        private void HandleRandomPlacement()
+        {
+            if (_wordRowsContainer == null) return;
+
+            // TODO: Implement random placement algorithm using CoordinatePlacementController
+            Debug.Log("[UIFlowController] Random placement - not yet implemented");
+        }
+
+        private void HandleReadyClicked()
+        {
+            if (_wordRowsContainer == null) return;
+
+            // Check if all words are placed
+            if (!_wordRowsContainer.AreAllWordsPlaced())
+            {
+                Debug.LogWarning("[UIFlowController] Cannot ready - not all words placed");
+                // TODO: Show error message in UI
+                return;
+            }
+
+            Debug.Log("[UIFlowController] Player ready! Transitioning to gameplay...");
+            // TODO: Transition to gameplay phase
         }
 
         private void OnDestroy()
         {
-            _placementController?.Dispose();
-            _tableView?.Unbind();
+            if (_wordRowsContainer != null)
+            {
+                _wordRowsContainer.OnPlacementRequested -= HandlePlacementRequested;
+                _wordRowsContainer.OnWordCleared -= HandleWordCleared;
+                _wordRowsContainer.Dispose();
+            }
+            if (_tableView != null)
+            {
+                _tableView.OnCellClicked -= HandleGridCellClicked;
+                _tableView.Unbind();
+            }
         }
     }
 

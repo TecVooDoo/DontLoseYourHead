@@ -4,7 +4,7 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 23
+**Document Version:** 24
 **Last Updated:** January 9, 2026
 
 ---
@@ -15,16 +15,16 @@
 
 **Key Innovation:** Asymmetric difficulty - mixed-skill players compete fairly with different grid sizes, word counts, and difficulty settings.
 
-**Current Phase:** Phase C IN PROGRESS - Main menu complete, placement panel next
+**Current Phase:** Phase C IN PROGRESS - Word row architecture redesigned
 
-**Last Session (Jan 9, 2026):** Thirteenth session - **Main Menu working!** Created MainMenu.uxml/uss with title, tagline, and buttons. Created UIFlowController.cs to manage screen transitions (Main Menu -> Setup Wizard). Fixed TemplateContainer sizing issue. Deleted old UIRoot and TableTest GameObjects that were conflicting. Flow: Main Menu -> Setup Wizard -> (placement next).
+**Last Session (Jan 9, 2026):** Fourteenth session - **Word Rows Architecture Redesigned!** Major refactor to separate word rows from grid table. Word rows now have variable lengths (3, 4, 5, 6 letters) with control buttons. Created WordRowView.cs and WordRowsContainer.cs. Updated TableLayout/TableModel to be grid-only. UIFlowController now uses new word row system. Integration plan documented.
 
 **TODO for next session:**
-- Rethink the "How many players?" section - current 1 Player/2 Players buttons need clearer UX design
-- Wire word placement panel to table UI
-- Test full flow: Menu -> Setup -> Placement
-- Add marquee with cycling guillotine facts to Main Menu (later)
-- Add feedback button to Main Menu (later)
+- Integrate WordRowView with existing WordValidationService for autocomplete
+- Create PlacementAdapter to connect to existing CoordinatePlacementController (8 directions)
+- Test full flow: Menu -> Setup -> Placement with new word rows
+- Connect Random Words button to actual WordListSO
+- Implement placement mode with grid highlighting
 
 ---
 
@@ -85,7 +85,12 @@
 ### Then (Phases A-F: UI Toolkit Implementation)
 - [x] Phase A: Table data model foundation (no visual changes) - COMPLETE
 - [x] Phase B: UI Toolkit table renderer MVP - COMPLETE
-- [ ] Phase C: Setup wizard + placement using table UI
+- [ ] Phase C: Setup wizard + placement using table UI - IN PROGRESS
+  - [x] Setup wizard with progressive card disclosure
+  - [x] Main menu working
+  - [x] Word rows architecture redesigned (separate from grid)
+  - [ ] Word entry with autocomplete (integrate WordValidationService)
+  - [ ] Grid placement (integrate CoordinatePlacementController)
 - [ ] Phase D: Gameplay UI conversion
 - [ ] Phase E: Networking integration (wire existing code)
 - [ ] Phase F: Refactor and cleanup (remove legacy uGUI)
@@ -165,6 +170,7 @@
 - LetterCellUI.cs, WordPatternRowUI.cs, WordPatternPanelUI.cs - uGUI approach abandoned
 - NewUI/Prefabs/LetterCellUI.prefab, WordPatternRowUI.prefab - to be deleted after UI Toolkit complete
 - NewUIDesign.unity scene - to be deleted when recoding starts
+- WordPlacementController.cs (NewUI) - to be replaced by PlacementAdapter + existing CoordinatePlacementController
 
 ---
 
@@ -225,6 +231,38 @@ Create minimal test scene to verify networking works before building UI around i
 
 ## Architecture
 
+### Word Rows Architecture (NEW - Phase C Redesign)
+
+Word rows are now a **separate container** above the grid table. This allows:
+- Variable word lengths (3, 4, 5, 6 letters for words 1-4)
+- Independent layout from grid columns
+- Control buttons per row (placement, clear, or guess)
+
+**Layout Structure:**
+```
+Word Rows Container (border-aligned with grid below)
+├── Row 1: [1.] [_][_][_]           [⊕][✕]  ← 3 letters + controls
+├── Row 2: [2.] [_][_][_][_]        [⊕][✕]  ← 4 letters + controls
+├── Row 3: [3.] [_][_][_][_][_]     [⊕][✕]  ← 5 letters + controls
+└── Row 4: [4.] [_][_][_][_][_][_]  [⊕][✕]  ← 6 letters + controls
+────────────────────────────────────────────
+Grid Table Container
+├── [spacer] [A] [B] [C] [D] [E] [F]  ← Column headers
+├── [1]      [ ] [ ] [ ] [ ] [ ] [ ]  ← Grid row 1
+├── [2]      [ ] [ ] [ ] [ ] [ ] [ ]  ← Grid row 2
+└── ...
+```
+
+**Control Buttons:**
+- During Setup: [⊕] placement button, [✕] clear button
+- During Gameplay: [GUESS] button replaces both
+
+**Files:**
+- `WordRowView.cs` - Renders single word row with variable length
+- `WordRowsContainer.cs` - Manages all word rows, events
+- `TableLayout.cs` - Grid-only (no WordRowsRegion)
+- `TableModel.cs` - Grid-only (no word slot methods)
+
 ### Namespaces
 
 | Namespace | Scripts | Purpose |
@@ -266,10 +304,12 @@ Create minimal test scene to verify networking works before building UI around i
 **DLYH.AI.Strategies:**
 - IGuessStrategy, AIGameState, LetterFrequencyStrategy, CoordinateStrategy, WordGuessStrategy
 
-**DLYH.TableUI (NEW - Phase A/B):**
+**DLYH.TableUI (NEW - Phase A/B/C):**
 - TableCellKind, TableCellState, CellOwner (enums)
 - TableCell (struct), TableRegion (struct)
 - TableLayout, TableModel, ColorRules, TableView, TableViewTest
+- WordRowView, WordRowsContainer (NEW - Phase C)
+- UIFlowController, SetupWizardUIManager (nested class)
 
 **DLYH.Networking:**
 - IOpponent, LocalAIOpponent, RemotePlayerOpponent, OpponentFactory
@@ -306,9 +346,10 @@ Assets/DLYH/
       Utilities/  - RowDisplayBuilder (TecVooDoo.DontLoseYourHead.UI.Utilities)
   NewUI/          - UI Toolkit implementation (DLYH.TableUI)
     Scripts/      - TableCellKind, TableCellState, CellOwner, TableCell, TableRegion,
-                    TableLayout, TableModel, ColorRules, TableView, TableViewTest
-    USS/          - TableView.uss (cell styling)
-    UXML/         - TableView.uxml (container template)
+                    TableLayout, TableModel, ColorRules, TableView, TableViewTest,
+                    UIFlowController, WordRowView, WordRowsContainer (NEW)
+    USS/          - TableView.uss (cell + word row styling), MainMenu.uss, SetupWizard.uss
+    UXML/         - TableView.uxml, MainMenu.uxml, SetupWizard.uxml
     Prefabs/      - (empty, for future use)
   Scenes/
     NewPlayTesting.unity - Current working scene (single player)
@@ -330,6 +371,9 @@ Assets/DLYH/
 | IOpponent | ~177 | Opponent abstraction interface | OK (not wired) |
 | LocalAIOpponent | ~300 | AI wrapper for IOpponent | OK (not wired) |
 | RemotePlayerOpponent | ~400 | Network player opponent | OK (not wired) |
+| UIFlowController | ~1094 | Screen flow + setup wizard (includes SetupWizardUIManager) | OK |
+| WordRowView | ~285 | Single word row UI component | NEW |
+| WordRowsContainer | ~230 | Manages all word rows | NEW |
 
 ### Extracted Controllers (Phase 0)
 
@@ -362,11 +406,9 @@ Assets/DLYH/
 
 **Technology:** Unity UI Toolkit (not uGUI)
 
-**Approach:** Unified table-style UI for:
-- Word rows
-- Column headers (A, B, C...)
-- Row headers (1, 2, 3...)
-- Grid cells
+**Approach:** Separate containers for:
+- Word rows (variable length, with control buttons)
+- Grid table (column headers, row headers, grid cells)
 
 **Separate Panels (not table):**
 - Setup wizard fields
@@ -379,6 +421,7 @@ Assets/DLYH/
 - UI is pure view - game logic updates model, view renders it
 - No per-frame allocations
 - Model has no Unity UI references (testable)
+- Reuse existing systems: WordListSO, WordValidationService, CoordinatePlacementController
 
 ---
 
@@ -409,9 +452,13 @@ Setup Screen (always visible)
 │       └── [Join Game] → Enter code input
 │
 └── Word Placement Phase
-    ├── Table UI shows word rows + grid
-    ├── Letter tracker doubles as keyboard (mobile-friendly input)
-    ├── Player places words on their grid
+    ├── Word rows (variable length: 3, 4, 5, 6 letters)
+    │   ├── Row 1: [1.] [ ][ ][ ] [⊕][✕]
+    │   ├── Row 2: [2.] [ ][ ][ ][ ] [⊕][✕]
+    │   └── ...
+    ├── Grid table (headers + cells)
+    ├── Letter keyboard for word entry
+    ├── Autocomplete dropdown (from WordListSO)
     └── [Ready] → Exchange setup, start gameplay
 ```
 
@@ -511,7 +558,7 @@ Game ends (win condition met)
 ```
 TableCellKind:
 - Spacer         (empty/padding)
-- WordSlot       (word row letter slot)
+- WordSlot       (word row letter slot) - NOW SEPARATE from table
 - HeaderCol      (column header: A, B, C...)
 - HeaderRow      (row header: 1, 2, 3...)
 - GridCell       (board cell)
@@ -550,7 +597,8 @@ struct TableRegion:
 - int RowStart, ColStart, RowCount, ColCount
 
 class TableLayout:
-- TableRegion WordRowsRegion, ColHeaderRegion, RowHeaderRegion, GridRegion
+- TableRegion ColHeaderRegion, RowHeaderRegion, GridRegion
+- int[] WordLengths (for word rows - separate container)
 - static CreateForSetup(gridSize, wordCount)
 - static CreateForGameplay(gridSize, wordCount)
 
@@ -558,24 +606,43 @@ class ColorRules:
 - bool IsSelectablePlayerColor(color)
 - UIColor GetPlacementColor(state)
 - UIColor GetGameplayColor(owner, state, p1Color, p2Color)
+
+class WordRowView:
+- Variable length letter cells (3, 4, 5, 6)
+- Control buttons (placement, clear, guess)
+- Events: OnPlacementRequested, OnClearRequested, OnGuessRequested
+
+class WordRowsContainer:
+- Manages array of WordRowView
+- Events: OnPlacementRequested, OnWordCleared, OnAllWordsPlaced
 ```
 
 ### Layout Formula
 
 ```
-Rows = wordCount + 1 (col header) + gridSize
-Cols = 1 (row header) + gridSize
+Grid Table:
+  Rows = 1 (col header) + gridSize
+  Cols = 1 (row header) + gridSize
+
+Word Rows (separate):
+  Word 1 = 3 letters
+  Word 2 = 4 letters
+  Word 3 = 5 letters
+  Word 4 = 6 letters (if 4 words)
 ```
 
 ### Acceptance Checklist
 
-- [ ] TableModel constructed once, cleared/reused without allocations
-- [ ] TableLayout maps regions correctly for variable grid sizes
+- [x] TableModel constructed once, cleared/reused without allocations
+- [x] TableLayout maps regions correctly for variable grid sizes
 - [ ] Setup can mark PlacementValid/Invalid/Path/Anchor/Second
 - [ ] Gameplay can mark Revealed/Hit/Miss with owner-based colors
-- [ ] Red and Yellow not selectable as player colors
-- [ ] Green only for setup placement feedback
-- [ ] Model has no Unity UI references, can be unit tested
+- [x] Red and Yellow not selectable as player colors
+- [x] Green only for setup placement feedback
+- [x] Model has no Unity UI references, can be unit tested
+- [x] Word rows have variable lengths (3, 4, 5, 6)
+- [ ] Word rows integrate with WordValidationService for autocomplete
+- [ ] Grid placement uses existing CoordinatePlacementController (8 directions)
 
 ---
 
@@ -885,6 +952,7 @@ public class GameplayUIController {
 18. **EditorWebRequest loading order** - set `_isLoading = false` BEFORE callback that may start next request
 19. **Test after each extraction** - verify game works before next extraction
 20. **Document interfaces immediately** - update Architecture section after each extraction
+21. **Reuse existing systems** - Don't rebuild WordListSO, WordValidationService, CoordinatePlacementController - create thin adapters
 
 ---
 
@@ -964,12 +1032,12 @@ public class GameplayUIController {
 
 After each work session, update this document:
 
-- [ ] Move completed TODOs to "What Works" section
-- [ ] Add any new issues to "What Doesn't Work"
-- [ ] Update "Last Session" with date and summary
-- [ ] Add new lessons to "Lessons Learned" if applicable
-- [ ] Update Architecture section if files were added/extracted
-- [ ] Increment version number in header
+- [x] Move completed TODOs to "What Works" section
+- [x] Add any new issues to "What Doesn't Work"
+- [x] Update "Last Session" with date and summary
+- [x] Add new lessons to "Lessons Learned" if applicable
+- [x] Update Architecture section if files were added/extracted
+- [x] Increment version number in header
 
 ---
 
@@ -977,6 +1045,7 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 24 | Jan 9, 2026 | Fourteenth session - **Word Rows Architecture Redesigned!** Major refactor separating word rows from grid table. Word rows now have variable lengths (3,4,5,6). Created WordRowView.cs and WordRowsContainer.cs. Updated TableLayout/TableModel to be grid-only. UIFlowController uses new system. Integration plan documented in UI_Toolkit_Integration_Plan.md. |
 | 23 | Jan 9, 2026 | Thirteenth session - **Main Menu working!** Created MainMenu.uxml/uss with title, tagline, buttons. Created UIFlowController.cs for screen transitions. Fixed TemplateContainer sizing. Deleted conflicting UIRoot/TableTest GameObjects. Flow: Main Menu -> Setup Wizard working. Next: placement panel, "How many players?" UX. |
 | 22 | Jan 8, 2026 | Twelfth session - **Setup Wizard UI working!** Created SetupWizard.uxml/uss/controller with progressive card-based disclosure. Cards collapse to summary line when moving forward, clickable to re-expand. Flow: Profile -> Grid -> Words -> Difficulty -> Mode. All collapse/expand sequences correct. Notes for next session: Main Menu needed, rethink "How many players?" UX. |
 | 21 | Jan 8, 2026 | Eleventh session - Reviewed DAB UI for inspiration. Simplified game modes: 1 Player (vs AI) and 2 Players (online only, no pass-and-play due to hidden info). Updated Setup Wizard Flow with UI/UX principles. Added End Game Vision section (dramatic guillotine finale for Phase F). |
@@ -1005,38 +1074,50 @@ After each work session, update this document:
 
 ## Next Session Instructions
 
-**Starting Point:** This document (DLYH_Status.md v22)
+**Starting Point:** This document (DLYH_Status.md v24)
 
 **Scene to Use:** NewUIScene.unity (for UI Toolkit work - Phase C)
 
 **Current State:**
 - Phase A & B COMPLETE - table data model and UI Toolkit renderer working
-- Phase C IN PROGRESS - Setup wizard working with progressive card collapse
-- SetupWizardController.cs manages wizard flow
-- SetupWizard.uxml/uss define the UI structure and styling
+- Phase C IN PROGRESS - Word row architecture redesigned
+- Word rows are now separate from grid table (variable lengths: 3, 4, 5, 6)
+- UIFlowController uses WordRowsContainer instead of old unified table approach
 
 **Files Created This Session:**
-- `Assets/DLYH/NewUI/Scripts/UIFlowController.cs` - Screen flow manager (Main Menu <-> Setup Wizard)
-- `Assets/DLYH/NewUI/Scripts/MainMenuController.cs` - Main menu controller (unused, logic in UIFlowController)
-- `Assets/DLYH/NewUI/UXML/MainMenu.uxml` - Main menu layout with title, tagline, buttons
-- `Assets/DLYH/NewUI/USS/MainMenu.uss` - Dark theme styling for main menu
+- `Assets/DLYH/NewUI/Scripts/WordRowView.cs` - Single word row component (~285 lines)
+- `Assets/DLYH/NewUI/Scripts/WordRowsContainer.cs` - Word rows manager (~230 lines)
+
+**Files Modified This Session:**
+- `Assets/DLYH/NewUI/Scripts/TableLayout.cs` - Now grid-only (removed WordRowsRegion)
+- `Assets/DLYH/NewUI/Scripts/TableModel.cs` - Removed word slot methods
+- `Assets/DLYH/NewUI/Scripts/UIFlowController.cs` - Uses WordRowsContainer
+- `Assets/DLYH/NewUI/UXML/SetupWizard.uxml` - Added word-rows-container element
+- `Assets/DLYH/NewUI/USS/TableView.uss` - Added word row styles, fixed overflow
+- `Assets/DLYH/NewUI/USS/SetupWizard.uss` - Added word rows container styling
+
+**Integration Plan:** See `Documents/UI_Toolkit_Integration_Plan.md` for full details
 
 **Priority Tasks for Next Session:**
-1. **Rethink "How many players?" UX** - Current 1 Player/2 Players buttons work but need clearer design
-   - Consider: What happens after clicking each option?
-   - 1 Player should feel immediate (Start Game button appears)
-   - 2 Players has multiple sub-options (Find Opponent, Invite, Join)
-   - Maybe different card layout or clearer visual hierarchy?
-2. **Wire word placement panel** - Connect to table UI after "Start Game" clicked
-3. **Test full flow** - Menu -> Setup wizard -> Placement -> Ready
-4. **Add marquee with guillotine facts** - Cycling historical facts on main menu (later)
-5. **Add feedback button** - On main menu (later)
+1. **Integrate with WordValidationService** - Wire autocomplete to WordListSO
+2. **Create PlacementAdapter** - Connect to existing CoordinatePlacementController (8 directions)
+3. **Test word entry flow** - Type letters, see autocomplete suggestions
+4. **Test placement flow** - Click placement button, select cells on grid
+5. **Connect Random Words** - Use actual WordListSO instead of hardcoded words
+6. **Delete WordPlacementController.cs** - Replaced by PlacementAdapter + existing controller
+
+**Existing Systems to Integrate (DO NOT REBUILD):**
+- `Assets/DLYH/Scripts/Core/GameState/WordListSO.cs` - Word dictionary
+- `Assets/DLYH/Scripts/UI/Services/WordValidationService.cs` - Word validation
+- `Assets/DLYH/Scripts/UI/AutocompleteDropdown.cs` - Autocomplete behavior (logic reusable)
+- `Assets/DLYH/Scripts/UI/Controllers/CoordinatePlacementController.cs` - 8-direction placement
 
 **Namespace Decision:**
 - New UI code uses `DLYH.TableUI` namespace
 - Existing code stays in original namespaces (no migration needed)
 
 **Do NOT:**
+- Rebuild WordListSO, WordValidationService, or CoordinatePlacementController
 - Delete NetworkingTest.unity scene yet (may need for Phase E)
 - Polish visuals yet (save for Phase F)
 
