@@ -42,6 +42,7 @@ namespace DLYH.TableUI
         private TableView _tableView;
         private TableLayout _tableLayout;
         private WordRowsContainer _wordRowsContainer;
+        private PlacementAdapter _placementAdapter;
 
         // Services
         private WordValidationService _wordValidationService;
@@ -340,6 +341,12 @@ namespace DLYH.TableUI
 
             // Wire up grid cell clicks for placement
             _tableView.OnCellClicked += HandleGridCellClicked;
+            _tableView.OnCellHovered += HandleGridCellHovered;
+
+            // Create placement adapter
+            _placementAdapter = new PlacementAdapter(_tableView, _tableModel, _tableLayout, _wordRowsContainer);
+            _placementAdapter.OnWordPlaced += HandleWordPlacedOnGrid;
+            _placementAdapter.OnPlacementCancelled += HandlePlacementCancelled;
 
             // Wire up letter keyboard (buttons are inside keyboard-row elements)
             // Only wire up once to prevent multiple handlers being added
@@ -477,35 +484,96 @@ namespace DLYH.TableUI
 
         private void HandlePlacementRequested(int wordIndex, string word)
         {
-            // TODO: Enter placement mode, highlight valid starting cells
-            // This will be connected to PlacementAdapter later
+            if (_placementAdapter == null) return;
+
+            // Enter placement mode for this word
+            _placementAdapter.EnterPlacementMode(wordIndex, word);
+            Debug.Log($"[UIFlowController] Entered placement mode for word {wordIndex + 1}: {word}");
         }
 
         private void HandleWordCleared(int wordIndex)
         {
-            // TODO: Clear word from grid if it was placed
+            if (_placementAdapter == null) return;
+
+            // If we're currently placing this word, cancel placement mode first
+            // This clears the preview (first letter on grid) before clearing the word
+            if (_placementAdapter.IsInPlacementMode && _placementAdapter.PlacementWordRowIndex == wordIndex)
+            {
+                _placementAdapter.CancelPlacementMode();
+            }
+
+            // Clear word from grid if it was placed
+            _placementAdapter.ClearWordFromGrid(wordIndex);
         }
 
         private void HandleGridCellClicked(int row, int col, TableCell cell)
         {
             // Only handle grid cell clicks
             if (cell.Kind != TableCellKind.GridCell) return;
-            // TODO: Handle placement via PlacementAdapter
+
+            if (_placementAdapter != null && _placementAdapter.IsInPlacementMode)
+            {
+                // Convert table coordinates to grid coordinates
+                // TableView reports clicks as (tableRow, tableCol), we need (gridCol, gridRow)
+                int gridRow = row - 1;  // Subtract 1 for column header row
+                int gridCol = col - 1;  // Subtract 1 for row header column
+
+                _placementAdapter.HandleCellClick(gridCol, gridRow);
+            }
+        }
+
+        private void HandleGridCellHovered(int row, int col, TableCell cell)
+        {
+            // Only handle grid cell hovers
+            if (cell.Kind != TableCellKind.GridCell) return;
+
+            if (_placementAdapter != null && _placementAdapter.IsInPlacementMode)
+            {
+                // Convert table coordinates to grid coordinates
+                int gridRow = row - 1;
+                int gridCol = col - 1;
+
+                _placementAdapter.UpdatePlacementPreview(gridCol, gridRow);
+            }
+        }
+
+        private void HandleWordPlacedOnGrid(int rowIndex, string word, System.Collections.Generic.List<UnityEngine.Vector2Int> positions)
+        {
+            Debug.Log($"[UIFlowController] Word '{word}' placed on grid at {positions.Count} positions");
+
+            // The PlacementAdapter already calls _wordRowsContainer.SetWordPlaced
+            // Check if all words are now placed
+            if (_wordRowsContainer != null && _wordRowsContainer.AreAllWordsPlaced())
+            {
+                Debug.Log("[UIFlowController] All words placed! Ready to start game.");
+            }
+        }
+
+        private void HandlePlacementCancelled()
+        {
+            Debug.Log("[UIFlowController] Placement cancelled");
         }
 
         private void ClearGridPlacements()
         {
-            // Reset all grid cells to fog state
-            if (_tableModel == null || _tableLayout == null) return;
-
-            for (int gridRow = 0; gridRow < _tableLayout.GridSize; gridRow++)
+            if (_placementAdapter != null)
             {
-                for (int gridCol = 0; gridCol < _tableLayout.GridSize; gridCol++)
+                _placementAdapter.ClearAllPlacedWords();
+            }
+            else
+            {
+                // Fallback: Reset all grid cells to fog state directly
+                if (_tableModel == null || _tableLayout == null) return;
+
+                for (int gridRow = 0; gridRow < _tableLayout.GridSize; gridRow++)
                 {
-                    (int tableRow, int tableCol) = _tableLayout.GridToTable(gridRow, gridCol);
-                    _tableModel.SetCellChar(tableRow, tableCol, '\0');
-                    _tableModel.SetCellState(tableRow, tableCol, TableCellState.Fog);
-                    _tableModel.SetCellOwner(tableRow, tableCol, CellOwner.None);
+                    for (int gridCol = 0; gridCol < _tableLayout.GridSize; gridCol++)
+                    {
+                        (int tableRow, int tableCol) = _tableLayout.GridToTable(gridRow, gridCol);
+                        _tableModel.SetCellChar(tableRow, tableCol, '\0');
+                        _tableModel.SetCellState(tableRow, tableCol, TableCellState.Fog);
+                        _tableModel.SetCellOwner(tableRow, tableCol, CellOwner.None);
+                    }
                 }
             }
         }
@@ -544,8 +612,53 @@ namespace DLYH.TableUI
 
         private void HandleRandomPlacement()
         {
-            if (_wordRowsContainer == null) return;
-            // TODO: Implement random placement algorithm using CoordinatePlacementController
+            if (_wordRowsContainer == null || _placementAdapter == null || _tableLayout == null) return;
+
+            // Clear existing placements first
+            _placementAdapter.ClearAllPlacedWords();
+            _wordRowsContainer.ClearAllPlacements();
+
+            // Place words longest-first for better success on smaller grids
+            // Get word indices sorted by word length descending
+            System.Collections.Generic.List<int> wordIndices = new System.Collections.Generic.List<int>();
+            for (int i = 0; i < _tableLayout.WordCount; i++)
+            {
+                wordIndices.Add(i);
+            }
+
+            // Sort by word length descending (longest first)
+            wordIndices.Sort((a, b) =>
+            {
+                int lengthA = _wordRowsContainer.GetWordLength(a);
+                int lengthB = _wordRowsContainer.GetWordLength(b);
+                return lengthB.CompareTo(lengthA);
+            });
+
+            int successCount = 0;
+            foreach (int wordIndex in wordIndices)
+            {
+                string word = _wordRowsContainer.GetWord(wordIndex);
+                int expectedLength = _wordRowsContainer.GetWordLength(wordIndex);
+
+                // Skip if word is incomplete
+                if (string.IsNullOrEmpty(word) || word.Length != expectedLength)
+                {
+                    Debug.LogWarning($"[UIFlowController] Skipping random placement for word {wordIndex + 1} - word incomplete");
+                    continue;
+                }
+
+                bool placed = _placementAdapter.PlaceWordRandomly(wordIndex, word);
+                if (placed)
+                {
+                    successCount++;
+                }
+                else
+                {
+                    Debug.LogWarning($"[UIFlowController] Failed to place word {wordIndex + 1}: {word}");
+                }
+            }
+
+            Debug.Log($"[UIFlowController] Random placement complete: {successCount}/{_tableLayout.WordCount} words placed");
         }
 
         private void HandleReadyClicked()
@@ -564,6 +677,12 @@ namespace DLYH.TableUI
 
         private void OnDestroy()
         {
+            if (_placementAdapter != null)
+            {
+                _placementAdapter.OnWordPlaced -= HandleWordPlacedOnGrid;
+                _placementAdapter.OnPlacementCancelled -= HandlePlacementCancelled;
+                _placementAdapter.Dispose();
+            }
             if (_wordRowsContainer != null)
             {
                 _wordRowsContainer.OnPlacementRequested -= HandlePlacementRequested;
@@ -574,6 +693,7 @@ namespace DLYH.TableUI
             if (_tableView != null)
             {
                 _tableView.OnCellClicked -= HandleGridCellClicked;
+                _tableView.OnCellHovered -= HandleGridCellHovered;
                 _tableView.Unbind();
             }
         }

@@ -4,8 +4,8 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 26
-**Last Updated:** January 9, 2026
+**Document Version:** 27
+**Last Updated:** January 10, 2026
 
 ---
 
@@ -15,18 +15,18 @@
 
 **Key Innovation:** Asymmetric difficulty - mixed-skill players compete fairly with different grid sizes, word counts, and difficulty settings.
 
-**Current Phase:** Phase C IN PROGRESS - WordValidationService integrated
+**Current Phase:** Phase C IN PROGRESS - Grid placement working!
 
-**Last Session (Jan 9, 2026):** Sixteenth session - **Placement Panel Layout Fixed!** Fixed multiple UI bugs: backspace button duplication when navigating back/forward, Unity 6 blue screen issue (UIDocument inspector destroys runtime UI), keyboard multiple input bug (letters entering 3x/4x). Implemented consistent 3-row keyboard layout (ABCDEFGHI, JKLMNOPQR, STUVWXYZ+backspace). Added responsive sizing for action buttons on larger grids.
+**Last Session (Jan 10, 2026):** Seventeenth session - **PlacementAdapter Complete!** Created TablePlacementController (~500 lines) that works directly with TableModel (no GridCellUI dependency). Supports 8-direction word placement with two-click flow: first click selects start cell, second click selects direction. Shows placement preview with color highlighting (green=valid, red=invalid, orange=anchor). Random Placement places longest words first for better success on smaller grids. Fixed bug where clearing a word during placement mode left preview letter on grid.
 
 **TODO for next session:**
-- Create PlacementAdapter to connect to existing CoordinatePlacementController (8 directions)
-- Test full flow: Menu -> Setup -> Word Entry -> Placement
-- Implement placement mode with grid highlighting
+- Implement UX redesign for player mode selection (see "UX Redesign - Mode Selection" section)
 - Add visual feedback for invalid words (red highlight, shake)
 - Connect physical keyboard input for word entry
-- Consider adding QWERTY keyboard layout option (alphabetical is current default)
-- Random Placement should place longest words first for better success on smaller grids
+- Word list preview dropdown (autocomplete as user types)
+- Main menu marquee (cycling guillotine facts)
+- Test crossword-style overlapping words (shared letters)
+- Phase D: Start gameplay UI conversion
 
 ---
 
@@ -373,9 +373,11 @@ Assets/DLYH/
 | IOpponent | ~177 | Opponent abstraction interface | OK (not wired) |
 | LocalAIOpponent | ~300 | AI wrapper for IOpponent | OK (not wired) |
 | RemotePlayerOpponent | ~400 | Network player opponent | OK (not wired) |
-| UIFlowController | ~1094 | Screen flow + setup wizard (includes SetupWizardUIManager) | OK |
+| UIFlowController | ~1350 | Screen flow + setup wizard (includes SetupWizardUIManager) | OK |
 | WordRowView | ~285 | Single word row UI component | NEW |
 | WordRowsContainer | ~230 | Manages all word rows | NEW |
+| PlacementAdapter | ~210 | Adapter for table-based word placement | NEW |
+| TablePlacementController | ~500 | 8-direction placement logic for TableModel | NEW |
 
 ### Extracted Controllers (Phase 0)
 
@@ -427,7 +429,83 @@ Assets/DLYH/
 
 ---
 
-## Setup Wizard Flow (Phase C Reference)
+## UX Redesign - Mode Selection (Jan 10, 2026)
+
+**Problem:** Current "START GAME" button lies - it doesn't start a game, it leads to board setup. This violates player trust and creates confusion about where they are in the flow.
+
+**Player Mental Model:**
+1. **Configuration** → Deciding HOW to play
+2. **Preparation** → Setting up MY board
+3. **Play** → The actual game begins
+
+**Solution: Split modes at Main Menu, honest button labels**
+
+### New Main Menu
+```
+DON'T LOSE YOUR HEAD
+[Play Solo]        ← vs The Executioner AI
+[Play Online]      ← vs Another Person (Find Opponent)
+[Join Game]        ← Enter code to join existing game
+[How to Play]
+[Settings]
+```
+
+### Play Solo / Play Online Flow (same wizard)
+```
+Profile Card (Name + Color)
+    ↓
+Grid Size Card (6x6 to 12x12)
+    ↓
+Word Count Card (3 or 4 words)
+    ↓
+Difficulty Card (Easy/Normal/Hard)
+    ↓
+Board Setup Card:
+    "How do you want to set up your board?"
+    [Quick Setup]     ← Random words + random placement, go to placement panel with everything filled
+    [Choose My Words] ← Go to placement panel empty
+```
+
+### Placement Panel
+- Shows word rows, grid, keyboard
+- [Random Words] and [Random Placement] buttons still available
+- Bottom button: **"READY"** (not "START GAME")
+- For 2P Online: Small "Invite Friend" link generates shareable code
+- After READY:
+  - 1P: Game starts immediately vs AI
+  - 2P: "Waiting for opponent..." (Find Opponent matchmaking or wait for invited friend)
+
+### Join Game Flow (different - reduced config)
+```
+Main Menu → [Join Game]
+    ↓
+Enter Code Panel (code input + Join button)
+    ↓ (code validated, grid size & word count loaded from host)
+Profile Card (Name + Color + Difficulty ONLY - no grid/words selection)
+    ↓
+Board Setup Card (Quick/Manual choice)
+    ↓
+Placement Panel (grid size & word count inherited from host's game)
+    ↓
+READY → Wait for host or start if host already ready
+```
+
+### Key Changes Summary
+1. **Main Menu splits modes** - 3 clear entry points: Solo, Online, Join
+2. **"START GAME" → "READY"** - Honest labeling throughout
+3. **Board Setup Card** replaces mode selection card - Quick vs Manual choice
+4. **Join Game is separate flow** - Doesn't show grid/words config (inherited from host)
+5. **Invite Friend moves** to placement panel as secondary action
+
+### Implementation Steps
+1. Update MainMenu.uxml - Replace "START GAME" with "Play Solo", "Play Online", "Join Game"
+2. Update SetupWizard.uxml - Remove card-mode, add card-board-setup with Quick/Manual buttons
+3. Update UIFlowController - Track game mode (solo/online/join), handle reduced Join flow
+4. Add invite code generation on placement panel for 2P mode
+
+---
+
+## Setup Wizard Flow (Phase C Reference - OUTDATED, see UX Redesign above)
 
 Progressive disclosure pattern (like DAB). Single screen with show/hide panels.
 
@@ -436,33 +514,6 @@ Progressive disclosure pattern (like DAB). Single screen with show/hide panels.
 - **2 Players** - Online only (real opponent OR phantom AI fallback after 5-6 seconds)
 
 Note: No local 2-player pass-and-play - defeats the purpose of hidden word/grid information.
-
-```
-Setup Screen (always visible)
-├── Name input
-├── Color picker (excluding red/yellow)
-├── Grid Size (6x6 to 12x12)
-├── Word Count (3 or 4)
-├── Difficulty (Easy/Normal/Hard)
-│
-├── How many players?
-│   ├── [1 Player] - "Play against The Executioner AI"
-│   │   └── [START GAME] → Word placement phase
-│   └── [2 Players] - "Play against another person"
-│       ├── [Find Opponent] → Queue + 5-6s timeout → phantom AI fallback
-│       ├── [Invite Friend] → Generate game code
-│       └── [Join Game] → Enter code input
-│
-└── Word Placement Phase
-    ├── Word rows (variable length: 3, 4, 5, 6 letters)
-    │   ├── Row 1: [1.] [ ][ ][ ] [⊕][✕]
-    │   ├── Row 2: [2.] [ ][ ][ ][ ] [⊕][✕]
-    │   └── ...
-    ├── Grid table (headers + cells)
-    ├── Letter keyboard for word entry
-    ├── Autocomplete dropdown (from WordListSO)
-    └── [Ready] → Exchange setup, start gameplay
-```
 
 **UI/UX Principles (learned from current implementation):**
 - No numbered steps - good UI doesn't need instructions
@@ -1049,6 +1100,7 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 27 | Jan 10, 2026 | Seventeenth session - **PlacementAdapter Complete!** Created TablePlacementController (~500 lines) and PlacementAdapter in PlacementAdapter.cs (~760 lines total). Works directly with TableModel (no GridCellUI dependency). Two-click placement: start cell -> direction. 8-direction support with preview highlighting (green=valid, red=invalid, orange=anchor). Random Placement sorts longest-first. Fixed clear-during-placement bug. |
 | 26 | Jan 9, 2026 | Sixteenth session - **Placement Panel Layout Fixed!** Fixed backspace button duplication, Unity 6 blue screen bug (EmptyRoot.uxml workaround), keyboard multiple input bug (_keyboardWiredUp flag). Implemented 3-row keyboard (ABCDEFGHI, JKLMNOPQR, STUVWXYZ+backspace). Added responsive sizing for action buttons (.size-large for 6x6/7x7). Notes: QWERTY keyboard option and longest-words-first placement for future. |
 | 25 | Jan 9, 2026 | Fifteenth session - **WordValidationService Integrated!** Fixed compilation errors (deleted obsolete WordPlacementController.cs, SetupWizardTest.cs, fixed TableViewTest.cs). Integrated WordValidationService into UIFlowController. Random Words uses actual WordListSO. Word entry with row selection, backspace, validation, and auto-advance. |
 | 24 | Jan 9, 2026 | Fourteenth session - **Word Rows Architecture Redesigned!** Major refactor separating word rows from grid table. Word rows now have variable lengths (3,4,5,6). Created WordRowView.cs and WordRowsContainer.cs. Updated TableLayout/TableModel to be grid-only. UIFlowController uses new system. Integration plan documented in UI_Toolkit_Integration_Plan.md. |
@@ -1080,51 +1132,52 @@ After each work session, update this document:
 
 ## Next Session Instructions
 
-**Starting Point:** This document (DLYH_Status.md v26)
+**Starting Point:** This document (DLYH_Status.md v27)
 
 **Scene to Use:** NewUIScene.unity (for UI Toolkit work - Phase C)
 
 **Current State:**
 - Phase A & B COMPLETE - table data model and UI Toolkit renderer working
-- Phase C IN PROGRESS - WordValidationService integrated, placement panel layout fixed
+- Phase C IN PROGRESS - Grid placement now working!
 - Word rows are separate from grid table (variable lengths: 3, 4, 5, 6)
 - Word entry works: click row, type letters, backspace, validation on complete
+- Grid placement works: two-click flow (start cell -> direction), 8 directions supported
 - Random Words button uses actual WordListSO assets
+- Random Placement places longest words first for better success
 - UIFlowController needs WordListSO assets assigned in Inspector
 - 3-row keyboard layout: ABCDEFGHI, JKLMNOPQR, STUVWXYZ + backspace
 - Responsive action button sizing for different grid sizes
 
 **Files Created This Session:**
-- `Assets/DLYH/NewUI/UXML/EmptyRoot.uxml` - Placeholder for UIDocument Source Asset (fixes blue screen bug)
+- `Assets/DLYH/NewUI/Scripts/PlacementAdapter.cs` - TablePlacementController and PlacementAdapter classes (~760 lines)
 
 **Files Modified This Session:**
-- `Assets/DLYH/NewUI/Scripts/UIFlowController.cs` - Fixed backspace duplication, keyboard multiple input bug, 3-row keyboard layout
-- `Assets/DLYH/NewUI/USS/SetupWizard.uss` - Added .size-large styles for action buttons, reduced spacing
-- `Assets/DLYH/NewUI/Scripts/WordRowView.cs` - Added SetSizeClass() method
-- `Assets/DLYH/NewUI/Scripts/WordRowsContainer.cs` - Added SetSizeClass() method
-- `Assets/DLYH/NewUI/Scripts/TableView.cs` - Added GetSizeClassName() method
-- `Assets/DLYH/NewUI/USS/TableView.uss` - Added responsive word row sizing classes
+- `Assets/DLYH/NewUI/Scripts/UIFlowController.cs` - Integrated PlacementAdapter, HandleRandomPlacement with longest-first sorting
 
 **Integration Plan:** See `Documents/UI_Toolkit_Integration_Plan.md` for full details
 
 **Priority Tasks for Next Session:**
-1. **Assign WordListSO assets** - UIFlowController Inspector needs 3/4/5/6-letter word lists
-2. **Create PlacementAdapter** - Connect to existing CoordinatePlacementController (8 directions)
-3. **Implement placement mode** - Click placement button -> highlight valid cells -> place word
-4. **Add visual feedback** - Invalid word highlight/shake, placement preview colors
-5. **Connect physical keyboard** - Support real keyboard input (not just on-screen buttons)
+1. **UX Redesign** - Implement mode selection redesign (see "UX Redesign - Mode Selection" section)
+   - Update MainMenu.uxml with Play Solo / Play Online / Join Game buttons
+   - Update SetupWizard.uxml - remove card-mode, add card-board-setup (Quick/Manual)
+   - Update UIFlowController to track game mode and handle flows
+2. **Add visual feedback** - Invalid word highlight/shake
+3. **Connect physical keyboard** - Support real keyboard input (not just on-screen buttons)
+4. **Word list preview dropdown** - Autocomplete as user types
+5. **Main menu marquee** - Cycling guillotine facts
+6. **Test crossword overlapping** - Verify shared letters work correctly
+7. **Phase D** - Start gameplay UI conversion
 
 **Existing Systems to Integrate (DO NOT REBUILD):**
 - `Assets/DLYH/Scripts/Core/GameState/WordListSO.cs` - Word dictionary (already integrated!)
 - `Assets/DLYH/Scripts/UI/Services/WordValidationService.cs` - Word validation (already integrated!)
-- `Assets/DLYH/Scripts/UI/Controllers/CoordinatePlacementController.cs` - 8-direction placement (next to integrate)
+- `Assets/DLYH/Scripts/UI/Controllers/CoordinatePlacementController.cs` - 8-direction placement (logic replicated in TablePlacementController)
 
 **Namespace Decision:**
 - New UI code uses `DLYH.TableUI` namespace
 - Existing code stays in original namespaces (no migration needed)
 
 **Do NOT:**
-- Rebuild WordListSO, WordValidationService, or CoordinatePlacementController
 - Delete NetworkingTest.unity scene yet (may need for Phase E)
 - Polish visuals yet (save for Phase F)
 
