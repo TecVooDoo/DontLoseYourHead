@@ -42,6 +42,9 @@ namespace DLYH.TableUI
         private static readonly string ClassFilled = "word-row-filled";
         private static readonly string ClassPlaced = "word-row-placed";
         private static readonly string ClassActive = "word-row-active";
+        private static readonly string ClassSizeTiny = "word-row-size-tiny";
+        private static readonly string ClassSizeSmall = "word-row-size-small";
+        private static readonly string ClassSizeLarge = "word-row-size-large";
 
         /// <summary>
         /// Event fired when placement button is clicked. Parameter: word index.
@@ -316,6 +319,31 @@ namespace DLYH.TableUI
             SetWord("");
             SetPlaced(false);
             SetActive(false);
+        }
+
+        /// <summary>
+        /// Sets the size class for responsive scaling.
+        /// </summary>
+        /// <param name="sizeClass">"tiny", "small", "medium", or "large"</param>
+        public void SetSizeClass(string sizeClass)
+        {
+            _root.RemoveFromClassList(ClassSizeTiny);
+            _root.RemoveFromClassList(ClassSizeSmall);
+            _root.RemoveFromClassList(ClassSizeLarge);
+
+            switch (sizeClass)
+            {
+                case "tiny":
+                    _root.AddToClassList(ClassSizeTiny);
+                    break;
+                case "small":
+                    _root.AddToClassList(ClassSizeSmall);
+                    break;
+                case "large":
+                    _root.AddToClassList(ClassSizeLarge);
+                    break;
+                // "medium" is the default, no class needed
+            }
         }
 
         /// <summary>

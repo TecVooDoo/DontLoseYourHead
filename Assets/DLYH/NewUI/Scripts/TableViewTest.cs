@@ -18,8 +18,7 @@ namespace DLYH.TableUI
         [SerializeField] private Color _player1Color = new Color(0.2f, 0.4f, 0.9f, 1f);
         [SerializeField] private Color _player2Color = new Color(0.6f, 0.2f, 0.8f, 1f);
 
-        [Header("Test Words")]
-        [SerializeField] private string[] _testWords = new string[] { "HELLO", "WORLD", "TEST" };
+        // Note: Word rows are now separate from the table (WordRowsContainer)
 
         private UIDocument _uiDocument;
         private TableModel _model;
@@ -45,9 +44,6 @@ namespace DLYH.TableUI
             _model = new TableModel();
             _model.Initialize(_layout);
 
-            // Populate test words
-            PopulateTestWords();
-
             // Create view
             VisualElement root = _uiDocument.rootVisualElement;
             _view = new TableView(root);
@@ -61,18 +57,6 @@ namespace DLYH.TableUI
             Debug.Log($"[TableViewTest] Initialized {_layout.TotalRows}x{_layout.TotalCols} table (grid: {_gridSize}x{_gridSize}, words: {_wordCount})");
         }
 
-        private void PopulateTestWords()
-        {
-            for (int wordIndex = 0; wordIndex < _wordCount && wordIndex < _testWords.Length; wordIndex++)
-            {
-                string word = _testWords[wordIndex];
-                for (int letterIndex = 0; letterIndex < word.Length && letterIndex < _gridSize; letterIndex++)
-                {
-                    _model.SetWordSlotLetter(wordIndex, letterIndex, word[letterIndex]);
-                }
-            }
-        }
-
         private void HandleCellClicked(int row, int col, TableCell cell)
         {
             Debug.Log($"[TableViewTest] Clicked ({row}, {col}) - Kind: {cell.Kind}, State: {cell.State}, Char: '{cell.TextChar}'");
@@ -81,11 +65,6 @@ namespace DLYH.TableUI
             if (cell.Kind == TableCellKind.GridCell)
             {
                 CycleGridCellState(row, col, cell);
-            }
-            // Demo: toggle word slot states
-            else if (cell.Kind == TableCellKind.WordSlot)
-            {
-                ToggleWordSlotState(row, col, cell);
             }
         }
 
@@ -117,21 +96,6 @@ namespace DLYH.TableUI
 
             _model.SetCellState(row, col, newState);
             _model.SetCellOwner(row, col, newOwner);
-        }
-
-        private void ToggleWordSlotState(int row, int col, TableCell cell)
-        {
-            // Toggle: Normal -> Hit -> Normal
-            if (cell.State == TableCellState.Normal)
-            {
-                _model.SetCellState(row, col, TableCellState.Hit);
-                _model.SetCellOwner(row, col, CellOwner.Player1);
-            }
-            else
-            {
-                _model.SetCellState(row, col, TableCellState.Normal);
-                _model.SetCellOwner(row, col, CellOwner.None);
-            }
         }
 
         private void HandleCellHovered(int row, int col, TableCell cell)
@@ -223,7 +187,6 @@ namespace DLYH.TableUI
             if (_model == null) return;
 
             _model.Clear();
-            PopulateTestWords();
             Debug.Log("[TableViewTest] Model reset");
         }
 
@@ -232,11 +195,9 @@ namespace DLYH.TableUI
         {
             _gridSize = 8;
             _wordCount = 4;
-            _testWords = new string[] { "TESTING", "BIGGER", "LAYOUT", "HERE" };
 
             _layout = TableLayout.CreateForSetup(_gridSize, _wordCount);
             _model.Initialize(_layout);
-            PopulateTestWords();
 
             Debug.Log($"[TableViewTest] Changed to {_gridSize}x{_gridSize} grid with {_wordCount} words");
         }

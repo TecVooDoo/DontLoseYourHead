@@ -33,6 +33,15 @@ namespace DLYH.TableUI
         private static readonly string ClassCellHeaderRow = "cell-header-row";
         private static readonly string ClassCellGrid = "cell-grid";
 
+        // Size classes
+        private static readonly string ClassCellSizeTiny = "cell-size-tiny";
+        private static readonly string ClassCellSizeSmall = "cell-size-small";
+        private static readonly string ClassCellSizeMedium = "cell-size-medium";
+        private static readonly string ClassCellSizeLarge = "cell-size-large";
+
+        // Current size class (determined by grid dimensions)
+        private string _currentSizeClass = ClassCellSizeMedium;
+
         // State classes
         private static readonly string[] StateClasses = new string[]
         {
@@ -125,6 +134,32 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
+        /// Determines the appropriate cell size class based on grid dimensions.
+        /// Larger grids get smaller cells to fit on screen.
+        /// </summary>
+        private string DetermineSizeClass(int rows, int cols)
+        {
+            int maxDimension = Mathf.Max(rows, cols);
+
+            if (maxDimension >= 12)
+            {
+                return ClassCellSizeTiny;
+            }
+            else if (maxDimension >= 10)
+            {
+                return ClassCellSizeSmall;
+            }
+            else if (maxDimension >= 8)
+            {
+                return ClassCellSizeMedium;
+            }
+            else
+            {
+                return ClassCellSizeLarge;
+            }
+        }
+
+        /// <summary>
         /// Generates all cell VisualElements. Called once on bind.
         /// </summary>
         private void GenerateCells()
@@ -134,6 +169,9 @@ namespace DLYH.TableUI
 
             int rows = _model.Rows;
             int cols = _model.Cols;
+
+            // Determine cell size based on grid dimensions
+            _currentSizeClass = DetermineSizeClass(rows, cols);
 
             _cellElements = new VisualElement[rows, cols];
             _cellLabels = new Label[rows, cols];
@@ -161,6 +199,7 @@ namespace DLYH.TableUI
         {
             VisualElement cell = new VisualElement();
             cell.AddToClassList(ClassTableCell);
+            cell.AddToClassList(_currentSizeClass);
 
             Label label = new Label();
             label.AddToClassList(ClassCellLabel);
@@ -369,6 +408,18 @@ namespace DLYH.TableUI
                 _model.OnCleared -= HandleModelCleared;
                 _model = null;
             }
+        }
+
+        /// <summary>
+        /// Gets the current size class name for coordinating with word rows.
+        /// Returns "tiny", "small", "medium", or "large".
+        /// </summary>
+        public string GetSizeClassName()
+        {
+            if (_currentSizeClass == ClassCellSizeTiny) return "tiny";
+            if (_currentSizeClass == ClassCellSizeSmall) return "small";
+            if (_currentSizeClass == ClassCellSizeLarge) return "large";
+            return "medium";
         }
     }
 }

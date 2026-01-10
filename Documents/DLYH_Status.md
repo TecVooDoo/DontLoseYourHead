@@ -4,7 +4,7 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 24
+**Document Version:** 25
 **Last Updated:** January 9, 2026
 
 ---
@@ -15,16 +15,16 @@
 
 **Key Innovation:** Asymmetric difficulty - mixed-skill players compete fairly with different grid sizes, word counts, and difficulty settings.
 
-**Current Phase:** Phase C IN PROGRESS - Word row architecture redesigned
+**Current Phase:** Phase C IN PROGRESS - WordValidationService integrated
 
-**Last Session (Jan 9, 2026):** Fourteenth session - **Word Rows Architecture Redesigned!** Major refactor to separate word rows from grid table. Word rows now have variable lengths (3, 4, 5, 6 letters) with control buttons. Created WordRowView.cs and WordRowsContainer.cs. Updated TableLayout/TableModel to be grid-only. UIFlowController now uses new word row system. Integration plan documented.
+**Last Session (Jan 9, 2026):** Fifteenth session - **WordValidationService Integrated!** Fixed compilation errors from previous session (deleted obsolete WordPlacementController.cs and SetupWizardTest.cs). Integrated WordValidationService into UIFlowController for random words and word validation. Implemented word entry with row selection, backspace support, and auto-advance on valid word. Random Words button now uses actual WordListSO assets.
 
 **TODO for next session:**
-- Integrate WordRowView with existing WordValidationService for autocomplete
 - Create PlacementAdapter to connect to existing CoordinatePlacementController (8 directions)
-- Test full flow: Menu -> Setup -> Placement with new word rows
-- Connect Random Words button to actual WordListSO
+- Test full flow: Menu -> Setup -> Word Entry -> Placement
 - Implement placement mode with grid highlighting
+- Add visual feedback for invalid words (red highlight, shake)
+- Connect physical keyboard input for word entry
 
 ---
 
@@ -1045,6 +1045,7 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 25 | Jan 9, 2026 | Fifteenth session - **WordValidationService Integrated!** Fixed compilation errors (deleted obsolete WordPlacementController.cs, SetupWizardTest.cs, fixed TableViewTest.cs). Integrated WordValidationService into UIFlowController. Random Words uses actual WordListSO. Word entry with row selection, backspace, validation, and auto-advance. |
 | 24 | Jan 9, 2026 | Fourteenth session - **Word Rows Architecture Redesigned!** Major refactor separating word rows from grid table. Word rows now have variable lengths (3,4,5,6). Created WordRowView.cs and WordRowsContainer.cs. Updated TableLayout/TableModel to be grid-only. UIFlowController uses new system. Integration plan documented in UI_Toolkit_Integration_Plan.md. |
 | 23 | Jan 9, 2026 | Thirteenth session - **Main Menu working!** Created MainMenu.uxml/uss with title, tagline, buttons. Created UIFlowController.cs for screen transitions. Fixed TemplateContainer sizing. Deleted conflicting UIRoot/TableTest GameObjects. Flow: Main Menu -> Setup Wizard working. Next: placement panel, "How many players?" UX. |
 | 22 | Jan 8, 2026 | Twelfth session - **Setup Wizard UI working!** Created SetupWizard.uxml/uss/controller with progressive card-based disclosure. Cards collapse to summary line when moving forward, clickable to re-expand. Flow: Profile -> Grid -> Words -> Difficulty -> Mode. All collapse/expand sequences correct. Notes for next session: Main Menu needed, rethink "How many players?" UX. |
@@ -1074,43 +1075,39 @@ After each work session, update this document:
 
 ## Next Session Instructions
 
-**Starting Point:** This document (DLYH_Status.md v24)
+**Starting Point:** This document (DLYH_Status.md v25)
 
 **Scene to Use:** NewUIScene.unity (for UI Toolkit work - Phase C)
 
 **Current State:**
 - Phase A & B COMPLETE - table data model and UI Toolkit renderer working
-- Phase C IN PROGRESS - Word row architecture redesigned
-- Word rows are now separate from grid table (variable lengths: 3, 4, 5, 6)
-- UIFlowController uses WordRowsContainer instead of old unified table approach
+- Phase C IN PROGRESS - WordValidationService integrated
+- Word rows are separate from grid table (variable lengths: 3, 4, 5, 6)
+- Word entry works: click row, type letters, backspace, validation on complete
+- Random Words button uses actual WordListSO assets
+- UIFlowController needs WordListSO assets assigned in Inspector
 
-**Files Created This Session:**
-- `Assets/DLYH/NewUI/Scripts/WordRowView.cs` - Single word row component (~285 lines)
-- `Assets/DLYH/NewUI/Scripts/WordRowsContainer.cs` - Word rows manager (~230 lines)
+**Files Deleted This Session:**
+- `Assets/DLYH/NewUI/Scripts/WordPlacementController.cs` - Obsolete (used old architecture)
+- `Assets/DLYH/NewUI/Scripts/SetupWizardTest.cs` - Obsolete (used WordPlacementController)
 
 **Files Modified This Session:**
-- `Assets/DLYH/NewUI/Scripts/TableLayout.cs` - Now grid-only (removed WordRowsRegion)
-- `Assets/DLYH/NewUI/Scripts/TableModel.cs` - Removed word slot methods
-- `Assets/DLYH/NewUI/Scripts/UIFlowController.cs` - Uses WordRowsContainer
-- `Assets/DLYH/NewUI/UXML/SetupWizard.uxml` - Added word-rows-container element
-- `Assets/DLYH/NewUI/USS/TableView.uss` - Added word row styles, fixed overflow
-- `Assets/DLYH/NewUI/USS/SetupWizard.uss` - Added word rows container styling
+- `Assets/DLYH/NewUI/Scripts/UIFlowController.cs` - Added WordValidationService, word entry, validation
+- `Assets/DLYH/NewUI/Scripts/TableViewTest.cs` - Removed obsolete word slot references
 
 **Integration Plan:** See `Documents/UI_Toolkit_Integration_Plan.md` for full details
 
 **Priority Tasks for Next Session:**
-1. **Integrate with WordValidationService** - Wire autocomplete to WordListSO
+1. **Assign WordListSO assets** - UIFlowController Inspector needs 3/4/5/6-letter word lists
 2. **Create PlacementAdapter** - Connect to existing CoordinatePlacementController (8 directions)
-3. **Test word entry flow** - Type letters, see autocomplete suggestions
-4. **Test placement flow** - Click placement button, select cells on grid
-5. **Connect Random Words** - Use actual WordListSO instead of hardcoded words
-6. **Delete WordPlacementController.cs** - Replaced by PlacementAdapter + existing controller
+3. **Implement placement mode** - Click placement button -> highlight valid cells -> place word
+4. **Add visual feedback** - Invalid word highlight/shake, placement preview colors
+5. **Connect physical keyboard** - Support real keyboard input (not just on-screen buttons)
 
 **Existing Systems to Integrate (DO NOT REBUILD):**
-- `Assets/DLYH/Scripts/Core/GameState/WordListSO.cs` - Word dictionary
-- `Assets/DLYH/Scripts/UI/Services/WordValidationService.cs` - Word validation
-- `Assets/DLYH/Scripts/UI/AutocompleteDropdown.cs` - Autocomplete behavior (logic reusable)
-- `Assets/DLYH/Scripts/UI/Controllers/CoordinatePlacementController.cs` - 8-direction placement
+- `Assets/DLYH/Scripts/Core/GameState/WordListSO.cs` - Word dictionary (already integrated!)
+- `Assets/DLYH/Scripts/UI/Services/WordValidationService.cs` - Word validation (already integrated!)
+- `Assets/DLYH/Scripts/UI/Controllers/CoordinatePlacementController.cs` - 8-direction placement (next to integrate)
 
 **Namespace Decision:**
 - New UI code uses `DLYH.TableUI` namespace

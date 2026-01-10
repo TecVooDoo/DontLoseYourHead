@@ -364,10 +364,10 @@
 /* === Start/Ready Button === */
 
 .start-button {
-    height: 50px;
-    margin-top: 16px;
-    padding: 12px 32px;
-    font-size: 20px;
+    height: 42px;
+    margin-top: 6px;
+    padding: 8px 24px;
+    font-size: 17px;
     background-color: rgb(0, 140, 120);
     border-color: rgb(0, 180, 150);
     border-width: 2px;
@@ -376,6 +376,7 @@
     -unity-font-style: bold;
     transition-property: background-color, scale;
     transition-duration: 0.15s;
+    flex-shrink: 0;
 }
 
 .start-button:hover {
@@ -391,15 +392,17 @@
 /* === Back Button === */
 
 .back-button {
-    height: 36px;
-    margin-top: 12px;
-    padding: 8px 16px;
-    font-size: 14px;
+    height: 28px;
+    margin-top: 4px;
+    margin-bottom: 2px;
+    padding: 4px 12px;
+    font-size: 12px;
     background-color: transparent;
     border-color: rgb(100, 100, 115);
     border-width: 1px;
     border-radius: 6px;
     color: rgb(160, 160, 170);
+    flex-shrink: 0;
 }
 
 .back-button:hover {
@@ -411,18 +414,21 @@
 /* === Placement Panel === */
 
 .placement-panel {
-    min-width: 400px;
-    padding: 20px;
-    margin: 10px;
+    min-width: 300px;
+    padding: 8px;
+    margin: 5px;
     background-color: rgb(32, 32, 40);
     border-radius: 8px;
+    flex-grow: 1;
     align-items: center;
+    justify-content: flex-start;
 }
 
 .placement-header {
     flex-direction: row;
     align-items: center;
-    margin-bottom: 12px;
+    margin-bottom: 4px;
+    flex-shrink: 0;
 }
 
 .player-color-badge {
@@ -439,32 +445,39 @@
 }
 
 .placement-instructions {
-    font-size: 14px;
+    font-size: 13px;
     color: rgb(160, 160, 170);
-    margin-bottom: 16px;
+    margin-bottom: 4px;
     -unity-text-align: middle-center;
+    flex-shrink: 0;
 }
 
 /* === Word Rows Container (in placement panel) === */
 
 .placement-panel .word-rows-container {
     width: 100%;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
     border-bottom-width: 1px;
     border-bottom-color: rgb(50, 50, 60);
-    padding-bottom: 8px;
+    padding-bottom: 4px;
+    flex-shrink: 0;
+}
+
+.placement-panel .word-rows-content {
+    flex-shrink: 0;
 }
 
 /* === Table Container === */
 
 .table-container {
-    margin: 8px 0;
-    padding: 10px;
+    margin: 2px 0;
+    padding: 4px;
     background-color: rgb(24, 24, 30);
     border-radius: 8px;
     overflow: visible;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
 }
 
 /* Import table styles */
@@ -477,11 +490,15 @@
 /* === Letter Keyboard === */
 
 .letter-keyboard {
+    flex-direction: column;
+    align-items: center;
+    margin: 4px 0;
+    flex-shrink: 0;
+}
+
+.keyboard-row {
     flex-direction: row;
-    flex-wrap: wrap;
     justify-content: center;
-    max-width: 520px;
-    margin: 16px 0;
 }
 
 .letter-key {
@@ -517,17 +534,86 @@
     color: rgb(255, 255, 255);
 }
 
+/* Keyboard stays the same size for all grids for consistency */
+
 /* === Placement Actions === */
 
 .placement-actions {
     flex-direction: row;
     flex-wrap: wrap;
     justify-content: center;
-    margin: 12px 0;
+    margin: 4px 0;
+    flex-shrink: 0;
 }
 
 .placement-actions .action-button {
-    margin: 4px 8px;
+    margin: 2px 4px;
+}
+
+/* Smaller buttons for tiny grids */
+.size-tiny .placement-actions {
+    margin: 4px 0;
+}
+
+.size-tiny .placement-actions .action-button {
+    height: 34px;
+    padding: 6px 14px;
+    font-size: 13px;
+    margin: 2px 4px;
+}
+
+.size-tiny .start-button {
+    height: 38px;
+    margin-top: 6px;
+    padding: 8px 22px;
+    font-size: 16px;
+}
+
+.size-tiny .back-button {
+    height: 28px;
+    margin-top: 4px;
+    padding: 4px 12px;
+    font-size: 12px;
+}
+
+/* Smaller buttons for small grids */
+.size-small .placement-actions .action-button {
+    height: 38px;
+    padding: 8px 16px;
+    font-size: 14px;
+}
+
+.size-small .start-button {
+    height: 42px;
+    margin-top: 8px;
+    padding: 10px 26px;
+    font-size: 18px;
+}
+
+.size-small .back-button {
+    height: 32px;
+    margin-top: 6px;
+}
+
+/* Smaller buttons for large grids (6x6, 7x7) - less vertical space available */
+.size-large .placement-actions .action-button {
+    height: 34px;
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+.size-large .start-button {
+    height: 36px;
+    margin-top: 4px;
+    padding: 6px 20px;
+    font-size: 15px;
+}
+
+.size-large .back-button {
+    height: 26px;
+    margin-top: 3px;
+    padding: 3px 10px;
+    font-size: 11px;
 }
 
 /* === Utility Classes === */

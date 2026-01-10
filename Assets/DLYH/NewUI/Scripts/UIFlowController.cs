@@ -1,5 +1,7 @@
 using UnityEngine;
 using UnityEngine.UIElements;
+using TecVooDoo.DontLoseYourHead.Core;
+using TecVooDoo.DontLoseYourHead.UI;
 
 namespace DLYH.TableUI
 {
@@ -19,6 +21,12 @@ namespace DLYH.TableUI
         [SerializeField] private StyleSheet _setupWizardUss;
         [SerializeField] private StyleSheet _tableViewUss;
 
+        [Header("Word Lists")]
+        [SerializeField] private WordListSO _threeLetterWords;
+        [SerializeField] private WordListSO _fourLetterWords;
+        [SerializeField] private WordListSO _fiveLetterWords;
+        [SerializeField] private WordListSO _sixLetterWords;
+
         private UIDocument _uiDocument;
         private VisualElement _root;
 
@@ -35,6 +43,12 @@ namespace DLYH.TableUI
         private TableLayout _tableLayout;
         private WordRowsContainer _wordRowsContainer;
 
+        // Services
+        private WordValidationService _wordValidationService;
+
+        private bool _isInitialized = false;
+        private bool _keyboardWiredUp = false;
+
         private void Awake()
         {
             _uiDocument = GetComponent<UIDocument>();
@@ -45,9 +59,46 @@ namespace DLYH.TableUI
             Initialize();
         }
 
+        private void OnEnable()
+        {
+            // Re-initialize if returning from a disable (like domain reload)
+            if (_isInitialized && _root == null && Application.isPlaying)
+            {
+                Initialize();
+            }
+        }
+
         private void Initialize()
         {
+            // Guard against editor-time or double initialization
+            if (!Application.isPlaying) return;
+            if (_isInitialized && _root != null) return;
+
+            // Initialize services (handle null word lists gracefully)
+            if (_threeLetterWords != null || _fourLetterWords != null ||
+                _fiveLetterWords != null || _sixLetterWords != null)
+            {
+                _wordValidationService = new WordValidationService(
+                    _threeLetterWords,
+                    _fourLetterWords,
+                    _fiveLetterWords,
+                    _sixLetterWords);
+            }
+
+            // Get root visual element - check for null (can happen during Unity reload)
+            if (_uiDocument == null)
+            {
+                _uiDocument = GetComponent<UIDocument>();
+            }
+
             _root = _uiDocument.rootVisualElement;
+
+            if (_root == null)
+            {
+                Debug.LogError("[UIFlowController] rootVisualElement is null - UIDocument may not be properly configured");
+                return;
+            }
+
             _root.Clear();
 
             // Make root fill the screen
@@ -65,9 +116,7 @@ namespace DLYH.TableUI
             // Show main menu first (hides wizard)
             ShowMainMenu();
 
-            Debug.Log("[UIFlowController] Initialized - showing main menu");
-            Debug.Log($"[UIFlowController] Main menu display: {_mainMenuScreen.style.display.value}");
-            Debug.Log($"[UIFlowController] Wizard display: {_setupWizardScreen.style.display.value}");
+            _isInitialized = true;
         }
 
         private void CreateMainMenuScreen()
@@ -85,9 +134,26 @@ namespace DLYH.TableUI
             if (_mainMenuUxml != null)
             {
                 VisualElement menuContent = _mainMenuUxml.CloneTree();
-                // Make the TemplateContainer fill the parent
+                // Make the TemplateContainer fill the parent - need all sizing properties
                 menuContent.style.flexGrow = 1;
+                menuContent.style.width = Length.Percent(100);
+                menuContent.style.height = Length.Percent(100);
+                menuContent.style.position = Position.Absolute;
+                menuContent.style.left = 0;
+                menuContent.style.top = 0;
+                menuContent.style.right = 0;
+                menuContent.style.bottom = 0;
                 _mainMenuScreen.Add(menuContent);
+
+                // Also ensure the inner main-menu-root fills its container
+                var menuRoot = menuContent.Q<VisualElement>("main-menu-root");
+                if (menuRoot != null)
+                {
+                    menuRoot.style.flexGrow = 1;
+                    menuRoot.style.width = Length.Percent(100);
+                    menuRoot.style.height = Length.Percent(100);
+                }
+
             }
 
             _root.Add(_mainMenuScreen);
@@ -153,29 +219,26 @@ namespace DLYH.TableUI
 
         private void HandleStartGameClicked()
         {
-            Debug.Log("[UIFlowController] Start Game clicked");
             ShowSetupWizard();
         }
 
         private void HandleHowToPlayClicked()
         {
-            Debug.Log("[UIFlowController] How to Play clicked - not implemented yet");
+            // TODO: Implement how to play screen
         }
 
         private void HandleSettingsClicked()
         {
-            Debug.Log("[UIFlowController] Settings clicked - not implemented yet");
+            // TODO: Implement settings screen
         }
 
         private void HandleWizardStartGame()
         {
-            Debug.Log("[UIFlowController] Wizard Start Game - transitioning to placement");
             // The wizard handles showing its own placement panel
         }
 
         private void HandleSetupComplete(SetupWizardUIManager.SetupData data)
         {
-            Debug.Log($"[UIFlowController] Setup complete - {data.PlayerName}, {data.GridSize}x{data.GridSize}, {data.WordCount} words");
             InitializeTableForPlacement(data);
         }
 
@@ -183,12 +246,12 @@ namespace DLYH.TableUI
 
         private void ShowMainMenu()
         {
-            // Explicitly set display styles
             if (_mainMenuScreen != null)
             {
                 _mainMenuScreen.style.display = DisplayStyle.Flex;
                 _mainMenuScreen.visible = true;
             }
+
             if (_setupWizardScreen != null)
             {
                 _setupWizardScreen.style.display = DisplayStyle.None;
@@ -197,8 +260,6 @@ namespace DLYH.TableUI
 
             // Reset wizard state
             _wizardManager?.Reset();
-
-            Debug.Log("[UIFlowController] Showing main menu");
         }
 
         private void ShowSetupWizard()
@@ -213,8 +274,6 @@ namespace DLYH.TableUI
                 _setupWizardScreen.style.display = DisplayStyle.Flex;
                 _setupWizardScreen.visible = true;
             }
-
-            Debug.Log("[UIFlowController] Showing setup wizard");
         }
 
         // === Table Initialization ===
@@ -260,26 +319,51 @@ namespace DLYH.TableUI
             _tableView.SetPlayerColors(data.PlayerColor, ColorRules.SelectableColors[1]);
             _tableView.Bind(_tableModel);
 
+            // Sync sizes with grid cell sizes - apply to word rows and placement panel
+            string sizeClass = _tableView.GetSizeClassName();
+            _wordRowsContainer.SetSizeClass(sizeClass);
+
+            // Apply size class to placement panel for keyboard/button scaling
+            VisualElement placementPanel = _setupWizardScreen.Q<VisualElement>("placement-panel");
+            if (placementPanel != null)
+            {
+                placementPanel.RemoveFromClassList("size-tiny");
+                placementPanel.RemoveFromClassList("size-small");
+                placementPanel.RemoveFromClassList("size-large");
+                placementPanel.AddToClassList($"size-{sizeClass}");
+            }
+
             // Wire up word row events
             _wordRowsContainer.OnPlacementRequested += HandlePlacementRequested;
             _wordRowsContainer.OnWordCleared += HandleWordCleared;
-            _wordRowsContainer.OnAllWordsPlaced += () =>
-                Debug.Log("[UIFlowController] All words placed - ready!");
+            _wordRowsContainer.OnLetterCellClicked += HandleWordRowCellClicked;
 
             // Wire up grid cell clicks for placement
             _tableView.OnCellClicked += HandleGridCellClicked;
 
-            // Wire up letter keyboard
-            VisualElement keyboard = _setupWizardScreen.Q<VisualElement>("letter-keyboard");
-            if (keyboard != null)
+            // Wire up letter keyboard (buttons are inside keyboard-row elements)
+            // Only wire up once to prevent multiple handlers being added
+            if (!_keyboardWiredUp)
             {
-                foreach (VisualElement child in keyboard.Children())
+                VisualElement keyboard = _setupWizardScreen.Q<VisualElement>("letter-keyboard");
+                if (keyboard != null)
                 {
-                    if (child is Button keyButton && keyButton.text.Length == 1)
+                    // Query all letter-key buttons within the keyboard (including nested in rows)
+                    keyboard.Query<Button>(className: "letter-key").ForEach(keyButton =>
                     {
-                        char letter = keyButton.text[0];
-                        keyButton.clicked += () => HandleLetterKeyPressed(letter);
-                    }
+                        // Wire up backspace button
+                        if (keyButton.ClassListContains("backspace-key"))
+                        {
+                            keyButton.clicked += HandleBackspacePressed;
+                        }
+                        // Wire up letter buttons
+                        else if (keyButton.text.Length == 1)
+                        {
+                            char letter = keyButton.text[0];
+                            keyButton.clicked += () => HandleLetterKeyPressed(letter);
+                        }
+                    });
+                    _keyboardWiredUp = true;
                 }
             }
 
@@ -300,9 +384,9 @@ namespace DLYH.TableUI
             {
                 clearPlacementBtn.clicked += () =>
                 {
-                    _wordRowsContainer?.ClearAll();
+                    // Clear only grid placements, keep words in word rows
+                    _wordRowsContainer?.ClearAllPlacements();
                     ClearGridPlacements();
-                    Debug.Log("[UIFlowController] Cleared all placements");
                 };
             }
 
@@ -312,38 +396,93 @@ namespace DLYH.TableUI
             {
                 readyBtn.clicked += HandleReadyClicked;
             }
-
-            Debug.Log($"[UIFlowController] Table initialized: {_tableLayout.TotalRows}x{_tableLayout.TotalCols}, {data.WordCount} word rows");
         }
 
         // === Word Entry Handlers ===
 
         private void HandleLetterKeyPressed(char letter)
         {
-            // TODO: Add letter to currently active word row
-            // This will be integrated with autocomplete later
             int activeRow = _wordRowsContainer?.ActiveRowIndex ?? -1;
+
+            // If no row is active, auto-select the first empty/incomplete row
+            if (activeRow < 0)
+            {
+                activeRow = _wordRowsContainer.GetFirstEmptyRowIndex();
+                if (activeRow >= 0)
+                {
+                    _wordRowsContainer.SetActiveRow(activeRow);
+                }
+            }
+
             if (activeRow >= 0)
             {
                 string currentWord = _wordRowsContainer.GetWord(activeRow);
                 int maxLength = _wordRowsContainer.GetWordLength(activeRow);
+
                 if (currentWord.Length < maxLength)
                 {
-                    _wordRowsContainer.SetWord(activeRow, currentWord + letter);
+                    string newWord = currentWord + letter;
+                    _wordRowsContainer.SetWord(activeRow, newWord);
+
+                    // If word is complete, validate it
+                    if (newWord.Length == maxLength)
+                    {
+                        ValidateWord(activeRow, newWord);
+                    }
                 }
             }
         }
 
+        private void HandleBackspacePressed()
+        {
+            int activeRow = _wordRowsContainer?.ActiveRowIndex ?? -1;
+            if (activeRow >= 0)
+            {
+                string currentWord = _wordRowsContainer.GetWord(activeRow);
+                if (currentWord.Length > 0)
+                {
+                    _wordRowsContainer.SetWord(activeRow, currentWord.Substring(0, currentWord.Length - 1));
+                }
+            }
+        }
+
+        private void HandleWordRowCellClicked(int wordIndex, int letterIndex)
+        {
+            // When a word row cell is clicked, make that row active for editing
+            _wordRowsContainer?.SetActiveRow(wordIndex);
+        }
+
+        private void ValidateWord(int rowIndex, string word)
+        {
+            if (_wordValidationService == null) return;
+
+            int expectedLength = _wordRowsContainer.GetWordLength(rowIndex);
+            bool isValid = _wordValidationService.ValidateWord(word, expectedLength);
+
+            if (isValid)
+            {
+                // Auto-advance to next empty row
+                int nextRow = _wordRowsContainer.GetFirstEmptyRowIndex();
+                if (nextRow >= 0)
+                {
+                    _wordRowsContainer.SetActiveRow(nextRow);
+                }
+                else
+                {
+                    _wordRowsContainer.ClearActiveRow();
+                }
+            }
+            // TODO: Show visual feedback for invalid words (e.g., red highlight, shake animation)
+        }
+
         private void HandlePlacementRequested(int wordIndex, string word)
         {
-            Debug.Log($"[UIFlowController] Placement requested for word {wordIndex + 1}: {word}");
             // TODO: Enter placement mode, highlight valid starting cells
             // This will be connected to PlacementAdapter later
         }
 
         private void HandleWordCleared(int wordIndex)
         {
-            Debug.Log($"[UIFlowController] Word {wordIndex + 1} cleared");
             // TODO: Clear word from grid if it was placed
         }
 
@@ -351,8 +490,6 @@ namespace DLYH.TableUI
         {
             // Only handle grid cell clicks
             if (cell.Kind != TableCellKind.GridCell) return;
-
-            Debug.Log($"[UIFlowController] Grid cell clicked: ({row}, {col})");
             // TODO: Handle placement via PlacementAdapter
         }
 
@@ -379,29 +516,36 @@ namespace DLYH.TableUI
         {
             if (_wordRowsContainer == null || _tableLayout == null) return;
 
-            // Get random words from word lists
-            // TODO: Integrate with actual WordValidationService
-            // These are placeholder words matching the expected lengths (3, 4, 5, 6)
-            string[] testWords = { "AXE", "HEAD", "BLADE", "THRONE" };
-
-            for (int i = 0; i < _tableLayout.WordCount && i < testWords.Length; i++)
+            if (_wordValidationService == null)
             {
-                int expectedLength = _tableLayout.GetWordLength(i);
-                if (i < testWords.Length && testWords[i].Length == expectedLength)
-                {
-                    _wordRowsContainer.SetWord(i, testWords[i]);
-                }
+                Debug.LogWarning("[UIFlowController] WordValidationService not initialized - check word list assignments");
+                return;
             }
 
-            Debug.Log("[UIFlowController] Random words assigned");
+            // Only fill rows that don't have a complete valid word
+            for (int i = 0; i < _tableLayout.WordCount; i++)
+            {
+                int expectedLength = _tableLayout.GetWordLength(i);
+                string currentWord = _wordRowsContainer.GetWord(i);
+
+                // Skip rows that already have a complete word of correct length
+                if (currentWord.Length == expectedLength)
+                {
+                    continue;
+                }
+
+                string randomWord = _wordValidationService.GetRandomWordOfLength(expectedLength);
+                if (!string.IsNullOrEmpty(randomWord))
+                {
+                    _wordRowsContainer.SetWord(i, randomWord.ToUpper());
+                }
+            }
         }
 
         private void HandleRandomPlacement()
         {
             if (_wordRowsContainer == null) return;
-
             // TODO: Implement random placement algorithm using CoordinatePlacementController
-            Debug.Log("[UIFlowController] Random placement - not yet implemented");
         }
 
         private void HandleReadyClicked()
@@ -411,12 +555,10 @@ namespace DLYH.TableUI
             // Check if all words are placed
             if (!_wordRowsContainer.AreAllWordsPlaced())
             {
-                Debug.LogWarning("[UIFlowController] Cannot ready - not all words placed");
                 // TODO: Show error message in UI
                 return;
             }
 
-            Debug.Log("[UIFlowController] Player ready! Transitioning to gameplay...");
             // TODO: Transition to gameplay phase
         }
 
@@ -426,6 +568,7 @@ namespace DLYH.TableUI
             {
                 _wordRowsContainer.OnPlacementRequested -= HandlePlacementRequested;
                 _wordRowsContainer.OnWordCleared -= HandleWordCleared;
+                _wordRowsContainer.OnLetterCellClicked -= HandleWordRowCellClicked;
                 _wordRowsContainer.Dispose();
             }
             if (_tableView != null)
@@ -434,6 +577,14 @@ namespace DLYH.TableUI
                 _tableView.Unbind();
             }
         }
+
+#if UNITY_EDITOR
+        private void OnValidate()
+        {
+            // Prevent editor inspection from interfering with running UI
+            // This empty OnValidate prevents Unity from re-serializing during play
+        }
+#endif
     }
 
     /// <summary>
@@ -559,8 +710,6 @@ namespace DLYH.TableUI
 
             ShowElement(_cardProfile);
             ExpandCard(_cardProfile, _profileContent, _profileSummary);
-
-            Debug.Log("[SetupWizardUIManager] Initialized");
         }
 
         private void CacheElements()
@@ -749,14 +898,39 @@ namespace DLYH.TableUI
 
             keyboard.Clear();
 
-            for (char c = 'A'; c <= 'Z'; c++)
+            // Create 3-row keyboard layout
+            // Row 1: A-I (9 letters)
+            // Row 2: J-R (9 letters)
+            // Row 3: S-Z (8 letters) + Backspace
+            string[] rows = { "ABCDEFGHI", "JKLMNOPQR", "STUVWXYZ" };
+
+            for (int rowIndex = 0; rowIndex < rows.Length; rowIndex++)
             {
-                char letter = c;
-                Button key = new Button();
-                key.text = letter.ToString();
-                key.AddToClassList("letter-key");
-                key.clicked += () => Debug.Log($"[Wizard] Letter: {letter}");
-                keyboard.Add(key);
+                VisualElement rowElement = new VisualElement();
+                rowElement.AddToClassList("keyboard-row");
+
+                foreach (char letter in rows[rowIndex])
+                {
+                    Button key = new Button();
+                    key.text = letter.ToString();
+                    key.AddToClassList("letter-key");
+                    // Note: Letter key clicks are handled by UIFlowController via HandleLetterKeyPressed
+                    rowElement.Add(key);
+                }
+
+                // Add backspace button at the end of the last row
+                if (rowIndex == rows.Length - 1)
+                {
+                    Button backspaceBtn = new Button();
+                    backspaceBtn.text = "←";
+                    backspaceBtn.tooltip = "Backspace";
+                    backspaceBtn.AddToClassList("letter-key");
+                    backspaceBtn.AddToClassList("backspace-key");
+                    // Note: Backspace click is wired up by UIFlowController
+                    rowElement.Add(backspaceBtn);
+                }
+
+                keyboard.Add(rowElement);
             }
         }
 
@@ -910,7 +1084,6 @@ namespace DLYH.TableUI
             if (string.IsNullOrWhiteSpace(_playerName))
                 _playerName = DEFAULT_PLAYER_NAME;
 
-            Debug.Log($"[Wizard] Starting game - {_playerName}, {_gridSize}x{_gridSize}");
             ShowPlacementPanel();
             OnStartGame?.Invoke();
         }
@@ -918,7 +1091,6 @@ namespace DLYH.TableUI
         private void HandleMultiplayerAction(string action)
         {
             _playerName = _playerNameInput?.value ?? DEFAULT_PLAYER_NAME;
-            Debug.Log($"[Wizard] Multiplayer action: {action}");
             ShowPlacementPanel();
         }
 
@@ -933,12 +1105,11 @@ namespace DLYH.TableUI
             string code = _gameCodeInput?.value?.ToUpperInvariant() ?? "";
             if (code.Length != 6)
             {
-                Debug.LogWarning("[Wizard] Invalid game code");
+                // TODO: Show invalid code feedback in UI
                 return;
             }
 
             _playerName = _playerNameInput?.value ?? DEFAULT_PLAYER_NAME;
-            Debug.Log($"[Wizard] Joining with code: {code}");
             ShowPlacementPanel();
         }
 
@@ -955,7 +1126,6 @@ namespace DLYH.TableUI
                 GameCode = _gameCodeInput?.value
             };
 
-            Debug.Log("[Wizard] Ready - firing OnSetupComplete");
             OnSetupComplete?.Invoke(data);
         }
 

@@ -19,7 +19,7 @@ namespace DLYH.TableUI
         private Color _playerColor;
 
         // USS class names
-        private static readonly string ClassContainer = "word-rows-container";
+        private static readonly string ClassContainer = "word-rows-content";
 
         /// <summary>
         /// Event fired when placement is requested for a word.
@@ -196,6 +196,18 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
+        /// Sets the size class for all word rows based on grid dimensions.
+        /// </summary>
+        /// <param name="sizeClass">"small", "medium", or "large"</param>
+        public void SetSizeClass(string sizeClass)
+        {
+            for (int i = 0; i < _wordCount; i++)
+            {
+                _wordRows[i].SetSizeClass(sizeClass);
+            }
+        }
+
+        /// <summary>
         /// Clears all words and resets state.
         /// </summary>
         public void ClearAll()
@@ -205,6 +217,17 @@ namespace DLYH.TableUI
                 _wordRows[i].Clear();
             }
             _activeRowIndex = -1;
+        }
+
+        /// <summary>
+        /// Clears only placement status, keeping words intact.
+        /// </summary>
+        public void ClearAllPlacements()
+        {
+            for (int i = 0; i < _wordCount; i++)
+            {
+                _wordRows[i].SetPlaced(false);
+            }
         }
 
         /// <summary>
