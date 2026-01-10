@@ -17,7 +17,9 @@
 
             <!-- Menu Buttons -->
             <ui:VisualElement name="menu-buttons" class="menu-buttons">
-                <ui:Button name="btn-start-game" text="START GAME" class="menu-button primary" />
+                <ui:Button name="btn-play-solo" text="Play Solo" class="menu-button primary" />
+                <ui:Button name="btn-play-online" text="Play Online" class="menu-button primary" />
+                <ui:Button name="btn-join-game" text="Join Game" class="menu-button secondary" />
                 <ui:Button name="btn-how-to-play" text="How to Play" class="menu-button secondary" />
                 <ui:Button name="btn-settings" text="Settings" class="menu-button secondary" />
             </ui:VisualElement>

@@ -6,6 +6,17 @@ using TecVooDoo.DontLoseYourHead.UI;
 namespace DLYH.TableUI
 {
     /// <summary>
+    /// The game mode selected from the main menu.
+    /// Determines which flow path the setup wizard takes.
+    /// </summary>
+    public enum GameMode
+    {
+        Solo,       // vs AI (The Executioner)
+        Online,     // vs another player online
+        JoinGame    // Joining an existing game via code
+    }
+
+    /// <summary>
     /// Manages the flow between UI screens (Main Menu -> Setup Wizard -> Gameplay).
     /// Uses a single UIDocument and swaps content by showing/hiding containers.
     /// </summary>
@@ -46,6 +57,9 @@ namespace DLYH.TableUI
 
         // Services
         private WordValidationService _wordValidationService;
+
+        // Game mode tracking
+        private GameMode _currentGameMode = GameMode.Solo;
 
         private bool _isInitialized = false;
         private bool _keyboardWiredUp = false;
@@ -160,13 +174,23 @@ namespace DLYH.TableUI
             _root.Add(_mainMenuScreen);
 
             // Set up button handlers
-            Button startGameBtn = _mainMenuScreen.Q<Button>("btn-start-game");
+            Button playSoloBtn = _mainMenuScreen.Q<Button>("btn-play-solo");
+            Button playOnlineBtn = _mainMenuScreen.Q<Button>("btn-play-online");
+            Button joinGameBtn = _mainMenuScreen.Q<Button>("btn-join-game");
             Button howToPlayBtn = _mainMenuScreen.Q<Button>("btn-how-to-play");
             Button settingsBtn = _mainMenuScreen.Q<Button>("btn-settings");
 
-            if (startGameBtn != null)
+            if (playSoloBtn != null)
             {
-                startGameBtn.clicked += HandleStartGameClicked;
+                playSoloBtn.clicked += () => HandleGameModeSelected(GameMode.Solo);
+            }
+            if (playOnlineBtn != null)
+            {
+                playOnlineBtn.clicked += () => HandleGameModeSelected(GameMode.Online);
+            }
+            if (joinGameBtn != null)
+            {
+                joinGameBtn.clicked += () => HandleGameModeSelected(GameMode.JoinGame);
             }
             if (howToPlayBtn != null)
             {
@@ -210,7 +234,7 @@ namespace DLYH.TableUI
             // Create the wizard UI manager (plain C# class, not MonoBehaviour)
             _wizardManager = new SetupWizardUIManager(_setupWizardScreen);
             _wizardManager.OnSetupComplete += HandleSetupComplete;
-            _wizardManager.OnStartGame += HandleWizardStartGame;
+            _wizardManager.OnQuickSetupRequested += HandleQuickSetup;
 
             // Start hidden
             _setupWizardScreen.style.display = DisplayStyle.None;
@@ -218,8 +242,10 @@ namespace DLYH.TableUI
 
         // === Navigation Handlers ===
 
-        private void HandleStartGameClicked()
+        private void HandleGameModeSelected(GameMode mode)
         {
+            _currentGameMode = mode;
+            _wizardManager?.SetGameMode(mode);
             ShowSetupWizard();
         }
 
@@ -233,9 +259,11 @@ namespace DLYH.TableUI
             // TODO: Implement settings screen
         }
 
-        private void HandleWizardStartGame()
+        private void HandleQuickSetup()
         {
-            // The wizard handles showing its own placement panel
+            // Auto-fill random words and placement for Quick Setup mode
+            HandleRandomWords();
+            HandleRandomPlacement();
         }
 
         private void HandleSetupComplete(SetupWizardUIManager.SetupData data)
@@ -394,6 +422,8 @@ namespace DLYH.TableUI
                     // Clear only grid placements, keep words in word rows
                     _wordRowsContainer?.ClearAllPlacements();
                     ClearGridPlacements();
+                    // Update Ready button state (all placements cleared)
+                    UpdateReadyButtonState();
                 };
             }
 
@@ -402,7 +432,22 @@ namespace DLYH.TableUI
             if (readyBtn != null)
             {
                 readyBtn.clicked += HandleReadyClicked;
+                // Initially disable Ready button until all words are placed
+                readyBtn.SetEnabled(false);
             }
+        }
+
+        /// <summary>
+        /// Updates the Ready button's enabled state based on whether all words are placed.
+        /// Called whenever a word is placed or removed from the grid.
+        /// </summary>
+        private void UpdateReadyButtonState()
+        {
+            Button readyBtn = _setupWizardScreen?.Q<Button>("btn-ready");
+            if (readyBtn == null || _wordRowsContainer == null) return;
+
+            bool allPlaced = _wordRowsContainer.AreAllWordsPlaced();
+            readyBtn.SetEnabled(allPlaced);
         }
 
         // === Word Entry Handlers ===
@@ -504,6 +549,9 @@ namespace DLYH.TableUI
 
             // Clear word from grid if it was placed
             _placementAdapter.ClearWordFromGrid(wordIndex);
+
+            // Update Ready button state (word was removed)
+            UpdateReadyButtonState();
         }
 
         private void HandleGridCellClicked(int row, int col, TableCell cell)
@@ -540,6 +588,9 @@ namespace DLYH.TableUI
         private void HandleWordPlacedOnGrid(int rowIndex, string word, System.Collections.Generic.List<UnityEngine.Vector2Int> positions)
         {
             Debug.Log($"[UIFlowController] Word '{word}' placed on grid at {positions.Count} positions");
+
+            // Update Ready button state
+            UpdateReadyButtonState();
 
             // The PlacementAdapter already calls _wordRowsContainer.SetWordPlaced
             // Check if all words are now placed
@@ -715,7 +766,7 @@ namespace DLYH.TableUI
     {
         // Events
         public event System.Action<SetupData> OnSetupComplete;
-        public event System.Action OnStartGame;
+        public event System.Action OnQuickSetupRequested;
 
         // Data class
         public class SetupData
@@ -725,8 +776,8 @@ namespace DLYH.TableUI
             public int GridSize;
             public int WordCount;
             public int Difficulty;
-            public bool IsSinglePlayer;
-            public string GameCode;
+            public GameMode GameMode;
+            public bool UseQuickSetup;
         }
 
         // Defaults
@@ -743,19 +794,20 @@ namespace DLYH.TableUI
         private VisualElement _cardGridSize;
         private VisualElement _cardWordCount;
         private VisualElement _cardDifficulty;
-        private VisualElement _cardMode;
+        private VisualElement _cardBoardSetup;
         private VisualElement _cardsContainer;
         private VisualElement _placementPanel;
 
-        // Elements inside mode card
-        private Button _btnStartGame;
-        private VisualElement _multiplayerOptions;
-        private VisualElement _joinGameSection;
+        // Game mode (set from main menu)
+        private GameMode _gameMode = GameMode.Solo;
+
+        // Board setup mode cards
+        private VisualElement _setupQuickCard;
+        private VisualElement _setupManualCard;
 
         // Inputs
         private TextField _playerNameInput;
         private VisualElement _colorPicker;
-        private TextField _gameCodeInput;
 
         // State
         private string _playerName = DEFAULT_PLAYER_NAME;
@@ -764,15 +816,13 @@ namespace DLYH.TableUI
         private int _gridSize = DEFAULT_GRID_SIZE;
         private int _wordCount = DEFAULT_WORD_COUNT;
         private int _difficulty = DEFAULT_DIFFICULTY;
-        private bool _isSinglePlayer = true;
+        private bool _useQuickSetup = true;
 
         // UI arrays
         private Button[] _gridButtons;
         private Button[] _wordCountButtons;
         private Button[] _difficultyButtons;
         private VisualElement[] _colorSwatches;
-        private VisualElement _mode1PlayerCard;
-        private VisualElement _mode2PlayerCard;
 
         // Content/Summary elements
         private VisualElement _profileContent;
@@ -805,8 +855,7 @@ namespace DLYH.TableUI
             SetupGridSizeButtons();
             SetupWordCountButtons();
             SetupDifficultyButtons();
-            SetupModeCards();
-            SetupMultiplayerButtons();
+            SetupBoardSetupCards();
             SetupActionButtons();
             SetupLetterKeyboard();
             SetupCollapsedCardClickHandlers();
@@ -822,11 +871,8 @@ namespace DLYH.TableUI
             HideElement(_cardGridSize);
             HideElement(_cardWordCount);
             HideElement(_cardDifficulty);
-            HideElement(_cardMode);
+            HideElement(_cardBoardSetup);
             HideElement(_placementPanel);
-            HideElement(_btnStartGame);
-            HideElement(_multiplayerOptions);
-            HideElement(_joinGameSection);
 
             ShowElement(_cardProfile);
             ExpandCard(_cardProfile, _profileContent, _profileSummary);
@@ -839,16 +885,14 @@ namespace DLYH.TableUI
             _cardGridSize = _root.Q<VisualElement>("card-grid-size");
             _cardWordCount = _root.Q<VisualElement>("card-word-count");
             _cardDifficulty = _root.Q<VisualElement>("card-difficulty");
-            _cardMode = _root.Q<VisualElement>("card-mode");
+            _cardBoardSetup = _root.Q<VisualElement>("card-board-setup");
             _placementPanel = _root.Q<VisualElement>("placement-panel");
 
-            _btnStartGame = _root.Q<Button>("btn-start-game");
-            _multiplayerOptions = _root.Q<VisualElement>("multiplayer-options");
-            _joinGameSection = _root.Q<VisualElement>("join-game-section");
+            _setupQuickCard = _root.Q<VisualElement>("setup-quick");
+            _setupManualCard = _root.Q<VisualElement>("setup-manual");
 
             _playerNameInput = _root.Q<TextField>("player-name-input");
             _colorPicker = _root.Q<VisualElement>("color-picker");
-            _gameCodeInput = _root.Q<TextField>("game-code-input");
 
             _profileContent = _root.Q<VisualElement>("profile-content");
             _profileSummary = _root.Q<VisualElement>("profile-summary");
@@ -951,56 +995,23 @@ namespace DLYH.TableUI
             }
         }
 
-        private void SetupModeCards()
+        private void SetupBoardSetupCards()
         {
-            _mode1PlayerCard = _root.Q<VisualElement>("mode-1player");
-            _mode2PlayerCard = _root.Q<VisualElement>("mode-2player");
-
-            if (_mode1PlayerCard != null)
+            if (_setupQuickCard != null)
             {
-                _mode1PlayerCard.RegisterCallback<ClickEvent>(evt => SelectMode(true));
+                _setupQuickCard.RegisterCallback<ClickEvent>(evt => SelectBoardSetupMode(true));
             }
-            if (_mode2PlayerCard != null)
+            if (_setupManualCard != null)
             {
-                _mode2PlayerCard.RegisterCallback<ClickEvent>(evt => SelectMode(false));
-            }
-        }
-
-        private void SetupMultiplayerButtons()
-        {
-            Button findOpponent = _root.Q<Button>("btn-find-opponent");
-            Button inviteFriend = _root.Q<Button>("btn-invite-friend");
-            Button joinGame = _root.Q<Button>("btn-join-game");
-            Button joinWithCode = _root.Q<Button>("btn-join-with-code");
-
-            if (findOpponent != null)
-            {
-                findOpponent.clicked += () => HandleMultiplayerAction("find");
-            }
-            if (inviteFriend != null)
-            {
-                inviteFriend.clicked += () => HandleMultiplayerAction("invite");
-            }
-            if (joinGame != null)
-            {
-                joinGame.clicked += ShowJoinGameSection;
-            }
-            if (joinWithCode != null)
-            {
-                joinWithCode.clicked += HandleJoinWithCode;
+                _setupManualCard.RegisterCallback<ClickEvent>(evt => SelectBoardSetupMode(false));
             }
         }
 
         private void SetupActionButtons()
         {
-            Button startGame = _root.Q<Button>("btn-start-game");
             Button ready = _root.Q<Button>("btn-ready");
             Button backToSettings = _root.Q<Button>("btn-back-to-settings");
 
-            if (startGame != null)
-            {
-                startGame.clicked += HandleStartGame;
-            }
             if (ready != null)
             {
                 ready.clicked += HandleReady;
@@ -1158,80 +1169,36 @@ namespace DLYH.TableUI
             UpdateDifficultySummary();
 
             CollapseCard(_cardWordCount, _wordsContent, _wordsSummary);
-            RevealNextCard(_cardMode);
+            RevealNextCard(_cardBoardSetup);
         }
 
-        private void SelectMode(bool isSinglePlayer)
+        private void SelectBoardSetupMode(bool useQuickSetup)
         {
-            _isSinglePlayer = isSinglePlayer;
+            _useQuickSetup = useQuickSetup;
 
             CollapseCard(_cardDifficulty, _difficultyContent, _difficultySummary);
 
-            if (_mode1PlayerCard != null)
+            if (_setupQuickCard != null)
             {
-                if (isSinglePlayer)
-                    _mode1PlayerCard.AddToClassList("selected");
+                if (useQuickSetup)
+                    _setupQuickCard.AddToClassList("selected");
                 else
-                    _mode1PlayerCard.RemoveFromClassList("selected");
+                    _setupQuickCard.RemoveFromClassList("selected");
             }
-            if (_mode2PlayerCard != null)
+            if (_setupManualCard != null)
             {
-                if (!isSinglePlayer)
-                    _mode2PlayerCard.AddToClassList("selected");
+                if (!useQuickSetup)
+                    _setupManualCard.AddToClassList("selected");
                 else
-                    _mode2PlayerCard.RemoveFromClassList("selected");
+                    _setupManualCard.RemoveFromClassList("selected");
             }
 
-            if (isSinglePlayer)
-            {
-                HideElement(_multiplayerOptions);
-                HideElement(_joinGameSection);
-                ShowElement(_btnStartGame);
-            }
-            else
-            {
-                HideElement(_btnStartGame);
-                HideElement(_joinGameSection);
-                ShowElement(_multiplayerOptions);
-            }
+            // Proceed to placement panel
+            _playerName = _playerNameInput?.value ?? DEFAULT_PLAYER_NAME;
+            ShowPlacementPanel();
         }
 
         // === Action Handlers ===
-
-        private void HandleStartGame()
-        {
-            _playerName = _playerNameInput?.value ?? DEFAULT_PLAYER_NAME;
-            if (string.IsNullOrWhiteSpace(_playerName))
-                _playerName = DEFAULT_PLAYER_NAME;
-
-            ShowPlacementPanel();
-            OnStartGame?.Invoke();
-        }
-
-        private void HandleMultiplayerAction(string action)
-        {
-            _playerName = _playerNameInput?.value ?? DEFAULT_PLAYER_NAME;
-            ShowPlacementPanel();
-        }
-
-        private void ShowJoinGameSection()
-        {
-            ShowElement(_joinGameSection);
-            _gameCodeInput?.Focus();
-        }
-
-        private void HandleJoinWithCode()
-        {
-            string code = _gameCodeInput?.value?.ToUpperInvariant() ?? "";
-            if (code.Length != 6)
-            {
-                // TODO: Show invalid code feedback in UI
-                return;
-            }
-
-            _playerName = _playerNameInput?.value ?? DEFAULT_PLAYER_NAME;
-            ShowPlacementPanel();
-        }
 
         private void HandleReady()
         {
@@ -1242,8 +1209,8 @@ namespace DLYH.TableUI
                 GridSize = _gridSize,
                 WordCount = _wordCount,
                 Difficulty = _difficulty,
-                IsSinglePlayer = _isSinglePlayer,
-                GameCode = _gameCodeInput?.value
+                GameMode = _gameMode,
+                UseQuickSetup = _useQuickSetup
             };
 
             OnSetupComplete?.Invoke(data);
@@ -1276,10 +1243,38 @@ namespace DLYH.TableUI
                 GridSize = _gridSize,
                 WordCount = _wordCount,
                 Difficulty = _difficulty,
-                IsSinglePlayer = _isSinglePlayer,
-                GameCode = _gameCodeInput?.value
+                GameMode = _gameMode,
+                UseQuickSetup = _useQuickSetup
             };
             OnSetupComplete?.Invoke(data);
+
+            // If Quick Setup mode, auto-fill with random words and placement
+            if (_useQuickSetup)
+            {
+                OnQuickSetupRequested?.Invoke();
+            }
+        }
+
+        /// <summary>
+        /// Sets the game mode (called from main menu selection).
+        /// Updates the wizard title accordingly.
+        /// </summary>
+        public void SetGameMode(GameMode mode)
+        {
+            _gameMode = mode;
+
+            // Update wizard title based on game mode
+            Label title = _root.Q<Label>("title");
+            if (title != null)
+            {
+                title.text = mode switch
+                {
+                    GameMode.Solo => "Play Solo",
+                    GameMode.Online => "Play Online",
+                    GameMode.JoinGame => "Join Game",
+                    _ => "Game Setup"
+                };
+            }
         }
 
         // === Collapse/Expand ===
@@ -1416,30 +1411,25 @@ namespace DLYH.TableUI
             _gridSize = DEFAULT_GRID_SIZE;
             _wordCount = DEFAULT_WORD_COUNT;
             _difficulty = DEFAULT_DIFFICULTY;
-            _isSinglePlayer = true;
+            _useQuickSetup = true;
             _selectedColorIndex = 0;
             _playerColor = ColorRules.SelectableColors[0];
 
             if (_playerNameInput != null) _playerNameInput.value = DEFAULT_PLAYER_NAME;
-            if (_gameCodeInput != null) _gameCodeInput.value = "";
 
-            _mode1PlayerCard?.RemoveFromClassList("selected");
-            _mode2PlayerCard?.RemoveFromClassList("selected");
+            _setupQuickCard?.RemoveFromClassList("selected");
+            _setupManualCard?.RemoveFromClassList("selected");
 
             HideElement(_cardGridSize);
             HideElement(_cardWordCount);
             HideElement(_cardDifficulty);
-            HideElement(_cardMode);
+            HideElement(_cardBoardSetup);
             HideElement(_placementPanel);
 
             ExpandCard(_cardProfile, _profileContent, _profileSummary);
             ExpandCard(_cardGridSize, _gridContent, _gridSummary);
             ExpandCard(_cardWordCount, _wordsContent, _wordsSummary);
             ExpandCard(_cardDifficulty, _difficultyContent, _difficultySummary);
-
-            HideElement(_btnStartGame);
-            HideElement(_multiplayerOptions);
-            HideElement(_joinGameSection);
 
             ShowElement(_cardsContainer);
             ShowElement(_cardProfile);
@@ -1465,8 +1455,8 @@ namespace DLYH.TableUI
                 GridSize = _gridSize,
                 WordCount = _wordCount,
                 Difficulty = _difficulty,
-                IsSinglePlayer = _isSinglePlayer,
-                GameCode = _gameCodeInput?.value
+                GameMode = _gameMode,
+                UseQuickSetup = _useQuickSetup
             };
         }
     }

@@ -78,7 +78,7 @@
     scale: 0.98;
 }
 
-/* Primary Button (Start Game) */
+/* Primary Buttons (Play Solo, Play Online) */
 
 .menu-button.primary {
     background-color: rgb(0, 140, 120);
@@ -95,7 +95,7 @@
     background-color: rgb(0, 120, 100);
 }
 
-/* Secondary Buttons */
+/* Secondary Buttons (Join Game, How to Play, Settings) */
 
 .menu-button.secondary {
     background-color: rgb(40, 40, 50);
@@ -112,6 +112,20 @@
 
 .menu-button.secondary:active {
     background-color: rgb(35, 35, 45);
+}
+
+/* Disabled button state */
+
+.menu-button:disabled {
+    opacity: 0.5;
+    background-color: rgb(50, 50, 60);
+    border-color: rgb(60, 60, 70);
+    color: rgb(120, 120, 130);
+}
+
+.menu-button:disabled:hover {
+    scale: 1;
+    background-color: rgb(50, 50, 60);
 }
 
 /* === Footer === */

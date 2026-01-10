@@ -96,36 +96,17 @@
                 </ui:VisualElement>
             </ui:VisualElement>
 
-            <!-- Card 5: Mode Selection - Hidden until difficulty selected -->
-            <ui:VisualElement name="card-mode" class="setup-card hidden">
-                <ui:Label text="How many players?" class="section-label" />
-                <ui:VisualElement name="mode-cards" class="mode-cards">
-                    <ui:VisualElement name="mode-1player" class="mode-card">
-                        <ui:Label text="1 Player" class="mode-card-title" />
-                        <ui:Label text="vs The Executioner" class="mode-card-desc" />
+            <!-- Card 5: Board Setup - Hidden until difficulty selected -->
+            <ui:VisualElement name="card-board-setup" class="setup-card hidden">
+                <ui:Label text="Board Setup" class="section-label" />
+                <ui:VisualElement name="setup-mode-cards" class="mode-cards">
+                    <ui:VisualElement name="setup-quick" class="mode-card">
+                        <ui:Label text="Quick Setup" class="mode-card-title" />
+                        <ui:Label text="Random words &amp; placement" class="mode-card-desc" />
                     </ui:VisualElement>
-                    <ui:VisualElement name="mode-2player" class="mode-card">
-                        <ui:Label text="2 Players" class="mode-card-title" />
-                        <ui:Label text="vs Another Person" class="mode-card-desc" />
-                    </ui:VisualElement>
-                </ui:VisualElement>
-
-                <!-- Start Game Button (shown when 1 Player selected) -->
-                <ui:Button name="btn-start-game" text="START GAME" class="start-button hidden" />
-
-                <!-- Multiplayer Options (shown when 2 Players selected) -->
-                <ui:VisualElement name="multiplayer-options" class="multiplayer-options hidden">
-                    <ui:Button name="btn-find-opponent" text="Find Opponent" class="action-button" />
-                    <ui:Button name="btn-invite-friend" text="Invite Friend" class="action-button" />
-                    <ui:Button name="btn-join-game" text="Join Game" class="action-button" />
-                </ui:VisualElement>
-
-                <!-- Join Game Input (shown when Join Game clicked) -->
-                <ui:VisualElement name="join-game-section" class="join-game-section hidden">
-                    <ui:Label text="Enter Game Code" class="section-label" />
-                    <ui:VisualElement class="join-game-row">
-                        <ui:TextField name="game-code-input" max-length="6" class="text-input code-input" />
-                        <ui:Button name="btn-join-with-code" text="Join" class="action-button join-button" />
+                    <ui:VisualElement name="setup-manual" class="mode-card">
+                        <ui:Label text="Choose My Words" class="mode-card-title" />
+                        <ui:Label text="Pick words &amp; place them" class="mode-card-desc" />
                     </ui:VisualElement>
                 </ui:VisualElement>
             </ui:VisualElement>
