@@ -20,12 +20,91 @@
 **Last Session (Jan 10, 2026):** Eighteenth session - **UX Redesign Complete!** Implemented mode selection redesign: Main menu now has Play Solo / Play Online / Join Game buttons instead of single "START GAME". Setup wizard replaced card-mode (1 Player / 2 Players) with card-board-setup (Quick Setup / Choose My Words). Added GameMode enum to track mode throughout flow. Ready button disabled until all words placed on grid. Quick Setup auto-fills random words and placement.
 
 **TODO for next session:**
+
+**Navigation & Settings (Simplified UX Design - see below):**
+- Implement inline settings on main menu (SFX/Music sliders + QWERTY checkbox)
+- Add Feedback button → modal overlay (reusable for menu + end-of-game)
+- Add hamburger menu (☰) for setup/gameplay navigation
+- Handle Continue Game button when returning mid-game
+- Add trivia marquee to main menu footer
+
+**Word Entry Polish:**
 - Add visual feedback for invalid words (red highlight, shake)
 - Connect physical keyboard input for word entry
 - Word list preview dropdown (autocomplete as user types)
-- Main menu marquee (cycling guillotine facts)
 - Test crossword-style overlapping words (shared letters)
-- Phase D: Start gameplay UI conversion
+
+**Phase D:** Start gameplay UI conversion
+
+---
+
+## UX Design: Navigation & Settings (Approved Jan 10, 2026)
+
+**Design Philosophy:** Fewer screens, faster access, consistent patterns.
+
+### Main Menu Layout
+```
+DON'T LOSE YOUR HEAD
+"A game of words and wits"
+
+[Play Solo]
+[Play Online]
+[Join Game]
+[How to Play]
+[Feedback]              ← Opens modal overlay
+
+─────────────────────────
+🔊 [━━━━●━━━━━] 50%     ← SFX slider (inline)
+🎵 [━━━━●━━━━━] 50%     ← Music slider (inline)
+☑ QWERTY Keyboard       ← Checkbox (inline)
+
+"The guillotine was used in France until 1977."  ← Trivia marquee
+```
+
+**Key decisions:**
+- Settings inline on main menu (no separate screen)
+- Default volumes: 50% (persist to PlayerPrefs)
+- Remove Settings button, controls always visible
+
+### Feedback Modal (Reusable)
+```
+┌─────────────────────────────┐
+│      [Title]                │  ← "Share Feedback" / "Victory!" / "Defeated"
+│                             │
+│  ┌───────────────────────┐  │
+│  │  (text area)          │  │
+│  └───────────────────────┘  │
+│                             │
+│    [Submit]    [Cancel]     │
+└─────────────────────────────┘
+```
+- From main menu: Feedback button opens with "Share Feedback"
+- After game ends: Auto-opens with win/lose title
+- Integrates with `PlaytestTelemetry.Feedback()`
+
+### Hamburger Menu (☰) for Setup/Gameplay
+Top-left corner during setup wizard and gameplay:
+```
+☰ ←─── Always visible
+
+Opens overlay:
+┌────────────────┐
+│ Main Menu      │  ← Returns to main menu
+│ Settings       │  ← Shows SFX/Music/QWERTY inline
+│ Resume         │  ← Closes overlay (gameplay only)
+└────────────────┘
+```
+
+### Continue Game Flow
+- If game in progress and user goes to Main Menu → add [Continue Game] button
+- Continue Game returns to active gameplay state
+
+### Files to Create
+- `FeedbackModal.uxml` + `FeedbackModal.uss` - Modal overlay component
+- `HamburgerMenu.uxml` + `HamburgerMenu.uss` - Navigation overlay
+- Update `MainMenu.uxml` - Add inline settings, feedback button, trivia label
+- Update `MainMenu.uss` - Slider and checkbox styles
+- Update `UIFlowController.cs` - Wire hamburger menu, feedback modal, settings persistence
 
 ---
 
@@ -1163,12 +1242,15 @@ After each work session, update this document:
 
 **Priority Tasks for Next Session:**
 1. ~~**UX Redesign** - Implement mode selection redesign~~ ✅ DONE
-2. **Add visual feedback** - Invalid word highlight/shake
-3. **Connect physical keyboard** - Support real keyboard input (not just on-screen buttons)
-4. **Word list preview dropdown** - Autocomplete as user types
-5. **Main menu marquee** - Cycling guillotine facts
-6. **Test crossword overlapping** - Verify shared letters work correctly
-7. **Phase D** - Start gameplay UI conversion
+2. **Navigation & Settings** - Implement simplified UX (see "UX Design: Navigation & Settings" section above)
+   - Inline settings on main menu (SFX/Music sliders + QWERTY checkbox)
+   - Feedback modal overlay (reusable for menu + end-of-game)
+   - Hamburger menu (☰) for setup/gameplay navigation
+   - Continue Game flow when returning mid-game
+   - Trivia marquee in footer
+3. **Word entry polish** - Invalid word feedback, physical keyboard, autocomplete dropdown
+4. **Test crossword overlapping** - Verify shared letters work correctly
+5. **Phase D** - Start gameplay UI conversion
 
 **Existing Systems to Integrate (DO NOT REBUILD):**
 - `Assets/DLYH/Scripts/Core/GameState/WordListSO.cs` - Word dictionary (already integrated!)
