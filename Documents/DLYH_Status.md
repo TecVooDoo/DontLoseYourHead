@@ -4,7 +4,7 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 25
+**Document Version:** 26
 **Last Updated:** January 9, 2026
 
 ---
@@ -17,7 +17,7 @@
 
 **Current Phase:** Phase C IN PROGRESS - WordValidationService integrated
 
-**Last Session (Jan 9, 2026):** Fifteenth session - **WordValidationService Integrated!** Fixed compilation errors from previous session (deleted obsolete WordPlacementController.cs and SetupWizardTest.cs). Integrated WordValidationService into UIFlowController for random words and word validation. Implemented word entry with row selection, backspace support, and auto-advance on valid word. Random Words button now uses actual WordListSO assets.
+**Last Session (Jan 9, 2026):** Sixteenth session - **Placement Panel Layout Fixed!** Fixed multiple UI bugs: backspace button duplication when navigating back/forward, Unity 6 blue screen issue (UIDocument inspector destroys runtime UI), keyboard multiple input bug (letters entering 3x/4x). Implemented consistent 3-row keyboard layout (ABCDEFGHI, JKLMNOPQR, STUVWXYZ+backspace). Added responsive sizing for action buttons on larger grids.
 
 **TODO for next session:**
 - Create PlacementAdapter to connect to existing CoordinatePlacementController (8 directions)
@@ -25,6 +25,8 @@
 - Implement placement mode with grid highlighting
 - Add visual feedback for invalid words (red highlight, shake)
 - Connect physical keyboard input for word entry
+- Consider adding QWERTY keyboard layout option (alphabetical is current default)
+- Random Placement should place longest words first for better success on smaller grids
 
 ---
 
@@ -945,14 +947,16 @@ public class GameplayUIController {
 13. **Avoid MCP hierarchy changes** - can cause Unity lockups
 
 ### Project-Specific
-14. **Use E: drive path** - never worktree paths like `C:\Users\steph\.claude-worktrees\...`
-15. **Check scene file diffs** - layout can be accidentally modified
-16. **SQLite booleans are integers** - parse as int, convert to bool
-17. **Drug words filtered** - heroin, cocaine, meth, crack, weed, opium, morphine, ecstasy, molly, dope, smack, coke
-18. **EditorWebRequest loading order** - set `_isLoading = false` BEFORE callback that may start next request
-19. **Test after each extraction** - verify game works before next extraction
-20. **Document interfaces immediately** - update Architecture section after each extraction
-21. **Reuse existing systems** - Don't rebuild WordListSO, WordValidationService, CoordinatePlacementController - create thin adapters
+14. **Unity 6 UIDocument bug (IN-127759)** - UIDocument inspector destroys runtime UI; assign Source Asset (even empty placeholder) to prevent blue screen
+15. **Use E: drive path** - never worktree paths like `C:\Users\steph\.claude-worktrees\...`
+16. **Check scene file diffs** - layout can be accidentally modified
+17. **SQLite booleans are integers** - parse as int, convert to bool
+18. **Drug words filtered** - heroin, cocaine, meth, crack, weed, opium, morphine, ecstasy, molly, dope, smack, coke
+19. **EditorWebRequest loading order** - set `_isLoading = false` BEFORE callback that may start next request
+20. **Test after each extraction** - verify game works before next extraction
+21. **Document interfaces immediately** - update Architecture section after each extraction
+22. **Reuse existing systems** - Don't rebuild WordListSO, WordValidationService, CoordinatePlacementController - create thin adapters
+23. **Prevent duplicate event handlers** - use flags like `_keyboardWiredUp` when handlers persist across screen rebuilds
 
 ---
 
@@ -1045,6 +1049,7 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 26 | Jan 9, 2026 | Sixteenth session - **Placement Panel Layout Fixed!** Fixed backspace button duplication, Unity 6 blue screen bug (EmptyRoot.uxml workaround), keyboard multiple input bug (_keyboardWiredUp flag). Implemented 3-row keyboard (ABCDEFGHI, JKLMNOPQR, STUVWXYZ+backspace). Added responsive sizing for action buttons (.size-large for 6x6/7x7). Notes: QWERTY keyboard option and longest-words-first placement for future. |
 | 25 | Jan 9, 2026 | Fifteenth session - **WordValidationService Integrated!** Fixed compilation errors (deleted obsolete WordPlacementController.cs, SetupWizardTest.cs, fixed TableViewTest.cs). Integrated WordValidationService into UIFlowController. Random Words uses actual WordListSO. Word entry with row selection, backspace, validation, and auto-advance. |
 | 24 | Jan 9, 2026 | Fourteenth session - **Word Rows Architecture Redesigned!** Major refactor separating word rows from grid table. Word rows now have variable lengths (3,4,5,6). Created WordRowView.cs and WordRowsContainer.cs. Updated TableLayout/TableModel to be grid-only. UIFlowController uses new system. Integration plan documented in UI_Toolkit_Integration_Plan.md. |
 | 23 | Jan 9, 2026 | Thirteenth session - **Main Menu working!** Created MainMenu.uxml/uss with title, tagline, buttons. Created UIFlowController.cs for screen transitions. Fixed TemplateContainer sizing. Deleted conflicting UIRoot/TableTest GameObjects. Flow: Main Menu -> Setup Wizard working. Next: placement panel, "How many players?" UX. |
@@ -1075,25 +1080,30 @@ After each work session, update this document:
 
 ## Next Session Instructions
 
-**Starting Point:** This document (DLYH_Status.md v25)
+**Starting Point:** This document (DLYH_Status.md v26)
 
 **Scene to Use:** NewUIScene.unity (for UI Toolkit work - Phase C)
 
 **Current State:**
 - Phase A & B COMPLETE - table data model and UI Toolkit renderer working
-- Phase C IN PROGRESS - WordValidationService integrated
+- Phase C IN PROGRESS - WordValidationService integrated, placement panel layout fixed
 - Word rows are separate from grid table (variable lengths: 3, 4, 5, 6)
 - Word entry works: click row, type letters, backspace, validation on complete
 - Random Words button uses actual WordListSO assets
 - UIFlowController needs WordListSO assets assigned in Inspector
+- 3-row keyboard layout: ABCDEFGHI, JKLMNOPQR, STUVWXYZ + backspace
+- Responsive action button sizing for different grid sizes
 
-**Files Deleted This Session:**
-- `Assets/DLYH/NewUI/Scripts/WordPlacementController.cs` - Obsolete (used old architecture)
-- `Assets/DLYH/NewUI/Scripts/SetupWizardTest.cs` - Obsolete (used WordPlacementController)
+**Files Created This Session:**
+- `Assets/DLYH/NewUI/UXML/EmptyRoot.uxml` - Placeholder for UIDocument Source Asset (fixes blue screen bug)
 
 **Files Modified This Session:**
-- `Assets/DLYH/NewUI/Scripts/UIFlowController.cs` - Added WordValidationService, word entry, validation
-- `Assets/DLYH/NewUI/Scripts/TableViewTest.cs` - Removed obsolete word slot references
+- `Assets/DLYH/NewUI/Scripts/UIFlowController.cs` - Fixed backspace duplication, keyboard multiple input bug, 3-row keyboard layout
+- `Assets/DLYH/NewUI/USS/SetupWizard.uss` - Added .size-large styles for action buttons, reduced spacing
+- `Assets/DLYH/NewUI/Scripts/WordRowView.cs` - Added SetSizeClass() method
+- `Assets/DLYH/NewUI/Scripts/WordRowsContainer.cs` - Added SetSizeClass() method
+- `Assets/DLYH/NewUI/Scripts/TableView.cs` - Added GetSizeClassName() method
+- `Assets/DLYH/NewUI/USS/TableView.uss` - Added responsive word row sizing classes
 
 **Integration Plan:** See `Documents/UI_Toolkit_Integration_Plan.md` for full details
 
