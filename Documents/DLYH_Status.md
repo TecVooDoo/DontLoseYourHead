@@ -4,7 +4,7 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 27
+**Document Version:** 28
 **Last Updated:** January 10, 2026
 
 ---
@@ -17,10 +17,9 @@
 
 **Current Phase:** Phase C IN PROGRESS - Grid placement working!
 
-**Last Session (Jan 10, 2026):** Seventeenth session - **PlacementAdapter Complete!** Created TablePlacementController (~500 lines) that works directly with TableModel (no GridCellUI dependency). Supports 8-direction word placement with two-click flow: first click selects start cell, second click selects direction. Shows placement preview with color highlighting (green=valid, red=invalid, orange=anchor). Random Placement places longest words first for better success on smaller grids. Fixed bug where clearing a word during placement mode left preview letter on grid.
+**Last Session (Jan 10, 2026):** Eighteenth session - **UX Redesign Complete!** Implemented mode selection redesign: Main menu now has Play Solo / Play Online / Join Game buttons instead of single "START GAME". Setup wizard replaced card-mode (1 Player / 2 Players) with card-board-setup (Quick Setup / Choose My Words). Added GameMode enum to track mode throughout flow. Ready button disabled until all words placed on grid. Quick Setup auto-fills random words and placement.
 
 **TODO for next session:**
-- Implement UX redesign for player mode selection (see "UX Redesign - Mode Selection" section)
 - Add visual feedback for invalid words (red highlight, shake)
 - Connect physical keyboard input for word entry
 - Word list preview dropdown (autocomplete as user types)
@@ -429,7 +428,9 @@ Assets/DLYH/
 
 ---
 
-## UX Redesign - Mode Selection (Jan 10, 2026)
+## UX Redesign - Mode Selection (Jan 10, 2026) - IMPLEMENTED
+
+**Status:** ✅ COMPLETE (commit 871cf525)
 
 **Problem:** Current "START GAME" button lies - it doesn't start a game, it leads to board setup. This violates player trust and creates confusion about where they are in the flow.
 
@@ -1152,15 +1153,16 @@ After each work session, update this document:
 - `Assets/DLYH/NewUI/Scripts/PlacementAdapter.cs` - TablePlacementController and PlacementAdapter classes (~760 lines)
 
 **Files Modified This Session:**
-- `Assets/DLYH/NewUI/Scripts/UIFlowController.cs` - Integrated PlacementAdapter, HandleRandomPlacement with longest-first sorting
+- `Assets/DLYH/NewUI/Scripts/UIFlowController.cs` - UX redesign (GameMode enum, new flows)
+- `Assets/DLYH/NewUI/UXML/MainMenu.uxml` - Play Solo / Play Online / Join Game buttons
+- `Assets/DLYH/NewUI/UXML/SetupWizard.uxml` - card-board-setup (Quick/Manual)
+- `Assets/DLYH/NewUI/USS/MainMenu.uss` - Disabled button styling
+- `Assets/DLYH/NewUI/USS/SetupWizard.uss` - Disabled button styling
 
 **Integration Plan:** See `Documents/UI_Toolkit_Integration_Plan.md` for full details
 
 **Priority Tasks for Next Session:**
-1. **UX Redesign** - Implement mode selection redesign (see "UX Redesign - Mode Selection" section)
-   - Update MainMenu.uxml with Play Solo / Play Online / Join Game buttons
-   - Update SetupWizard.uxml - remove card-mode, add card-board-setup (Quick/Manual)
-   - Update UIFlowController to track game mode and handle flows
+1. ~~**UX Redesign** - Implement mode selection redesign~~ ✅ DONE
 2. **Add visual feedback** - Invalid word highlight/shake
 3. **Connect physical keyboard** - Support real keyboard input (not just on-screen buttons)
 4. **Word list preview dropdown** - Autocomplete as user types
