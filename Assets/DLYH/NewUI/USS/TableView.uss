@@ -393,6 +393,26 @@
     border-width: 2px;
 }
 
+/* Valid word feedback - green highlight (setup mode only) */
+.word-row-valid .word-row-letter-cell {
+    border-color: rgb(60, 180, 80);
+    background-color: rgba(60, 180, 80, 0.25);
+}
+
+.word-row-valid .word-row-letter-label {
+    color: rgb(255, 255, 255);
+}
+
+/* Invalid word feedback - red highlight */
+.word-row-invalid .word-row-letter-cell {
+    border-color: rgb(200, 60, 60);
+    background-color: rgba(200, 60, 60, 0.2);
+}
+
+.word-row-invalid .word-row-letter-label {
+    color: rgb(255, 100, 100);
+}
+
 /* === Responsive Word Row Sizing === */
 
 .word-row-size-tiny .word-row-letter-cell {

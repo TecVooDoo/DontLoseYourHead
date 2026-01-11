@@ -301,6 +301,44 @@ namespace DLYH.TableUI
             return _wordRows[index];
         }
 
+        /// <summary>
+        /// Shows invalid word feedback (red highlight + shake) on a specific row.
+        /// Red highlight persists until ClearInvalidFeedback is called.
+        /// </summary>
+        public void ShowInvalidFeedback(int rowIndex)
+        {
+            if (rowIndex < 0 || rowIndex >= _wordCount) return;
+            _wordRows[rowIndex].ShowInvalidFeedback();
+        }
+
+        /// <summary>
+        /// Clears invalid word feedback (red highlight) on a specific row.
+        /// </summary>
+        public void ClearInvalidFeedback(int rowIndex)
+        {
+            if (rowIndex < 0 || rowIndex >= _wordCount) return;
+            _wordRows[rowIndex].ClearInvalidFeedback();
+        }
+
+        /// <summary>
+        /// Sets whether a word is valid (exists in dictionary).
+        /// Controls placement button enabled state.
+        /// </summary>
+        public void SetWordValid(int rowIndex, bool isValid)
+        {
+            if (rowIndex < 0 || rowIndex >= _wordCount) return;
+            _wordRows[rowIndex].SetWordValid(isValid);
+        }
+
+        /// <summary>
+        /// Gets whether a word is valid.
+        /// </summary>
+        public bool IsWordValid(int rowIndex)
+        {
+            if (rowIndex < 0 || rowIndex >= _wordCount) return false;
+            return _wordRows[rowIndex].IsValidWord;
+        }
+
         private void HandlePlacementRequested(int wordIndex)
         {
             if (wordIndex < 0 || wordIndex >= _wordCount) return;

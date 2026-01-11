@@ -1,6 +1,6 @@
 // IOpponent.cs
 // Interface for opponent abstraction (AI or Remote player)
-// Created: January 4, 2026
+// Created: January 4, 2026 
 // Developer: TecVooDoo LLC
 
 using System;

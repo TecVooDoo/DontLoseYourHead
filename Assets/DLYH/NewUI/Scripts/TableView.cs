@@ -20,6 +20,7 @@ namespace DLYH.TableUI
         private int _lastVersion = -1;
         private Color _player1Color = ColorRules.SelectableColors[0]; // Blue default
         private Color _player2Color = ColorRules.SelectableColors[1]; // Purple default
+        private bool _isSetupMode = true; // Default to setup mode
 
         // USS class names (cached to avoid string allocations)
         private static readonly string ClassTableRow = "table-row";
@@ -132,6 +133,26 @@ namespace DLYH.TableUI
                 RefreshAll();
             }
         }
+
+        /// <summary>
+        /// Sets whether the view is in setup mode (uses green for placements)
+        /// or gameplay mode (uses player colors).
+        /// </summary>
+        public void SetSetupMode(bool isSetupMode)
+        {
+            _isSetupMode = isSetupMode;
+
+            // Force refresh if bound
+            if (_model != null)
+            {
+                RefreshAll();
+            }
+        }
+
+        /// <summary>
+        /// Returns true if the view is in setup mode.
+        /// </summary>
+        public bool IsSetupMode => _isSetupMode;
 
         /// <summary>
         /// Determines the appropriate cell size class based on grid dimensions.
@@ -332,28 +353,34 @@ namespace DLYH.TableUI
                 element.AddToClassList(StateClasses[stateIndex]);
             }
 
-            // Apply dynamic colors for hit state
+            // Apply dynamic colors based on state and mode
             if (cell.State == TableCellState.Hit)
             {
                 Color ownerColor = GetOwnerColor(cell.Owner);
                 element.style.backgroundColor = ownerColor;
                 label.style.color = ColorRules.GetContrastingTextColor(ownerColor);
             }
+            else if (cell.State == TableCellState.PlacementAnchor ||
+                     cell.State == TableCellState.PlacementSecond ||
+                     cell.State == TableCellState.PlacementPath)
+            {
+                // Handle placement preview states - use green during setup
+                Color placementColor = ColorRules.GetPlacementColor(cell.State, _player1Color, _isSetupMode);
+                element.style.backgroundColor = placementColor;
+                label.style.color = ColorRules.GetContrastingTextColor(placementColor);
+            }
+            else if (cell.State == TableCellState.Normal && cell.TextChar != '\0' && cell.Kind == TableCellKind.GridCell)
+            {
+                // During setup, placed letters show green; during gameplay, player color
+                Color cellColor = _isSetupMode ? ColorRules.GetSetupPlacedColor() : GetOwnerColor(cell.Owner);
+                element.style.backgroundColor = cellColor;
+                label.style.color = ColorRules.GetContrastingTextColor(cellColor);
+            }
             else
             {
                 // Reset to USS-defined colors
                 element.style.backgroundColor = StyleKeyword.Null;
                 label.style.color = StyleKeyword.Null;
-            }
-
-            // Handle placement states with player color
-            if (cell.State == TableCellState.PlacementAnchor ||
-                cell.State == TableCellState.PlacementSecond ||
-                cell.State == TableCellState.PlacementPath)
-            {
-                Color placementColor = ColorRules.GetPlacementColor(cell.State, _player1Color);
-                element.style.backgroundColor = placementColor;
-                label.style.color = ColorRules.GetContrastingTextColor(placementColor);
             }
         }
 

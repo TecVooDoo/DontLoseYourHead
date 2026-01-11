@@ -182,10 +182,13 @@ namespace DLYH.AI.Core
         /// <summary>
         /// Places selected words on the grid randomly.
         /// Must call SelectWords() first.
+        /// Supports crossword-style placement where words can share cells if letters match.
+        /// Crossword placement is randomly enabled/disabled for variety.
         /// </summary>
         /// <param name="maxAttempts">Maximum placement attempts per word</param>
+        /// <param name="crosswordProbability">Probability (0-1) of allowing crossword placement. Default 0.4 (40%)</param>
         /// <returns>True if all words placed successfully</returns>
-        public bool PlaceWords(int maxAttempts = 100)
+        public bool PlaceWords(int maxAttempts = 100, float crosswordProbability = 0.4f)
         {
             if (_selectedWords.Count == 0)
             {
@@ -195,8 +198,12 @@ namespace DLYH.AI.Core
 
             _placements.Clear();
 
-            // Track occupied cells
-            HashSet<(int row, int col)> occupiedCells = new HashSet<(int, int)>();
+            // Randomly decide if this setup will use crossword placement
+            bool allowCrossword = Random.value < crosswordProbability;
+            Debug.Log(string.Format("[AISetupManager] Crossword placement: {0}", allowCrossword ? "enabled" : "disabled"));
+
+            // Track occupied cells with their letters (for crossword validation)
+            Dictionary<(int row, int col), char> occupiedCells = new Dictionary<(int, int), char>();
 
             // Sort words by length descending (place longer words first)
             List<(string word, int originalIndex)> sortedWords = new List<(string, int)>();
@@ -208,7 +215,7 @@ namespace DLYH.AI.Core
 
             foreach ((string word, int originalIndex) in sortedWords)
             {
-                bool placed = TryPlaceWord(word, originalIndex, occupiedCells, maxAttempts);
+                bool placed = TryPlaceWord(word, originalIndex, occupiedCells, maxAttempts, allowCrossword);
                 if (!placed)
                 {
                     Debug.LogError(string.Format("[AISetupManager] Failed to place word: {0}", word));
@@ -223,53 +230,50 @@ namespace DLYH.AI.Core
             return true;
         }
 
+        // 8 directions: E, S, SE, NE, W, N, NW, SW (same as player's TablePlacementController)
+        private static readonly int[] DirCols = { 1, 0, 1, 1, -1, 0, -1, -1 };
+        private static readonly int[] DirRows = { 0, 1, 1, -1, 0, -1, -1, 1 };
+        private static readonly string[] DirNames = { "E", "S", "SE", "NE", "W", "N", "NW", "SW" };
+
         /// <summary>
         /// Attempts to place a single word on the grid.
+        /// Supports crossword-style placement where overlapping cells must have matching letters.
         /// </summary>
         /// <param name="word">Word to place</param>
         /// <param name="rowIndex">The row index (word slot) for this word</param>
-        /// <param name="occupiedCells">Currently occupied cells</param>
+        /// <param name="occupiedCells">Currently occupied cells with their letters</param>
         /// <param name="maxAttempts">Maximum attempts</param>
+        /// <param name="allowCrossword">If true, allows overlapping cells with matching letters</param>
         /// <returns>True if placed successfully</returns>
-        private bool TryPlaceWord(string word, int rowIndex, HashSet<(int row, int col)> occupiedCells, int maxAttempts)
+        private bool TryPlaceWord(string word, int rowIndex, Dictionary<(int row, int col), char> occupiedCells, int maxAttempts, bool allowCrossword)
         {
+            int wordLength = word.Length;
+
             for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
-                // Random orientation: horizontal (DirCol=1, DirRow=0) or vertical (DirCol=0, DirRow=1)
-                bool isHorizontal = Random.value > 0.5f;
-                int dirCol = isHorizontal ? 1 : 0;
-                int dirRow = isHorizontal ? 0 : 1;
+                // Random direction from all 8
+                int dirIndex = Random.Range(0, 8);
+                int dirCol = DirCols[dirIndex];
+                int dirRow = DirRows[dirIndex];
 
-                // Calculate valid position range
-                int maxStartCol = isHorizontal ? _gridSize - word.Length : _gridSize - 1;
-                int maxStartRow = isHorizontal ? _gridSize - 1 : _gridSize - word.Length;
+                // Calculate valid position range for this direction
+                int minStartCol, maxStartCol, minStartRow, maxStartRow;
+                GetValidStartRange(wordLength, dirCol, dirRow, out minStartCol, out maxStartCol, out minStartRow, out maxStartRow);
 
-                if (maxStartCol < 0 || maxStartRow < 0)
+                if (maxStartCol < minStartCol || maxStartRow < minStartRow)
                 {
-                    // Word doesn't fit in this orientation, try the other
-                    isHorizontal = !isHorizontal;
-                    dirCol = isHorizontal ? 1 : 0;
-                    dirRow = isHorizontal ? 0 : 1;
-                    maxStartCol = isHorizontal ? _gridSize - word.Length : _gridSize - 1;
-                    maxStartRow = isHorizontal ? _gridSize - 1 : _gridSize - word.Length;
-
-                    if (maxStartCol < 0 || maxStartRow < 0)
-                    {
-                        // Word doesn't fit at all
-                        Debug.LogError(string.Format("[AISetupManager] Word {0} too long for grid size {1}",
-                            word, _gridSize));
-                        return false;
-                    }
+                    // Word doesn't fit in this direction, try another attempt
+                    continue;
                 }
 
-                // Random position
-                int startCol = Random.Range(0, maxStartCol + 1);
-                int startRow = Random.Range(0, maxStartRow + 1);
+                // Random position within valid range
+                int startCol = Random.Range(minStartCol, maxStartCol + 1);
+                int startRow = Random.Range(minStartRow, maxStartRow + 1);
 
                 // Check if placement is valid
-                List<(int row, int col)> cells = GetWordCells(word, startRow, startCol, dirRow, dirCol);
+                List<(int row, int col, char letter)> cellsWithLetters = GetWordCellsWithLetters(word, startRow, startCol, dirRow, dirCol);
 
-                if (IsPlacementValid(cells, occupiedCells))
+                if (IsPlacementValid(cellsWithLetters, occupiedCells, allowCrossword))
                 {
                     // Place the word using existing WordPlacementData structure
                     WordPlacementData placement = new WordPlacementData
@@ -284,15 +288,15 @@ namespace DLYH.AI.Core
 
                     _placements.Add(placement);
 
-                    // Mark cells as occupied
-                    foreach ((int row, int col) cell in cells)
+                    // Mark cells as occupied with their letters
+                    foreach ((int row, int col, char letter) cell in cellsWithLetters)
                     {
-                        occupiedCells.Add(cell);
+                        occupiedCells[(cell.row, cell.col)] = cell.letter;
                     }
 
-                    string coordStr = string.Format("{0}{1}", (char)('A' + startRow), startCol + 1);
-                    Debug.Log(string.Format("[AISetupManager] Placed {0} at {1} {2}",
-                        word, coordStr, isHorizontal ? "horizontal" : "vertical"));
+                    string coordStr = string.Format("{0}{1}", (char)('A' + startCol), startRow + 1);
+                    Debug.Log(string.Format("[AISetupManager] Placed {0} at {1} direction {2}",
+                        word, coordStr, DirNames[dirIndex]));
 
                     return true;
                 }
@@ -302,13 +306,70 @@ namespace DLYH.AI.Core
         }
 
         /// <summary>
+        /// Calculates the valid start position range for a word in a given direction.
+        /// </summary>
+        private void GetValidStartRange(int wordLength, int dirCol, int dirRow,
+            out int minStartCol, out int maxStartCol, out int minStartRow, out int maxStartRow)
+        {
+            // Default to full grid
+            minStartCol = 0;
+            maxStartCol = _gridSize - 1;
+            minStartRow = 0;
+            maxStartRow = _gridSize - 1;
+
+            // Adjust based on direction so word stays in bounds
+            // For positive direction, need room at the end
+            // For negative direction, need room at the start
+            int extent = wordLength - 1;
+
+            if (dirCol > 0)
+            {
+                // Moving right, need room on the right
+                maxStartCol = _gridSize - 1 - extent;
+            }
+            else if (dirCol < 0)
+            {
+                // Moving left, need room on the left (start from at least extent)
+                minStartCol = extent;
+            }
+
+            if (dirRow > 0)
+            {
+                // Moving down, need room at the bottom
+                maxStartRow = _gridSize - 1 - extent;
+            }
+            else if (dirRow < 0)
+            {
+                // Moving up, need room at the top (start from at least extent)
+                minStartRow = extent;
+            }
+        }
+
+        /// <summary>
+        /// Gets all cells that a word would occupy, along with the letter at each position.
+        /// </summary>
+        private List<(int row, int col, char letter)> GetWordCellsWithLetters(string word, int startRow, int startCol, int dirRow, int dirCol)
+        {
+            List<(int row, int col, char letter)> cells = new List<(int, int, char)>();
+
+            for (int i = 0; i < word.Length; i++)
+            {
+                int row = startRow + (i * dirRow);
+                int col = startCol + (i * dirCol);
+                cells.Add((row, col, word[i]));
+            }
+
+            return cells;
+        }
+
+        /// <summary>
         /// Gets all cells that a word would occupy.
         /// </summary>
         /// <param name="word">The word</param>
         /// <param name="startRow">Starting row</param>
         /// <param name="startCol">Starting column</param>
-        /// <param name="dirRow">Row direction (0 or 1)</param>
-        /// <param name="dirCol">Column direction (0 or 1)</param>
+        /// <param name="dirRow">Row direction (-1, 0, or 1)</param>
+        /// <param name="dirCol">Column direction (-1, 0, or 1)</param>
         /// <returns>List of (row, col) tuples</returns>
         private List<(int row, int col)> GetWordCells(string word, int startRow, int startCol, int dirRow, int dirCol)
         {
@@ -325,14 +386,17 @@ namespace DLYH.AI.Core
         }
 
         /// <summary>
-        /// Checks if a placement is valid (no overlaps with occupied cells).
+        /// Checks if a placement is valid.
+        /// When allowCrossword is true, overlapping cells are allowed if letters match.
+        /// When allowCrossword is false, any overlap is rejected.
         /// </summary>
-        /// <param name="cells">Cells the word would occupy</param>
-        /// <param name="occupiedCells">Currently occupied cells</param>
+        /// <param name="cellsWithLetters">Cells the word would occupy with their letters</param>
+        /// <param name="occupiedCells">Currently occupied cells with their letters</param>
+        /// <param name="allowCrossword">If true, allows overlapping cells with matching letters</param>
         /// <returns>True if valid</returns>
-        private bool IsPlacementValid(List<(int row, int col)> cells, HashSet<(int row, int col)> occupiedCells)
+        private bool IsPlacementValid(List<(int row, int col, char letter)> cellsWithLetters, Dictionary<(int row, int col), char> occupiedCells, bool allowCrossword)
         {
-            foreach ((int row, int col) cell in cells)
+            foreach ((int row, int col, char letter) cell in cellsWithLetters)
             {
                 // Check bounds
                 if (cell.row < 0 || cell.row >= _gridSize || cell.col < 0 || cell.col >= _gridSize)
@@ -341,9 +405,20 @@ namespace DLYH.AI.Core
                 }
 
                 // Check overlap
-                if (occupiedCells.Contains(cell))
+                if (occupiedCells.TryGetValue((cell.row, cell.col), out char existingLetter))
                 {
-                    return false;
+                    if (!allowCrossword)
+                    {
+                        // No crossword allowed - any overlap is invalid
+                        return false;
+                    }
+
+                    if (existingLetter != cell.letter)
+                    {
+                        // Crossword allowed but letters don't match
+                        return false;
+                    }
+                    // Letters match - valid crossword intersection
                 }
             }
 

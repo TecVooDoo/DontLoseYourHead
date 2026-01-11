@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "com.coplaydev.unity-mcp": "file:E:/Unity/unity-mcp-main/MCPForUnity",
+    "com.coplaydev.unity-mcp": "file:E:/Unity/unity-mcp-main/unity-mcp-main/MCPForUnity",
     "com.cysharp.unitask": "file:E:/Unity/DefaultUnityPackages/com.cysharp.unitask",
     "com.unity.2d.animation": "13.0.2",
     "com.unity.2d.aseprite": "3.0.1",

@@ -103,8 +103,9 @@ namespace DLYH.TableUI
 
         /// <summary>
         /// Gets the appropriate color for a cell during setup/placement.
+        /// During setup mode, all placement states use green for consistency.
         /// </summary>
-        public static Color GetPlacementColor(TableCellState state, Color playerColor)
+        public static Color GetPlacementColor(TableCellState state, Color playerColor, bool isSetupMode = true)
         {
             switch (state)
             {
@@ -120,17 +121,38 @@ namespace DLYH.TableUI
                     return SystemRed;
 
                 case TableCellState.PlacementPath:
+                    if (isSetupMode)
+                    {
+                        return SystemGreen * 0.7f + CellDefault * 0.3f; // Dimmed green
+                    }
                     return playerColor * 0.7f + CellDefault * 0.3f; // Dimmed player color
 
                 case TableCellState.PlacementAnchor:
+                    if (isSetupMode)
+                    {
+                        return SystemGreen;
+                    }
                     return playerColor;
 
                 case TableCellState.PlacementSecond:
+                    if (isSetupMode)
+                    {
+                        return SystemGreen * 0.85f + Color.white * 0.15f; // Slightly brighter green
+                    }
                     return playerColor * 0.85f + Color.white * 0.15f; // Slightly brighter
 
                 default:
                     return CellDefault;
             }
+        }
+
+        /// <summary>
+        /// Gets the appropriate color for placed letters on the grid during setup.
+        /// During setup, placed letters show as green; during gameplay they show player color.
+        /// </summary>
+        public static Color GetSetupPlacedColor()
+        {
+            return SystemGreen;
         }
 
         /// <summary>

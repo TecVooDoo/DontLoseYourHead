@@ -1,6 +1,7 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UIElements;
+using UnityEngine.InputSystem;
 using TecVooDoo.DontLoseYourHead.Core;
 using TecVooDoo.DontLoseYourHead.UI;
 using DLYH.Audio;
@@ -161,6 +162,54 @@ namespace DLYH.TableUI
             if (_isInitialized && _root == null && Application.isPlaying)
             {
                 Initialize();
+            }
+        }
+
+        private void Update()
+        {
+            // Handle physical keyboard input during placement panel (word entry)
+            if (_setupWizardScreen == null || _setupWizardScreen.style.display == DisplayStyle.None)
+            {
+                return;
+            }
+
+            // Only process keyboard when in word entry mode (placement panel visible)
+            if (_wordRowsContainer == null)
+            {
+                return;
+            }
+
+            Keyboard keyboard = Keyboard.current;
+            if (keyboard == null)
+            {
+                return;
+            }
+
+            // Check for letter keys A-Z
+            for (int i = 0; i < 26; i++)
+            {
+                Key key = (Key)((int)Key.A + i);
+                if (keyboard[key].wasPressedThisFrame)
+                {
+                    char letter = (char)('A' + i);
+                    HandleLetterKeyPressed(letter);
+                    return; // Only process one key per frame
+                }
+            }
+
+            // Check for backspace
+            if (keyboard.backspaceKey.wasPressedThisFrame)
+            {
+                HandleBackspacePressed();
+            }
+
+            // Check for Escape to cancel placement mode
+            if (keyboard.escapeKey.wasPressedThisFrame)
+            {
+                if (_placementAdapter != null && _placementAdapter.IsInPlacementMode)
+                {
+                    _placementAdapter.CancelPlacementMode();
+                }
             }
         }
 
@@ -1168,15 +1217,44 @@ namespace DLYH.TableUI
             int activeRow = _wordRowsContainer?.ActiveRowIndex ?? -1;
             if (activeRow >= 0)
             {
-                string currentWord = _wordRowsContainer.GetWord(activeRow);
-                if (currentWord.Length > 0)
-                {
-                    string newWord = currentWord.Substring(0, currentWord.Length - 1);
-                    _wordRowsContainer.SetWord(activeRow, newWord);
+                // Check if this word is placed on the grid
+                WordRowView row = _wordRowsContainer.GetRow(activeRow);
+                bool wasPlaced = row != null && row.IsPlaced;
 
-                    // Update word suggestion dropdown
-                    int maxLength = _wordRowsContainer.GetWordLength(activeRow);
-                    UpdateWordSuggestionDropdown(activeRow, newWord, maxLength);
+                string currentWord = _wordRowsContainer.GetWord(activeRow);
+                if (currentWord.Length > 0 || wasPlaced)
+                {
+                    // Cancel placement mode if we're placing this word
+                    if (_placementAdapter != null && _placementAdapter.IsInPlacementMode &&
+                        _placementAdapter.PlacementWordRowIndex == activeRow)
+                    {
+                        _placementAdapter.CancelPlacementMode();
+                    }
+
+                    // If word was placed on grid, clear it from the grid first
+                    if (wasPlaced && _placementAdapter != null)
+                    {
+                        _placementAdapter.ClearWordFromGrid(activeRow);
+                        _wordRowsContainer.SetWordPlaced(activeRow, false);
+                        UpdateReadyButtonState();
+                    }
+
+                    // Clear invalid feedback (red highlight) when modifying word
+                    _wordRowsContainer.ClearInvalidFeedback(activeRow);
+
+                    // Reset validity (word is now incomplete)
+                    _wordRowsContainer.SetWordValid(activeRow, false);
+
+                    // Only delete a letter if there are letters to delete
+                    if (currentWord.Length > 0)
+                    {
+                        string newWord = currentWord.Substring(0, currentWord.Length - 1);
+                        _wordRowsContainer.SetWord(activeRow, newWord);
+
+                        // Update word suggestion dropdown
+                        int maxLength = _wordRowsContainer.GetWordLength(activeRow);
+                        UpdateWordSuggestionDropdown(activeRow, newWord, maxLength);
+                    }
                 }
             }
         }
@@ -1291,8 +1369,14 @@ namespace DLYH.TableUI
             int expectedLength = _wordRowsContainer.GetWordLength(rowIndex);
             bool isValid = _wordValidationService.ValidateWord(word, expectedLength);
 
+            // Update validity state (controls placement button enabled)
+            _wordRowsContainer.SetWordValid(rowIndex, isValid);
+
             if (isValid)
             {
+                // Clear any previous invalid feedback
+                _wordRowsContainer.ClearInvalidFeedback(rowIndex);
+
                 // Auto-advance to next empty row
                 int nextRow = _wordRowsContainer.GetFirstEmptyRowIndex();
                 if (nextRow >= 0)
@@ -1304,12 +1388,25 @@ namespace DLYH.TableUI
                     _wordRowsContainer.ClearActiveRow();
                 }
             }
-            // TODO: Show visual feedback for invalid words (e.g., red highlight, shake animation)
+            else
+            {
+                // Show invalid word feedback (red highlight + shake)
+                _wordRowsContainer.ShowInvalidFeedback(rowIndex);
+                Debug.Log($"[UIFlowController] Invalid word: {word}");
+            }
         }
 
         private void HandlePlacementRequested(int wordIndex, string word)
         {
             if (_placementAdapter == null) return;
+
+            // Placement button should already be disabled for invalid words,
+            // but double-check just in case
+            if (!_wordRowsContainer.IsWordValid(wordIndex))
+            {
+                Debug.Log($"[UIFlowController] Cannot place invalid word: {word}");
+                return;
+            }
 
             // Hide dropdown when entering placement mode
             _wordSuggestionDropdown?.Hide();
@@ -1325,6 +1422,12 @@ namespace DLYH.TableUI
 
             // Hide dropdown when word is cleared
             _wordSuggestionDropdown?.Hide();
+
+            // Clear invalid feedback (red highlight)
+            _wordRowsContainer?.ClearInvalidFeedback(wordIndex);
+
+            // Reset validity state (clears green highlight)
+            _wordRowsContainer?.SetWordValid(wordIndex, false);
 
             // If we're currently placing this word, cancel placement mode first
             // This clears the preview (first letter on grid) before clearing the word
@@ -1350,6 +1453,21 @@ namespace DLYH.TableUI
 
             if (_placementAdapter != null && _placementAdapter.IsInPlacementMode)
             {
+                // Validate current word before allowing placement
+                // (word may have changed since entering placement mode)
+                int wordIndex = _placementAdapter.PlacementWordRowIndex;
+                string currentWord = _wordRowsContainer.GetWord(wordIndex);
+                int expectedLength = _wordRowsContainer.GetWordLength(wordIndex);
+
+                if (_wordValidationService != null && !_wordValidationService.ValidateWord(currentWord, expectedLength))
+                {
+                    // Word is now invalid - cancel placement and show feedback
+                    _placementAdapter.CancelPlacementMode();
+                    _wordRowsContainer.ShowInvalidFeedback(wordIndex);
+                    Debug.Log($"[UIFlowController] Cannot place - word changed to invalid: {currentWord}");
+                    return;
+                }
+
                 // Convert table coordinates to grid coordinates
                 // TableView reports clicks as (tableRow, tableCol), we need (gridCol, gridRow)
                 int gridRow = row - 1;  // Subtract 1 for column header row
@@ -1442,6 +1560,8 @@ namespace DLYH.TableUI
                 // Skip rows that already have a complete word of correct length
                 if (currentWord.Length == expectedLength)
                 {
+                    // Still validate it to ensure placement button is enabled
+                    ValidateWord(i, currentWord);
                     continue;
                 }
 
@@ -1449,8 +1569,13 @@ namespace DLYH.TableUI
                 if (!string.IsNullOrEmpty(randomWord))
                 {
                     _wordRowsContainer.SetWord(i, randomWord.ToUpper());
+                    // Validate the word to enable placement button
+                    ValidateWord(i, randomWord);
                 }
             }
+
+            // Clear active row since we auto-filled
+            _wordRowsContainer.ClearActiveRow();
         }
 
         private void HandleRandomPlacement()
@@ -1478,6 +1603,7 @@ namespace DLYH.TableUI
             });
 
             int successCount = 0;
+            int invalidCount = 0;
             foreach (int wordIndex in wordIndices)
             {
                 string word = _wordRowsContainer.GetWord(wordIndex);
@@ -1490,6 +1616,16 @@ namespace DLYH.TableUI
                     continue;
                 }
 
+                // Skip if word is invalid (not in dictionary)
+                if (_wordValidationService != null && !_wordValidationService.ValidateWord(word, expectedLength))
+                {
+                    Debug.LogWarning($"[UIFlowController] Skipping random placement for word {wordIndex + 1}: {word} - invalid word");
+                    _wordRowsContainer.ShowInvalidFeedback(wordIndex);
+                    _wordRowsContainer.SetWordValid(wordIndex, false);
+                    invalidCount++;
+                    continue;
+                }
+
                 bool placed = _placementAdapter.PlaceWordRandomly(wordIndex, word);
                 if (placed)
                 {
@@ -1499,6 +1635,11 @@ namespace DLYH.TableUI
                 {
                     Debug.LogWarning($"[UIFlowController] Failed to place word {wordIndex + 1}: {word}");
                 }
+            }
+
+            if (invalidCount > 0)
+            {
+                Debug.Log($"[UIFlowController] Random placement skipped {invalidCount} invalid word(s)");
             }
 
             Debug.Log($"[UIFlowController] Random placement complete: {successCount}/{_tableLayout.WordCount} words placed");

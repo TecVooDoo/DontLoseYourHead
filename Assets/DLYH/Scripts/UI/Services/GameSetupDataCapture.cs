@@ -6,7 +6,7 @@ using DLYH.AI.Core;
 namespace TecVooDoo.DontLoseYourHead.UI
 {
     /// <summary>
-    /// Handles capturing player setup data from UI and generating opponent (AI) setup data.
+    /// Handles capturing player setup data from UI and generating opponent (AI) setup data. 
     /// Extracted from GameplayUIController to reduce file size.
     /// </summary>
     public class GameSetupDataCapture

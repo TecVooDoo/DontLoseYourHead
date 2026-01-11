@@ -4,8 +4,8 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 32
-**Last Updated:** January 10, 2026
+**Document Version:** 34
+**Last Updated:** January 11, 2026
 
 ---
 
@@ -15,9 +15,9 @@
 
 **Key Innovation:** Asymmetric difficulty - mixed-skill players compete fairly with different grid sizes, word counts, and difficulty settings.
 
-**Current Phase:** Phase C IN PROGRESS - Word suggestion dropdown working!
+**Current Phase:** Phase C IN PROGRESS - Setup visual polish complete!
 
-**Last Session (Jan 10, 2026):** Twenty-second session - **Word Suggestion Dropdown & Placement Instructions!** Added autocomplete dropdown that filters words as user types - shows matching words from WordListSO, touch-friendly (uses Button elements). Fixed dropdown z-index to appear above grid. Updated placement instructions to clarify "Hide your words on the grid - your opponent will try to find them!" (playtesters were confused about whose words they were entering).
+**Last Session (Jan 11, 2026):** Twenty-fourth session - **Setup Visual Polish!** Fixed visual feedback consistency: valid words show green in word rows AND on grid during setup. Added backspace clearing grid placement when word is placed. Fixed Random Words button to validate and enable placement buttons. Fixed clear button to reset validity state. All setup phase colors now consistent (green for valid/placed during setup, player color only during gameplay).
 
 **CRITICAL - Assets Need Inspector Assignment:**
 The FeedbackModal and HamburgerMenu won't work until you assign assets in Unity Inspector:
@@ -28,18 +28,23 @@ The FeedbackModal and HamburgerMenu won't work until you assign assets in Unity 
 
 **TODO for next session:**
 
-**Join Game Networking:**
+**Phase C Setup Polish:** COMPLETE
+- ~~Add visual feedback for invalid words (red highlight, shake)~~ DONE
+- ~~Connect physical keyboard input for word entry~~ DONE
+- ~~Word list preview dropdown (autocomplete as user types)~~ DONE
+- ~~Test crossword-style overlapping words (shared letters)~~ DONE (AI + Player both support)
+- ~~Green for valid words in word rows~~ DONE
+- ~~Green for placed letters on grid during setup~~ DONE
+- ~~Backspace clears grid placement~~ DONE
+- ~~Random Words enables placement buttons~~ DONE
+- ~~Clear button resets validity state~~ DONE
+
+**Phase D:** Start gameplay UI conversion
+
+**Phase E (Networking - batch together, requires C: drive copy):**
 - Wire up Join Code submit to actual networking code
 - Receive game settings (grid size, word count) from host
 - Transition to placement panel with received settings
-
-**Word Entry Polish:**
-- Add visual feedback for invalid words (red highlight, shake)
-- Connect physical keyboard input for word entry
-- ~~Word list preview dropdown (autocomplete as user types)~~ DONE
-- Test crossword-style overlapping words (shared letters)
-
-**Phase D:** Start gameplay UI conversion
 
 ---
 
@@ -176,6 +181,7 @@ Opens overlay:
   - [x] Word rows architecture redesigned (separate from grid)
   - [x] Word entry with autocomplete (WordSuggestionDropdown component)
   - [x] Grid placement (PlacementAdapter + TablePlacementController)
+  - [x] Visual feedback polish (green valid/placed, red invalid, backspace clears grid)
 - [ ] Phase D: Gameplay UI conversion
 - [ ] Phase E: Networking integration (wire existing code)
 - [ ] Phase F: Refactor and cleanup (remove legacy uGUI)
@@ -348,6 +354,25 @@ Grid Table Container
 - `TableLayout.cs` - Grid-only (no WordRowsRegion)
 - `TableModel.cs` - Grid-only (no word slot methods)
 
+### Setup Visual Feedback (NEW - Jan 11, 2026)
+
+**Color Rules During Setup:**
+- **Word Rows:** Green when word is valid (ClassValid USS class)
+- **Grid Cells:** Green when letters are placed (ColorRules.GetSetupPlacedColor())
+- **Placement Preview:** Green for anchor/path cells (ColorRules.GetPlacementColor with isSetupMode=true)
+- **Invalid Words:** Red highlight + shake animation (ClassInvalid USS class + DOTween)
+
+**Color Rules During Gameplay:**
+- **Word Rows:** Player color when placed
+- **Grid Cells:** Player color based on CellOwner
+- **Placement Preview:** Player color
+
+**Key Methods:**
+- `WordRowView.SetWordValid(bool)` - Controls green/red styling
+- `WordRowView.SetPlaced(bool)` - During setup keeps green, during gameplay uses player color
+- `TableView.SetSetupMode(bool)` - Switches between setup (green) and gameplay (player color)
+- `ColorRules.GetSetupPlacedColor()` - Returns SystemGreen for placed cells during setup
+
 ### Namespaces
 
 | Namespace | Scripts | Purpose |
@@ -456,12 +481,14 @@ Assets/DLYH/
 | IOpponent | ~177 | Opponent abstraction interface | OK (not wired) |
 | LocalAIOpponent | ~300 | AI wrapper for IOpponent | OK (not wired) |
 | RemotePlayerOpponent | ~400 | Network player opponent | OK (not wired) |
-| UIFlowController | ~2265 | Screen flow + setup wizard + modals (includes SetupWizardUIManager) | OK (large but cohesive) |
-| WordRowView | ~285 | Single word row UI component | NEW |
+| UIFlowController | ~2500 | Screen flow + setup wizard + modals (includes SetupWizardUIManager) | OK (large but cohesive) |
+| WordRowView | ~460 | Single word row UI component | NEW (updated with validity styling) |
 | WordRowsContainer | ~230 | Manages all word rows | NEW |
 | PlacementAdapter | ~210 | Adapter for table-based word placement | NEW |
 | TablePlacementController | ~500 | 8-direction placement logic for TableModel | NEW |
 | WordSuggestionDropdown | ~310 | Autocomplete dropdown for word entry | NEW |
+| ColorRules | ~225 | Color rules for setup/gameplay modes | NEW (added setup mode support) |
+| TableView | ~425 | UI Toolkit table renderer | NEW (added setup mode coloring) |
 
 ### Extracted Controllers (Phase 0)
 
@@ -486,6 +513,7 @@ Assets/DLYH/
 - UniTask 2.5.10
 - New Input System 1.16.0
 - Classic_RPG_GUI (UI theme assets)
+- MCP for Unity 9.0.3 (Local)
 - Feel - REMOVED (can re-add if needed for screen effects)
 
 ---
@@ -743,7 +771,8 @@ class TableLayout:
 
 class ColorRules:
 - bool IsSelectablePlayerColor(color)
-- UIColor GetPlacementColor(state)
+- UIColor GetPlacementColor(state, playerColor, isSetupMode)
+- UIColor GetSetupPlacedColor()
 - UIColor GetGameplayColor(owner, state, p1Color, p2Color)
 
 class WordRowView:
@@ -774,7 +803,7 @@ Word Rows (separate):
 
 - [x] TableModel constructed once, cleared/reused without allocations
 - [x] TableLayout maps regions correctly for variable grid sizes
-- [ ] Setup can mark PlacementValid/Invalid/Path/Anchor/Second
+- [x] Setup can mark PlacementValid/Invalid/Path/Anchor/Second
 - [ ] Gameplay can mark Revealed/Hit/Miss with owner-based colors
 - [x] Red and Yellow not selectable as player colors
 - [x] Green only for setup placement feedback
@@ -782,6 +811,8 @@ Word Rows (separate):
 - [x] Word rows have variable lengths (3, 4, 5, 6)
 - [x] Word rows integrate with WordValidationService for autocomplete (WordSuggestionDropdown)
 - [x] Grid placement uses 8-direction logic (TablePlacementController)
+- [x] Setup mode uses green for valid words and placed letters
+- [x] Backspace clears grid placement when word is placed
 
 ---
 
@@ -1094,6 +1125,7 @@ public class GameplayUIController {
 21. **Document interfaces immediately** - update Architecture section after each extraction
 22. **Reuse existing systems** - Don't rebuild WordListSO, WordValidationService, CoordinatePlacementController - create thin adapters
 23. **Prevent duplicate event handlers** - use flags like `_keyboardWiredUp` when handlers persist across screen rebuilds
+24. **Reset validity on clear** - SetWordValid(false) must be called when clearing words to remove green styling
 
 ---
 
@@ -1107,6 +1139,8 @@ public class GameplayUIController {
 | Guillotine head stuck | No stored position | Store original position on Initialize |
 | MessagePopup off-screen | Complex calculations | Use fixed Y for known anchors |
 | Cell vertical stretching | uGUI layout issues | Use UI Toolkit (pivot away from uGUI) |
+| Green cells after clear | Validity not reset | Call SetWordValid(false) in HandleWordCleared |
+| Random Words no placement button | Words not validated | Call ValidateWord() after SetWord() |
 
 ---
 
@@ -1186,6 +1220,8 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 34 | Jan 11, 2026 | Twenty-fourth session - **Setup Visual Polish!** Fixed green coloring consistency: valid words show green in word rows AND on grid during setup. Added backspace clearing grid placement. Fixed Random Words enabling placement buttons. Fixed clear button resetting validity. Added setup mode support to ColorRules and TableView. All setup colors now consistent. |
+| 33 | Jan 11, 2026 | Twenty-third session - **Word Entry Polish & AI Crossword!** Invalid word feedback (red highlight + shake via USS). Physical keyboard input (A-Z, Backspace, Escape). AI placement now supports crossword-style overlapping with 8 directions and 40% random crossword probability. |
 | 32 | Jan 10, 2026 | Twenty-second session - **Word Suggestion Dropdown!** Added WordSuggestionDropdown.cs - autocomplete that filters words as user types, touch-friendly (Button elements). Fixed z-index to appear above grid. Updated placement instructions: "Hide your words on the grid - your opponent will try to find them!" (playtesters confused about whose words). |
 | 31 | Jan 10, 2026 | Twenty-first session - **UI Polish & Join Game Flow!** Fixed feedback modal text color. Added Continue Game button (orange, hidden by default). Fixed Join Game: Profile → Difficulty → Join Code flow (skips Grid/Words). Added Join Code card with input + submit. Moved hamburger USS to USS Assets section for consistency. |
 | 30 | Jan 10, 2026 | Twentieth session - **Bug Fixes!** Fixed trivia: proper guillotine/beheading facts (24 total), centered below title, 5-sec display + fade cycling. Fixed Join Game: hides Grid/Words/Difficulty/BoardSetup cards. Added debug warnings for missing modal assets. Note: FeedbackModal/HamburgerMenu need Inspector assignment. |
@@ -1223,9 +1259,9 @@ After each work session, update this document:
 
 ## Next Session Instructions
 
-**Starting Point:** This document (DLYH_Status.md v32)
+**Starting Point:** This document (DLYH_Status.md v34)
 
-**Scene to Use:** NewUIScene.unity (for UI Toolkit work - Phase C)
+**Scene to Use:** NewUIScene.unity (for UI Toolkit work - Phase C/D)
 
 **FIRST: Assign Modal Assets in Inspector!**
 The FeedbackModal and HamburgerMenu won't work until assigned:
@@ -1240,12 +1276,14 @@ The FeedbackModal and HamburgerMenu won't work until assigned:
 
 **Current State:**
 - Phase A & B COMPLETE - table data model and UI Toolkit renderer working
-- Phase C IN PROGRESS - Word suggestion dropdown working!
+- Phase C IN PROGRESS - Setup visual polish complete!
 - Word rows are separate from grid table (variable lengths: 3, 4, 5, 6)
 - Word entry works: click row, type letters, backspace, validation on complete
 - **Word suggestion dropdown** shows filtered words from WordListSO as user types (touch-friendly)
 - Grid placement works: two-click flow (start cell -> direction), 8 directions supported
-- Random Words button uses actual WordListSO assets
+- **Setup colors all green** - valid words in rows, placed letters on grid, placement preview
+- **Backspace clears grid** - pressing backspace on placed word removes it from grid
+- **Random Words validates** - enables placement buttons after filling words
 - Random Placement places longest words first for better success
 - Inline settings on main menu (SFX/Music sliders + QWERTY checkbox)
 - Hamburger menu for setup/gameplay with synced settings (needs Inspector assets)
@@ -1255,18 +1293,23 @@ The FeedbackModal and HamburgerMenu won't work until assigned:
 - Placement instructions updated to clarify opponent will guess these words
 
 **Files Modified This Session:**
-- `Assets/DLYH/NewUI/Scripts/UIFlowController.cs` - Added dropdown integration, positioning, event handlers
-- `Assets/DLYH/NewUI/Scripts/WordSuggestionDropdown.cs` - NEW: Autocomplete dropdown component
-- `Assets/DLYH/NewUI/USS/SetupWizard.uss` - Added dropdown styles
-- `Assets/DLYH/NewUI/UXML/SetupWizard.uxml` - Updated placement instructions text
+- `Assets/DLYH/NewUI/Scripts/UIFlowController.cs` - HandleBackspacePressed clears grid, HandleWordCleared resets validity, HandleRandomWords validates words
+- `Assets/DLYH/NewUI/Scripts/WordRowView.cs` - SetPlaced keeps green during setup mode, uses player color only in gameplay mode
+- `Assets/DLYH/NewUI/Scripts/ColorRules.cs` - Added isSetupMode parameter to GetPlacementColor, added GetSetupPlacedColor method
+- `Assets/DLYH/NewUI/Scripts/TableView.cs` - Added _isSetupMode flag, SetSetupMode method, UpdateCellVisual uses green for placed cells during setup
 
 **Integration Plan:** See `Documents/UI_Toolkit_Integration_Plan.md` for full details
 
 **Priority Tasks for Next Session:**
-1. **Word entry polish** - Invalid word feedback (red highlight, shake animation), physical keyboard input
-2. **Test crossword overlapping** - Verify shared letters work correctly when placing words
-3. **Wire Join Code** - Connect submit button to networking code
-4. **Phase D** - Start gameplay UI conversion
+1. **Phase D** - Start gameplay UI conversion
+   - Design gameplay screen layout
+   - Convert opponent grid display to TableView
+   - Wire guess interactions
+   - Call TableView.SetSetupMode(false) when transitioning to gameplay
+
+**Deferred to Phase E (requires C: drive copy for networking):**
+- Wire Join Code submit to networking code
+- All networking integration work batched together
 
 **Existing Systems to Integrate (DO NOT REBUILD):**
 - `Assets/DLYH/Scripts/Core/GameState/WordListSO.cs` - Word dictionary (already integrated!)

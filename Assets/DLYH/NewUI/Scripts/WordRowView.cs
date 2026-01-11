@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.UIElements;
+using DG.Tweening;
 
 namespace DLYH.TableUI
 {
@@ -26,6 +27,7 @@ namespace DLYH.TableUI
         private string _word = "";
         private bool _isGameplayMode;
         private bool _isPlaced;
+        private bool _isValidWord;
         private Color _playerColor;
 
         // USS class names
@@ -42,6 +44,8 @@ namespace DLYH.TableUI
         private static readonly string ClassFilled = "word-row-filled";
         private static readonly string ClassPlaced = "word-row-placed";
         private static readonly string ClassActive = "word-row-active";
+        private static readonly string ClassValid = "word-row-valid";
+        private static readonly string ClassInvalid = "word-row-invalid";
         private static readonly string ClassSizeTiny = "word-row-size-tiny";
         private static readonly string ClassSizeSmall = "word-row-size-small";
         private static readonly string ClassSizeLarge = "word-row-size-large";
@@ -232,6 +236,8 @@ namespace DLYH.TableUI
 
         /// <summary>
         /// Marks the word as placed on the grid.
+        /// During setup mode, placed words stay green.
+        /// During gameplay mode, placed words use player color.
         /// </summary>
         public void SetPlaced(bool placed)
         {
@@ -240,11 +246,25 @@ namespace DLYH.TableUI
             if (placed)
             {
                 _root.AddToClassList(ClassPlaced);
-                // Apply player color to letter cells
-                for (int i = 0; i < _wordLength; i++)
+
+                if (_isGameplayMode)
                 {
-                    _letterCells[i].style.backgroundColor = _playerColor;
-                    _letterLabels[i].style.color = ColorRules.GetContrastingTextColor(_playerColor);
+                    // Gameplay mode: use player color for placed words
+                    _root.RemoveFromClassList(ClassValid);
+                    for (int i = 0; i < _wordLength; i++)
+                    {
+                        _letterCells[i].style.backgroundColor = _playerColor;
+                        _letterLabels[i].style.color = ColorRules.GetContrastingTextColor(_playerColor);
+                    }
+                }
+                else
+                {
+                    // Setup mode: keep green styling via ClassValid
+                    // Don't apply player color - let USS handle it
+                    if (_isValidWord)
+                    {
+                        _root.AddToClassList(ClassValid);
+                    }
                 }
             }
             else
@@ -255,6 +275,11 @@ namespace DLYH.TableUI
                 {
                     _letterCells[i].style.backgroundColor = StyleKeyword.Null;
                     _letterLabels[i].style.color = StyleKeyword.Null;
+                }
+                // Re-apply valid class if word is valid
+                if (_isValidWord && !_isGameplayMode)
+                {
+                    _root.AddToClassList(ClassValid);
                 }
             }
 
@@ -286,6 +311,87 @@ namespace DLYH.TableUI
             {
                 _root.RemoveFromClassList(ClassActive);
             }
+        }
+
+        /// <summary>
+        /// Sets whether the current word is valid (exists in dictionary).
+        /// Controls placement button enabled state and shows green highlight when valid.
+        /// </summary>
+        public void SetWordValid(bool isValid)
+        {
+            _isValidWord = isValid;
+
+            // Apply/remove valid class for green highlight (setup mode only, not when placed)
+            if (isValid && !_isPlaced && !_isGameplayMode)
+            {
+                _root.AddToClassList(ClassValid);
+            }
+            else
+            {
+                _root.RemoveFromClassList(ClassValid);
+            }
+
+            UpdateControlState();
+        }
+
+        /// <summary>
+        /// Whether the current word is valid.
+        /// </summary>
+        public bool IsValidWord => _isValidWord;
+
+        /// <summary>
+        /// Shows visual feedback for an invalid word (red highlight + shake animation).
+        /// The red highlight persists until ClearInvalidFeedback() is called.
+        /// The shake animation runs once then stops (but red remains).
+        /// </summary>
+        public void ShowInvalidFeedback()
+        {
+            // Add invalid styling (red highlight - persists until cleared)
+            _root.AddToClassList(ClassInvalid);
+
+            // Shake animation using DOTween on the letter container
+            // UI Toolkit doesn't support CSS keyframes, so we animate via code
+            float originalLeft = _letterContainer.resolvedStyle.marginLeft;
+
+            // Create shake sequence
+            Sequence shakeSequence = DOTween.Sequence();
+            shakeSequence.Append(DOTween.To(
+                () => _letterContainer.style.marginLeft.value.value,
+                x => _letterContainer.style.marginLeft = x,
+                originalLeft - 8f, 0.05f));
+            shakeSequence.Append(DOTween.To(
+                () => _letterContainer.style.marginLeft.value.value,
+                x => _letterContainer.style.marginLeft = x,
+                originalLeft + 8f, 0.05f));
+            shakeSequence.Append(DOTween.To(
+                () => _letterContainer.style.marginLeft.value.value,
+                x => _letterContainer.style.marginLeft = x,
+                originalLeft - 6f, 0.05f));
+            shakeSequence.Append(DOTween.To(
+                () => _letterContainer.style.marginLeft.value.value,
+                x => _letterContainer.style.marginLeft = x,
+                originalLeft + 6f, 0.05f));
+            shakeSequence.Append(DOTween.To(
+                () => _letterContainer.style.marginLeft.value.value,
+                x => _letterContainer.style.marginLeft = x,
+                originalLeft - 3f, 0.05f));
+            shakeSequence.Append(DOTween.To(
+                () => _letterContainer.style.marginLeft.value.value,
+                x => _letterContainer.style.marginLeft = x,
+                originalLeft + 3f, 0.05f));
+            shakeSequence.Append(DOTween.To(
+                () => _letterContainer.style.marginLeft.value.value,
+                x => _letterContainer.style.marginLeft = x,
+                originalLeft, 0.05f));
+        }
+
+        /// <summary>
+        /// Clears the invalid word visual feedback (red highlight).
+        /// Called when user modifies the word (backspace, clear, etc).
+        /// </summary>
+        public void ClearInvalidFeedback()
+        {
+            _root.RemoveFromClassList(ClassInvalid);
         }
 
         /// <summary>
@@ -353,8 +459,8 @@ namespace DLYH.TableUI
         {
             bool hasWord = _word.Length == _wordLength;
 
-            // Placement button: enabled when word is complete and not placed
-            _placementButton.SetEnabled(hasWord && !_isPlaced);
+            // Placement button: enabled when word is complete, valid, and not placed
+            _placementButton.SetEnabled(hasWord && _isValidWord && !_isPlaced);
 
             // Clear button: enabled when there's any content or placement
             _clearButton.SetEnabled(_word.Length > 0 || _isPlaced);
