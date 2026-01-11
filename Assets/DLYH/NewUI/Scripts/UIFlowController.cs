@@ -373,7 +373,40 @@ namespace DLYH.TableUI
             PlayerPrefs.SetInt(PREFS_QWERTY_KEYBOARD, evt.newValue ? 1 : 0);
             PlayerPrefs.Save();
 
-            // TODO: Notify wizard to update keyboard layout if open
+            // Update keyboard layout if wizard is open
+            RefreshKeyboardIfNeeded();
+        }
+
+        /// <summary>
+        /// Refreshes the letter keyboard layout and re-wires the button handlers.
+        /// Called when QWERTY preference changes.
+        /// </summary>
+        private void RefreshKeyboardIfNeeded()
+        {
+            if (_wizardManager == null) return;
+
+            // Rebuild the keyboard with new layout
+            _wizardManager.RefreshKeyboardLayout();
+
+            // Re-wire the new buttons
+            _keyboardWiredUp = false;
+            VisualElement keyboard = _setupWizardScreen?.Q<VisualElement>("letter-keyboard");
+            if (keyboard != null)
+            {
+                keyboard.Query<Button>(className: "letter-key").ForEach(keyButton =>
+                {
+                    if (keyButton.ClassListContains("backspace-key"))
+                    {
+                        keyButton.clicked += HandleBackspacePressed;
+                    }
+                    else if (keyButton.text.Length == 1)
+                    {
+                        char letter = keyButton.text[0];
+                        keyButton.clicked += () => HandleLetterKeyPressed(letter);
+                    }
+                });
+                _keyboardWiredUp = true;
+            }
         }
 
         private void UpdateSfxLabel(float volume)
@@ -814,6 +847,9 @@ namespace DLYH.TableUI
 
             // Sync main menu toggle
             if (_qwertyToggle != null) _qwertyToggle.SetValueWithoutNotify(evt.newValue);
+
+            // Update keyboard layout immediately
+            RefreshKeyboardIfNeeded();
         }
 
         private void UpdateHbSfxLabel(float volume)
@@ -1414,6 +1450,9 @@ namespace DLYH.TableUI
         private const int DEFAULT_WORD_COUNT = 3;
         private const int DEFAULT_DIFFICULTY = 1;
 
+        // Settings constants (duplicate from UIFlowController for access)
+        private const string PREFS_QWERTY_KEYBOARD = "DLYH_QwertyKeyboard";
+
         // Root element
         private VisualElement _root;
 
@@ -1710,11 +1749,24 @@ namespace DLYH.TableUI
 
             keyboard.Clear();
 
+            // Check QWERTY preference
+            bool useQwerty = PlayerPrefs.GetInt(PREFS_QWERTY_KEYBOARD, 0) == 1;
+
             // Create 3-row keyboard layout
-            // Row 1: A-I (9 letters)
-            // Row 2: J-R (9 letters)
-            // Row 3: S-Z (8 letters) + Backspace
-            string[] rows = { "ABCDEFGHI", "JKLMNOPQR", "STUVWXYZ" };
+            string[] rows;
+            if (useQwerty)
+            {
+                // QWERTY layout
+                rows = new string[] { "QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM" };
+            }
+            else
+            {
+                // Alphabetical layout
+                // Row 1: A-I (9 letters)
+                // Row 2: J-R (9 letters)
+                // Row 3: S-Z (8 letters)
+                rows = new string[] { "ABCDEFGHI", "JKLMNOPQR", "STUVWXYZ" };
+            }
 
             for (int rowIndex = 0; rowIndex < rows.Length; rowIndex++)
             {
@@ -1744,6 +1796,16 @@ namespace DLYH.TableUI
 
                 keyboard.Add(rowElement);
             }
+        }
+
+        /// <summary>
+        /// Refreshes the letter keyboard layout based on current QWERTY preference.
+        /// Call this when the QWERTY setting changes while the wizard is open.
+        /// </summary>
+        public void RefreshKeyboardLayout()
+        {
+            // Re-setup the keyboard with the new layout
+            SetupLetterKeyboard();
         }
 
         private void SetupCollapsedCardClickHandlers()

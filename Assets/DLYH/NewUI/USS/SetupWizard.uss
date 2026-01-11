@@ -178,7 +178,8 @@
 /* === Join Code Input === */
 
 .join-code-input {
-    max-width: 220px;
+    width: 200px;
+    min-width: 200px;
     font-size: 24px;
     letter-spacing: 8px;
     -unity-text-align: middle-center;
@@ -187,7 +188,7 @@
 
 .join-code-input > .unity-text-field__input {
     -unity-text-align: middle-center;
-    text-transform: uppercase;
+    padding: 8px 12px;
 }
 
 .join-button {

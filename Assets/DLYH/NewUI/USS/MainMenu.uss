@@ -21,7 +21,7 @@
 
 .title-section {
     align-items: center;
-    margin-bottom: 16px;
+    margin-bottom: 8px;
 }
 
 .title-text {
@@ -37,20 +37,20 @@
 
 .title-line2 {
     font-size: 64px;
-    color: rgb(0, 220, 180);
+    color: rgb(220, 220, 230);
     margin-top: -8px;
 }
 
 /* === Trivia Marquee (centered, replaces old tagline) === */
 
 .trivia-marquee {
-    font-size: 14px;
-    color: rgb(140, 140, 160);
+    font-size: 24px;
+    color: rgb(0, 180, 150);
     -unity-font-style: italic;
     -unity-text-align: middle-center;
-    margin-bottom: 48px;
-    min-height: 20px;
-    max-width: 450px;
+    margin-bottom: 32px;
+    min-height: 30px;
+    max-width: 500px;
     white-space: normal;
 }
 
