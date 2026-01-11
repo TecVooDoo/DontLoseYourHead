@@ -4,7 +4,7 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 34
+**Document Version:** 35
 **Last Updated:** January 11, 2026
 
 ---
@@ -15,16 +15,9 @@
 
 **Key Innovation:** Asymmetric difficulty - mixed-skill players compete fairly with different grid sizes, word counts, and difficulty settings.
 
-**Current Phase:** Phase C IN PROGRESS - Setup visual polish complete!
+**Current Phase:** Phase D IN PROGRESS - Gameplay UI redesign planned!
 
-**Last Session (Jan 11, 2026):** Twenty-fourth session - **Setup Visual Polish!** Fixed visual feedback consistency: valid words show green in word rows AND on grid during setup. Added backspace clearing grid placement when word is placed. Fixed Random Words button to validate and enable placement buttons. Fixed clear button to reset validity state. All setup phase colors now consistent (green for valid/placed during setup, player color only during gameplay).
-
-**CRITICAL - Assets Need Inspector Assignment:**
-The FeedbackModal and HamburgerMenu won't work until you assign assets in Unity Inspector:
-1. Select the UIFlowController GameObject in NewUIScene
-2. In Inspector, find "Modal Assets" section
-3. Assign: FeedbackModal UXML, HamburgerMenu UXML
-4. In "USS Assets" section, assign FeedbackModal USS and HamburgerMenu USS (moved for consistency)
+**Last Session (Jan 11, 2026):** Twenty-fifth session - **Phase D Design Complete!** Reviewed existing gameplay UI (GameplayUIController, PlayerGridPanel, GridCellUI). Analyzed current UX issues (cramped layout, small touch targets, guillotines always visible). Designed new focused single-grid gameplay UI with Attack/Defend tab switching, event-based guillotine overlay, larger letter keyboard (reuse setup 3-row layout), and asymmetric difficulty display. Plan documented below.
 
 **TODO for next session:**
 
@@ -39,7 +32,7 @@ The FeedbackModal and HamburgerMenu won't work until you assign assets in Unity 
 - ~~Random Words enables placement buttons~~ DONE
 - ~~Clear button resets validity state~~ DONE
 
-**Phase D:** Start gameplay UI conversion
+**Phase D:** Gameplay UI conversion - DESIGN COMPLETE, implementation next
 
 **Phase E (Networking - batch together, requires C: drive copy):**
 - Wire up Join Code submit to actual networking code
@@ -115,6 +108,144 @@ Opens overlay:
 - Updated `MainMenu.uxml` - Added inline settings, feedback button, trivia label (DONE)
 - Updated `MainMenu.uss` - Slider and checkbox styles (DONE)
 - Updated `UIFlowController.cs` - Wired hamburger menu, feedback modal, settings persistence (DONE)
+
+---
+
+## Phase D: Gameplay UI Redesign (Jan 11, 2026)
+
+**Status:** DESIGN COMPLETE - Ready for implementation
+
+**Problem Analysis:**
+The legacy uGUI gameplay screen shows both grids side-by-side with guillotines, but this creates several UX issues:
+1. **Small touch targets** - Letter tracker buttons are too small on mobile
+2. **Cramped layout** - Both grids + guillotines + word rows competing for space
+3. **Cognitive overload** - Too much information visible at once
+4. **Guillotines underutilized** - Always visible but small, not dramatic
+
+**Design Solution: Focused Single-Grid View with Tab Switching**
+
+Instead of showing both grids simultaneously, use a focused view with easy Attack/Defend toggle.
+
+### Layout Structure
+```
++-------------------------------------------------------------+
+|  (hamburger)              YOUR TURN                          |
++-------------------------------------------------------------+
+|  +-------------------------+   +-------------------------+   |
+|  | ATTACK: EXECUTIONER    |   | DEFEND: You             |   |
+|  | 12x12 - 3 words        |   | 6x6 - 4 words           |   |
+|  | [coffin] 5/18 ████░░░░ |   | [coffin] 3/24 █░░░░░░░░ |   |
+|  +-------------------------+   +-------------------------+   |
+|           ^ ACTIVE TAB                                       |
+|                                                              |
+|         +-------------------------------+                    |
+|         |                               |                    |
+|         |     OPPONENT'S GRID           |                    |
+|         |     (single large grid)       |                    |
+|         |                               |                    |
+|         +-------------------------------+                    |
+|                                                              |
+|  WORDS TO FIND:                                              |
+|  +-------------+-------------+------------------+            |
+|  | 1. _ _ _    | 2. C _ _ _  | 3. _ E _ _ _     |            |
+|  |   [GUESS]   |   [GUESS]   |   [GUESS]        |            |
+|  +-------------+-------------+------------------+            |
+|                                                              |
+|  +-----------------------------------------------------+    |
+|  |  A   B   C   D   E   F   G   H   I                  |    |
+|  |  J   K   L   M   N   O   P   Q   R                  |    |
+|  |  S   T   U   V   W   X   Y   Z                      |    |
+|  +-----------------------------------------------------+    |
+|                                                              |
+|  [Guessed Words: 5 v]                                        |
++-------------------------------------------------------------+
+|  "EXECUTIONER guessed 'R' - Hit on your board!"             |
++-------------------------------------------------------------+
+```
+
+### Key UX Improvements
+
+1. **Tab-Based Grid Switching**
+   - ATTACK tab: Shows opponent's grid (where you guess)
+   - DEFEND tab: Shows your grid (see what opponent found)
+   - Each tab shows grid stats: size, word count, miss progress
+   - Default to opponent's grid on your turn
+
+2. **Event-Based Guillotines (Not Always Visible)**
+   - Miss counter buttons are tappable -> opens guillotine overlay
+   - On miss: Quick screen flash, progress bar animates
+   - On critical miss (80%+): Auto-show guillotine overlay briefly
+   - On game end: Full dramatic sequence with both guillotines
+
+3. **Guillotine Overlay Modal**
+   - Both guillotines side-by-side
+   - Blade positions reflect current miss counts
+   - Head expressions change based on danger level
+   - Flavor text: "Getting warm...", "In danger!", etc.
+   - Tap outside or X to dismiss
+
+4. **Larger Letter Keyboard**
+   - Reuse setup keyboard layout (3 rows, 44px+ buttons)
+   - Row 1: A B C D E F G H I
+   - Row 2: J K L M N O P Q R
+   - Row 3: S T U V W X Y Z
+   - Or QWERTY layout based on user preference
+   - Color states: Default -> Hit (player color) -> Miss (red strikethrough)
+
+5. **Asymmetric Difficulty Display**
+   - Both tabs show grid size + word count
+   - Players clearly see the difficulty imbalance
+   - Example: Your 6x6/4words vs Their 12x12/3words
+
+6. **Collapsible Guessed Words List**
+   - Button shows count: "[Guessed Words: 5]"
+   - Tap to expand into overlay/panel
+   - Shows both players' word guesses with hit/miss status
+
+### Game End Sequence
+
+```
+Win/Loss triggered ->
+  1. Grids fade to 50% opacity (0.5s)
+  2. "GAME OVER" banner drops down
+  3. Guillotine overlay fades in (both guillotines)
+  4. Executioner character appears center (future enhancement)
+  5. Loser's blade drops with full animation + sound
+  6. Head falls into basket
+  7. 2 second hold
+  8. Results panel slides up with stats + Play Again button
+```
+
+### Responsive Behavior
+
+**Landscape (Wide):**
+- Could show both grids side-by-side on tablet/desktop
+- Letter keyboard spans bottom
+- Similar to legacy layout but with larger touch targets
+
+**Portrait (Tall):**
+- Single grid view with tab toggle (as designed above)
+- Letter keyboard is 3 rows
+- Everything stacks vertically
+
+### Files to Create
+
+| File | Purpose |
+|------|---------|
+| `Gameplay.uxml` | Main gameplay screen layout |
+| `Gameplay.uss` | Gameplay styles + responsive breakpoints |
+| `GuillotineOverlay.uxml` | Modal guillotine view |
+| `GuillotineOverlay.uss` | Overlay styles |
+| `GameplayScreenManager.cs` | Manages gameplay UI state, tab switching |
+
+### Integration Points
+
+- Wire to existing `GameplayUIController` for guess processing
+- Wire to existing `GuessProcessingManager` for hit/miss logic
+- Wire to existing `GameplayStateTracker` for state management
+- Wire to existing `OpponentTurnManager` for AI turns
+- Reuse `TableView` and `TableModel` for grid rendering
+- Reuse `WordRowView` for word progress display
 
 ---
 
@@ -1220,6 +1351,7 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 35 | Jan 11, 2026 | Twenty-fifth session - **Phase D Design Complete!** Analyzed legacy gameplay UI (GameplayUIController, PlayerGridPanel, GridCellUI). Designed new focused single-grid layout with Attack/Defend tab switching. Event-based guillotine overlay (miss counter buttons are tappable). Larger 3-row letter keyboard (reuse setup layout). Asymmetric difficulty display in tabs. Game end sequence with dramatic guillotine animation. |
 | 34 | Jan 11, 2026 | Twenty-fourth session - **Setup Visual Polish!** Fixed green coloring consistency: valid words show green in word rows AND on grid during setup. Added backspace clearing grid placement. Fixed Random Words enabling placement buttons. Fixed clear button resetting validity. Added setup mode support to ColorRules and TableView. All setup colors now consistent. |
 | 33 | Jan 11, 2026 | Twenty-third session - **Word Entry Polish & AI Crossword!** Invalid word feedback (red highlight + shake via USS). Physical keyboard input (A-Z, Backspace, Escape). AI placement now supports crossword-style overlapping with 8 directions and 40% random crossword probability. |
 | 32 | Jan 10, 2026 | Twenty-second session - **Word Suggestion Dropdown!** Added WordSuggestionDropdown.cs - autocomplete that filters words as user types, touch-friendly (Button elements). Fixed z-index to appear above grid. Updated placement instructions: "Hide your words on the grid - your opponent will try to find them!" (playtesters confused about whose words). |
@@ -1259,70 +1391,61 @@ After each work session, update this document:
 
 ## Next Session Instructions
 
-**Starting Point:** This document (DLYH_Status.md v34)
+**Starting Point:** This document (DLYH_Status.md v35)
 
-**Scene to Use:** NewUIScene.unity (for UI Toolkit work - Phase C/D)
-
-**FIRST: Assign Modal Assets in Inspector!**
-The FeedbackModal and HamburgerMenu won't work until assigned:
-1. Open NewUIScene.unity
-2. Select the UIFlowController GameObject
-3. In Inspector, find "Modal Assets" section:
-   - `_feedbackModalUxml` → `Assets/DLYH/NewUI/UXML/FeedbackModal.uxml`
-   - `_hamburgerMenuUxml` → `Assets/DLYH/NewUI/UXML/HamburgerMenu.uxml`
-   - `_hamburgerMenuUss` → `Assets/DLYH/NewUI/USS/HamburgerMenu.uss`
-4. In "USS Assets" section:
-   - `_feedbackModalUss` → `Assets/DLYH/NewUI/USS/FeedbackModal.uss`
+**Scene to Use:** NewUIScene.unity (for UI Toolkit work - Phase D)
 
 **Current State:**
 - Phase A & B COMPLETE - table data model and UI Toolkit renderer working
-- Phase C IN PROGRESS - Setup visual polish complete!
-- Word rows are separate from grid table (variable lengths: 3, 4, 5, 6)
-- Word entry works: click row, type letters, backspace, validation on complete
-- **Word suggestion dropdown** shows filtered words from WordListSO as user types (touch-friendly)
-- Grid placement works: two-click flow (start cell -> direction), 8 directions supported
-- **Setup colors all green** - valid words in rows, placed letters on grid, placement preview
-- **Backspace clears grid** - pressing backspace on placed word removes it from grid
-- **Random Words validates** - enables placement buttons after filling words
-- Random Placement places longest words first for better success
+- Phase C COMPLETE - Setup wizard fully functional with all polish
+- Phase D DESIGN COMPLETE - See "Phase D: Gameplay UI Redesign" section above
+
+**Setup Wizard Features (Complete):**
+- Word rows separate from grid (variable lengths: 3, 4, 5, 6)
+- Word entry: click row, type letters, backspace, validation, autocomplete dropdown
+- Grid placement: two-click flow (start cell -> direction), 8 directions
+- Setup colors all green (valid words, placed letters, placement preview)
+- Random Words/Placement buttons
 - Inline settings on main menu (SFX/Music sliders + QWERTY checkbox)
-- Hamburger menu for setup/gameplay with synced settings (needs Inspector assets)
-- Feedback modal with telemetry integration (needs Inspector assets)
-- Trivia marquee centered below title (24 guillotine facts, 5-sec cycling with fade)
-- Join Game mode hides Grid/Words/Difficulty/BoardSetup cards
-- Placement instructions updated to clarify opponent will guess these words
+- Hamburger menu, Feedback modal, Trivia marquee
 
-**Files Modified This Session:**
-- `Assets/DLYH/NewUI/Scripts/UIFlowController.cs` - HandleBackspacePressed clears grid, HandleWordCleared resets validity, HandleRandomWords validates words
-- `Assets/DLYH/NewUI/Scripts/WordRowView.cs` - SetPlaced keeps green during setup mode, uses player color only in gameplay mode
-- `Assets/DLYH/NewUI/Scripts/ColorRules.cs` - Added isSetupMode parameter to GetPlacementColor, added GetSetupPlacedColor method
-- `Assets/DLYH/NewUI/Scripts/TableView.cs` - Added _isSetupMode flag, SetSetupMode method, UpdateCellVisual uses green for placed cells during setup
-
-**Integration Plan:** See `Documents/UI_Toolkit_Integration_Plan.md` for full details
+**Phase D Design Summary (Ready to Implement):**
+- Focused single-grid view with Attack/Defend tab switching
+- Tabs show asymmetric difficulty: grid size + word count + miss progress per player
+- Miss counter buttons are tappable -> opens guillotine overlay modal
+- Event-based guillotines: appear on miss, dramatic sequence on game end
+- Larger 3-row letter keyboard (reuse setup keyboard, 44px+ buttons)
+- Collapsible guessed words list
+- Responsive: portrait (single grid + tabs) vs landscape (could show both grids)
 
 **Priority Tasks for Next Session:**
-1. **Phase D** - Start gameplay UI conversion
-   - Design gameplay screen layout
-   - Convert opponent grid display to TableView
-   - Wire guess interactions
-   - Call TableView.SetSetupMode(false) when transitioning to gameplay
+1. Create `Gameplay.uxml` - Main gameplay layout with tabs, grid, word rows, keyboard
+2. Create `Gameplay.uss` - Styles including responsive breakpoints
+3. Create `GuillotineOverlay.uxml/uss` - Modal for viewing guillotines
+4. Create `GameplayScreenManager.cs` - Tab switching, overlay triggers, state management
+5. Wire to existing GameplayUIController for guess processing
+6. Call TableView.SetSetupMode(false) when entering gameplay
+
+**Existing Systems to Wire (DO NOT REBUILD):**
+- `GameplayUIController` - Main gameplay orchestrator
+- `GuessProcessingManager` - Guess validation and processing
+- `GameplayStateTracker` - State tracking (misses, letters, coordinates)
+- `OpponentTurnManager` - AI turn execution
+- `GuillotineDisplay` - Existing guillotine animations (adapt for overlay)
+- `TableView` / `TableModel` - Reuse for grid rendering
+- `WordRowView` - Reuse for word progress display
 
 **Deferred to Phase E (requires C: drive copy for networking):**
 - Wire Join Code submit to networking code
 - All networking integration work batched together
 
-**Existing Systems to Integrate (DO NOT REBUILD):**
-- `Assets/DLYH/Scripts/Core/GameState/WordListSO.cs` - Word dictionary (already integrated!)
-- `Assets/DLYH/Scripts/UI/Services/WordValidationService.cs` - Word validation (already integrated!)
-- `Assets/DLYH/Scripts/UI/Controllers/CoordinatePlacementController.cs` - 8-direction placement (logic replicated in TablePlacementController)
-
 **Namespace Decision:**
 - New UI code uses `DLYH.TableUI` namespace
-- Existing code stays in original namespaces (no migration needed)
+- Existing code stays in original namespaces
 
 **Do NOT:**
 - Delete NetworkingTest.unity scene yet (may need for Phase E)
-- Polish visuals yet (save for Phase F)
+- Over-polish visuals yet (functional first, polish in Phase F)
 
 ---
 
