@@ -96,7 +96,7 @@
                 </ui:VisualElement>
             </ui:VisualElement>
 
-            <!-- Card 5: Board Setup - Hidden until difficulty selected -->
+            <!-- Card 5: Board Setup - Hidden until difficulty selected (Solo/Online only) -->
             <ui:VisualElement name="card-board-setup" class="setup-card hidden">
                 <ui:Label text="Board Setup" class="section-label" />
                 <ui:VisualElement name="setup-mode-cards" class="mode-cards">
@@ -108,6 +108,16 @@
                         <ui:Label text="Choose My Words" class="mode-card-title" />
                         <ui:Label text="Pick words &amp; place them" class="mode-card-desc" />
                     </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <!-- Card 6: Join Code - Hidden (JoinGame only, shown after difficulty) -->
+            <ui:VisualElement name="card-join-code" class="setup-card hidden">
+                <ui:VisualElement name="join-code-content" class="card-content">
+                    <ui:Label text="Enter Game Code" class="section-label" />
+                    <ui:TextField name="join-code-input" value="" class="text-input join-code-input" />
+                    <ui:Label text="Enter the 6-character code from your host" class="hint-text" />
+                    <ui:Button name="btn-join-code-submit" text="Join Game" class="option-button join-button" />
                 </ui:VisualElement>
             </ui:VisualElement>
 

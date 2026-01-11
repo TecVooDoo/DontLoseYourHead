@@ -1,0 +1,51 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="../USS/HamburgerMenu.uss" />
+
+    <!-- Hamburger Button (always visible in top-left) -->
+    <ui:Button name="hamburger-button" text="&#9776;" class="hamburger-button" />
+
+    <!-- Menu Overlay (shown when hamburger is clicked) -->
+    <ui:VisualElement name="hamburger-overlay" class="hamburger-overlay hidden">
+
+        <!-- Menu Panel (slides in from left) -->
+        <ui:VisualElement name="hamburger-panel" class="hamburger-panel">
+
+            <!-- Menu Header -->
+            <ui:VisualElement name="menu-header" class="hamburger-header">
+                <ui:Label name="menu-title" text="Menu" class="hamburger-title" />
+            </ui:VisualElement>
+
+            <!-- Menu Items -->
+            <ui:VisualElement name="menu-items" class="hamburger-items">
+                <ui:Button name="btn-main-menu" text="Main Menu" class="hamburger-item" />
+                <ui:Button name="btn-resume" text="Resume" class="hamburger-item" />
+            </ui:VisualElement>
+
+            <!-- Settings Section (inline in hamburger) -->
+            <ui:VisualElement name="hamburger-settings" class="hamburger-settings">
+                <ui:Label name="settings-label" text="Settings" class="hamburger-section-label" />
+
+                <!-- SFX Volume -->
+                <ui:VisualElement name="hb-sfx-row" class="hamburger-settings-row">
+                    <ui:Label name="hb-sfx-label" text="SFX" class="hamburger-settings-label" />
+                    <ui:Slider name="hb-sfx-slider" low-value="0" high-value="1" value="0.5" class="hamburger-slider" />
+                    <ui:Label name="hb-sfx-value" text="50%" class="hamburger-settings-value" />
+                </ui:VisualElement>
+
+                <!-- Music Volume -->
+                <ui:VisualElement name="hb-music-row" class="hamburger-settings-row">
+                    <ui:Label name="hb-music-label" text="Music" class="hamburger-settings-label" />
+                    <ui:Slider name="hb-music-slider" low-value="0" high-value="1" value="0.5" class="hamburger-slider" />
+                    <ui:Label name="hb-music-value" text="50%" class="hamburger-settings-value" />
+                </ui:VisualElement>
+
+                <!-- QWERTY Toggle -->
+                <ui:VisualElement name="hb-qwerty-row" class="hamburger-settings-row">
+                    <ui:Toggle name="hb-qwerty-toggle" label="QWERTY Keyboard" class="hamburger-toggle" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+        </ui:VisualElement>
+
+    </ui:VisualElement>
+</ui:UXML>

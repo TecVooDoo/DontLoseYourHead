@@ -1,0 +1,184 @@
+/* HamburgerMenu.uss - Styles for the hamburger navigation menu */
+
+/* === Hamburger Button (top-left corner) === */
+
+.hamburger-button {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    width: 44px;
+    height: 44px;
+    font-size: 24px;
+    background-color: rgba(30, 30, 40, 0.8);
+    border-color: rgb(60, 60, 75);
+    border-width: 1px;
+    border-radius: 8px;
+    color: rgb(180, 180, 190);
+    padding: 0;
+    -unity-text-align: middle-center;
+    transition-property: background-color, border-color;
+    transition-duration: 0.15s;
+}
+
+.hamburger-button:hover {
+    background-color: rgba(50, 50, 62, 0.9);
+    border-color: rgb(80, 80, 95);
+    color: rgb(220, 220, 230);
+}
+
+.hamburger-button:active {
+    background-color: rgba(40, 40, 50, 0.9);
+}
+
+/* === Overlay (semi-transparent backdrop) === */
+
+.hamburger-overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+/* === Menu Panel (slide-in from left) === */
+
+.hamburger-panel {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 280px;
+    background-color: rgb(24, 24, 32);
+    border-right-width: 1px;
+    border-right-color: rgb(50, 50, 65);
+    padding: 0;
+}
+
+/* === Menu Header === */
+
+.hamburger-header {
+    padding: 20px;
+    border-bottom-width: 1px;
+    border-bottom-color: rgb(50, 50, 65);
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.hamburger-title {
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: rgb(220, 220, 230);
+}
+
+/* === Menu Items === */
+
+.hamburger-items {
+    padding: 8px 0;
+    border-bottom-width: 1px;
+    border-bottom-color: rgb(50, 50, 65);
+}
+
+.hamburger-item {
+    background-color: transparent;
+    border-width: 0;
+    height: 48px;
+    padding: 0 20px;
+    font-size: 15px;
+    color: rgb(180, 180, 190);
+    -unity-text-align: middle-left;
+    border-radius: 0;
+}
+
+.hamburger-item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: rgb(220, 220, 230);
+}
+
+.hamburger-item:active {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* === Settings Section === */
+
+.hamburger-settings {
+    padding: 16px 20px;
+}
+
+.hamburger-section-label {
+    font-size: 12px;
+    color: rgb(100, 100, 120);
+    -unity-font-style: bold;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+}
+
+.hamburger-settings-row {
+    flex-direction: row;
+    align-items: center;
+    margin: 8px 0;
+    height: 28px;
+}
+
+.hamburger-settings-label {
+    font-size: 13px;
+    color: rgb(140, 140, 160);
+    min-width: 50px;
+}
+
+.hamburger-slider {
+    flex-grow: 1;
+    margin: 0 8px;
+}
+
+.hamburger-slider .unity-base-slider__dragger {
+    background-color: rgb(0, 180, 150);
+    border-radius: 5px;
+    width: 12px;
+    height: 12px;
+    margin-top: -4px;
+}
+
+.hamburger-slider .unity-base-slider__tracker {
+    background-color: rgb(60, 60, 75);
+    border-radius: 2px;
+    height: 4px;
+}
+
+.hamburger-settings-value {
+    font-size: 12px;
+    color: rgb(140, 140, 160);
+    min-width: 36px;
+    -unity-text-align: middle-right;
+}
+
+.hamburger-toggle {
+    flex-direction: row-reverse;
+}
+
+.hamburger-toggle .unity-toggle__label {
+    font-size: 13px;
+    color: rgb(140, 140, 160);
+    margin-left: 8px;
+}
+
+.hamburger-toggle .unity-toggle__checkmark {
+    background-color: rgb(50, 50, 65);
+    border-color: rgb(80, 80, 100);
+    border-width: 1px;
+    border-radius: 4px;
+    width: 16px;
+    height: 16px;
+}
+
+.hamburger-toggle:checked .unity-toggle__checkmark {
+    background-color: rgb(0, 140, 120);
+    border-color: rgb(0, 180, 150);
+}
+
+/* === Utility Classes === */
+
+.hidden {
+    display: none;
+}

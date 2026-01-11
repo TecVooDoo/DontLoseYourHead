@@ -175,6 +175,44 @@
     letter-spacing: 4px;
 }
 
+/* === Join Code Input === */
+
+.join-code-input {
+    max-width: 220px;
+    font-size: 24px;
+    letter-spacing: 8px;
+    -unity-text-align: middle-center;
+    margin: 16px auto;
+}
+
+.join-code-input > .unity-text-field__input {
+    -unity-text-align: middle-center;
+    text-transform: uppercase;
+}
+
+.join-button {
+    margin-top: 16px;
+    min-width: 150px;
+    background-color: rgb(0, 140, 120);
+    border-color: rgb(0, 180, 150);
+    border-width: 2px;
+    color: rgb(255, 255, 255);
+}
+
+.join-button:hover {
+    background-color: rgb(0, 160, 140);
+}
+
+.join-button:active {
+    background-color: rgb(0, 120, 100);
+}
+
+.join-button:disabled {
+    opacity: 0.5;
+    background-color: rgb(60, 60, 70);
+    border-color: rgb(70, 70, 85);
+}
+
 /* === Color Picker === */
 
 .color-picker {

@@ -4,7 +4,7 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 28
+**Document Version:** 31
 **Last Updated:** January 10, 2026
 
 ---
@@ -17,20 +17,26 @@
 
 **Current Phase:** Phase C IN PROGRESS - Grid placement working!
 
-**Last Session (Jan 10, 2026):** Eighteenth session - **UX Redesign Complete!** Implemented mode selection redesign: Main menu now has Play Solo / Play Online / Join Game buttons instead of single "START GAME". Setup wizard replaced card-mode (1 Player / 2 Players) with card-board-setup (Quick Setup / Choose My Words). Added GameMode enum to track mode throughout flow. Ready button disabled until all words placed on grid. Quick Setup auto-fills random words and placement.
+**Last Session (Jan 10, 2026):** Twenty-first session - **UI Polish & Join Game Flow!** Fixed feedback modal text color (dark text on dark background). Added Continue Game button (orange, appears when game in progress). Fixed Join Game flow: properly skips Grid/Words cards, goes Profile → Difficulty → Join Code. Added Join Code card with text input and submit button. Organized USS assets for consistency.
+
+**CRITICAL - Assets Need Inspector Assignment:**
+The FeedbackModal and HamburgerMenu won't work until you assign assets in Unity Inspector:
+1. Select the UIFlowController GameObject in NewUIScene
+2. In Inspector, find "Modal Assets" section
+3. Assign: FeedbackModal UXML, HamburgerMenu UXML
+4. In "USS Assets" section, assign FeedbackModal USS and HamburgerMenu USS (moved for consistency)
 
 **TODO for next session:**
 
-**Navigation & Settings (Simplified UX Design - see below):**
-- Implement inline settings on main menu (SFX/Music sliders + QWERTY checkbox)
-- Add Feedback button → modal overlay (reusable for menu + end-of-game)
-- Add hamburger menu (☰) for setup/gameplay navigation
-- Handle Continue Game button when returning mid-game
-- Add trivia marquee to main menu footer
+**Join Game Networking:**
+- Wire up Join Code submit to actual networking code
+- Receive game settings (grid size, word count) from host
+- Transition to placement panel with received settings
 
 **Word Entry Polish:**
 - Add visual feedback for invalid words (red highlight, shake)
 - Connect physical keyboard input for word entry
+- Implement QWERTY keyboard option (setting exists but not wired to placement panel)
 - Word list preview dropdown (autocomplete as user types)
 - Test crossword-style overlapping words (shared letters)
 
@@ -38,7 +44,7 @@
 
 ---
 
-## UX Design: Navigation & Settings (Approved Jan 10, 2026)
+## UX Design: Navigation & Settings (IMPLEMENTED Jan 10, 2026)
 
 **Design Philosophy:** Fewer screens, faster access, consistent patterns.
 
@@ -99,12 +105,12 @@ Opens overlay:
 - If game in progress and user goes to Main Menu → add [Continue Game] button
 - Continue Game returns to active gameplay state
 
-### Files to Create
-- `FeedbackModal.uxml` + `FeedbackModal.uss` - Modal overlay component
-- `HamburgerMenu.uxml` + `HamburgerMenu.uss` - Navigation overlay
-- Update `MainMenu.uxml` - Add inline settings, feedback button, trivia label
-- Update `MainMenu.uss` - Slider and checkbox styles
-- Update `UIFlowController.cs` - Wire hamburger menu, feedback modal, settings persistence
+### Files Created (Jan 10, 2026)
+- `FeedbackModal.uxml` + `FeedbackModal.uss` - Modal overlay component (DONE)
+- `HamburgerMenu.uxml` + `HamburgerMenu.uss` - Navigation overlay (DONE)
+- Updated `MainMenu.uxml` - Added inline settings, feedback button, trivia label (DONE)
+- Updated `MainMenu.uss` - Slider and checkbox styles (DONE)
+- Updated `UIFlowController.cs` - Wired hamburger menu, feedback modal, settings persistence (DONE)
 
 ---
 
@@ -428,8 +434,8 @@ Assets/DLYH/
     Scripts/      - TableCellKind, TableCellState, CellOwner, TableCell, TableRegion,
                     TableLayout, TableModel, ColorRules, TableView, TableViewTest,
                     UIFlowController, WordRowView, WordRowsContainer (NEW)
-    USS/          - TableView.uss (cell + word row styling), MainMenu.uss, SetupWizard.uss
-    UXML/         - TableView.uxml, MainMenu.uxml, SetupWizard.uxml
+    USS/          - TableView.uss, MainMenu.uss, SetupWizard.uss, FeedbackModal.uss, HamburgerMenu.uss
+    UXML/         - TableView.uxml, MainMenu.uxml, SetupWizard.uxml, FeedbackModal.uxml, HamburgerMenu.uxml
     Prefabs/      - (empty, for future use)
   Scenes/
     NewPlayTesting.unity - Current working scene (single player)
@@ -451,7 +457,7 @@ Assets/DLYH/
 | IOpponent | ~177 | Opponent abstraction interface | OK (not wired) |
 | LocalAIOpponent | ~300 | AI wrapper for IOpponent | OK (not wired) |
 | RemotePlayerOpponent | ~400 | Network player opponent | OK (not wired) |
-| UIFlowController | ~1350 | Screen flow + setup wizard (includes SetupWizardUIManager) | OK |
+| UIFlowController | ~1970 | Screen flow + setup wizard + modals (includes SetupWizardUIManager) | OK (large but cohesive) |
 | WordRowView | ~285 | Single word row UI component | NEW |
 | WordRowsContainer | ~230 | Manages all word rows | NEW |
 | PlacementAdapter | ~210 | Adapter for table-based word placement | NEW |
@@ -1180,6 +1186,10 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 31 | Jan 10, 2026 | Twenty-first session - **UI Polish & Join Game Flow!** Fixed feedback modal text color. Added Continue Game button (orange, hidden by default). Fixed Join Game: Profile → Difficulty → Join Code flow (skips Grid/Words). Added Join Code card with input + submit. Moved hamburger USS to USS Assets section for consistency. |
+| 30 | Jan 10, 2026 | Twentieth session - **Bug Fixes!** Fixed trivia: proper guillotine/beheading facts (24 total), centered below title, 5-sec display + fade cycling. Fixed Join Game: hides Grid/Words/Difficulty/BoardSetup cards. Added debug warnings for missing modal assets. Note: FeedbackModal/HamburgerMenu need Inspector assignment. |
+| 29 | Jan 10, 2026 | Nineteenth session - **Navigation & Settings Complete!** Inline settings on main menu (SFX/Music sliders, QWERTY checkbox). FeedbackModal component with PlaytestTelemetry integration. HamburgerMenu for setup/gameplay navigation with synced settings. Trivia marquee with 14 random facts. Settings persist to PlayerPrefs. |
+| 28 | Jan 10, 2026 | Eighteenth session - **UX Redesign Complete!** Mode selection redesign: Play Solo / Play Online / Join Game. Setup wizard uses Quick Setup / Choose My Words. Added GameMode enum. Ready button disabled until all words placed. Quick Setup auto-fills random words and placement. |
 | 27 | Jan 10, 2026 | Seventeenth session - **PlacementAdapter Complete!** Created TablePlacementController (~500 lines) and PlacementAdapter in PlacementAdapter.cs (~760 lines total). Works directly with TableModel (no GridCellUI dependency). Two-click placement: start cell -> direction. 8-direction support with preview highlighting (green=valid, red=invalid, orange=anchor). Random Placement sorts longest-first. Fixed clear-during-placement bug. |
 | 26 | Jan 9, 2026 | Sixteenth session - **Placement Panel Layout Fixed!** Fixed backspace button duplication, Unity 6 blue screen bug (EmptyRoot.uxml workaround), keyboard multiple input bug (_keyboardWiredUp flag). Implemented 3-row keyboard (ABCDEFGHI, JKLMNOPQR, STUVWXYZ+backspace). Added responsive sizing for action buttons (.size-large for 6x6/7x7). Notes: QWERTY keyboard option and longest-words-first placement for future. |
 | 25 | Jan 9, 2026 | Fifteenth session - **WordValidationService Integrated!** Fixed compilation errors (deleted obsolete WordPlacementController.cs, SetupWizardTest.cs, fixed TableViewTest.cs). Integrated WordValidationService into UIFlowController. Random Words uses actual WordListSO. Word entry with row selection, backspace, validation, and auto-advance. |
@@ -1212,45 +1222,47 @@ After each work session, update this document:
 
 ## Next Session Instructions
 
-**Starting Point:** This document (DLYH_Status.md v27)
+**Starting Point:** This document (DLYH_Status.md v30)
 
 **Scene to Use:** NewUIScene.unity (for UI Toolkit work - Phase C)
 
+**FIRST: Assign Modal Assets in Inspector!**
+The FeedbackModal and HamburgerMenu won't work until assigned:
+1. Open NewUIScene.unity
+2. Select the UIFlowController GameObject
+3. In Inspector, find "Modal Assets" section:
+   - `_feedbackModalUxml` → `Assets/DLYH/NewUI/UXML/FeedbackModal.uxml`
+   - `_hamburgerMenuUxml` → `Assets/DLYH/NewUI/UXML/HamburgerMenu.uxml`
+   - `_hamburgerMenuUss` → `Assets/DLYH/NewUI/USS/HamburgerMenu.uss`
+4. In "USS Assets" section:
+   - `_feedbackModalUss` → `Assets/DLYH/NewUI/USS/FeedbackModal.uss`
+
 **Current State:**
 - Phase A & B COMPLETE - table data model and UI Toolkit renderer working
-- Phase C IN PROGRESS - Grid placement now working!
+- Phase C IN PROGRESS - Grid placement and navigation working!
 - Word rows are separate from grid table (variable lengths: 3, 4, 5, 6)
 - Word entry works: click row, type letters, backspace, validation on complete
 - Grid placement works: two-click flow (start cell -> direction), 8 directions supported
 - Random Words button uses actual WordListSO assets
 - Random Placement places longest words first for better success
-- UIFlowController needs WordListSO assets assigned in Inspector
-- 3-row keyboard layout: ABCDEFGHI, JKLMNOPQR, STUVWXYZ + backspace
-- Responsive action button sizing for different grid sizes
-
-**Files Created This Session:**
-- `Assets/DLYH/NewUI/Scripts/PlacementAdapter.cs` - TablePlacementController and PlacementAdapter classes (~760 lines)
+- Inline settings on main menu (SFX/Music sliders + QWERTY checkbox)
+- Hamburger menu for setup/gameplay with synced settings (needs Inspector assets)
+- Feedback modal with telemetry integration (needs Inspector assets)
+- Trivia marquee centered below title (24 guillotine facts, 5-sec cycling with fade)
+- Join Game mode hides Grid/Words/Difficulty/BoardSetup cards
 
 **Files Modified This Session:**
-- `Assets/DLYH/NewUI/Scripts/UIFlowController.cs` - UX redesign (GameMode enum, new flows)
-- `Assets/DLYH/NewUI/UXML/MainMenu.uxml` - Play Solo / Play Online / Join Game buttons
-- `Assets/DLYH/NewUI/UXML/SetupWizard.uxml` - card-board-setup (Quick/Manual)
-- `Assets/DLYH/NewUI/USS/MainMenu.uss` - Disabled button styling
-- `Assets/DLYH/NewUI/USS/SetupWizard.uss` - Disabled button styling
+- `Assets/DLYH/NewUI/Scripts/UIFlowController.cs` - Fixed trivia cycling, Join Game flow, debug warnings
+- `Assets/DLYH/NewUI/UXML/MainMenu.uxml` - Moved trivia to center (replaces tagline)
+- `Assets/DLYH/NewUI/USS/MainMenu.uss` - Trivia marquee styling
 
 **Integration Plan:** See `Documents/UI_Toolkit_Integration_Plan.md` for full details
 
 **Priority Tasks for Next Session:**
-1. ~~**UX Redesign** - Implement mode selection redesign~~ ✅ DONE
-2. **Navigation & Settings** - Implement simplified UX (see "UX Design: Navigation & Settings" section above)
-   - Inline settings on main menu (SFX/Music sliders + QWERTY checkbox)
-   - Feedback modal overlay (reusable for menu + end-of-game)
-   - Hamburger menu (☰) for setup/gameplay navigation
-   - Continue Game flow when returning mid-game
-   - Trivia marquee in footer
-3. **Word entry polish** - Invalid word feedback, physical keyboard, autocomplete dropdown
-4. **Test crossword overlapping** - Verify shared letters work correctly
-5. **Phase D** - Start gameplay UI conversion
+1. **Continue Game Flow** - Track active game state, add Continue Game button to main menu
+2. **Word entry polish** - Invalid word feedback (red highlight, shake), physical keyboard, autocomplete dropdown
+3. **Test crossword overlapping** - Verify shared letters work correctly
+4. **Phase D** - Start gameplay UI conversion
 
 **Existing Systems to Integrate (DO NOT REBUILD):**
 - `Assets/DLYH/Scripts/Core/GameState/WordListSO.cs` - Word dictionary (already integrated!)

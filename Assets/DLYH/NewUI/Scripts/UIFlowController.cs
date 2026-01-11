@@ -1,7 +1,10 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UIElements;
 using TecVooDoo.DontLoseYourHead.Core;
 using TecVooDoo.DontLoseYourHead.UI;
+using DLYH.Audio;
+using DLYH.Telemetry;
 
 namespace DLYH.TableUI
 {
@@ -31,6 +34,12 @@ namespace DLYH.TableUI
         [SerializeField] private StyleSheet _mainMenuUss;
         [SerializeField] private StyleSheet _setupWizardUss;
         [SerializeField] private StyleSheet _tableViewUss;
+        [SerializeField] private StyleSheet _feedbackModalUss;
+        [SerializeField] private StyleSheet _hamburgerMenuUss;
+
+        [Header("Modal Assets")]
+        [SerializeField] private VisualTreeAsset _feedbackModalUxml;
+        [SerializeField] private VisualTreeAsset _hamburgerMenuUxml;
 
         [Header("Word Lists")]
         [SerializeField] private WordListSO _threeLetterWords;
@@ -63,6 +72,77 @@ namespace DLYH.TableUI
 
         private bool _isInitialized = false;
         private bool _keyboardWiredUp = false;
+        private bool _hasActiveGame = false;
+
+        // Continue game button
+        private Button _continueGameButton;
+
+        // Settings constants (match SettingsPanel.cs)
+        private const string PREFS_SFX_VOLUME = "DLYH_SFXVolume";
+        private const string PREFS_MUSIC_VOLUME = "DLYH_MusicVolume";
+        private const string PREFS_QWERTY_KEYBOARD = "DLYH_QwertyKeyboard";
+        private const float DEFAULT_VOLUME = 0.5f;
+
+        // Settings UI elements
+        private Slider _sfxSlider;
+        private Slider _musicSlider;
+        private Toggle _qwertyToggle;
+        private Label _sfxValueLabel;
+        private Label _musicValueLabel;
+        private Label _triviaLabel;
+
+        // Guillotine and beheading trivia facts (matches MainMenuController.cs)
+        private static readonly string[] TRIVIA_FACTS = new string[]
+        {
+            "The guillotine was used in France until 1977.",
+            "Dr. Joseph-Ignace Guillotin proposed the device as a humane execution method.",
+            "During the Reign of Terror, over 16,000 were guillotined in France.",
+            "The guillotine was nicknamed 'The National Razor' in France.",
+            "Marie Antoinette was executed by guillotine on October 16, 1793.",
+            "King Louis XVI was guillotined on January 21, 1793.",
+            "The last public guillotine execution in France was in 1939.",
+            "Executioners in France were often from families that held the job for generations.",
+            "The guillotine blade falls at approximately 21 feet per second.",
+            "Anne Boleyn was beheaded with a sword, not an axe, at her request.",
+            "The word 'decapitate' comes from Latin 'de' (off) and 'caput' (head).",
+            "Henry VIII had two of his six wives beheaded.",
+            "Sir Walter Raleigh was beheaded in 1618 after 13 years in the Tower of London.",
+            "Mary, Queen of Scots required three blows of the axe to be beheaded.",
+            "The Halifax Gibbet was used in England from 1286 to 1650.",
+            "Thomas More was beheaded for refusing to acknowledge Henry VIII as head of the Church.",
+            "Scotland's 'Maiden' guillotine was used from 1564 to 1708.",
+            "Legend says the guillotine blade weighs about 88 pounds.",
+            "Heads were sometimes held up to the crowd after execution.",
+            "Some executioners became celebrities in revolutionary France.",
+            "The guillotine was considered more egalitarian than other methods.",
+            "Charlotte Corday was guillotined for assassinating Jean-Paul Marat.",
+            "Lavoisier, the father of chemistry, was guillotined in 1794.",
+            "The term 'guillotine' was not used until after Dr. Guillotin's proposal."
+        };
+
+        // Trivia rotation state
+        private Coroutine _triviaCoroutine;
+        private int _currentTriviaIndex = -1;
+        private const float TRIVIA_DISPLAY_DURATION = 5f;
+        private const float TRIVIA_FADE_DURATION = 0.5f;
+
+        // Feedback modal state
+        private VisualElement _feedbackModalContainer;
+        private TextField _feedbackInput;
+        private Label _feedbackTitle;
+        private bool _feedbackIsPostGame = false;
+        private bool _feedbackPlayerWon = false;
+
+        // Hamburger menu state
+        private VisualElement _hamburgerMenuContainer;
+        private VisualElement _hamburgerOverlay;
+        private Button _hamburgerButton;
+        private Button _resumeButton;
+        private Slider _hbSfxSlider;
+        private Slider _hbMusicSlider;
+        private Toggle _hbQwertyToggle;
+        private Label _hbSfxValueLabel;
+        private Label _hbMusicValueLabel;
 
         private void Awake()
         {
@@ -123,10 +203,14 @@ namespace DLYH.TableUI
             if (_mainMenuUss != null) _root.styleSheets.Add(_mainMenuUss);
             if (_setupWizardUss != null) _root.styleSheets.Add(_setupWizardUss);
             if (_tableViewUss != null) _root.styleSheets.Add(_tableViewUss);
+            if (_feedbackModalUss != null) _root.styleSheets.Add(_feedbackModalUss);
+            if (_hamburgerMenuUss != null) _root.styleSheets.Add(_hamburgerMenuUss);
 
             // Create screens - wizard first so menu is on top
             CreateSetupWizardScreen();
             CreateMainMenuScreen();
+            CreateFeedbackModal();
+            CreateHamburgerMenu();
 
             // Show main menu first (hides wizard)
             ShowMainMenu();
@@ -174,12 +258,17 @@ namespace DLYH.TableUI
             _root.Add(_mainMenuScreen);
 
             // Set up button handlers
+            _continueGameButton = _mainMenuScreen.Q<Button>("btn-continue-game");
             Button playSoloBtn = _mainMenuScreen.Q<Button>("btn-play-solo");
             Button playOnlineBtn = _mainMenuScreen.Q<Button>("btn-play-online");
             Button joinGameBtn = _mainMenuScreen.Q<Button>("btn-join-game");
             Button howToPlayBtn = _mainMenuScreen.Q<Button>("btn-how-to-play");
-            Button settingsBtn = _mainMenuScreen.Q<Button>("btn-settings");
+            Button feedbackBtn = _mainMenuScreen.Q<Button>("btn-feedback");
 
+            if (_continueGameButton != null)
+            {
+                _continueGameButton.clicked += HandleContinueGameClicked;
+            }
             if (playSoloBtn != null)
             {
                 playSoloBtn.clicked += () => HandleGameModeSelected(GameMode.Solo);
@@ -196,10 +285,16 @@ namespace DLYH.TableUI
             {
                 howToPlayBtn.clicked += HandleHowToPlayClicked;
             }
-            if (settingsBtn != null)
+            if (feedbackBtn != null)
             {
-                settingsBtn.clicked += HandleSettingsClicked;
+                feedbackBtn.clicked += HandleFeedbackClicked;
             }
+
+            // Set up inline settings
+            SetupInlineSettings();
+
+            // Set up trivia marquee
+            _triviaLabel = _mainMenuScreen.Q<Label>("trivia-label");
 
             // Set version
             Label versionLabel = _mainMenuScreen.Q<Label>("version-label");
@@ -207,6 +302,154 @@ namespace DLYH.TableUI
             {
                 versionLabel.text = $"v{Application.version}";
             }
+        }
+
+        private void SetupInlineSettings()
+        {
+            // Cache slider and toggle elements
+            _sfxSlider = _mainMenuScreen.Q<Slider>("sfx-slider");
+            _musicSlider = _mainMenuScreen.Q<Slider>("music-slider");
+            _qwertyToggle = _mainMenuScreen.Q<Toggle>("qwerty-toggle");
+            _sfxValueLabel = _mainMenuScreen.Q<Label>("sfx-value");
+            _musicValueLabel = _mainMenuScreen.Q<Label>("music-value");
+
+            // Load saved values
+            float savedSfx = PlayerPrefs.GetFloat(PREFS_SFX_VOLUME, DEFAULT_VOLUME);
+            float savedMusic = PlayerPrefs.GetFloat(PREFS_MUSIC_VOLUME, DEFAULT_VOLUME);
+            bool savedQwerty = PlayerPrefs.GetInt(PREFS_QWERTY_KEYBOARD, 0) == 1;
+
+            // Initialize sliders
+            if (_sfxSlider != null)
+            {
+                _sfxSlider.value = savedSfx;
+                _sfxSlider.RegisterValueChangedCallback(OnSfxVolumeChanged);
+                UpdateSfxLabel(savedSfx);
+            }
+
+            if (_musicSlider != null)
+            {
+                _musicSlider.value = savedMusic;
+                _musicSlider.RegisterValueChangedCallback(OnMusicVolumeChanged);
+                UpdateMusicLabel(savedMusic);
+            }
+
+            if (_qwertyToggle != null)
+            {
+                _qwertyToggle.value = savedQwerty;
+                _qwertyToggle.RegisterValueChangedCallback(OnQwertyToggleChanged);
+            }
+        }
+
+        private void OnSfxVolumeChanged(ChangeEvent<float> evt)
+        {
+            float volume = evt.newValue;
+            PlayerPrefs.SetFloat(PREFS_SFX_VOLUME, volume);
+            PlayerPrefs.Save();
+            UpdateSfxLabel(volume);
+
+            // Refresh audio manager cache
+            if (UIAudioManager.Instance != null)
+            {
+                UIAudioManager.Instance.RefreshVolumeCache();
+            }
+        }
+
+        private void OnMusicVolumeChanged(ChangeEvent<float> evt)
+        {
+            float volume = evt.newValue;
+            PlayerPrefs.SetFloat(PREFS_MUSIC_VOLUME, volume);
+            PlayerPrefs.Save();
+            UpdateMusicLabel(volume);
+
+            // Refresh music manager cache
+            if (MusicManager.Instance != null)
+            {
+                MusicManager.Instance.RefreshVolumeCache();
+            }
+        }
+
+        private void OnQwertyToggleChanged(ChangeEvent<bool> evt)
+        {
+            PlayerPrefs.SetInt(PREFS_QWERTY_KEYBOARD, evt.newValue ? 1 : 0);
+            PlayerPrefs.Save();
+
+            // TODO: Notify wizard to update keyboard layout if open
+        }
+
+        private void UpdateSfxLabel(float volume)
+        {
+            if (_sfxValueLabel != null)
+            {
+                _sfxValueLabel.text = string.Format("{0:0}%", volume * 100f);
+            }
+        }
+
+        private void UpdateMusicLabel(float volume)
+        {
+            if (_musicValueLabel != null)
+            {
+                _musicValueLabel.text = string.Format("{0:0}%", volume * 100f);
+            }
+        }
+
+        private void StartTriviaRotation()
+        {
+            if (_triviaLabel == null) return;
+
+            StopTriviaRotation();
+            _currentTriviaIndex = Random.Range(0, TRIVIA_FACTS.Length);
+            _triviaCoroutine = StartCoroutine(TriviaRotationCoroutine());
+        }
+
+        private void StopTriviaRotation()
+        {
+            if (_triviaCoroutine != null)
+            {
+                StopCoroutine(_triviaCoroutine);
+                _triviaCoroutine = null;
+            }
+        }
+
+        private IEnumerator TriviaRotationCoroutine()
+        {
+            while (true)
+            {
+                // Set new trivia text
+                if (_triviaLabel != null && TRIVIA_FACTS.Length > 0)
+                {
+                    _triviaLabel.text = TRIVIA_FACTS[_currentTriviaIndex];
+                }
+
+                // Fade in
+                yield return FadeTriviaCoroutine(0f, 1f);
+
+                // Wait for display duration
+                yield return new WaitForSeconds(TRIVIA_DISPLAY_DURATION);
+
+                // Fade out
+                yield return FadeTriviaCoroutine(1f, 0f);
+
+                // Move to next trivia (wrap around)
+                _currentTriviaIndex = (_currentTriviaIndex + 1) % TRIVIA_FACTS.Length;
+            }
+        }
+
+        private IEnumerator FadeTriviaCoroutine(float startAlpha, float endAlpha)
+        {
+            if (_triviaLabel == null) yield break;
+
+            float elapsed = 0f;
+
+            while (elapsed < TRIVIA_FADE_DURATION)
+            {
+                elapsed += Time.deltaTime;
+                float t = elapsed / TRIVIA_FADE_DURATION;
+                float alpha = Mathf.Lerp(startAlpha, endAlpha, t);
+                _triviaLabel.style.opacity = alpha;
+                yield return null;
+            }
+
+            _triviaLabel.style.opacity = endAlpha;
         }
 
         private void CreateSetupWizardScreen()
@@ -244,8 +487,18 @@ namespace DLYH.TableUI
 
         private void HandleGameModeSelected(GameMode mode)
         {
+            // Reset wizard state for a new game
+            _wizardManager?.Reset();
+
             _currentGameMode = mode;
+            _hasActiveGame = true; // Mark that a game is now in progress
             _wizardManager?.SetGameMode(mode);
+            ShowSetupWizard();
+        }
+
+        private void HandleContinueGameClicked()
+        {
+            // Return to the setup wizard where the game was in progress
             ShowSetupWizard();
         }
 
@@ -254,9 +507,329 @@ namespace DLYH.TableUI
             // TODO: Implement how to play screen
         }
 
-        private void HandleSettingsClicked()
+        private void HandleFeedbackClicked()
         {
-            // TODO: Implement settings screen
+            ShowFeedbackModal("Share Feedback", false, false);
+        }
+
+        /// <summary>
+        /// Shows the feedback modal with the given title.
+        /// </summary>
+        /// <param name="title">Modal title (e.g., "Share Feedback", "Victory!", "Defeated")</param>
+        /// <param name="isPostGame">True if shown after a game ends</param>
+        /// <param name="playerWon">If post-game, whether the player won</param>
+        public void ShowFeedbackModal(string title, bool isPostGame, bool playerWon)
+        {
+            if (_feedbackModalContainer == null) return;
+
+            _feedbackIsPostGame = isPostGame;
+            _feedbackPlayerWon = playerWon;
+
+            // Update title
+            if (_feedbackTitle != null)
+            {
+                _feedbackTitle.text = title;
+            }
+
+            // Clear previous input
+            if (_feedbackInput != null)
+            {
+                _feedbackInput.value = "";
+            }
+
+            // Show modal
+            _feedbackModalContainer.RemoveFromClassList("hidden");
+        }
+
+        private void HideFeedbackModal()
+        {
+            if (_feedbackModalContainer != null)
+            {
+                _feedbackModalContainer.AddToClassList("hidden");
+            }
+        }
+
+        private void CreateFeedbackModal()
+        {
+            if (_feedbackModalUxml == null)
+            {
+                Debug.LogWarning("[UIFlowController] FeedbackModal UXML asset not assigned in Inspector!");
+                return;
+            }
+
+            _feedbackModalContainer = _feedbackModalUxml.CloneTree();
+            _feedbackModalContainer.style.position = Position.Absolute;
+            _feedbackModalContainer.style.left = 0;
+            _feedbackModalContainer.style.right = 0;
+            _feedbackModalContainer.style.top = 0;
+            _feedbackModalContainer.style.bottom = 0;
+
+            // Cache elements
+            _feedbackTitle = _feedbackModalContainer.Q<Label>("modal-title");
+            _feedbackInput = _feedbackModalContainer.Q<TextField>("feedback-input");
+
+            // Wire up buttons
+            Button closeBtn = _feedbackModalContainer.Q<Button>("btn-close");
+            Button cancelBtn = _feedbackModalContainer.Q<Button>("btn-cancel");
+            Button submitBtn = _feedbackModalContainer.Q<Button>("btn-submit");
+
+            if (closeBtn != null)
+            {
+                closeBtn.clicked += HideFeedbackModal;
+            }
+            if (cancelBtn != null)
+            {
+                cancelBtn.clicked += HideFeedbackModal;
+            }
+            if (submitBtn != null)
+            {
+                submitBtn.clicked += HandleFeedbackSubmit;
+            }
+
+            // Click on overlay background closes modal
+            VisualElement overlay = _feedbackModalContainer.Q<VisualElement>("modal-overlay");
+            if (overlay != null)
+            {
+                overlay.RegisterCallback<ClickEvent>(evt =>
+                {
+                    // Only close if clicking directly on the overlay, not on modal content
+                    if (evt.target == overlay)
+                    {
+                        HideFeedbackModal();
+                    }
+                });
+            }
+
+            _root.Add(_feedbackModalContainer);
+
+            // Start hidden
+            _feedbackModalContainer.AddToClassList("hidden");
+        }
+
+        private void HandleFeedbackSubmit()
+        {
+            string feedbackText = _feedbackInput?.value ?? "";
+
+            if (string.IsNullOrWhiteSpace(feedbackText))
+            {
+                // Don't submit empty feedback
+                HideFeedbackModal();
+                return;
+            }
+
+            // Send to telemetry
+            PlaytestTelemetry.Feedback(feedbackText, _feedbackPlayerWon);
+
+            Debug.Log($"[UIFlowController] Feedback submitted: {feedbackText.Substring(0, Mathf.Min(50, feedbackText.Length))}...");
+
+            HideFeedbackModal();
+        }
+
+        // === Hamburger Menu ===
+
+        private void CreateHamburgerMenu()
+        {
+            if (_hamburgerMenuUxml == null)
+            {
+                Debug.LogWarning("[UIFlowController] HamburgerMenu UXML asset not assigned in Inspector!");
+                return;
+            }
+
+            _hamburgerMenuContainer = _hamburgerMenuUxml.CloneTree();
+            _hamburgerMenuContainer.style.position = Position.Absolute;
+            _hamburgerMenuContainer.style.left = 0;
+            _hamburgerMenuContainer.style.right = 0;
+            _hamburgerMenuContainer.style.top = 0;
+            _hamburgerMenuContainer.style.bottom = 0;
+            _hamburgerMenuContainer.pickingMode = PickingMode.Ignore;
+
+            // Cache elements
+            _hamburgerButton = _hamburgerMenuContainer.Q<Button>("hamburger-button");
+            _hamburgerOverlay = _hamburgerMenuContainer.Q<VisualElement>("hamburger-overlay");
+            _resumeButton = _hamburgerMenuContainer.Q<Button>("btn-resume");
+
+            // Settings controls in hamburger
+            _hbSfxSlider = _hamburgerMenuContainer.Q<Slider>("hb-sfx-slider");
+            _hbMusicSlider = _hamburgerMenuContainer.Q<Slider>("hb-music-slider");
+            _hbQwertyToggle = _hamburgerMenuContainer.Q<Toggle>("hb-qwerty-toggle");
+            _hbSfxValueLabel = _hamburgerMenuContainer.Q<Label>("hb-sfx-value");
+            _hbMusicValueLabel = _hamburgerMenuContainer.Q<Label>("hb-music-value");
+
+            // Wire up hamburger button
+            if (_hamburgerButton != null)
+            {
+                _hamburgerButton.clicked += ShowHamburgerOverlay;
+            }
+
+            // Wire up menu items
+            Button mainMenuBtn = _hamburgerMenuContainer.Q<Button>("btn-main-menu");
+            if (mainMenuBtn != null)
+            {
+                mainMenuBtn.clicked += () =>
+                {
+                    HideHamburgerOverlay();
+                    ShowMainMenu();
+                };
+            }
+
+            if (_resumeButton != null)
+            {
+                _resumeButton.clicked += HideHamburgerOverlay;
+            }
+
+            // Wire up settings sliders (sync with main menu settings)
+            if (_hbSfxSlider != null)
+            {
+                float savedSfx = PlayerPrefs.GetFloat(PREFS_SFX_VOLUME, DEFAULT_VOLUME);
+                _hbSfxSlider.value = savedSfx;
+                _hbSfxSlider.RegisterValueChangedCallback(OnHbSfxVolumeChanged);
+                UpdateHbSfxLabel(savedSfx);
+            }
+
+            if (_hbMusicSlider != null)
+            {
+                float savedMusic = PlayerPrefs.GetFloat(PREFS_MUSIC_VOLUME, DEFAULT_VOLUME);
+                _hbMusicSlider.value = savedMusic;
+                _hbMusicSlider.RegisterValueChangedCallback(OnHbMusicVolumeChanged);
+                UpdateHbMusicLabel(savedMusic);
+            }
+
+            if (_hbQwertyToggle != null)
+            {
+                bool savedQwerty = PlayerPrefs.GetInt(PREFS_QWERTY_KEYBOARD, 0) == 1;
+                _hbQwertyToggle.value = savedQwerty;
+                _hbQwertyToggle.RegisterValueChangedCallback(OnHbQwertyToggleChanged);
+            }
+
+            // Click on overlay background closes menu
+            if (_hamburgerOverlay != null)
+            {
+                _hamburgerOverlay.RegisterCallback<ClickEvent>(evt =>
+                {
+                    // Close if clicking on overlay background (not the panel)
+                    VisualElement panel = _hamburgerMenuContainer.Q<VisualElement>("hamburger-panel");
+                    if (evt.target == _hamburgerOverlay || (panel != null && !panel.worldBound.Contains(evt.position)))
+                    {
+                        HideHamburgerOverlay();
+                    }
+                });
+            }
+
+            _root.Add(_hamburgerMenuContainer);
+
+            // Start with button hidden (shown on setup wizard)
+            HideHamburgerButton();
+        }
+
+        private void ShowHamburgerButton()
+        {
+            if (_hamburgerButton != null)
+            {
+                _hamburgerButton.RemoveFromClassList("hidden");
+            }
+        }
+
+        private void HideHamburgerButton()
+        {
+            if (_hamburgerButton != null)
+            {
+                _hamburgerButton.AddToClassList("hidden");
+            }
+            HideHamburgerOverlay();
+        }
+
+        private void ShowHamburgerOverlay()
+        {
+            if (_hamburgerOverlay != null)
+            {
+                // Sync settings values before showing
+                SyncHamburgerSettings();
+                _hamburgerOverlay.RemoveFromClassList("hidden");
+            }
+        }
+
+        private void HideHamburgerOverlay()
+        {
+            if (_hamburgerOverlay != null)
+            {
+                _hamburgerOverlay.AddToClassList("hidden");
+            }
+        }
+
+        private void SyncHamburgerSettings()
+        {
+            // Sync hamburger menu settings with stored values
+            float sfx = PlayerPrefs.GetFloat(PREFS_SFX_VOLUME, DEFAULT_VOLUME);
+            float music = PlayerPrefs.GetFloat(PREFS_MUSIC_VOLUME, DEFAULT_VOLUME);
+            bool qwerty = PlayerPrefs.GetInt(PREFS_QWERTY_KEYBOARD, 0) == 1;
+
+            if (_hbSfxSlider != null) _hbSfxSlider.SetValueWithoutNotify(sfx);
+            if (_hbMusicSlider != null) _hbMusicSlider.SetValueWithoutNotify(music);
+            if (_hbQwertyToggle != null) _hbQwertyToggle.SetValueWithoutNotify(qwerty);
+
+            UpdateHbSfxLabel(sfx);
+            UpdateHbMusicLabel(music);
+        }
+
+        private void OnHbSfxVolumeChanged(ChangeEvent<float> evt)
+        {
+            float volume = evt.newValue;
+            PlayerPrefs.SetFloat(PREFS_SFX_VOLUME, volume);
+            PlayerPrefs.Save();
+            UpdateHbSfxLabel(volume);
+
+            // Sync main menu slider
+            if (_sfxSlider != null) _sfxSlider.SetValueWithoutNotify(volume);
+            UpdateSfxLabel(volume);
+
+            // Refresh audio manager
+            if (UIAudioManager.Instance != null)
+            {
+                UIAudioManager.Instance.RefreshVolumeCache();
+            }
+        }
+
+        private void OnHbMusicVolumeChanged(ChangeEvent<float> evt)
+        {
+            float volume = evt.newValue;
+            PlayerPrefs.SetFloat(PREFS_MUSIC_VOLUME, volume);
+            PlayerPrefs.Save();
+            UpdateHbMusicLabel(volume);
+
+            // Sync main menu slider
+            if (_musicSlider != null) _musicSlider.SetValueWithoutNotify(volume);
+            UpdateMusicLabel(volume);
+
+            // Refresh music manager
+            if (MusicManager.Instance != null)
+            {
+                MusicManager.Instance.RefreshVolumeCache();
+            }
+        }
+
+        private void OnHbQwertyToggleChanged(ChangeEvent<bool> evt)
+        {
+            PlayerPrefs.SetInt(PREFS_QWERTY_KEYBOARD, evt.newValue ? 1 : 0);
+            PlayerPrefs.Save();
+
+            // Sync main menu toggle
+            if (_qwertyToggle != null) _qwertyToggle.SetValueWithoutNotify(evt.newValue);
+        }
+
+        private void UpdateHbSfxLabel(float volume)
+        {
+            if (_hbSfxValueLabel != null)
+            {
+                _hbSfxValueLabel.text = string.Format("{0:0}%", volume * 100f);
+            }
+        }
+
+        private void UpdateHbMusicLabel(float volume)
+        {
+            if (_hbMusicValueLabel != null)
+            {
+                _hbMusicValueLabel.text = string.Format("{0:0}%", volume * 100f);
+            }
         }
 
         private void HandleQuickSetup()
@@ -287,12 +860,49 @@ namespace DLYH.TableUI
                 _setupWizardScreen.visible = false;
             }
 
-            // Reset wizard state
+            // Hide hamburger on main menu (settings are inline there)
+            HideHamburgerButton();
+
+            // Update Continue Game button visibility
+            UpdateContinueGameButton();
+
+            // Sync main menu settings with stored values
+            SyncMainMenuSettings();
+
+            // Start trivia rotation with fade cycling
+            StartTriviaRotation();
+
+            // Note: We don't reset wizard state here anymore - only when starting a NEW game
+        }
+
+        private void UpdateContinueGameButton()
+        {
+            if (_continueGameButton == null) return;
+
+            if (_hasActiveGame)
+            {
+                _continueGameButton.RemoveFromClassList("hidden");
+            }
+            else
+            {
+                _continueGameButton.AddToClassList("hidden");
+            }
+        }
+
+        /// <summary>
+        /// Clears the active game state (called when game ends or player explicitly starts new game)
+        /// </summary>
+        public void ClearActiveGame()
+        {
+            _hasActiveGame = false;
             _wizardManager?.Reset();
         }
 
         private void ShowSetupWizard()
         {
+            // Stop trivia rotation when leaving main menu
+            StopTriviaRotation();
+
             if (_mainMenuScreen != null)
             {
                 _mainMenuScreen.style.display = DisplayStyle.None;
@@ -303,6 +913,24 @@ namespace DLYH.TableUI
                 _setupWizardScreen.style.display = DisplayStyle.Flex;
                 _setupWizardScreen.visible = true;
             }
+
+            // Show hamburger button on setup wizard
+            ShowHamburgerButton();
+        }
+
+        private void SyncMainMenuSettings()
+        {
+            // Sync main menu settings sliders with stored values
+            float sfx = PlayerPrefs.GetFloat(PREFS_SFX_VOLUME, DEFAULT_VOLUME);
+            float music = PlayerPrefs.GetFloat(PREFS_MUSIC_VOLUME, DEFAULT_VOLUME);
+            bool qwerty = PlayerPrefs.GetInt(PREFS_QWERTY_KEYBOARD, 0) == 1;
+
+            if (_sfxSlider != null) _sfxSlider.SetValueWithoutNotify(sfx);
+            if (_musicSlider != null) _musicSlider.SetValueWithoutNotify(music);
+            if (_qwertyToggle != null) _qwertyToggle.SetValueWithoutNotify(qwerty);
+
+            UpdateSfxLabel(sfx);
+            UpdateMusicLabel(music);
         }
 
         // === Table Initialization ===
@@ -795,6 +1423,7 @@ namespace DLYH.TableUI
         private VisualElement _cardWordCount;
         private VisualElement _cardDifficulty;
         private VisualElement _cardBoardSetup;
+        private VisualElement _cardJoinCode;
         private VisualElement _cardsContainer;
         private VisualElement _placementPanel;
 
@@ -804,6 +1433,10 @@ namespace DLYH.TableUI
         // Board setup mode cards
         private VisualElement _setupQuickCard;
         private VisualElement _setupManualCard;
+
+        // Join code elements
+        private TextField _joinCodeInput;
+        private Button _joinCodeSubmitBtn;
 
         // Inputs
         private TextField _playerNameInput;
@@ -856,6 +1489,7 @@ namespace DLYH.TableUI
             SetupWordCountButtons();
             SetupDifficultyButtons();
             SetupBoardSetupCards();
+            SetupJoinCodeCard();
             SetupActionButtons();
             SetupLetterKeyboard();
             SetupCollapsedCardClickHandlers();
@@ -872,6 +1506,7 @@ namespace DLYH.TableUI
             HideElement(_cardWordCount);
             HideElement(_cardDifficulty);
             HideElement(_cardBoardSetup);
+            HideElement(_cardJoinCode);
             HideElement(_placementPanel);
 
             ShowElement(_cardProfile);
@@ -886,10 +1521,15 @@ namespace DLYH.TableUI
             _cardWordCount = _root.Q<VisualElement>("card-word-count");
             _cardDifficulty = _root.Q<VisualElement>("card-difficulty");
             _cardBoardSetup = _root.Q<VisualElement>("card-board-setup");
+            _cardJoinCode = _root.Q<VisualElement>("card-join-code");
             _placementPanel = _root.Q<VisualElement>("placement-panel");
 
             _setupQuickCard = _root.Q<VisualElement>("setup-quick");
             _setupManualCard = _root.Q<VisualElement>("setup-manual");
+
+            // Join code elements
+            _joinCodeInput = _root.Q<TextField>("join-code-input");
+            _joinCodeSubmitBtn = _root.Q<Button>("btn-join-code-submit");
 
             _playerNameInput = _root.Q<TextField>("player-name-input");
             _colorPicker = _root.Q<VisualElement>("color-picker");
@@ -1005,6 +1645,47 @@ namespace DLYH.TableUI
             {
                 _setupManualCard.RegisterCallback<ClickEvent>(evt => SelectBoardSetupMode(false));
             }
+        }
+
+        private void SetupJoinCodeCard()
+        {
+            if (_joinCodeSubmitBtn != null)
+            {
+                _joinCodeSubmitBtn.clicked += HandleJoinCodeSubmit;
+            }
+
+            // Auto-uppercase the join code input
+            if (_joinCodeInput != null)
+            {
+                _joinCodeInput.RegisterValueChangedCallback(evt =>
+                {
+                    string upper = evt.newValue.ToUpper();
+                    if (upper != evt.newValue)
+                    {
+                        _joinCodeInput.SetValueWithoutNotify(upper);
+                    }
+                });
+            }
+        }
+
+        private void HandleJoinCodeSubmit()
+        {
+            string code = _joinCodeInput?.value?.Trim().ToUpper() ?? "";
+
+            if (string.IsNullOrEmpty(code) || code.Length < 4)
+            {
+                Debug.LogWarning("[SetupWizard] Invalid join code - must be at least 4 characters");
+                return;
+            }
+
+            Debug.Log($"[SetupWizard] Attempting to join game with code: {code}");
+
+            // TODO: Actually join the game via networking
+            // For now, just log and show a placeholder message
+            // In the future this will:
+            // 1. Send the code to the server
+            // 2. Receive game info (grid size, word count)
+            // 3. Transition to the placement panel with received settings
         }
 
         private void SetupActionButtons()
@@ -1127,13 +1808,31 @@ namespace DLYH.TableUI
             }
 
             _playerName = _playerNameInput?.value ?? DEFAULT_PLAYER_NAME;
-            RevealNextCard(_cardGridSize);
+            RevealNextCardAfterProfile();
         }
 
         private void OnPlayerNameChanged(ChangeEvent<string> evt)
         {
             _playerName = evt.newValue;
             if (!string.IsNullOrEmpty(evt.newValue))
+            {
+                RevealNextCardAfterProfile();
+            }
+        }
+
+        /// <summary>
+        /// Reveals the appropriate next card after Profile based on game mode.
+        /// For JoinGame mode, shows Difficulty card (skips Grid and Words).
+        /// For other modes, shows Grid Size card.
+        /// </summary>
+        private void RevealNextCardAfterProfile()
+        {
+            if (_gameMode == GameMode.JoinGame)
+            {
+                // Skip Grid and Words for Join Game - go straight to Difficulty
+                RevealNextCard(_cardDifficulty);
+            }
+            else
             {
                 RevealNextCard(_cardGridSize);
             }
@@ -1168,8 +1867,18 @@ namespace DLYH.TableUI
             UpdateButtonSelection(_difficultyButtons, difficulty);
             UpdateDifficultySummary();
 
-            CollapseCard(_cardWordCount, _wordsContent, _wordsSummary);
-            RevealNextCard(_cardBoardSetup);
+            if (_gameMode == GameMode.JoinGame)
+            {
+                // For Join Game, collapse Profile and show Join Code card
+                CollapseCard(_cardProfile, _profileContent, _profileSummary);
+                CollapseCard(_cardDifficulty, _difficultyContent, _difficultySummary);
+                RevealNextCard(_cardJoinCode);
+            }
+            else
+            {
+                CollapseCard(_cardWordCount, _wordsContent, _wordsSummary);
+                RevealNextCard(_cardBoardSetup);
+            }
         }
 
         private void SelectBoardSetupMode(bool useQuickSetup)
@@ -1274,6 +1983,25 @@ namespace DLYH.TableUI
                     GameMode.JoinGame => "Join Game",
                     _ => "Game Setup"
                 };
+            }
+
+            // For JoinGame mode, hide Grid, Words, Difficulty, and BoardSetup cards
+            // The host's settings determine everything - joiner only needs profile + game code
+            if (mode == GameMode.JoinGame)
+            {
+                HideElement(_cardGridSize);
+                HideElement(_cardWordCount);
+                HideElement(_cardDifficulty);
+                HideElement(_cardBoardSetup);
+
+                // Show a "Join Code" input instead (TODO: implement join code UI)
+                // For now, just show the profile card
+            }
+            else
+            {
+                // Show all cards for Solo and Online modes
+                ShowElement(_cardProfile);
+                // Other cards are revealed progressively via the normal flow
             }
         }
 
@@ -1424,7 +2152,11 @@ namespace DLYH.TableUI
             HideElement(_cardWordCount);
             HideElement(_cardDifficulty);
             HideElement(_cardBoardSetup);
+            HideElement(_cardJoinCode);
             HideElement(_placementPanel);
+
+            // Clear join code input
+            if (_joinCodeInput != null) _joinCodeInput.value = "";
 
             ExpandCard(_cardProfile, _profileContent, _profileSummary);
             ExpandCard(_cardGridSize, _gridContent, _gridSummary);

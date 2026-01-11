@@ -41,14 +41,17 @@
     margin-top: -8px;
 }
 
-/* === Tagline === */
+/* === Trivia Marquee (centered, replaces old tagline) === */
 
-.tagline {
-    font-size: 16px;
+.trivia-marquee {
+    font-size: 14px;
     color: rgb(140, 140, 160);
     -unity-font-style: italic;
     -unity-text-align: middle-center;
     margin-bottom: 48px;
+    min-height: 20px;
+    max-width: 450px;
+    white-space: normal;
 }
 
 /* === Menu Buttons === */
@@ -95,6 +98,23 @@
     background-color: rgb(0, 120, 100);
 }
 
+/* Continue Game Button (highlighted when game in progress) */
+
+.menu-button.continue-game {
+    background-color: rgb(180, 120, 0);
+    border-color: rgb(220, 160, 0);
+    border-width: 2px;
+    color: rgb(255, 255, 255);
+}
+
+.menu-button.continue-game:hover {
+    background-color: rgb(200, 140, 0);
+}
+
+.menu-button.continue-game:active {
+    background-color: rgb(160, 100, 0);
+}
+
 /* Secondary Buttons (Join Game, How to Play, Settings) */
 
 .menu-button.secondary {
@@ -128,11 +148,99 @@
     background-color: rgb(50, 50, 60);
 }
 
+/* === Inline Settings Section === */
+
+.settings-section {
+    margin-top: 32px;
+    padding: 16px 24px;
+    background-color: rgba(30, 30, 40, 0.6);
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: rgb(50, 50, 65);
+    min-width: 280px;
+}
+
+.settings-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin: 6px 0;
+    height: 32px;
+}
+
+.settings-icon {
+    font-size: 13px;
+    color: rgb(140, 140, 160);
+    min-width: 50px;
+    -unity-text-align: middle-left;
+}
+
+.settings-slider {
+    flex-grow: 1;
+    margin: 0 12px;
+    min-width: 120px;
+}
+
+/* Slider track styling */
+.settings-slider .unity-base-slider__dragger {
+    background-color: rgb(0, 180, 150);
+    border-radius: 6px;
+    width: 14px;
+    height: 14px;
+    margin-top: -5px;
+}
+
+.settings-slider .unity-base-slider__tracker {
+    background-color: rgb(60, 60, 75);
+    border-radius: 2px;
+    height: 4px;
+}
+
+.settings-slider .unity-base-slider__drag-container {
+    min-height: 20px;
+}
+
+.settings-value {
+    font-size: 13px;
+    color: rgb(180, 180, 190);
+    min-width: 40px;
+    -unity-text-align: middle-right;
+}
+
+.checkbox-row {
+    justify-content: flex-start;
+    margin-top: 12px;
+}
+
+.settings-toggle {
+    flex-direction: row-reverse;
+}
+
+.settings-toggle .unity-toggle__label {
+    font-size: 13px;
+    color: rgb(140, 140, 160);
+    margin-left: 8px;
+}
+
+.settings-toggle .unity-toggle__checkmark {
+    background-color: rgb(50, 50, 65);
+    border-color: rgb(80, 80, 100);
+    border-width: 1px;
+    border-radius: 4px;
+    width: 18px;
+    height: 18px;
+}
+
+.settings-toggle:checked .unity-toggle__checkmark {
+    background-color: rgb(0, 140, 120);
+    border-color: rgb(0, 180, 150);
+}
+
 /* === Footer === */
 
 .footer {
     position: absolute;
-    bottom: 20px;
+    bottom: 16px;
     right: 20px;
 }
 

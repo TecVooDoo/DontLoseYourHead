@@ -12,21 +12,44 @@
                 <ui:Label name="title-line2" text="YOUR HEAD" class="title-text title-line2" />
             </ui:VisualElement>
 
-            <!-- Tagline -->
-            <ui:Label name="tagline" text="A game of words and wits" class="tagline" />
+            <!-- Trivia Marquee (centered, replaces tagline) -->
+            <ui:Label name="trivia-label" text="The guillotine was used in France until 1977." class="trivia-marquee" />
 
             <!-- Menu Buttons -->
             <ui:VisualElement name="menu-buttons" class="menu-buttons">
+                <ui:Button name="btn-continue-game" text="Continue Game" class="menu-button primary continue-game hidden" />
                 <ui:Button name="btn-play-solo" text="Play Solo" class="menu-button primary" />
                 <ui:Button name="btn-play-online" text="Play Online" class="menu-button primary" />
                 <ui:Button name="btn-join-game" text="Join Game" class="menu-button secondary" />
                 <ui:Button name="btn-how-to-play" text="How to Play" class="menu-button secondary" />
-                <ui:Button name="btn-settings" text="Settings" class="menu-button secondary" />
+                <ui:Button name="btn-feedback" text="Feedback" class="menu-button secondary" />
+            </ui:VisualElement>
+
+            <!-- Inline Settings Section -->
+            <ui:VisualElement name="settings-section" class="settings-section">
+                <!-- SFX Volume -->
+                <ui:VisualElement name="sfx-row" class="settings-row">
+                    <ui:Label name="sfx-icon" text="SFX" class="settings-icon" />
+                    <ui:Slider name="sfx-slider" low-value="0" high-value="1" value="0.5" class="settings-slider" />
+                    <ui:Label name="sfx-value" text="50%" class="settings-value" />
+                </ui:VisualElement>
+
+                <!-- Music Volume -->
+                <ui:VisualElement name="music-row" class="settings-row">
+                    <ui:Label name="music-icon" text="Music" class="settings-icon" />
+                    <ui:Slider name="music-slider" low-value="0" high-value="1" value="0.5" class="settings-slider" />
+                    <ui:Label name="music-value" text="50%" class="settings-value" />
+                </ui:VisualElement>
+
+                <!-- QWERTY Keyboard Toggle -->
+                <ui:VisualElement name="qwerty-row" class="settings-row checkbox-row">
+                    <ui:Toggle name="qwerty-toggle" label="QWERTY Keyboard" class="settings-toggle" />
+                </ui:VisualElement>
             </ui:VisualElement>
 
         </ui:VisualElement>
 
-        <!-- Footer -->
+        <!-- Footer (version only) -->
         <ui:VisualElement name="footer" class="footer">
             <ui:Label name="version-label" text="v0.1" class="version-label" />
         </ui:VisualElement>

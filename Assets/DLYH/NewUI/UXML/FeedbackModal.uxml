@@ -1,0 +1,31 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="../USS/FeedbackModal.uss" />
+
+    <!-- Modal Overlay (darkens background, catches clicks outside modal) -->
+    <ui:VisualElement name="modal-overlay" class="modal-overlay">
+
+        <!-- Modal Container (the actual dialog box) -->
+        <ui:VisualElement name="modal-container" class="modal-container">
+
+            <!-- Header -->
+            <ui:VisualElement name="modal-header" class="modal-header">
+                <ui:Label name="modal-title" text="Share Feedback" class="modal-title" />
+                <ui:Button name="btn-close" text="X" class="close-button" />
+            </ui:VisualElement>
+
+            <!-- Content -->
+            <ui:VisualElement name="modal-content" class="modal-content">
+                <ui:Label name="modal-description" text="Tell us what you think! Your feedback helps improve the game." class="modal-description" />
+                <ui:TextField name="feedback-input" multiline="true" class="feedback-input" />
+            </ui:VisualElement>
+
+            <!-- Footer with buttons -->
+            <ui:VisualElement name="modal-footer" class="modal-footer">
+                <ui:Button name="btn-cancel" text="Cancel" class="modal-button cancel-button" />
+                <ui:Button name="btn-submit" text="Submit" class="modal-button submit-button" />
+            </ui:VisualElement>
+
+        </ui:VisualElement>
+
+    </ui:VisualElement>
+</ui:UXML>
