@@ -4,7 +4,7 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 31
+**Document Version:** 32
 **Last Updated:** January 10, 2026
 
 ---
@@ -15,9 +15,9 @@
 
 **Key Innovation:** Asymmetric difficulty - mixed-skill players compete fairly with different grid sizes, word counts, and difficulty settings.
 
-**Current Phase:** Phase C IN PROGRESS - Grid placement working!
+**Current Phase:** Phase C IN PROGRESS - Word suggestion dropdown working!
 
-**Last Session (Jan 10, 2026):** Twenty-first session - **UI Polish & Join Game Flow!** Fixed feedback modal text color (dark text on dark background). Added Continue Game button (orange, appears when game in progress). Fixed Join Game flow: properly skips Grid/Words cards, goes Profile → Difficulty → Join Code. Added Join Code card with text input and submit button. Organized USS assets for consistency.
+**Last Session (Jan 10, 2026):** Twenty-second session - **Word Suggestion Dropdown & Placement Instructions!** Added autocomplete dropdown that filters words as user types - shows matching words from WordListSO, touch-friendly (uses Button elements). Fixed dropdown z-index to appear above grid. Updated placement instructions to clarify "Hide your words on the grid - your opponent will try to find them!" (playtesters were confused about whose words they were entering).
 
 **CRITICAL - Assets Need Inspector Assignment:**
 The FeedbackModal and HamburgerMenu won't work until you assign assets in Unity Inspector:
@@ -36,8 +36,7 @@ The FeedbackModal and HamburgerMenu won't work until you assign assets in Unity 
 **Word Entry Polish:**
 - Add visual feedback for invalid words (red highlight, shake)
 - Connect physical keyboard input for word entry
-- Implement QWERTY keyboard option (setting exists but not wired to placement panel)
-- Word list preview dropdown (autocomplete as user types)
+- ~~Word list preview dropdown (autocomplete as user types)~~ DONE
 - Test crossword-style overlapping words (shared letters)
 
 **Phase D:** Start gameplay UI conversion
@@ -175,8 +174,8 @@ Opens overlay:
   - [x] Setup wizard with progressive card disclosure
   - [x] Main menu working
   - [x] Word rows architecture redesigned (separate from grid)
-  - [ ] Word entry with autocomplete (integrate WordValidationService)
-  - [ ] Grid placement (integrate CoordinatePlacementController)
+  - [x] Word entry with autocomplete (WordSuggestionDropdown component)
+  - [x] Grid placement (PlacementAdapter + TablePlacementController)
 - [ ] Phase D: Gameplay UI conversion
 - [ ] Phase E: Networking integration (wire existing code)
 - [ ] Phase F: Refactor and cleanup (remove legacy uGUI)
@@ -457,11 +456,12 @@ Assets/DLYH/
 | IOpponent | ~177 | Opponent abstraction interface | OK (not wired) |
 | LocalAIOpponent | ~300 | AI wrapper for IOpponent | OK (not wired) |
 | RemotePlayerOpponent | ~400 | Network player opponent | OK (not wired) |
-| UIFlowController | ~1970 | Screen flow + setup wizard + modals (includes SetupWizardUIManager) | OK (large but cohesive) |
+| UIFlowController | ~2265 | Screen flow + setup wizard + modals (includes SetupWizardUIManager) | OK (large but cohesive) |
 | WordRowView | ~285 | Single word row UI component | NEW |
 | WordRowsContainer | ~230 | Manages all word rows | NEW |
 | PlacementAdapter | ~210 | Adapter for table-based word placement | NEW |
 | TablePlacementController | ~500 | 8-direction placement logic for TableModel | NEW |
+| WordSuggestionDropdown | ~310 | Autocomplete dropdown for word entry | NEW |
 
 ### Extracted Controllers (Phase 0)
 
@@ -780,8 +780,8 @@ Word Rows (separate):
 - [x] Green only for setup placement feedback
 - [x] Model has no Unity UI references, can be unit tested
 - [x] Word rows have variable lengths (3, 4, 5, 6)
-- [ ] Word rows integrate with WordValidationService for autocomplete
-- [ ] Grid placement uses existing CoordinatePlacementController (8 directions)
+- [x] Word rows integrate with WordValidationService for autocomplete (WordSuggestionDropdown)
+- [x] Grid placement uses 8-direction logic (TablePlacementController)
 
 ---
 
@@ -1186,6 +1186,7 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 32 | Jan 10, 2026 | Twenty-second session - **Word Suggestion Dropdown!** Added WordSuggestionDropdown.cs - autocomplete that filters words as user types, touch-friendly (Button elements). Fixed z-index to appear above grid. Updated placement instructions: "Hide your words on the grid - your opponent will try to find them!" (playtesters confused about whose words). |
 | 31 | Jan 10, 2026 | Twenty-first session - **UI Polish & Join Game Flow!** Fixed feedback modal text color. Added Continue Game button (orange, hidden by default). Fixed Join Game: Profile → Difficulty → Join Code flow (skips Grid/Words). Added Join Code card with input + submit. Moved hamburger USS to USS Assets section for consistency. |
 | 30 | Jan 10, 2026 | Twentieth session - **Bug Fixes!** Fixed trivia: proper guillotine/beheading facts (24 total), centered below title, 5-sec display + fade cycling. Fixed Join Game: hides Grid/Words/Difficulty/BoardSetup cards. Added debug warnings for missing modal assets. Note: FeedbackModal/HamburgerMenu need Inspector assignment. |
 | 29 | Jan 10, 2026 | Nineteenth session - **Navigation & Settings Complete!** Inline settings on main menu (SFX/Music sliders, QWERTY checkbox). FeedbackModal component with PlaytestTelemetry integration. HamburgerMenu for setup/gameplay navigation with synced settings. Trivia marquee with 14 random facts. Settings persist to PlayerPrefs. |
@@ -1222,7 +1223,7 @@ After each work session, update this document:
 
 ## Next Session Instructions
 
-**Starting Point:** This document (DLYH_Status.md v30)
+**Starting Point:** This document (DLYH_Status.md v32)
 
 **Scene to Use:** NewUIScene.unity (for UI Toolkit work - Phase C)
 
@@ -1239,9 +1240,10 @@ The FeedbackModal and HamburgerMenu won't work until assigned:
 
 **Current State:**
 - Phase A & B COMPLETE - table data model and UI Toolkit renderer working
-- Phase C IN PROGRESS - Grid placement and navigation working!
+- Phase C IN PROGRESS - Word suggestion dropdown working!
 - Word rows are separate from grid table (variable lengths: 3, 4, 5, 6)
 - Word entry works: click row, type letters, backspace, validation on complete
+- **Word suggestion dropdown** shows filtered words from WordListSO as user types (touch-friendly)
 - Grid placement works: two-click flow (start cell -> direction), 8 directions supported
 - Random Words button uses actual WordListSO assets
 - Random Placement places longest words first for better success
@@ -1250,18 +1252,20 @@ The FeedbackModal and HamburgerMenu won't work until assigned:
 - Feedback modal with telemetry integration (needs Inspector assets)
 - Trivia marquee centered below title (24 guillotine facts, 5-sec cycling with fade)
 - Join Game mode hides Grid/Words/Difficulty/BoardSetup cards
+- Placement instructions updated to clarify opponent will guess these words
 
 **Files Modified This Session:**
-- `Assets/DLYH/NewUI/Scripts/UIFlowController.cs` - Fixed trivia cycling, Join Game flow, debug warnings
-- `Assets/DLYH/NewUI/UXML/MainMenu.uxml` - Moved trivia to center (replaces tagline)
-- `Assets/DLYH/NewUI/USS/MainMenu.uss` - Trivia marquee styling
+- `Assets/DLYH/NewUI/Scripts/UIFlowController.cs` - Added dropdown integration, positioning, event handlers
+- `Assets/DLYH/NewUI/Scripts/WordSuggestionDropdown.cs` - NEW: Autocomplete dropdown component
+- `Assets/DLYH/NewUI/USS/SetupWizard.uss` - Added dropdown styles
+- `Assets/DLYH/NewUI/UXML/SetupWizard.uxml` - Updated placement instructions text
 
 **Integration Plan:** See `Documents/UI_Toolkit_Integration_Plan.md` for full details
 
 **Priority Tasks for Next Session:**
-1. **Continue Game Flow** - Track active game state, add Continue Game button to main menu
-2. **Word entry polish** - Invalid word feedback (red highlight, shake), physical keyboard, autocomplete dropdown
-3. **Test crossword overlapping** - Verify shared letters work correctly
+1. **Word entry polish** - Invalid word feedback (red highlight, shake animation), physical keyboard input
+2. **Test crossword overlapping** - Verify shared letters work correctly when placing words
+3. **Wire Join Code** - Connect submit button to networking code
 4. **Phase D** - Start gameplay UI conversion
 
 **Existing Systems to Integrate (DO NOT REBUILD):**
