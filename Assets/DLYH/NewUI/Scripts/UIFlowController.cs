@@ -63,6 +63,7 @@ namespace DLYH.TableUI
         private TableLayout _tableLayout;
         private WordRowsContainer _wordRowsContainer;
         private PlacementAdapter _placementAdapter;
+        private WordSuggestionDropdown _wordSuggestionDropdown;
 
         // Services
         private WordValidationService _wordValidationService;
@@ -1026,6 +1027,15 @@ namespace DLYH.TableUI
                 placementPanel.AddToClassList($"size-{sizeClass}");
             }
 
+            // Create word suggestion dropdown
+            _wordSuggestionDropdown = new WordSuggestionDropdown();
+            _wordSuggestionDropdown.OnWordSelected += HandleWordSuggestionSelected;
+
+            // Add dropdown to placement panel (at the end so it renders on top of everything)
+            // This ensures it appears above the grid
+            VisualElement placementPanelForDropdown = _setupWizardScreen.Q<VisualElement>("placement-panel");
+            placementPanelForDropdown?.Add(_wordSuggestionDropdown.Root);
+
             // Wire up word row events
             _wordRowsContainer.OnPlacementRequested += HandlePlacementRequested;
             _wordRowsContainer.OnWordCleared += HandleWordCleared;
@@ -1140,9 +1150,13 @@ namespace DLYH.TableUI
                     string newWord = currentWord + letter;
                     _wordRowsContainer.SetWord(activeRow, newWord);
 
-                    // If word is complete, validate it
+                    // Update word suggestion dropdown
+                    UpdateWordSuggestionDropdown(activeRow, newWord, maxLength);
+
+                    // If word is complete, validate it and hide dropdown
                     if (newWord.Length == maxLength)
                     {
+                        _wordSuggestionDropdown?.Hide();
                         ValidateWord(activeRow, newWord);
                     }
                 }
@@ -1157,7 +1171,12 @@ namespace DLYH.TableUI
                 string currentWord = _wordRowsContainer.GetWord(activeRow);
                 if (currentWord.Length > 0)
                 {
-                    _wordRowsContainer.SetWord(activeRow, currentWord.Substring(0, currentWord.Length - 1));
+                    string newWord = currentWord.Substring(0, currentWord.Length - 1);
+                    _wordRowsContainer.SetWord(activeRow, newWord);
+
+                    // Update word suggestion dropdown
+                    int maxLength = _wordRowsContainer.GetWordLength(activeRow);
+                    UpdateWordSuggestionDropdown(activeRow, newWord, maxLength);
                 }
             }
         }
@@ -1166,6 +1185,103 @@ namespace DLYH.TableUI
         {
             // When a word row cell is clicked, make that row active for editing
             _wordRowsContainer?.SetActiveRow(wordIndex);
+
+            // Update dropdown for new active row
+            if (_wordRowsContainer != null)
+            {
+                string currentWord = _wordRowsContainer.GetWord(wordIndex);
+                int maxLength = _wordRowsContainer.GetWordLength(wordIndex);
+                UpdateWordSuggestionDropdown(wordIndex, currentWord, maxLength);
+            }
+        }
+
+        /// <summary>
+        /// Updates the word suggestion dropdown based on current input.
+        /// </summary>
+        private void UpdateWordSuggestionDropdown(int rowIndex, string currentWord, int wordLength)
+        {
+            if (_wordSuggestionDropdown == null) return;
+
+            // Set the word list for this word length
+            WordListSO wordList = GetWordListForLength(wordLength);
+            _wordSuggestionDropdown.SetWordList(wordList);
+            _wordSuggestionDropdown.SetRequiredLength(wordLength);
+
+            // Update filter
+            _wordSuggestionDropdown.UpdateFilter(currentWord);
+
+            // Position dropdown below the active word row
+            PositionDropdownBelowRow(rowIndex);
+        }
+
+        /// <summary>
+        /// Gets the appropriate word list ScriptableObject for the given word length.
+        /// </summary>
+        private WordListSO GetWordListForLength(int length)
+        {
+            return length switch
+            {
+                3 => _threeLetterWords,
+                4 => _fourLetterWords,
+                5 => _fiveLetterWords,
+                6 => _sixLetterWords,
+                _ => null
+            };
+        }
+
+        /// <summary>
+        /// Positions the dropdown below the specified word row.
+        /// </summary>
+        private void PositionDropdownBelowRow(int rowIndex)
+        {
+            if (_wordSuggestionDropdown == null || _wordRowsContainer == null) return;
+
+            // Get the word row element
+            WordRowView rowView = _wordRowsContainer.GetRow(rowIndex);
+            if (rowView == null) return;
+
+            VisualElement rowRoot = rowView.Root;
+            if (rowRoot == null) return;
+
+            // The dropdown is a child of placement-panel, so we need to calculate
+            // the row's position relative to the placement panel
+            VisualElement placementPanel = _setupWizardScreen?.Q<VisualElement>("placement-panel");
+            if (placementPanel == null) return;
+
+            // Get the world position of the row and convert to placement panel local coords
+            Rect rowWorldBound = rowRoot.worldBound;
+            Rect panelWorldBound = placementPanel.worldBound;
+
+            // Calculate position relative to placement panel
+            float relativeTop = rowWorldBound.yMax - panelWorldBound.y;
+            float relativeLeft = rowWorldBound.x - panelWorldBound.x;
+
+            // Set dropdown position
+            _wordSuggestionDropdown.Root.style.position = Position.Absolute;
+            _wordSuggestionDropdown.Root.style.top = relativeTop + 4; // 4px margin
+            _wordSuggestionDropdown.Root.style.left = relativeLeft;
+        }
+
+        /// <summary>
+        /// Handles when a word is selected from the suggestion dropdown.
+        /// </summary>
+        private void HandleWordSuggestionSelected(string word)
+        {
+            int activeRow = _wordRowsContainer?.ActiveRowIndex ?? -1;
+            if (activeRow < 0) return;
+
+            // Set the word in the active row
+            _wordRowsContainer.SetWord(activeRow, word.ToUpper());
+
+            // Hide dropdown
+            _wordSuggestionDropdown?.Hide();
+
+            // Word is complete, validate and auto-advance
+            int expectedLength = _wordRowsContainer.GetWordLength(activeRow);
+            if (word.Length == expectedLength)
+            {
+                ValidateWord(activeRow, word);
+            }
         }
 
         private void ValidateWord(int rowIndex, string word)
@@ -1195,6 +1311,9 @@ namespace DLYH.TableUI
         {
             if (_placementAdapter == null) return;
 
+            // Hide dropdown when entering placement mode
+            _wordSuggestionDropdown?.Hide();
+
             // Enter placement mode for this word
             _placementAdapter.EnterPlacementMode(wordIndex, word);
             Debug.Log($"[UIFlowController] Entered placement mode for word {wordIndex + 1}: {word}");
@@ -1203,6 +1322,9 @@ namespace DLYH.TableUI
         private void HandleWordCleared(int wordIndex)
         {
             if (_placementAdapter == null) return;
+
+            // Hide dropdown when word is cleared
+            _wordSuggestionDropdown?.Hide();
 
             // If we're currently placing this word, cancel placement mode first
             // This clears the preview (first letter on grid) before clearing the word
@@ -1222,6 +1344,9 @@ namespace DLYH.TableUI
         {
             // Only handle grid cell clicks
             if (cell.Kind != TableCellKind.GridCell) return;
+
+            // Hide dropdown when clicking on grid
+            _wordSuggestionDropdown?.Hide();
 
             if (_placementAdapter != null && _placementAdapter.IsInPlacementMode)
             {
@@ -1298,6 +1423,9 @@ namespace DLYH.TableUI
         private void HandleRandomWords()
         {
             if (_wordRowsContainer == null || _tableLayout == null) return;
+
+            // Hide dropdown when filling random words
+            _wordSuggestionDropdown?.Hide();
 
             if (_wordValidationService == null)
             {
@@ -1397,6 +1525,10 @@ namespace DLYH.TableUI
                 _placementAdapter.OnWordPlaced -= HandleWordPlacedOnGrid;
                 _placementAdapter.OnPlacementCancelled -= HandlePlacementCancelled;
                 _placementAdapter.Dispose();
+            }
+            if (_wordSuggestionDropdown != null)
+            {
+                _wordSuggestionDropdown.OnWordSelected -= HandleWordSuggestionSelected;
             }
             if (_wordRowsContainer != null)
             {

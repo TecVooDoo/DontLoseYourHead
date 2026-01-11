@@ -133,7 +133,7 @@
             </ui:VisualElement>
 
             <!-- Instructions -->
-            <ui:Label name="placement-instructions" text="Enter your words and place them on the grid" class="placement-instructions" />
+            <ui:Label name="placement-instructions" text="Hide your words on the grid - your opponent will try to find them!" class="placement-instructions" />
 
             <!-- Word Rows Container (WordRowsContainer attaches here) -->
             <ui:VisualElement name="word-rows-container" class="word-rows-container">
