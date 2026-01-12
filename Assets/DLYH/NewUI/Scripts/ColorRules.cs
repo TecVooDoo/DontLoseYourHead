@@ -5,7 +5,7 @@ namespace DLYH.TableUI
     /// <summary>
     /// Defines color rules for the table UI. 
     /// Enforces hard requirements:
-    /// - Red/Yellow: System warnings only, never player-selectable
+    /// - Red/Yellow: System warnings only, never player-selectable  
     /// - Green: Setup placement feedback only (PlacementValid)
     /// - Other colors: Player colors, hit/reveal feedback
     /// </summary>

@@ -17019,11 +17019,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DLYH.TableUI.UIFlowController
   _mainMenuUxml: {fileID: 9197481963319205126, guid: 568f98479e35dc1429bb1c7aac4f8bbd, type: 3}
   _setupWizardUxml: {fileID: 9197481963319205126, guid: 869e525dab79c514682435c6b68dbb21, type: 3}
+  _gameplayUxml: {fileID: 9197481963319205126, guid: 8af070157d73d8a4caa83f43bf3f3f0b, type: 3}
+  _guillotineOverlayUxml: {fileID: 9197481963319205126, guid: 0708d73d15a9b13439990d6d58ac9f90, type: 3}
   _mainMenuUss: {fileID: 7433441132597879392, guid: b405c46187d9d534aa594a0f59497432, type: 3}
   _setupWizardUss: {fileID: 7433441132597879392, guid: 40c5b19efa0bd8a4fbd77ac390855193, type: 3}
   _tableViewUss: {fileID: 7433441132597879392, guid: 87d591d3cab577d4cbdc6e0c335033f7, type: 3}
   _feedbackModalUss: {fileID: 7433441132597879392, guid: 3681047d877bf29408c50ced2b7206ae, type: 3}
   _hamburgerMenuUss: {fileID: 7433441132597879392, guid: 1325103165e7bce468673f17ad689a5a, type: 3}
+  _gameplayUss: {fileID: 7433441132597879392, guid: 47a5648713907d74a970625821d46529, type: 3}
+  _guillotineOverlayUss: {fileID: 7433441132597879392, guid: 07f6edbcdc5243045b1f6761f7546046, type: 3}
   _feedbackModalUxml: {fileID: 9197481963319205126, guid: 206fe0b070fc49345a86179c55a8aacf, type: 3}
   _hamburgerMenuUxml: {fileID: 9197481963319205126, guid: 3a29290c47d15694d8b29e1c4b458482, type: 3}
   _threeLetterWords: {fileID: 11400000, guid: 06114520cd18e54439e47522617dbaa7, type: 2}

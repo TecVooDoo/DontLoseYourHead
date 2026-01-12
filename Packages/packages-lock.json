@@ -1,9 +1,9 @@
 {
   "dependencies": {
     "com.coplaydev.unity-mcp": {
-      "version": "file:E:/Unity/unity-mcp-main/unity-mcp-main/MCPForUnity",
+      "version": "file:com.coplaydev.unity-mcp",
       "depth": 0,
-      "source": "local",
+      "source": "embedded",
       "dependencies": {
         "com.unity.nuget.newtonsoft-json": "3.0.2"
       }

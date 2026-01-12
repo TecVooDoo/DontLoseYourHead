@@ -4,7 +4,7 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 35
+**Document Version:** 37
 **Last Updated:** January 11, 2026
 
 ---
@@ -15,9 +15,9 @@
 
 **Key Innovation:** Asymmetric difficulty - mixed-skill players compete fairly with different grid sizes, word counts, and difficulty settings.
 
-**Current Phase:** Phase D IN PROGRESS - Gameplay UI redesign planned!
+**Current Phase:** Phase D IN PROGRESS - Core UI files created, wiring in progress!
 
-**Last Session (Jan 11, 2026):** Twenty-fifth session - **Phase D Design Complete!** Reviewed existing gameplay UI (GameplayUIController, PlayerGridPanel, GridCellUI). Analyzed current UX issues (cramped layout, small touch targets, guillotines always visible). Designed new focused single-grid gameplay UI with Attack/Defend tab switching, event-based guillotine overlay, larger letter keyboard (reuse setup 3-row layout), and asymmetric difficulty display. Plan documented below.
+**Last Session (Jan 11, 2026):** Twenty-seventh session - **Phase D Testing & Bug Fixes!** Fixed gameplay screen UI issues: header bar overlap with hamburger button (CSS layout fixes), guillotine overlay positioning and sizing (increased to 300px visual height), guessed words panel showing separate counts for player/opponent, QWERTY toggle updating gameplay keyboard. Fixed pickingMode issues for overlays blocking clicks. **STILL NEEDS TESTING** - hamburger button click area, guillotine overlay display, separate guessed words counts.
 
 **TODO for next session:**
 
@@ -32,7 +32,24 @@
 - ~~Random Words enables placement buttons~~ DONE
 - ~~Clear button resets validity state~~ DONE
 
-**Phase D:** Gameplay UI conversion - DESIGN COMPLETE, implementation next
+**Phase D:** Gameplay UI conversion - Testing and integration in progress
+- [x] Create `Gameplay.uxml` - Main gameplay layout with tabs, grid area, word rows, keyboard
+- [x] Create `Gameplay.uss` - Styles with responsive placeholders
+- [x] Create `GuillotineOverlay.uxml` - Modal for viewing guillotines
+- [x] Create `GuillotineOverlay.uss` - Overlay styles with blade positions
+- [x] Create `GameplayScreenManager.cs` - Tab switching, keyboard, status, guessed words
+- [x] Create `GuillotineOverlayManager.cs` - Overlay controller with animations
+- [x] Wire to UIFlowController (TransitionToGameplay method)
+- [x] Fix header bar/hamburger button layout (CSS updates)
+- [x] Fix guillotine overlay positioning (absolute positioning, pickingMode)
+- [x] Implement separate guessed words lists (player vs opponent)
+- [x] Wire QWERTY toggle to update gameplay keyboard
+- [x] Fix overlay click-through issues (pickingMode.Ignore when hidden)
+- [ ] **NEEDS TESTING:** Hamburger button click area and vertical centering
+- [ ] **NEEDS TESTING:** Guillotine overlay display at 300px height
+- [ ] **NEEDS TESTING:** Guessed words separate counts display
+- [ ] Wire existing TableView to gameplay grid area
+- [ ] Connect GuessProcessingManager for letter/coordinate guesses
 
 **Phase E (Networking - batch together, requires C: drive copy):**
 - Wire up Join Code submit to actual networking code
@@ -113,7 +130,7 @@ Opens overlay:
 
 ## Phase D: Gameplay UI Redesign (Jan 11, 2026)
 
-**Status:** DESIGN COMPLETE - Ready for implementation
+**Status:** CORE IMPLEMENTATION - Files created, testing next
 
 **Problem Analysis:**
 The legacy uGUI gameplay screen shows both grids side-by-side with guillotines, but this creates several UX issues:
@@ -228,15 +245,17 @@ Win/Loss triggered ->
 - Letter keyboard is 3 rows
 - Everything stacks vertically
 
-### Files to Create
+### Files Created (Jan 11, 2026)
 
-| File | Purpose |
-|------|---------|
-| `Gameplay.uxml` | Main gameplay screen layout |
-| `Gameplay.uss` | Gameplay styles + responsive breakpoints |
-| `GuillotineOverlay.uxml` | Modal guillotine view |
-| `GuillotineOverlay.uss` | Overlay styles |
-| `GameplayScreenManager.cs` | Manages gameplay UI state, tab switching |
+| File | Purpose | Status |
+|------|---------|--------|
+| `Gameplay.uxml` | Main gameplay screen layout | DONE |
+| `Gameplay.uss` | Gameplay styles + responsive breakpoints | DONE |
+| `GuillotineOverlay.uxml` | Modal guillotine view | DONE |
+| `GuillotineOverlay.uss` | Overlay styles with blade positions | DONE |
+| `GameplayScreenManager.cs` | Tab switching, keyboard, status, guessed words | DONE |
+| `GuillotineOverlayManager.cs` | Overlay controller with game over states | DONE |
+| `UIFlowController.cs` | Updated with gameplay screen creation and wiring | DONE |
 
 ### Integration Points
 
@@ -588,9 +607,10 @@ Assets/DLYH/
   NewUI/          - UI Toolkit implementation (DLYH.TableUI)
     Scripts/      - TableCellKind, TableCellState, CellOwner, TableCell, TableRegion,
                     TableLayout, TableModel, ColorRules, TableView, TableViewTest,
-                    UIFlowController, WordRowView, WordRowsContainer (NEW)
-    USS/          - TableView.uss, MainMenu.uss, SetupWizard.uss, FeedbackModal.uss, HamburgerMenu.uss
-    UXML/         - TableView.uxml, MainMenu.uxml, SetupWizard.uxml, FeedbackModal.uxml, HamburgerMenu.uxml
+                    UIFlowController, WordRowView, WordRowsContainer,
+                    GameplayScreenManager, GuillotineOverlayManager (NEW - Phase D)
+    USS/          - TableView.uss, MainMenu.uss, SetupWizard.uss, FeedbackModal.uss, HamburgerMenu.uss, Gameplay.uss, GuillotineOverlay.uss
+    UXML/         - TableView.uxml, MainMenu.uxml, SetupWizard.uxml, FeedbackModal.uxml, HamburgerMenu.uxml, Gameplay.uxml, GuillotineOverlay.uxml
     Prefabs/      - (empty, for future use)
   Scenes/
     NewPlayTesting.unity - Current working scene (single player)
@@ -612,7 +632,9 @@ Assets/DLYH/
 | IOpponent | ~177 | Opponent abstraction interface | OK (not wired) |
 | LocalAIOpponent | ~300 | AI wrapper for IOpponent | OK (not wired) |
 | RemotePlayerOpponent | ~400 | Network player opponent | OK (not wired) |
-| UIFlowController | ~2500 | Screen flow + setup wizard + modals (includes SetupWizardUIManager) | OK (large but cohesive) |
+| UIFlowController | ~2700 | Screen flow + setup wizard + gameplay + modals (includes SetupWizardUIManager) | OK (large but cohesive) |
+| GameplayScreenManager | ~650 | Gameplay UI state, tab switching, keyboard | NEW (Phase D) |
+| GuillotineOverlayManager | ~450 | Guillotine overlay modal controller | NEW (Phase D) |
 | WordRowView | ~460 | Single word row UI component | NEW (updated with validity styling) |
 | WordRowsContainer | ~230 | Manages all word rows | NEW |
 | PlacementAdapter | ~210 | Adapter for table-based word placement | NEW |
@@ -1351,6 +1373,8 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 37 | Jan 11, 2026 | Twenty-seventh session - **Phase D Testing & Bug Fixes!** Fixed multiple gameplay UI issues: header bar hamburger button overlap (CSS layout with flex-shrink, explicit sizing), guillotine overlay positioning (absolute positioning + pickingMode.Ignore), enlarged guillotine visual to 300px height. Implemented separate guessed words lists for player vs opponent. Wired QWERTY toggle to update gameplay keyboard. Fixed overlay panels blocking clicks with pickingMode handling. **Still needs testing:** hamburger click area, guillotine overlay, separate counts. |
+| 36 | Jan 11, 2026 | Twenty-sixth session - **Phase D Implementation Started!** Created all core gameplay UI files: Gameplay.uxml/uss (main layout with tabs, grid area, word rows, keyboard), GuillotineOverlay.uxml/uss (modal with blade positions and game over states), GameplayScreenManager.cs (~650 lines), GuillotineOverlayManager.cs (~450 lines). Updated UIFlowController with TransitionToGameplay(), CreateGameplayScreen(), and all event wiring. Ready button now transitions from setup wizard to gameplay screen. |
 | 35 | Jan 11, 2026 | Twenty-fifth session - **Phase D Design Complete!** Analyzed legacy gameplay UI (GameplayUIController, PlayerGridPanel, GridCellUI). Designed new focused single-grid layout with Attack/Defend tab switching. Event-based guillotine overlay (miss counter buttons are tappable). Larger 3-row letter keyboard (reuse setup layout). Asymmetric difficulty display in tabs. Game end sequence with dramatic guillotine animation. |
 | 34 | Jan 11, 2026 | Twenty-fourth session - **Setup Visual Polish!** Fixed green coloring consistency: valid words show green in word rows AND on grid during setup. Added backspace clearing grid placement. Fixed Random Words enabling placement buttons. Fixed clear button resetting validity. Added setup mode support to ColorRules and TableView. All setup colors now consistent. |
 | 33 | Jan 11, 2026 | Twenty-third session - **Word Entry Polish & AI Crossword!** Invalid word feedback (red highlight + shake via USS). Physical keyboard input (A-Z, Backspace, Escape). AI placement now supports crossword-style overlapping with 8 directions and 40% random crossword probability. |
@@ -1391,47 +1415,47 @@ After each work session, update this document:
 
 ## Next Session Instructions
 
-**Starting Point:** This document (DLYH_Status.md v35)
+**Starting Point:** This document (DLYH_Status.md v37)
 
 **Scene to Use:** NewUIScene.unity (for UI Toolkit work - Phase D)
 
 **Current State:**
 - Phase A & B COMPLETE - table data model and UI Toolkit renderer working
 - Phase C COMPLETE - Setup wizard fully functional with all polish
-- Phase D DESIGN COMPLETE - See "Phase D: Gameplay UI Redesign" section above
+- Phase D IN PROGRESS - Core files created, bug fixes applied, needs testing
 
-**Setup Wizard Features (Complete):**
-- Word rows separate from grid (variable lengths: 3, 4, 5, 6)
-- Word entry: click row, type letters, backspace, validation, autocomplete dropdown
-- Grid placement: two-click flow (start cell -> direction), 8 directions
-- Setup colors all green (valid words, placed letters, placement preview)
-- Random Words/Placement buttons
-- Inline settings on main menu (SFX/Music sliders + QWERTY checkbox)
-- Hamburger menu, Feedback modal, Trivia marquee
+**Files Modified This Session:**
+- `Gameplay.uss` - Fixed header bar layout, hamburger button sizing (36x36px with constraints)
+- `Gameplay.uxml` - Added separate guessed words sections (Your Guesses / Opponent's Guesses)
+- `GuillotineOverlay.uss` - Enlarged overlay (520px min-height, 300px guillotine visual, 270px posts)
+- `UIFlowController.cs` - Fixed overlay positioning with absolute position + pickingMode.Ignore, hide shared hamburger on gameplay, QWERTY toggle refreshes gameplay keyboard
+- `GameplayScreenManager.cs` - Separate guessed words lists, pickingMode handling for panels, UpdateGuessedWordsButton on Initialize
 
-**Phase D Design Summary (Ready to Implement):**
-- Focused single-grid view with Attack/Defend tab switching
-- Tabs show asymmetric difficulty: grid size + word count + miss progress per player
-- Miss counter buttons are tappable -> opens guillotine overlay modal
-- Event-based guillotines: appear on miss, dramatic sequence on game end
-- Larger 3-row letter keyboard (reuse setup keyboard, 44px+ buttons)
-- Collapsible guessed words list
-- Responsive: portrait (single grid + tabs) vs landscape (could show both grids)
+**Fixes Applied (STILL NEED TESTING):**
+1. **Hamburger button layout** - Explicit 36x36px sizing with min/max constraints, flex-shrink: 0, centered vertically with align-items: center on header bar
+2. **Guillotine overlay** - Positioned with absolute top/left/right/bottom: 0, pickingMode.Ignore on container so clicks pass through when not interacting with overlay
+3. **Guessed words separate counts** - Button shows "Guessed Words: You (X) | Opponent (Y)", panel has two sections with separate lists
+4. **Overlay click-through** - guessed-words-panel uses pickingMode.Ignore when hidden, pickingMode.Position when shown
+5. **QWERTY toggle** - RefreshKeyboardIfNeeded() now also calls _gameplayManager.SetQwertyLayout()
 
 **Priority Tasks for Next Session:**
-1. Create `Gameplay.uxml` - Main gameplay layout with tabs, grid, word rows, keyboard
-2. Create `Gameplay.uss` - Styles including responsive breakpoints
-3. Create `GuillotineOverlay.uxml/uss` - Modal for viewing guillotines
-4. Create `GameplayScreenManager.cs` - Tab switching, overlay triggers, state management
-5. Wire to existing GameplayUIController for guess processing
-6. Call TableView.SetSetupMode(false) when entering gameplay
+1. **TEST the fixes** - Verify hamburger click area works, guillotine displays at 300px, counts show separately
+2. If hamburger still has issues, may need to reconsider header layout approach
+3. Wire existing TableView to gameplay grid area
+4. Connect letter keyboard to GuessProcessingManager
+5. Connect grid cell clicks to coordinate guessing
+6. Wire miss counter updates to GameplayStateTracker
+
+**UIFlowController Inspector Setup (if not already done):**
+- Assign `_gameplayUxml` = Gameplay.uxml
+- Assign `_guillotineOverlayUxml` = GuillotineOverlay.uxml
+- Assign `_gameplayUss` = Gameplay.uss
+- Assign `_guillotineOverlayUss` = GuillotineOverlay.uss
 
 **Existing Systems to Wire (DO NOT REBUILD):**
-- `GameplayUIController` - Main gameplay orchestrator
 - `GuessProcessingManager` - Guess validation and processing
 - `GameplayStateTracker` - State tracking (misses, letters, coordinates)
 - `OpponentTurnManager` - AI turn execution
-- `GuillotineDisplay` - Existing guillotine animations (adapt for overlay)
 - `TableView` / `TableModel` - Reuse for grid rendering
 - `WordRowView` - Reuse for word progress display
 

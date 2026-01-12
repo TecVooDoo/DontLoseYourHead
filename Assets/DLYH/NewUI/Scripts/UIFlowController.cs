@@ -30,6 +30,8 @@ namespace DLYH.TableUI
         [Header("UXML Assets")]
         [SerializeField] private VisualTreeAsset _mainMenuUxml;
         [SerializeField] private VisualTreeAsset _setupWizardUxml;
+        [SerializeField] private VisualTreeAsset _gameplayUxml;
+        [SerializeField] private VisualTreeAsset _guillotineOverlayUxml;
 
         [Header("USS Assets")]
         [SerializeField] private StyleSheet _mainMenuUss;
@@ -37,6 +39,8 @@ namespace DLYH.TableUI
         [SerializeField] private StyleSheet _tableViewUss;
         [SerializeField] private StyleSheet _feedbackModalUss;
         [SerializeField] private StyleSheet _hamburgerMenuUss;
+        [SerializeField] private StyleSheet _gameplayUss;
+        [SerializeField] private StyleSheet _guillotineOverlayUss;
 
         [Header("Modal Assets")]
         [SerializeField] private VisualTreeAsset _feedbackModalUxml;
@@ -54,6 +58,11 @@ namespace DLYH.TableUI
         // Screen containers
         private VisualElement _mainMenuScreen;
         private VisualElement _setupWizardScreen;
+        private VisualElement _gameplayScreen;
+
+        // Gameplay managers
+        private GameplayScreenManager _gameplayManager;
+        private GuillotineOverlayManager _guillotineOverlayManager;
 
         // Wizard state (managed inline since we can't use SetupWizardController as MonoBehaviour)
         private SetupWizardUIManager _wizardManager;
@@ -255,9 +264,12 @@ namespace DLYH.TableUI
             if (_tableViewUss != null) _root.styleSheets.Add(_tableViewUss);
             if (_feedbackModalUss != null) _root.styleSheets.Add(_feedbackModalUss);
             if (_hamburgerMenuUss != null) _root.styleSheets.Add(_hamburgerMenuUss);
+            if (_gameplayUss != null) _root.styleSheets.Add(_gameplayUss);
+            if (_guillotineOverlayUss != null) _root.styleSheets.Add(_guillotineOverlayUss);
 
             // Create screens - wizard first so menu is on top
             CreateSetupWizardScreen();
+            CreateGameplayScreen();
             CreateMainMenuScreen();
             CreateFeedbackModal();
             CreateHamburgerMenu();
@@ -433,29 +445,38 @@ namespace DLYH.TableUI
         /// </summary>
         private void RefreshKeyboardIfNeeded()
         {
-            if (_wizardManager == null) return;
-
-            // Rebuild the keyboard with new layout
-            _wizardManager.RefreshKeyboardLayout();
-
-            // Re-wire the new buttons
-            _keyboardWiredUp = false;
-            VisualElement keyboard = _setupWizardScreen?.Q<VisualElement>("letter-keyboard");
-            if (keyboard != null)
+            // Refresh wizard keyboard if open
+            if (_wizardManager != null)
             {
-                keyboard.Query<Button>(className: "letter-key").ForEach(keyButton =>
+                // Rebuild the keyboard with new layout
+                _wizardManager.RefreshKeyboardLayout();
+
+                // Re-wire the new buttons
+                _keyboardWiredUp = false;
+                VisualElement keyboard = _setupWizardScreen?.Q<VisualElement>("letter-keyboard");
+                if (keyboard != null)
                 {
-                    if (keyButton.ClassListContains("backspace-key"))
+                    keyboard.Query<Button>(className: "letter-key").ForEach(keyButton =>
                     {
-                        keyButton.clicked += HandleBackspacePressed;
-                    }
-                    else if (keyButton.text.Length == 1)
-                    {
-                        char letter = keyButton.text[0];
-                        keyButton.clicked += () => HandleLetterKeyPressed(letter);
-                    }
-                });
-                _keyboardWiredUp = true;
+                        if (keyButton.ClassListContains("backspace-key"))
+                        {
+                            keyButton.clicked += HandleBackspacePressed;
+                        }
+                        else if (keyButton.text.Length == 1)
+                        {
+                            char letter = keyButton.text[0];
+                            keyButton.clicked += () => HandleLetterKeyPressed(letter);
+                        }
+                    });
+                    _keyboardWiredUp = true;
+                }
+            }
+
+            // Refresh gameplay keyboard if it exists
+            if (_gameplayManager != null)
+            {
+                bool useQwerty = PlayerPrefs.GetInt(PREFS_QWERTY_KEYBOARD, 0) == 1;
+                _gameplayManager.SetQwertyLayout(useQwerty);
             }
         }
 
@@ -564,6 +585,133 @@ namespace DLYH.TableUI
 
             // Start hidden
             _setupWizardScreen.style.display = DisplayStyle.None;
+        }
+
+        private void CreateGameplayScreen()
+        {
+            _gameplayScreen = new VisualElement();
+            _gameplayScreen.name = "gameplay-screen";
+            _gameplayScreen.style.flexGrow = 1;
+            _gameplayScreen.style.position = Position.Absolute;
+            _gameplayScreen.style.left = 0;
+            _gameplayScreen.style.right = 0;
+            _gameplayScreen.style.top = 0;
+            _gameplayScreen.style.bottom = 0;
+
+            // Clone the gameplay UXML
+            if (_gameplayUxml != null)
+            {
+                VisualElement gameplayContent = _gameplayUxml.CloneTree();
+                gameplayContent.style.flexGrow = 1;
+                gameplayContent.style.width = Length.Percent(100);
+                gameplayContent.style.height = Length.Percent(100);
+                _gameplayScreen.Add(gameplayContent);
+
+                // Also ensure the inner gameplay-root fills its container
+                VisualElement gameplayRoot = gameplayContent.Q<VisualElement>("gameplay-root");
+                if (gameplayRoot != null)
+                {
+                    gameplayRoot.style.flexGrow = 1;
+                    gameplayRoot.style.width = Length.Percent(100);
+                    gameplayRoot.style.height = Length.Percent(100);
+                }
+            }
+
+            // Add guillotine overlay on top (inside gameplay screen)
+            if (_guillotineOverlayUxml != null)
+            {
+                VisualElement overlayContent = _guillotineOverlayUxml.CloneTree();
+                // Position the overlay container absolutely so it covers the entire gameplay screen
+                overlayContent.style.position = Position.Absolute;
+                overlayContent.style.left = 0;
+                overlayContent.style.right = 0;
+                overlayContent.style.top = 0;
+                overlayContent.style.bottom = 0;
+                // Allow clicks to pass through the container to gameplay elements below
+                overlayContent.pickingMode = PickingMode.Ignore;
+                _gameplayScreen.Add(overlayContent);
+            }
+
+            _root.Add(_gameplayScreen);
+
+            // Initialize gameplay manager
+            _gameplayManager = new GameplayScreenManager();
+            _gameplayManager.Initialize(_gameplayScreen);
+            _gameplayManager.OnHamburgerClicked += HandleGameplayHamburgerClicked;
+            _gameplayManager.OnLetterKeyClicked += HandleGameplayLetterClicked;
+            _gameplayManager.OnGridCellClicked += HandleGameplayGridCellClicked;
+            _gameplayManager.OnWordGuessClicked += HandleGameplayWordGuessClicked;
+            _gameplayManager.OnShowGuillotineOverlay += ShowGuillotineOverlay;
+
+            // Initialize guillotine overlay manager
+            _guillotineOverlayManager = new GuillotineOverlayManager();
+            _guillotineOverlayManager.Initialize(_gameplayScreen);
+
+            // Set QWERTY preference
+            bool useQwerty = PlayerPrefs.GetInt(PREFS_QWERTY_KEYBOARD, 0) == 1;
+            _gameplayManager.SetQwertyLayout(useQwerty);
+
+            // Start hidden
+            _gameplayScreen.style.display = DisplayStyle.None;
+        }
+
+        private void ShowGameplayScreen()
+        {
+            _mainMenuScreen.style.display = DisplayStyle.None;
+            _setupWizardScreen.style.display = DisplayStyle.None;
+            _gameplayScreen.style.display = DisplayStyle.Flex;
+
+            // Hide the shared hamburger button - gameplay has its own in the header bar
+            HideHamburgerButton();
+        }
+
+        private void HandleGameplayHamburgerClicked()
+        {
+            ShowHamburgerOverlay();
+        }
+
+        private void HandleGameplayLetterClicked(char letter)
+        {
+            // TODO: Wire to GuessProcessingManager
+            Debug.Log($"[UIFlowController] Gameplay letter clicked: {letter}");
+        }
+
+        private void HandleGameplayGridCellClicked(int row, int col, bool isAttackGrid)
+        {
+            // TODO: Wire to GuessProcessingManager for coordinate guesses
+            Debug.Log($"[UIFlowController] Gameplay grid cell clicked: ({row}, {col}), isAttack: {isAttackGrid}");
+        }
+
+        private void HandleGameplayWordGuessClicked(int wordIndex)
+        {
+            // TODO: Wire to word guess mode
+            Debug.Log($"[UIFlowController] Gameplay word guess clicked: word {wordIndex}");
+        }
+
+        private void ShowGuillotineOverlay()
+        {
+            if (_guillotineOverlayManager == null) return;
+
+            // Create data from current state
+            GuillotineData playerData = new GuillotineData
+            {
+                Name = "You",
+                Color = _wizardManager?.PlayerColor ?? ColorRules.SelectableColors[0],
+                MissCount = 0, // TODO: Get from GameplayStateTracker
+                MissLimit = 20, // TODO: Get from GameplayStateTracker
+                IsLocalPlayer = true
+            };
+
+            GuillotineData opponentData = new GuillotineData
+            {
+                Name = "EXECUTIONER",
+                Color = ColorRules.SelectableColors[1],
+                MissCount = 0, // TODO: Get from GameplayStateTracker
+                MissLimit = 18, // TODO: Get from GameplayStateTracker
+                IsLocalPlayer = false
+            };
+
+            _guillotineOverlayManager.Show(playerData, opponentData);
         }
 
         // === Navigation Handlers ===
@@ -1652,11 +1800,101 @@ namespace DLYH.TableUI
             // Check if all words are placed
             if (!_wordRowsContainer.AreAllWordsPlaced())
             {
-                // TODO: Show error message in UI
+                Debug.LogWarning("[UIFlowController] Cannot start game - not all words are placed");
                 return;
             }
 
-            // TODO: Transition to gameplay phase
+            // Transition to gameplay phase
+            TransitionToGameplay();
+        }
+
+        private void TransitionToGameplay()
+        {
+            // Set up gameplay screen with player data
+            if (_gameplayManager != null && _wizardManager != null)
+            {
+                // Get player setup data
+                string playerName = _wizardManager.PlayerName ?? "Player";
+                Color playerColor = _wizardManager.PlayerColor;
+                int gridSize = _wizardManager.GridSize;
+                int wordCount = _wizardManager.WordCount;
+                int difficulty = _wizardManager.Difficulty;
+
+                // Calculate miss limits based on difficulty and grid size
+                // Higher difficulty = fewer misses allowed
+                int playerMissLimit = CalculateMissLimit(gridSize, wordCount, difficulty);
+                int opponentMissLimit = CalculateMissLimit(gridSize, wordCount, 1); // AI uses normal difficulty
+
+                // Create player tab data
+                PlayerTabData playerData = new PlayerTabData
+                {
+                    Name = playerName,
+                    Color = playerColor,
+                    GridSize = gridSize,
+                    WordCount = wordCount,
+                    MissCount = 0,
+                    MissLimit = playerMissLimit,
+                    IsLocalPlayer = true
+                };
+
+                // Create opponent tab data (AI or other player)
+                PlayerTabData opponentData = new PlayerTabData
+                {
+                    Name = _currentGameMode == GameMode.Solo ? "EXECUTIONER" : "Opponent",
+                    Color = ColorRules.SelectableColors[1], // TODO: Get actual opponent color
+                    GridSize = gridSize, // TODO: Could be different for asymmetric play
+                    WordCount = wordCount, // TODO: Could be different
+                    MissCount = 0,
+                    MissLimit = opponentMissLimit,
+                    IsLocalPlayer = false
+                };
+
+                _gameplayManager.SetPlayerData(playerData, opponentData);
+                _gameplayManager.SetPlayerTurn(true); // Player goes first
+
+                // Set up the table view for gameplay
+                if (_tableView != null)
+                {
+                    _tableView.SetSetupMode(false); // Switch to gameplay mode colors
+                    _gameplayManager.SetTableView(_tableView);
+                }
+
+                // TODO: Create attack grid model for opponent's board
+                // For now we just use the player's table model
+                if (_tableModel != null)
+                {
+                    _gameplayManager.SetTableModels(_tableModel, _tableModel);
+                }
+
+                // Set status message
+                _gameplayManager.SetStatusMessage("Game started! Tap a letter or cell to attack.", GameplayScreenManager.StatusType.Normal);
+            }
+
+            // Show gameplay screen
+            ShowGameplayScreen();
+
+            Debug.Log("[UIFlowController] Transitioned to gameplay phase");
+        }
+
+        private int CalculateMissLimit(int gridSize, int wordCount, int difficulty)
+        {
+            // Base misses = empty cells on grid (grid area minus word letters)
+            // Estimated word letters = wordCount * average word length (~4.5)
+            int gridCells = gridSize * gridSize;
+            int estimatedWordLetters = wordCount * 5; // Rough estimate
+            int emptyCells = Mathf.Max(gridCells - estimatedWordLetters, gridSize);
+
+            // Difficulty modifier
+            float difficultyMultiplier = difficulty switch
+            {
+                0 => 1.3f, // Easy - more misses allowed
+                1 => 1.0f, // Normal
+                2 => 0.7f, // Hard - fewer misses allowed
+                _ => 1.0f
+            };
+
+            int missLimit = Mathf.RoundToInt(emptyCells * difficultyMultiplier);
+            return Mathf.Max(missLimit, 5); // Minimum 5 misses
         }
 
         private void OnDestroy()
@@ -1683,6 +1921,19 @@ namespace DLYH.TableUI
                 _tableView.OnCellClicked -= HandleGridCellClicked;
                 _tableView.OnCellHovered -= HandleGridCellHovered;
                 _tableView.Unbind();
+            }
+            if (_gameplayManager != null)
+            {
+                _gameplayManager.OnHamburgerClicked -= HandleGameplayHamburgerClicked;
+                _gameplayManager.OnLetterKeyClicked -= HandleGameplayLetterClicked;
+                _gameplayManager.OnGridCellClicked -= HandleGameplayGridCellClicked;
+                _gameplayManager.OnWordGuessClicked -= HandleGameplayWordGuessClicked;
+                _gameplayManager.OnShowGuillotineOverlay -= ShowGuillotineOverlay;
+                _gameplayManager.Dispose();
+            }
+            if (_guillotineOverlayManager != null)
+            {
+                _guillotineOverlayManager.Dispose();
             }
         }
 
@@ -1762,6 +2013,15 @@ namespace DLYH.TableUI
         private int _wordCount = DEFAULT_WORD_COUNT;
         private int _difficulty = DEFAULT_DIFFICULTY;
         private bool _useQuickSetup = true;
+
+        // Public properties for accessing current wizard state
+        public string PlayerName => _playerName;
+        public Color PlayerColor => _playerColor;
+        public int GridSize => _gridSize;
+        public int WordCount => _wordCount;
+        public int Difficulty => _difficulty;
+        public bool UseQuickSetup => _useQuickSetup;
+        public GameMode CurrentGameMode => _gameMode;
 
         // UI arrays
         private Button[] _gridButtons;
@@ -2002,13 +2262,10 @@ namespace DLYH.TableUI
 
         private void SetupActionButtons()
         {
-            Button ready = _root.Q<Button>("btn-ready");
+            // Note: btn-ready is now handled by UIFlowController.HandleReadyClicked()
+            // to transition to gameplay. Do NOT wire it here.
             Button backToSettings = _root.Q<Button>("btn-back-to-settings");
 
-            if (ready != null)
-            {
-                ready.clicked += HandleReady;
-            }
             if (backToSettings != null)
             {
                 backToSettings.clicked += ShowSettingsCards;
@@ -2243,22 +2500,6 @@ namespace DLYH.TableUI
         }
 
         // === Action Handlers ===
-
-        private void HandleReady()
-        {
-            SetupData data = new SetupData
-            {
-                PlayerName = _playerName,
-                PlayerColor = _playerColor,
-                GridSize = _gridSize,
-                WordCount = _wordCount,
-                Difficulty = _difficulty,
-                GameMode = _gameMode,
-                UseQuickSetup = _useQuickSetup
-            };
-
-            OnSetupComplete?.Invoke(data);
-        }
 
         private void ShowSettingsCards()
         {

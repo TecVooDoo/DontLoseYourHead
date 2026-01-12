@@ -1,0 +1,127 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="../USS/GuillotineOverlay.uss" />
+
+    <!-- Guillotine Overlay Container (full screen backdrop) -->
+    <ui:VisualElement name="guillotine-overlay-root" class="guillotine-overlay-root hidden">
+
+        <!-- Dark backdrop (click to close) -->
+        <ui:VisualElement name="overlay-backdrop" class="overlay-backdrop" />
+
+        <!-- Overlay Content -->
+        <ui:VisualElement name="overlay-content" class="overlay-content">
+
+            <!-- Header -->
+            <ui:VisualElement name="overlay-header" class="overlay-header">
+                <ui:Label name="overlay-title" text="Danger Status" class="overlay-title" />
+                <ui:Button name="btn-close-overlay" text="&#10005;" class="close-button" />
+            </ui:VisualElement>
+
+            <!-- Guillotines Side by Side -->
+            <ui:VisualElement name="guillotines-container" class="guillotines-container">
+
+                <!-- Player Guillotine (Left) -->
+                <ui:VisualElement name="guillotine-player" class="guillotine-panel">
+                    <ui:VisualElement name="player-header" class="guillotine-header">
+                        <ui:VisualElement name="player-color-badge" class="color-badge" />
+                        <ui:Label name="player-guillotine-name" text="You" class="guillotine-name" />
+                    </ui:VisualElement>
+
+                    <!-- Visual Guillotine Representation -->
+                    <ui:VisualElement name="player-guillotine-visual" class="guillotine-visual">
+                        <!-- Frame -->
+                        <ui:VisualElement name="player-frame-left" class="guillotine-post post-left" />
+                        <ui:VisualElement name="player-frame-right" class="guillotine-post post-right" />
+                        <ui:VisualElement name="player-frame-top" class="guillotine-beam" />
+
+                        <!-- Hash marks container -->
+                        <ui:VisualElement name="player-hash-marks" class="hash-marks-container">
+                            <!-- Hash marks generated dynamically -->
+                        </ui:VisualElement>
+
+                        <!-- Blade -->
+                        <ui:VisualElement name="player-blade-group" class="blade-group">
+                            <ui:VisualElement name="player-blade" class="blade" />
+                        </ui:VisualElement>
+
+                        <!-- Lunette (neck holder) -->
+                        <ui:VisualElement name="player-lunette" class="lunette" />
+
+                        <!-- Head -->
+                        <ui:VisualElement name="player-head" class="head">
+                            <ui:Label name="player-head-face" text=":-|" class="head-face" />
+                        </ui:VisualElement>
+
+                        <!-- Basket -->
+                        <ui:VisualElement name="player-basket" class="basket" />
+                    </ui:VisualElement>
+
+                    <!-- Miss Counter -->
+                    <ui:VisualElement name="player-miss-info" class="miss-info">
+                        <ui:Label name="player-miss-label" text="Misses: 3 / 24" class="miss-label" />
+                        <ui:VisualElement name="player-danger-bar" class="danger-bar">
+                            <ui:VisualElement name="player-danger-fill" class="danger-fill" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+
+                    <!-- Flavor Text -->
+                    <ui:Label name="player-flavor-text" text="Safe for now..." class="flavor-text" />
+                </ui:VisualElement>
+
+                <!-- Opponent Guillotine (Right) -->
+                <ui:VisualElement name="guillotine-opponent" class="guillotine-panel">
+                    <ui:VisualElement name="opponent-header" class="guillotine-header">
+                        <ui:VisualElement name="opponent-color-badge" class="color-badge" />
+                        <ui:Label name="opponent-guillotine-name" text="EXECUTIONER" class="guillotine-name" />
+                    </ui:VisualElement>
+
+                    <!-- Visual Guillotine Representation -->
+                    <ui:VisualElement name="opponent-guillotine-visual" class="guillotine-visual">
+                        <!-- Frame -->
+                        <ui:VisualElement name="opponent-frame-left" class="guillotine-post post-left" />
+                        <ui:VisualElement name="opponent-frame-right" class="guillotine-post post-right" />
+                        <ui:VisualElement name="opponent-frame-top" class="guillotine-beam" />
+
+                        <!-- Hash marks container -->
+                        <ui:VisualElement name="opponent-hash-marks" class="hash-marks-container">
+                            <!-- Hash marks generated dynamically -->
+                        </ui:VisualElement>
+
+                        <!-- Blade -->
+                        <ui:VisualElement name="opponent-blade-group" class="blade-group">
+                            <ui:VisualElement name="opponent-blade" class="blade" />
+                        </ui:VisualElement>
+
+                        <!-- Lunette (neck holder) -->
+                        <ui:VisualElement name="opponent-lunette" class="lunette" />
+
+                        <!-- Head -->
+                        <ui:VisualElement name="opponent-head" class="head">
+                            <ui:Label name="opponent-head-face" text=":-|" class="head-face" />
+                        </ui:VisualElement>
+
+                        <!-- Basket -->
+                        <ui:VisualElement name="opponent-basket" class="basket" />
+                    </ui:VisualElement>
+
+                    <!-- Miss Counter -->
+                    <ui:VisualElement name="opponent-miss-info" class="miss-info">
+                        <ui:Label name="opponent-miss-label" text="Misses: 5 / 18" class="miss-label" />
+                        <ui:VisualElement name="opponent-danger-bar" class="danger-bar">
+                            <ui:VisualElement name="opponent-danger-fill" class="danger-fill" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+
+                    <!-- Flavor Text -->
+                    <ui:Label name="opponent-flavor-text" text="Getting warm..." class="flavor-text" />
+                </ui:VisualElement>
+
+            </ui:VisualElement>
+
+            <!-- Footer hint -->
+            <ui:Label text="Tap outside to close" class="footer-hint" />
+
+        </ui:VisualElement>
+
+    </ui:VisualElement>
+
+</ui:UXML>
