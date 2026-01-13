@@ -83,6 +83,12 @@ namespace DLYH.TableUI
         public event Action OnCellHoverExit;
 
         /// <summary>
+        /// Gets the root visual element containing all table content.
+        /// Use this to reparent the table view to a different container.
+        /// </summary>
+        public VisualElement TableRoot => _tableRoot;
+
+        /// <summary>
         /// Creates a new TableView attached to the given root element.
         /// </summary>
         public TableView(VisualElement root)
@@ -359,6 +365,18 @@ namespace DLYH.TableUI
                 Color ownerColor = GetOwnerColor(cell.Owner);
                 element.style.backgroundColor = ownerColor;
                 label.style.color = ColorRules.GetContrastingTextColor(ownerColor);
+            }
+            else if (cell.State == TableCellState.Miss)
+            {
+                // Coordinate miss - red (no letter at this position)
+                element.style.backgroundColor = ColorRules.SystemRed;
+                label.style.color = Color.white;
+            }
+            else if (cell.State == TableCellState.Revealed)
+            {
+                // Coordinate hit but letter not yet guessed - yellow
+                element.style.backgroundColor = ColorRules.SystemYellow;
+                label.style.color = ColorRules.GetContrastingTextColor(ColorRules.SystemYellow);
             }
             else if (cell.State == TableCellState.PlacementAnchor ||
                      cell.State == TableCellState.PlacementSecond ||

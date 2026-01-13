@@ -23,44 +23,51 @@
                 <ui:VisualElement name="guillotine-player" class="guillotine-panel">
                     <ui:VisualElement name="player-header" class="guillotine-header">
                         <ui:VisualElement name="player-color-badge" class="color-badge" />
-                        <ui:Label name="player-guillotine-name" text="You" class="guillotine-name" />
+                        <ui:Label name="player-guillotine-name" text="Player" class="guillotine-name" />
                     </ui:VisualElement>
 
                     <!-- Visual Guillotine Representation -->
                     <ui:VisualElement name="player-guillotine-visual" class="guillotine-visual">
-                        <!-- Layer 1 (back): Hash marks on the track -->
-                        <ui:VisualElement name="player-hash-marks" class="hash-marks-container">
-                            <!-- Hash marks generated dynamically -->
+                        <!-- Frame posts -->
+                        <ui:VisualElement name="player-frame-left" class="guillotine-post post-left" />
+                        <ui:VisualElement name="player-frame-right" class="guillotine-post post-right" />
+                        <ui:VisualElement name="player-frame-top" class="guillotine-beam" />
+
+                        <!-- Stage indicator track (5 segments) -->
+                        <ui:VisualElement name="player-stage-track" class="stage-track">
+                            <ui:VisualElement class="stage-segment segment-1" />
+                            <ui:VisualElement class="stage-segment segment-2" />
+                            <ui:VisualElement class="stage-segment segment-3" />
+                            <ui:VisualElement class="stage-segment segment-4" />
+                            <ui:VisualElement class="stage-segment segment-5" />
                         </ui:VisualElement>
 
-                        <!-- Layer 2: Blade group (visible in front of hash marks) -->
+                        <!-- Blade group (moves in 5 discrete positions) -->
                         <ui:VisualElement name="player-blade-group" class="blade-group">
                             <ui:VisualElement name="player-blade-holder" class="blade-holder" />
                             <ui:VisualElement name="player-blade" class="blade" />
                         </ui:VisualElement>
 
-                        <!-- Layer 3: Frame posts and beam -->
-                        <ui:VisualElement name="player-frame-left" class="guillotine-post post-left" />
-                        <ui:VisualElement name="player-frame-right" class="guillotine-post post-right" />
-                        <ui:VisualElement name="player-frame-top" class="guillotine-beam" />
-
-                        <!-- Layer 4: Lunette (neck holder with divider) -->
+                        <!-- Lunette (neck holder) -->
                         <ui:VisualElement name="player-lunette" class="lunette">
                             <ui:VisualElement class="lunette-divider" />
                         </ui:VisualElement>
 
-                        <!-- Layer 5: Head -->
+                        <!-- Head -->
                         <ui:VisualElement name="player-head" class="head">
                             <ui:Label name="player-head-face" text=":-|" class="head-face" />
                         </ui:VisualElement>
 
-                        <!-- Layer 6 (front): Basket -->
+                        <!-- Basket -->
                         <ui:VisualElement name="player-basket" class="basket" />
                     </ui:VisualElement>
 
+                    <!-- Stage Indicator Text -->
+                    <ui:Label name="player-stage-label" text="Stage 1 / 5" class="stage-label" />
+
                     <!-- Miss Counter -->
                     <ui:VisualElement name="player-miss-info" class="miss-info">
-                        <ui:Label name="player-miss-label" text="Misses: 3 / 24" class="miss-label" />
+                        <ui:Label name="player-miss-label" text="Misses: 0 / 24" class="miss-label" />
                         <ui:VisualElement name="player-danger-bar" class="danger-bar">
                             <ui:VisualElement name="player-danger-fill" class="danger-fill" />
                         </ui:VisualElement>
@@ -79,46 +86,53 @@
 
                     <!-- Visual Guillotine Representation -->
                     <ui:VisualElement name="opponent-guillotine-visual" class="guillotine-visual">
-                        <!-- Layer 1 (back): Hash marks on the track -->
-                        <ui:VisualElement name="opponent-hash-marks" class="hash-marks-container">
-                            <!-- Hash marks generated dynamically -->
+                        <!-- Frame posts -->
+                        <ui:VisualElement name="opponent-frame-left" class="guillotine-post post-left" />
+                        <ui:VisualElement name="opponent-frame-right" class="guillotine-post post-right" />
+                        <ui:VisualElement name="opponent-frame-top" class="guillotine-beam" />
+
+                        <!-- Stage indicator track (5 segments) -->
+                        <ui:VisualElement name="opponent-stage-track" class="stage-track">
+                            <ui:VisualElement class="stage-segment segment-1" />
+                            <ui:VisualElement class="stage-segment segment-2" />
+                            <ui:VisualElement class="stage-segment segment-3" />
+                            <ui:VisualElement class="stage-segment segment-4" />
+                            <ui:VisualElement class="stage-segment segment-5" />
                         </ui:VisualElement>
 
-                        <!-- Layer 2: Blade group (visible in front of hash marks) -->
+                        <!-- Blade group (moves in 5 discrete positions) -->
                         <ui:VisualElement name="opponent-blade-group" class="blade-group">
                             <ui:VisualElement name="opponent-blade-holder" class="blade-holder" />
                             <ui:VisualElement name="opponent-blade" class="blade" />
                         </ui:VisualElement>
 
-                        <!-- Layer 3: Frame posts and beam -->
-                        <ui:VisualElement name="opponent-frame-left" class="guillotine-post post-left" />
-                        <ui:VisualElement name="opponent-frame-right" class="guillotine-post post-right" />
-                        <ui:VisualElement name="opponent-frame-top" class="guillotine-beam" />
-
-                        <!-- Layer 4: Lunette (neck holder with divider) -->
+                        <!-- Lunette (neck holder) -->
                         <ui:VisualElement name="opponent-lunette" class="lunette">
                             <ui:VisualElement class="lunette-divider" />
                         </ui:VisualElement>
 
-                        <!-- Layer 5: Head -->
+                        <!-- Head -->
                         <ui:VisualElement name="opponent-head" class="head">
                             <ui:Label name="opponent-head-face" text=":-|" class="head-face" />
                         </ui:VisualElement>
 
-                        <!-- Layer 6 (front): Basket -->
+                        <!-- Basket -->
                         <ui:VisualElement name="opponent-basket" class="basket" />
                     </ui:VisualElement>
 
+                    <!-- Stage Indicator Text -->
+                    <ui:Label name="opponent-stage-label" text="Stage 1 / 5" class="stage-label" />
+
                     <!-- Miss Counter -->
                     <ui:VisualElement name="opponent-miss-info" class="miss-info">
-                        <ui:Label name="opponent-miss-label" text="Misses: 5 / 18" class="miss-label" />
+                        <ui:Label name="opponent-miss-label" text="Misses: 0 / 18" class="miss-label" />
                         <ui:VisualElement name="opponent-danger-bar" class="danger-bar">
                             <ui:VisualElement name="opponent-danger-fill" class="danger-fill" />
                         </ui:VisualElement>
                     </ui:VisualElement>
 
                     <!-- Flavor Text -->
-                    <ui:Label name="opponent-flavor-text" text="Getting warm..." class="flavor-text" />
+                    <ui:Label name="opponent-flavor-text" text="Sitting pretty." class="flavor-text" />
                 </ui:VisualElement>
 
             </ui:VisualElement>

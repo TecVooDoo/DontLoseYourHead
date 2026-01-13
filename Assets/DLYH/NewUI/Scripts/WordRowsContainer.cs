@@ -390,5 +390,86 @@ namespace DLYH.TableUI
                 _wordRows[i].OnLetterCellClicked -= HandleLetterCellClicked;
             }
         }
+
+        #region Gameplay Display Methods
+
+        /// <summary>
+        /// Sets up all word rows for gameplay display (opponent's words with underscores).
+        /// </summary>
+        /// <param name="words">The opponent's actual words (will be hidden initially)</param>
+        public void SetWordsForGameplay(string[] words)
+        {
+            for (int i = 0; i < _wordCount && i < words.Length; i++)
+            {
+                _wordRows[i].SetWordForGameplay(words[i]);
+            }
+        }
+
+        /// <summary>
+        /// Reveals all occurrences of a letter across all words.
+        /// </summary>
+        /// <param name="letter">The letter to reveal</param>
+        /// <param name="playerColor">The color to highlight revealed letters</param>
+        /// <returns>Total number of positions revealed</returns>
+        public int RevealLetterInAllWords(char letter, Color playerColor)
+        {
+            int total = 0;
+            for (int i = 0; i < _wordCount; i++)
+            {
+                total += _wordRows[i].RevealAllOccurrences(letter, playerColor);
+            }
+            return total;
+        }
+
+        /// <summary>
+        /// Reveals a specific letter at a specific position in a word.
+        /// </summary>
+        /// <param name="wordIndex">The word row index</param>
+        /// <param name="letterIndex">The position in the word</param>
+        /// <param name="playerColor">The color to highlight</param>
+        public void RevealLetterAt(int wordIndex, int letterIndex, Color playerColor)
+        {
+            if (wordIndex < 0 || wordIndex >= _wordCount) return;
+            _wordRows[wordIndex].RevealLetter(letterIndex, playerColor);
+        }
+
+        /// <summary>
+        /// Checks if all words have been fully revealed (game won).
+        /// </summary>
+        public bool AreAllWordsRevealed()
+        {
+            for (int i = 0; i < _wordCount; i++)
+            {
+                if (!_wordRows[i].IsFullyRevealed())
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Gets the actual word for a row (for gameplay validation).
+        /// </summary>
+        public string GetActualWord(int rowIndex)
+        {
+            if (rowIndex < 0 || rowIndex >= _wordCount) return "";
+            return _wordRows[rowIndex].ActualWord;
+        }
+
+        /// <summary>
+        /// Gets all actual words (for gameplay validation).
+        /// </summary>
+        public string[] GetAllActualWords()
+        {
+            string[] words = new string[_wordCount];
+            for (int i = 0; i < _wordCount; i++)
+            {
+                words[i] = _wordRows[i].ActualWord;
+            }
+            return words;
+        }
+
+        #endregion
     }
 }

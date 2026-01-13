@@ -468,5 +468,87 @@ namespace DLYH.TableUI
             // Guess button: enabled when in gameplay mode
             _guessButton.SetEnabled(_isGameplayMode);
         }
+
+        #region Gameplay Display Methods
+
+        /// <summary>
+        /// Sets up the word row for gameplay display with underscores.
+        /// The actual word is stored internally but only revealed letters are shown.
+        /// </summary>
+        /// <param name="actualWord">The actual word (stored internally)</param>
+        public void SetWordForGameplay(string actualWord)
+        {
+            _word = actualWord?.ToUpper() ?? "";
+
+            // Display all cells as underscores initially
+            for (int i = 0; i < _wordLength; i++)
+            {
+                _letterLabels[i].text = "_";
+                _letterCells[i].RemoveFromClassList(ClassFilled);
+            }
+
+            UpdateControlState();
+        }
+
+        /// <summary>
+        /// Reveals a specific letter in the word display (for gameplay hit feedback).
+        /// </summary>
+        /// <param name="letterIndex">The index in the word to reveal</param>
+        /// <param name="playerColor">The color to highlight the revealed letter</param>
+        public void RevealLetter(int letterIndex, Color playerColor)
+        {
+            if (letterIndex < 0 || letterIndex >= _wordLength || letterIndex >= _word.Length) return;
+
+            char letter = _word[letterIndex];
+            _letterLabels[letterIndex].text = letter.ToString();
+            _letterCells[letterIndex].AddToClassList(ClassFilled);
+            _letterCells[letterIndex].style.backgroundColor = playerColor;
+            _letterLabels[letterIndex].style.color = ColorRules.GetContrastingTextColor(playerColor);
+        }
+
+        /// <summary>
+        /// Reveals all occurrences of a letter in this word.
+        /// </summary>
+        /// <param name="letter">The letter to reveal</param>
+        /// <param name="playerColor">The color to highlight revealed letters</param>
+        /// <returns>Number of positions revealed</returns>
+        public int RevealAllOccurrences(char letter, Color playerColor)
+        {
+            letter = char.ToUpper(letter);
+            int count = 0;
+
+            for (int i = 0; i < _word.Length && i < _wordLength; i++)
+            {
+                if (_word[i] == letter)
+                {
+                    RevealLetter(i, playerColor);
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        /// <summary>
+        /// Checks if all letters in the word have been revealed.
+        /// </summary>
+        public bool IsFullyRevealed()
+        {
+            for (int i = 0; i < _wordLength; i++)
+            {
+                if (_letterLabels[i].text == "_")
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Gets the actual word stored (for gameplay validation).
+        /// </summary>
+        public string ActualWord => _word;
+
+        #endregion
     }
 }

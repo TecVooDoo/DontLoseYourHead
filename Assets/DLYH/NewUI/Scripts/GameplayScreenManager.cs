@@ -6,6 +6,17 @@ using UnityEngine.UIElements;
 namespace DLYH.TableUI
 {
     /// <summary>
+    /// State of a letter key on the gameplay keyboard.
+    /// </summary>
+    public enum LetterKeyState
+    {
+        Default,    // Not yet guessed
+        Hit,        // Letter AND coordinate known (player color)
+        Miss,       // Letter not in any word (red)
+        Found       // Letter in words but no coordinate known yet (yellow)
+    }
+
+    /// <summary>
     /// Data class for player/opponent info displayed in gameplay tabs.
     /// </summary>
     public class PlayerTabData
@@ -353,34 +364,42 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
-        /// Marks a letter as hit (found in opponent's words).
+        /// Marks a letter as hit (letter AND coordinate known) - player color.
         /// </summary>
         public void MarkLetterHit(char letter, Color playerColor)
         {
+            letter = char.ToUpper(letter);
             _hitLetters.Add(letter);
             _missLetters.Remove(letter);
 
             if (_letterKeys.TryGetValue(letter, out Button key))
             {
                 key.RemoveFromClassList("letter-miss");
+                key.RemoveFromClassList("letter-found");
                 key.AddToClassList("letter-hit");
                 key.style.backgroundColor = playerColor;
                 key.style.color = ColorRules.GetContrastingTextColor(playerColor);
+                Debug.Log($"[GameplayScreenManager] Letter '{letter}' upgraded to Hit (player color)");
             }
         }
 
         /// <summary>
-        /// Marks a letter as miss (not in opponent's words).
+        /// Marks a letter as miss (not in opponent's words) - red.
         /// </summary>
         public void MarkLetterMiss(char letter)
         {
+            letter = char.ToUpper(letter);
             if (_hitLetters.Contains(letter)) return; // Hit takes precedence
 
             _missLetters.Add(letter);
 
             if (_letterKeys.TryGetValue(letter, out Button key))
             {
+                key.RemoveFromClassList("letter-hit");
+                key.RemoveFromClassList("letter-found");
                 key.AddToClassList("letter-miss");
+                key.style.backgroundColor = ColorRules.SystemRed;
+                key.style.color = Color.white;
             }
         }
 
@@ -396,6 +415,7 @@ namespace DLYH.TableUI
 
                 key.RemoveFromClassList("letter-hit");
                 key.RemoveFromClassList("letter-miss");
+                key.RemoveFromClassList("letter-found");
                 key.style.backgroundColor = StyleKeyword.Null;
                 key.style.color = StyleKeyword.Null;
 
@@ -408,6 +428,8 @@ namespace DLYH.TableUI
                 else if (_missLetters.Contains(letter))
                 {
                     key.AddToClassList("letter-miss");
+                    key.style.backgroundColor = ColorRules.SystemRed;
+                    key.style.color = Color.white;
                 }
             }
         }
@@ -420,6 +442,60 @@ namespace DLYH.TableUI
             _hitLetters.Clear();
             _missLetters.Clear();
             RefreshKeyboardStates();
+        }
+
+        /// <summary>
+        /// Sets the state of a letter key on the keyboard.
+        /// Convenience method that delegates to MarkLetterHit/MarkLetterMiss.
+        /// </summary>
+        public void SetKeyboardLetterState(char letter, LetterKeyState state)
+        {
+            switch (state)
+            {
+                case LetterKeyState.Hit:
+                    // Letter AND coordinate known - player color
+                    MarkLetterHit(letter, _playerColor);
+                    break;
+                case LetterKeyState.Miss:
+                    // Letter not in any word - red
+                    MarkLetterMiss(letter);
+                    break;
+                case LetterKeyState.Found:
+                    // Letter in words but no coordinate known yet - yellow
+                    MarkLetterFound(letter);
+                    break;
+                case LetterKeyState.Default:
+                    // Remove from both sets and refresh
+                    _hitLetters.Remove(letter);
+                    _missLetters.Remove(letter);
+                    if (_letterKeys.TryGetValue(letter, out Button key))
+                    {
+                        key.RemoveFromClassList("letter-hit");
+                        key.RemoveFromClassList("letter-miss");
+                        key.RemoveFromClassList("letter-found");
+                        key.style.backgroundColor = StyleKeyword.Null;
+                        key.style.color = StyleKeyword.Null;
+                    }
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Marks a letter key as found (yellow) - letter exists but no coordinate known.
+        /// </summary>
+        private void MarkLetterFound(char letter)
+        {
+            letter = char.ToUpper(letter);
+            _hitLetters.Add(letter); // Track as "known" letter
+            _missLetters.Remove(letter);
+
+            if (_letterKeys.TryGetValue(letter, out Button key))
+            {
+                key.RemoveFromClassList("letter-miss");
+                key.AddToClassList("letter-found");
+                key.style.backgroundColor = ColorRules.SystemYellow;
+                key.style.color = ColorRules.GetContrastingTextColor(ColorRules.SystemYellow);
+            }
         }
 
         #endregion

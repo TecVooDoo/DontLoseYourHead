@@ -182,3 +182,8 @@
 .hidden {
     display: none;
 }
+
+/* Ensure hamburger button can be hidden (higher specificity) */
+.hamburger-button.hidden {
+    display: none;
+}

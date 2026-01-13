@@ -55,6 +55,16 @@ namespace DLYH.TableUI
         public int PlacementWordRowIndex => _placementController?.PlacementWordRowIndex ?? -1;
 
         /// <summary>
+        /// Gets all positions where letters have been placed.
+        /// </summary>
+        public IReadOnlyCollection<Vector2Int> AllPlacedPositions => _placementController?.AllPlacedPositions;
+
+        /// <summary>
+        /// Gets a dictionary of all placed letters by position.
+        /// </summary>
+        public IReadOnlyDictionary<Vector2Int, char> PlacedLetters => _placementController?.PlacedLetters;
+
+        /// <summary>
         /// Creates a new PlacementAdapter.
         /// </summary>
         public PlacementAdapter(

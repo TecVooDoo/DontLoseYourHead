@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -17,11 +18,46 @@ namespace DLYH.TableUI
     }
 
     /// <summary>
-    /// Manages the guillotine overlay modal that shows both players' danger status. 
-    /// Triggered by tapping the miss counter buttons in the gameplay tabs.
+    /// Manages the guillotine overlay modal that shows both players' danger status.
+    /// Uses a 5-stage system where the blade only moves at stage transitions,
+    /// not on every individual miss.
+    ///
+    /// Stage thresholds:
+    /// - Stage 1: 0-20% misses (safe)
+    /// - Stage 2: 20-40% misses (getting warm)
+    /// - Stage 3: 40-60% misses (danger)
+    /// - Stage 4: 60-80% misses (high danger)
+    /// - Stage 5: 80-100% misses (critical)
     /// </summary>
     public class GuillotineOverlayManager
     {
+        #region Constants
+
+        private const int TOTAL_STAGES = 5;
+
+        // Stage thresholds as percentages
+        private static readonly float[] STAGE_THRESHOLDS = new float[] { 0f, 20f, 40f, 60f, 80f };
+
+        // Face expressions based on stage
+        private static readonly string FACE_HAPPY = ":-)";
+        private static readonly string FACE_NEUTRAL = ":-|";
+        private static readonly string FACE_WORRIED = ":-/";
+        private static readonly string FACE_SCARED = ":-O";
+        private static readonly string FACE_HORROR = "X-O";
+        private static readonly string FACE_EVIL = ">:-)";
+
+        // Flavor text by stage
+        private static readonly string[][] STAGE_FLAVOR = new string[][]
+        {
+            new string[] { "Safe for now...", "Breathing easy.", "No worries yet.", "Sitting pretty." },
+            new string[] { "Getting warm...", "Starting to sweat.", "The blade rises.", "Things heating up." },
+            new string[] { "In danger!", "Neck exposed!", "One wrong move...", "Walking on thin ice!" },
+            new string[] { "High danger!", "Almost there...", "Time running out!", "Feel the blade..." },
+            new string[] { "CRITICAL!", "Final moments!", "Say your prayers!", "It's almost over!" }
+        };
+
+        #endregion
+
         #region Private Fields
 
         private VisualElement _root;
@@ -41,7 +77,9 @@ namespace DLYH.TableUI
         private Label _playerMissLabel;
         private VisualElement _playerDangerFill;
         private Label _playerFlavorText;
-        private VisualElement _playerHashMarks;
+        private Label _playerStageLabel;
+        private VisualElement _playerStageTrack;
+        private List<VisualElement> _playerStageSegments = new List<VisualElement>();
 
         // Opponent guillotine elements
         private VisualElement _opponentPanel;
@@ -53,56 +91,14 @@ namespace DLYH.TableUI
         private Label _opponentMissLabel;
         private VisualElement _opponentDangerFill;
         private Label _opponentFlavorText;
-        private VisualElement _opponentHashMarks;
+        private Label _opponentStageLabel;
+        private VisualElement _opponentStageTrack;
+        private List<VisualElement> _opponentStageSegments = new List<VisualElement>();
 
         // State
         private bool _isVisible;
         private GuillotineData _playerData;
         private GuillotineData _opponentData;
-
-        // Constants for blade position (percentage of container height)
-        // Top is just below beam (~7%), bottom positions blade tip at lunette top (~66%)
-        // Blade group is 60px tall (14% of 420px), lunette top at ~80% from top
-        private const float BLADE_TOP_PERCENT = 7f;
-        private const float BLADE_BOTTOM_PERCENT = 66f;
-
-        // Face expressions based on danger level
-        private static readonly string FACE_HAPPY = ":-)";
-        private static readonly string FACE_NEUTRAL = ":-|";
-        private static readonly string FACE_WORRIED = ":-/";
-        private static readonly string FACE_SCARED = ":-O";
-        private static readonly string FACE_HORROR = "X-O";
-        private static readonly string FACE_EVIL = ">:-)";
-
-        // Flavor text arrays
-        private static readonly string[] FLAVOR_SAFE = new string[]
-        {
-            "Safe for now...",
-            "Breathing easy.",
-            "No worries yet.",
-            "Sitting pretty."
-        };
-        private static readonly string[] FLAVOR_WARM = new string[]
-        {
-            "Getting warm...",
-            "Starting to sweat.",
-            "The blade rises.",
-            "Things are heating up."
-        };
-        private static readonly string[] FLAVOR_DANGER = new string[]
-        {
-            "In danger!",
-            "Neck is exposed!",
-            "One wrong move...",
-            "Walking on thin ice!"
-        };
-        private static readonly string[] FLAVOR_CRITICAL = new string[]
-        {
-            "CRITICAL!",
-            "Final moments!",
-            "Say your prayers!",
-            "It's almost over!"
-        };
 
         #endregion
 
@@ -137,9 +133,6 @@ namespace DLYH.TableUI
             Hide();
         }
 
-        /// <summary>
-        /// Query and cache all UI elements.
-        /// </summary>
         private void QueryElements()
         {
             _backdrop = _overlayRoot.Q<VisualElement>("overlay-backdrop");
@@ -157,7 +150,22 @@ namespace DLYH.TableUI
             _playerMissLabel = _overlayRoot.Q<Label>("player-miss-label");
             _playerDangerFill = _overlayRoot.Q<VisualElement>("player-danger-fill");
             _playerFlavorText = _overlayRoot.Q<Label>("player-flavor-text");
-            _playerHashMarks = _overlayRoot.Q<VisualElement>("player-hash-marks");
+            _playerStageLabel = _overlayRoot.Q<Label>("player-stage-label");
+            _playerStageTrack = _overlayRoot.Q<VisualElement>("player-stage-track");
+
+            // Cache player stage segments
+            _playerStageSegments.Clear();
+            if (_playerStageTrack != null)
+            {
+                for (int i = 1; i <= TOTAL_STAGES; i++)
+                {
+                    VisualElement segment = _playerStageTrack.Q<VisualElement>(className: $"segment-{i}");
+                    if (segment != null)
+                    {
+                        _playerStageSegments.Add(segment);
+                    }
+                }
+            }
 
             // Opponent elements
             _opponentPanel = _overlayRoot.Q<VisualElement>("guillotine-opponent");
@@ -169,12 +177,24 @@ namespace DLYH.TableUI
             _opponentMissLabel = _overlayRoot.Q<Label>("opponent-miss-label");
             _opponentDangerFill = _overlayRoot.Q<VisualElement>("opponent-danger-fill");
             _opponentFlavorText = _overlayRoot.Q<Label>("opponent-flavor-text");
-            _opponentHashMarks = _overlayRoot.Q<VisualElement>("opponent-hash-marks");
+            _opponentStageLabel = _overlayRoot.Q<Label>("opponent-stage-label");
+            _opponentStageTrack = _overlayRoot.Q<VisualElement>("opponent-stage-track");
+
+            // Cache opponent stage segments
+            _opponentStageSegments.Clear();
+            if (_opponentStageTrack != null)
+            {
+                for (int i = 1; i <= TOTAL_STAGES; i++)
+                {
+                    VisualElement segment = _opponentStageTrack.Q<VisualElement>(className: $"segment-{i}");
+                    if (segment != null)
+                    {
+                        _opponentStageSegments.Add(segment);
+                    }
+                }
+            }
         }
 
-        /// <summary>
-        /// Wire up click events.
-        /// </summary>
         private void WireEvents()
         {
             if (_closeButton != null)
@@ -226,9 +246,6 @@ namespace DLYH.TableUI
 
         #region Update Display
 
-        /// <summary>
-        /// Updates the player guillotine display.
-        /// </summary>
         private void UpdatePlayerDisplay()
         {
             if (_playerData == null) return;
@@ -236,7 +253,7 @@ namespace DLYH.TableUI
             // Name and color
             if (_playerNameLabel != null)
             {
-                _playerNameLabel.text = _playerData.Name ?? "You";
+                _playerNameLabel.text = _playerData.Name ?? "Player";
             }
             if (_playerColorBadge != null)
             {
@@ -247,43 +264,50 @@ namespace DLYH.TableUI
                 _playerHead.style.backgroundColor = _playerData.Color;
             }
 
-            // Miss counter
+            // Calculate stage and percentage
+            float percent = GetDangerPercent(_playerData);
+            int stage = GetStageFromPercent(percent);
+
+            // Miss counter text
             if (_playerMissLabel != null)
             {
                 _playerMissLabel.text = $"Misses: {_playerData.MissCount} / {_playerData.MissLimit}";
             }
 
+            // Stage label
+            if (_playerStageLabel != null)
+            {
+                _playerStageLabel.text = $"Stage {stage} / {TOTAL_STAGES}";
+                UpdateStageLabelClass(_playerStageLabel, stage);
+            }
+
             // Danger bar
-            float percent = GetDangerPercent(_playerData);
             if (_playerDangerFill != null)
             {
                 _playerDangerFill.style.width = new StyleLength(new Length(percent, LengthUnit.Percent));
                 UpdateDangerClass(_playerDangerFill, percent);
             }
 
-            // Blade position
-            UpdateBladePosition(_playerBladeGroup, percent);
+            // Stage segments (light up segments up to current stage)
+            UpdateStageSegments(_playerStageSegments, stage);
+
+            // Blade position (uses stage class)
+            UpdateBladePosition(_playerBladeGroup, stage);
 
             // Face expression
             if (_playerHeadFace != null)
             {
-                _playerHeadFace.text = GetFaceExpression(percent, false);
+                _playerHeadFace.text = GetFaceExpression(stage, false);
             }
 
             // Flavor text
             if (_playerFlavorText != null)
             {
-                _playerFlavorText.text = GetFlavorText(percent);
-                UpdateFlavorTextClass(_playerFlavorText, percent);
+                _playerFlavorText.text = GetFlavorText(stage);
+                UpdateFlavorTextClass(_playerFlavorText, stage);
             }
-
-            // Generate hash marks
-            GenerateHashMarks(_playerHashMarks, _playerData.MissLimit, _playerData.MissCount);
         }
 
-        /// <summary>
-        /// Updates the opponent guillotine display.
-        /// </summary>
         private void UpdateOpponentDisplay()
         {
             if (_opponentData == null) return;
@@ -302,38 +326,48 @@ namespace DLYH.TableUI
                 _opponentHead.style.backgroundColor = _opponentData.Color;
             }
 
-            // Miss counter
+            // Calculate stage and percentage
+            float percent = GetDangerPercent(_opponentData);
+            int stage = GetStageFromPercent(percent);
+
+            // Miss counter text
             if (_opponentMissLabel != null)
             {
                 _opponentMissLabel.text = $"Misses: {_opponentData.MissCount} / {_opponentData.MissLimit}";
             }
 
+            // Stage label
+            if (_opponentStageLabel != null)
+            {
+                _opponentStageLabel.text = $"Stage {stage} / {TOTAL_STAGES}";
+                UpdateStageLabelClass(_opponentStageLabel, stage);
+            }
+
             // Danger bar
-            float percent = GetDangerPercent(_opponentData);
             if (_opponentDangerFill != null)
             {
                 _opponentDangerFill.style.width = new StyleLength(new Length(percent, LengthUnit.Percent));
                 UpdateDangerClass(_opponentDangerFill, percent);
             }
 
-            // Blade position
-            UpdateBladePosition(_opponentBladeGroup, percent);
+            // Stage segments (light up segments up to current stage)
+            UpdateStageSegments(_opponentStageSegments, stage);
+
+            // Blade position (uses stage class)
+            UpdateBladePosition(_opponentBladeGroup, stage);
 
             // Face expression
             if (_opponentHeadFace != null)
             {
-                _opponentHeadFace.text = GetFaceExpression(percent, true);
+                _opponentHeadFace.text = GetFaceExpression(stage, true);
             }
 
             // Flavor text
             if (_opponentFlavorText != null)
             {
-                _opponentFlavorText.text = GetFlavorText(percent);
-                UpdateFlavorTextClass(_opponentFlavorText, percent);
+                _opponentFlavorText.text = GetFlavorText(stage);
+                UpdateFlavorTextClass(_opponentFlavorText, stage);
             }
-
-            // Generate hash marks
-            GenerateHashMarks(_opponentHashMarks, _opponentData.MissLimit, _opponentData.MissCount);
         }
 
         /// <summary>
@@ -361,6 +395,51 @@ namespace DLYH.TableUI
             return Mathf.Clamp01((float)data.MissCount / data.MissLimit) * 100f;
         }
 
+        /// <summary>
+        /// Converts a danger percentage to a stage number (1-5).
+        /// Stage 1: 0-20%, Stage 2: 20-40%, Stage 3: 40-60%, Stage 4: 60-80%, Stage 5: 80-100%
+        /// </summary>
+        private int GetStageFromPercent(float percent)
+        {
+            if (percent >= 80f) return 5;
+            if (percent >= 60f) return 4;
+            if (percent >= 40f) return 3;
+            if (percent >= 20f) return 2;
+            return 1;
+        }
+
+        private void UpdateStageSegments(List<VisualElement> segments, int currentStage)
+        {
+            for (int i = 0; i < segments.Count; i++)
+            {
+                VisualElement segment = segments[i];
+                int segmentStage = i + 1;
+
+                if (segmentStage <= currentStage)
+                {
+                    segment.AddToClassList("active");
+                }
+                else
+                {
+                    segment.RemoveFromClassList("active");
+                }
+            }
+        }
+
+        private void UpdateBladePosition(VisualElement bladeGroup, int stage)
+        {
+            if (bladeGroup == null) return;
+
+            // Remove all stage classes
+            for (int i = 1; i <= TOTAL_STAGES; i++)
+            {
+                bladeGroup.RemoveFromClassList($"stage-{i}");
+            }
+
+            // Add current stage class
+            bladeGroup.AddToClassList($"stage-{stage}");
+        }
+
         private void UpdateDangerClass(VisualElement fillBar, float percent)
         {
             fillBar.RemoveFromClassList("danger-low");
@@ -368,15 +447,15 @@ namespace DLYH.TableUI
             fillBar.RemoveFromClassList("danger-high");
             fillBar.RemoveFromClassList("danger-critical");
 
-            if (percent >= 95)
+            if (percent >= 80)
             {
                 fillBar.AddToClassList("danger-critical");
             }
-            else if (percent >= 80)
+            else if (percent >= 60)
             {
                 fillBar.AddToClassList("danger-high");
             }
-            else if (percent >= 50)
+            else if (percent >= 40)
             {
                 fillBar.AddToClassList("danger-medium");
             }
@@ -386,100 +465,68 @@ namespace DLYH.TableUI
             }
         }
 
-        private void UpdateBladePosition(VisualElement bladeGroup, float dangerPercent)
+        private void UpdateStageLabelClass(Label label, int stage)
         {
-            if (bladeGroup == null) return;
+            label.RemoveFromClassList("danger");
+            label.RemoveFromClassList("critical");
 
-            // Blade starts at top (0%) and moves down as danger increases
-            // Map danger percent to blade position (0-75% of container height)
-            float bladePercent = Mathf.Lerp(BLADE_TOP_PERCENT, BLADE_BOTTOM_PERCENT, dangerPercent / 100f);
-            bladeGroup.style.top = new StyleLength(new Length(bladePercent, LengthUnit.Percent));
+            if (stage >= 5)
+            {
+                label.AddToClassList("critical");
+            }
+            else if (stage >= 4)
+            {
+                label.AddToClassList("danger");
+            }
         }
 
-        private string GetFaceExpression(float dangerPercent, bool isOpponent)
+        private string GetFaceExpression(int stage, bool isOpponent)
         {
             // For opponent, we're happy when they're in danger
             if (isOpponent)
             {
-                if (dangerPercent >= 95) return FACE_EVIL;
-                if (dangerPercent >= 80) return FACE_HAPPY;
-                if (dangerPercent >= 50) return FACE_NEUTRAL;
-                return FACE_WORRIED;
+                switch (stage)
+                {
+                    case 5: return FACE_EVIL;
+                    case 4: return FACE_HAPPY;
+                    case 3: return FACE_NEUTRAL;
+                    case 2: return FACE_WORRIED;
+                    default: return FACE_WORRIED;
+                }
             }
             else
             {
                 // For player, we're scared when in danger
-                if (dangerPercent >= 95) return FACE_HORROR;
-                if (dangerPercent >= 80) return FACE_SCARED;
-                if (dangerPercent >= 50) return FACE_WORRIED;
-                return FACE_NEUTRAL;
+                switch (stage)
+                {
+                    case 5: return FACE_HORROR;
+                    case 4: return FACE_SCARED;
+                    case 3: return FACE_WORRIED;
+                    case 2: return FACE_NEUTRAL;
+                    default: return FACE_NEUTRAL;
+                }
             }
         }
 
-        private string GetFlavorText(float dangerPercent)
+        private string GetFlavorText(int stage)
         {
-            string[] pool;
-            if (dangerPercent >= 95)
-            {
-                pool = FLAVOR_CRITICAL;
-            }
-            else if (dangerPercent >= 80)
-            {
-                pool = FLAVOR_DANGER;
-            }
-            else if (dangerPercent >= 50)
-            {
-                pool = FLAVOR_WARM;
-            }
-            else
-            {
-                pool = FLAVOR_SAFE;
-            }
-
+            int index = Mathf.Clamp(stage - 1, 0, STAGE_FLAVOR.Length - 1);
+            string[] pool = STAGE_FLAVOR[index];
             return pool[UnityEngine.Random.Range(0, pool.Length)];
         }
 
-        private void UpdateFlavorTextClass(Label label, float percent)
+        private void UpdateFlavorTextClass(Label label, int stage)
         {
             label.RemoveFromClassList("in-danger");
             label.RemoveFromClassList("critical");
 
-            if (percent >= 80)
+            if (stage >= 5)
             {
                 label.AddToClassList("critical");
             }
-            else if (percent >= 50)
+            else if (stage >= 4)
             {
                 label.AddToClassList("in-danger");
-            }
-        }
-
-        private void GenerateHashMarks(VisualElement container, int missLimit, int currentMisses)
-        {
-            if (container == null || missLimit <= 0) return;
-
-            container.Clear();
-
-            // Generate hash marks evenly distributed
-            float containerHeight = 100f; // Percentage
-            float spacing = containerHeight / missLimit;
-
-            for (int i = 1; i <= missLimit; i++)
-            {
-                VisualElement mark = new VisualElement();
-                mark.AddToClassList("hash-mark");
-
-                // Position from bottom (i * spacing)
-                float yPercent = i * spacing;
-                mark.style.bottom = new StyleLength(new Length(yPercent, LengthUnit.Percent));
-
-                // Highlight marks that have been "passed" by current miss count
-                if (i <= currentMisses)
-                {
-                    mark.style.backgroundColor = new Color(0.5f, 0.3f, 0.2f);
-                }
-
-                container.Add(mark);
             }
         }
 
@@ -511,7 +558,7 @@ namespace DLYH.TableUI
                 _opponentPanel?.AddToClassList("loser");
                 _opponentPanel?.RemoveFromClassList("winner");
 
-                // Opponent's head falls
+                // Opponent's blade drops, head falls
                 _opponentBladeGroup?.AddToClassList("dropped");
                 _opponentHead?.AddToClassList("in-basket");
             }
@@ -522,7 +569,7 @@ namespace DLYH.TableUI
                 _opponentPanel?.AddToClassList("winner");
                 _opponentPanel?.RemoveFromClassList("loser");
 
-                // Player's head falls
+                // Player's blade drops, head falls
                 _playerBladeGroup?.AddToClassList("dropped");
                 _playerHead?.AddToClassList("in-basket");
             }
@@ -530,7 +577,7 @@ namespace DLYH.TableUI
             // Update face expressions for game over
             if (playerWon)
             {
-                if (_playerHeadFace != null) _playerHeadFace.text = FACE_EVIL;
+                if (_playerHeadFace != null) _playerHeadFace.text = FACE_HAPPY;
                 if (_opponentHeadFace != null) _opponentHeadFace.text = FACE_HORROR;
             }
             else
@@ -555,6 +602,22 @@ namespace DLYH.TableUI
             _opponentBladeGroup?.RemoveFromClassList("dropped");
             _opponentHead?.RemoveFromClassList("in-basket");
 
+            // Remove all stage classes from blade groups
+            if (_playerBladeGroup != null)
+            {
+                for (int i = 1; i <= TOTAL_STAGES; i++)
+                {
+                    _playerBladeGroup.RemoveFromClassList($"stage-{i}");
+                }
+            }
+            if (_opponentBladeGroup != null)
+            {
+                for (int i = 1; i <= TOTAL_STAGES; i++)
+                {
+                    _opponentBladeGroup.RemoveFromClassList($"stage-{i}");
+                }
+            }
+
             if (_titleLabel != null)
             {
                 _titleLabel.text = "Danger Status";
@@ -574,6 +637,9 @@ namespace DLYH.TableUI
             {
                 _closeButton.clicked -= Hide;
             }
+
+            _playerStageSegments.Clear();
+            _opponentStageSegments.Clear();
         }
 
         #endregion

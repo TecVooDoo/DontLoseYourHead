@@ -170,8 +170,12 @@ namespace DLYH.TableUI
                     return CellFog;
 
                 case TableCellState.Revealed:
+                    // Coordinate hit but letter not yet guessed - yellow
+                    return SystemYellow;
+
                 case TableCellState.Miss:
-                    return CellMiss;
+                    // Coordinate miss (no letter at this position) - red
+                    return SystemRed;
 
                 case TableCellState.Hit:
                     return GetOwnerColor(owner, player1Color, player2Color);

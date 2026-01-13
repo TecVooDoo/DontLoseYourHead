@@ -4,8 +4,8 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 38
-**Last Updated:** January 12, 2026
+**Document Version:** 40
+**Last Updated:** January 13, 2026
 
 ---
 
@@ -15,9 +15,9 @@
 
 **Key Innovation:** Asymmetric difficulty - mixed-skill players compete fairly with different grid sizes, word counts, and difficulty settings.
 
-**Current Phase:** Phase D IN PROGRESS - Guillotine visual redesign complete, needs testing!
+**Current Phase:** Phase D IN PROGRESS - Gameplay guess logic working, word display with underscores implemented!
 
-**Last Session (Jan 12, 2026):** Twenty-eighth session - **Guillotine Visual Redesign & Bug Fixes!** Fixed gameplay hamburger button (renamed CSS class to `.gameplay-hamburger-button` to avoid conflict with shared HamburgerMenu styles). Fixed miss count discrepancy between cards and overlay (now reads from GameplayScreenManager data via new PlayerData/OpponentData getters). Completely redesigned guillotine visual: taller blade (60px) with wood holder on top, oval lunette with horizontal divider line, proper z-ordering (hash marks → blade → posts → lunette → head → basket), transparent hash marks container for blade visibility. Guillotine height increased to 420px.
+**Last Session (Jan 13, 2026):** Thirtieth session - **Gameplay Guess Logic & Word Display!** Fixed grid/keyboard color state logic for coordinate vs letter guessing. Implemented dual-state tracking: grid cells (Fog → Yellow → Player Color), keyboard (Default → Yellow → Player Color). Red for misses working. Added "WORDS TO FIND" section showing opponent's words as underscores that reveal letters when guessed. Letter guessing now reveals letters in word rows with player color highlighting.
 
 **TODO for next session:**
 
@@ -48,9 +48,15 @@
 - [x] Fix gameplay hamburger button click area (renamed class to avoid CSS conflict)
 - [x] Fix miss count sync between cards and guillotine overlay
 - [x] Redesign guillotine visual (blade with holder, oval lunette with divider, proper z-order)
-- [ ] **NEEDS TESTING:** Guillotine blade visibility through hash marks
-- [ ] Wire existing TableView to gameplay grid area
-- [ ] Connect GuessProcessingManager for letter/coordinate guesses
+- [x] Fix miss limit calculation bug (was using wrong formula, now uses DifficultyCalculator)
+- [x] Redesign guillotine to 5-stage system (no more per-miss hash marks)
+- [x] Fix grid cell state logic (coordinate vs letter guessing)
+- [x] Fix keyboard letter state colors (red miss, yellow found, player color hit)
+- [x] Implement "WORDS TO FIND" section with underscores and letter reveal
+- [ ] **NEEDS TESTING:** Guillotine 5-stage visual and blade positions
+- [ ] Implement turn switching after guesses
+- [ ] Add AI opponent turn logic
+- [ ] Add win/lose detection
 
 **Phase E (Networking - batch together, requires C: drive copy):**
 - Wire up Join Code submit to actual networking code
@@ -1374,6 +1380,8 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 40 | Jan 13, 2026 | Thirtieth session - **Gameplay Guess Logic & Word Display!** Fixed grid/keyboard color state logic: grid cells (Fog → Yellow/Revealed → Player Color/Hit), keyboard letters (Default → Yellow/Found → Player Color/Hit), red for misses. Added "WORDS TO FIND" section showing opponent words as underscores. Letter hits reveal in word rows with player color. Added SetWordForGameplay, RevealLetter, RevealAllOccurrences to WordRowView. Added SetWordsForGameplay, RevealLetterInAllWords to WordRowsContainer. |
+| 39 | Jan 13, 2026 | Twenty-ninth session - **Miss Limit Bug Fix & 5-Stage Guillotine!** Fixed critical miss limit bug in UIFlowController (was using wrong formula giving 101 misses, now uses DifficultyCalculator with correct 10-40 clamped range). Completely redesigned guillotine from per-miss hash marks to 5-stage system: blade moves only at 20/40/60/80/100% thresholds, 5-segment indicator track with color coding (green->yellow->orange->red), much cleaner visual. Smaller overlay (520x520 from 580x640), simpler guillotine (280px from 420px). |
 | 38 | Jan 12, 2026 | Twenty-eighth session - **Guillotine Visual Redesign!** Fixed hamburger button click area (renamed CSS class to avoid conflict). Fixed miss count sync between cards and overlay (added PlayerData/OpponentData getters). Redesigned guillotine: blade-group with wood holder, oval lunette with divider, transparent hash marks, proper z-ordering. Height increased to 420px. Needs testing: blade visibility through hash marks. |
 | 37 | Jan 11, 2026 | Twenty-seventh session - **Phase D Testing & Bug Fixes!** Fixed multiple gameplay UI issues: header bar hamburger button overlap (CSS layout with flex-shrink, explicit sizing), guillotine overlay positioning (absolute positioning + pickingMode.Ignore), enlarged guillotine visual to 300px height. Implemented separate guessed words lists for player vs opponent. Wired QWERTY toggle to update gameplay keyboard. Fixed overlay panels blocking clicks with pickingMode handling. **Still needs testing:** hamburger click area, guillotine overlay, separate counts. |
 | 36 | Jan 11, 2026 | Twenty-sixth session - **Phase D Implementation Started!** Created all core gameplay UI files: Gameplay.uxml/uss (main layout with tabs, grid area, word rows, keyboard), GuillotineOverlay.uxml/uss (modal with blade positions and game over states), GameplayScreenManager.cs (~650 lines), GuillotineOverlayManager.cs (~450 lines). Updated UIFlowController with TransitionToGameplay(), CreateGameplayScreen(), and all event wiring. Ready button now transitions from setup wizard to gameplay screen. |
@@ -1417,51 +1425,50 @@ After each work session, update this document:
 
 ## Next Session Instructions
 
-**Starting Point:** This document (DLYH_Status.md v38)
+**Starting Point:** This document (DLYH_Status.md v40)
 
 **Scene to Use:** NewUIScene.unity (for UI Toolkit work - Phase D)
 
 **Current State:**
 - Phase A & B COMPLETE - table data model and UI Toolkit renderer working
 - Phase C COMPLETE - Setup wizard fully functional with all polish
-- Phase D IN PROGRESS - Core files created, guillotine visual redesigned, needs testing
+- Phase D IN PROGRESS - Gameplay guess logic working, word display with underscores implemented
 
 **Files Modified This Session:**
-- `Gameplay.uss` - Renamed hamburger button class to `.gameplay-hamburger-button` to avoid CSS conflict with shared HamburgerMenu.uss
-- `Gameplay.uxml` - Updated hamburger button to use nested Label with new class names
-- `GuillotineOverlay.uss` - Redesigned guillotine visual: blade-group (60px with blade-holder + blade), oval lunette with divider, transparent hash marks, proper z-order. **DEBUG COLORS ACTIVE:** blade=bright blue, blade-holder=cyan, hash-marks=magenta
-- `GuillotineOverlay.uxml` - Restructured z-order: hash marks -> blade group -> posts -> lunette -> head -> basket. Added lunette-divider element.
-- `GameplayScreenManager.cs` - Added PlayerData/OpponentData public getters for guillotine overlay sync
-- `GuillotineOverlayManager.cs` - Adjusted blade position constants (7% top, 66% bottom)
-- `UIFlowController.cs` - Updated ShowGuillotineOverlay() to read real miss counts from GameplayScreenManager
+- `UIFlowController.cs` - Added SetupGameplayWordRows(), updated HandleLetterHit() to reveal letters in word rows, added _attackWordRows field, added debug logging for coordinate hit logic
+- `GameplayScreenManager.cs` - Fixed MarkLetterHit() to remove "letter-found" class and convert to uppercase, added debug logging
+- `WordRowView.cs` - Added gameplay display methods: SetWordForGameplay(), RevealLetter(), RevealAllOccurrences(), IsFullyRevealed(), ActualWord property
+- `WordRowsContainer.cs` - Added gameplay methods: SetWordsForGameplay(), RevealLetterInAllWords(), RevealLetterAt(), AreAllWordsRevealed(), GetActualWord(), GetAllActualWords()
 
-**Debug Colors (TEMPORARY for testing):**
-- **Blade:** Bright blue (rgb(50, 100, 255))
-- **Blade holder:** Bright cyan (rgb(0, 200, 200))
-- **Hash marks:** Bright magenta (rgb(200, 50, 200))
-- These should be reverted to production colors after debugging: blade=silver gradient, blade-holder=wood brown (90, 60, 40), hash-marks=dark brown (60, 45, 30)
+**Key Changes:**
+1. **Grid Cell State Logic Fixed:**
+   - Fog (gray) → Revealed/Yellow (coordinate hit, letter unknown) → Hit/Player Color (both known)
+   - Miss = Red (coordinate guessed, no letter there)
+2. **Keyboard Letter State Logic Fixed:**
+   - Default → Found/Yellow (letter hit, no coordinate known) → Hit/Player Color (both known)
+   - Miss = Red (letter not in any word)
+3. **"WORDS TO FIND" Section Implemented:**
+   - Shows opponent's words as underscores initially (e.g., `_ _ _ _ _ _`)
+   - Letter guesses reveal letters in word rows with player color
+   - Uses WordRowsContainer in gameplay mode
+
+**Gameplay State Tracking Rules:**
+- Grid: Clicking coordinate → Yellow if hit (letter unknown), Red if miss
+- Grid: Guessing letter → Upgrades Yellow cells to Player Color (if letter matches)
+- Keyboard: Guessing letter → Yellow if hit (no coordinate known yet), Red if miss
+- Keyboard: Upgrades to Player Color when both letter AND coordinate are known
+- Word Rows: Letter guesses reveal that letter in all words with player color
 
 **Priority Tasks for Next Session:**
-1. **TEST guillotine visual** - Check blade/holder/hash visibility with debug colors
-2. **Fix any remaining guillotine issues** based on testing
-3. **Revert debug colors** once layout is confirmed correct
-4. Wire existing TableView to gameplay grid area
-5. Connect letter keyboard to GuessProcessingManager
-6. Connect grid cell clicks to coordinate guessing
-7. Wire miss counter updates to GameplayStateTracker
-
-**UIFlowController Inspector Setup (if not already done):**
-- Assign `_gameplayUxml` = Gameplay.uxml
-- Assign `_guillotineOverlayUxml` = GuillotineOverlay.uxml
-- Assign `_gameplayUss` = Gameplay.uss
-- Assign `_guillotineOverlayUss` = GuillotineOverlay.uss
+1. **TEST word display** - Verify underscores show initially, letters reveal on hit
+2. **TEST guillotine 5-stage visual** - Verify blade positions, segment colors, stage labels
+3. Implement turn switching after guesses
+4. Add AI opponent turn logic (use existing OpponentTurnManager)
+5. Add win/lose detection (AreAllWordsRevealed() for win, miss limit for lose)
 
 **Existing Systems to Wire (DO NOT REBUILD):**
-- `GuessProcessingManager` - Guess validation and processing
+- `OpponentTurnManager` - AI turn execution (needs wiring)
 - `GameplayStateTracker` - State tracking (misses, letters, coordinates)
-- `OpponentTurnManager` - AI turn execution
-- `TableView` / `TableModel` - Reuse for grid rendering
-- `WordRowView` - Reuse for word progress display
 
 **Deferred to Phase E (requires C: drive copy for networking):**
 - Wire Join Code submit to networking code
