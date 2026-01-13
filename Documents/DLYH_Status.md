@@ -1460,7 +1460,7 @@ After each work session, update this document:
 - Word Rows: Letter guesses reveal that letter in all words with player color
 
 **Priority Tasks for Next Session:**
-1. **TEST word display** - Verify underscores show initially, letters reveal on hit
+1. **FIX keyboard letter color bug** - Letters with only ONE grid position stay yellow instead of player color after letter guess. Fix: In HandleLetterHit, upgrade keyboard to Hit (player color) when word rows reveal letters, not just when grid cells are upgraded. The word rows are the definitive source of "letter is known".
 2. **TEST guillotine 5-stage visual** - Verify blade positions, segment colors, stage labels
 3. Implement turn switching after guesses
 4. Add AI opponent turn logic (use existing OpponentTurnManager)
