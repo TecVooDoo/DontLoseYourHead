@@ -6,7 +6,9 @@
 
         <!-- Header Bar -->
         <ui:VisualElement name="header-bar" class="header-bar">
-            <ui:Button name="btn-hamburger" text="&#9776;" class="hamburger-button" />
+            <ui:Button name="btn-hamburger" class="gameplay-hamburger-button">
+                <ui:Label text="&#9776;" class="gameplay-hamburger-icon" />
+            </ui:Button>
             <ui:Label name="turn-indicator" text="YOUR TURN" class="turn-indicator" />
             <ui:VisualElement class="header-spacer" />
         </ui:VisualElement>

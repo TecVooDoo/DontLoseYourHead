@@ -4,8 +4,8 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 37
-**Last Updated:** January 11, 2026
+**Document Version:** 38
+**Last Updated:** January 12, 2026
 
 ---
 
@@ -15,9 +15,9 @@
 
 **Key Innovation:** Asymmetric difficulty - mixed-skill players compete fairly with different grid sizes, word counts, and difficulty settings.
 
-**Current Phase:** Phase D IN PROGRESS - Core UI files created, wiring in progress!
+**Current Phase:** Phase D IN PROGRESS - Guillotine visual redesign complete, needs testing!
 
-**Last Session (Jan 11, 2026):** Twenty-seventh session - **Phase D Testing & Bug Fixes!** Fixed gameplay screen UI issues: header bar overlap with hamburger button (CSS layout fixes), guillotine overlay positioning and sizing (increased to 300px visual height), guessed words panel showing separate counts for player/opponent, QWERTY toggle updating gameplay keyboard. Fixed pickingMode issues for overlays blocking clicks. **STILL NEEDS TESTING** - hamburger button click area, guillotine overlay display, separate guessed words counts.
+**Last Session (Jan 12, 2026):** Twenty-eighth session - **Guillotine Visual Redesign & Bug Fixes!** Fixed gameplay hamburger button (renamed CSS class to `.gameplay-hamburger-button` to avoid conflict with shared HamburgerMenu styles). Fixed miss count discrepancy between cards and overlay (now reads from GameplayScreenManager data via new PlayerData/OpponentData getters). Completely redesigned guillotine visual: taller blade (60px) with wood holder on top, oval lunette with horizontal divider line, proper z-ordering (hash marks → blade → posts → lunette → head → basket), transparent hash marks container for blade visibility. Guillotine height increased to 420px.
 
 **TODO for next session:**
 
@@ -45,9 +45,10 @@
 - [x] Implement separate guessed words lists (player vs opponent)
 - [x] Wire QWERTY toggle to update gameplay keyboard
 - [x] Fix overlay click-through issues (pickingMode.Ignore when hidden)
-- [ ] **NEEDS TESTING:** Hamburger button click area and vertical centering
-- [ ] **NEEDS TESTING:** Guillotine overlay display at 300px height
-- [ ] **NEEDS TESTING:** Guessed words separate counts display
+- [x] Fix gameplay hamburger button click area (renamed class to avoid CSS conflict)
+- [x] Fix miss count sync between cards and guillotine overlay
+- [x] Redesign guillotine visual (blade with holder, oval lunette with divider, proper z-order)
+- [ ] **NEEDS TESTING:** Guillotine blade visibility through hash marks
 - [ ] Wire existing TableView to gameplay grid area
 - [ ] Connect GuessProcessingManager for letter/coordinate guesses
 
@@ -1373,6 +1374,7 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 38 | Jan 12, 2026 | Twenty-eighth session - **Guillotine Visual Redesign!** Fixed hamburger button click area (renamed CSS class to avoid conflict). Fixed miss count sync between cards and overlay (added PlayerData/OpponentData getters). Redesigned guillotine: blade-group with wood holder, oval lunette with divider, transparent hash marks, proper z-ordering. Height increased to 420px. Needs testing: blade visibility through hash marks. |
 | 37 | Jan 11, 2026 | Twenty-seventh session - **Phase D Testing & Bug Fixes!** Fixed multiple gameplay UI issues: header bar hamburger button overlap (CSS layout with flex-shrink, explicit sizing), guillotine overlay positioning (absolute positioning + pickingMode.Ignore), enlarged guillotine visual to 300px height. Implemented separate guessed words lists for player vs opponent. Wired QWERTY toggle to update gameplay keyboard. Fixed overlay panels blocking clicks with pickingMode handling. **Still needs testing:** hamburger click area, guillotine overlay, separate counts. |
 | 36 | Jan 11, 2026 | Twenty-sixth session - **Phase D Implementation Started!** Created all core gameplay UI files: Gameplay.uxml/uss (main layout with tabs, grid area, word rows, keyboard), GuillotineOverlay.uxml/uss (modal with blade positions and game over states), GameplayScreenManager.cs (~650 lines), GuillotineOverlayManager.cs (~450 lines). Updated UIFlowController with TransitionToGameplay(), CreateGameplayScreen(), and all event wiring. Ready button now transitions from setup wizard to gameplay screen. |
 | 35 | Jan 11, 2026 | Twenty-fifth session - **Phase D Design Complete!** Analyzed legacy gameplay UI (GameplayUIController, PlayerGridPanel, GridCellUI). Designed new focused single-grid layout with Attack/Defend tab switching. Event-based guillotine overlay (miss counter buttons are tappable). Larger 3-row letter keyboard (reuse setup layout). Asymmetric difficulty display in tabs. Game end sequence with dramatic guillotine animation. |
@@ -1415,36 +1417,38 @@ After each work session, update this document:
 
 ## Next Session Instructions
 
-**Starting Point:** This document (DLYH_Status.md v37)
+**Starting Point:** This document (DLYH_Status.md v38)
 
 **Scene to Use:** NewUIScene.unity (for UI Toolkit work - Phase D)
 
 **Current State:**
 - Phase A & B COMPLETE - table data model and UI Toolkit renderer working
 - Phase C COMPLETE - Setup wizard fully functional with all polish
-- Phase D IN PROGRESS - Core files created, bug fixes applied, needs testing
+- Phase D IN PROGRESS - Core files created, guillotine visual redesigned, needs testing
 
 **Files Modified This Session:**
-- `Gameplay.uss` - Fixed header bar layout, hamburger button sizing (36x36px with constraints)
-- `Gameplay.uxml` - Added separate guessed words sections (Your Guesses / Opponent's Guesses)
-- `GuillotineOverlay.uss` - Enlarged overlay (520px min-height, 300px guillotine visual, 270px posts)
-- `UIFlowController.cs` - Fixed overlay positioning with absolute position + pickingMode.Ignore, hide shared hamburger on gameplay, QWERTY toggle refreshes gameplay keyboard
-- `GameplayScreenManager.cs` - Separate guessed words lists, pickingMode handling for panels, UpdateGuessedWordsButton on Initialize
+- `Gameplay.uss` - Renamed hamburger button class to `.gameplay-hamburger-button` to avoid CSS conflict with shared HamburgerMenu.uss
+- `Gameplay.uxml` - Updated hamburger button to use nested Label with new class names
+- `GuillotineOverlay.uss` - Redesigned guillotine visual: blade-group (60px with blade-holder + blade), oval lunette with divider, transparent hash marks, proper z-order. **DEBUG COLORS ACTIVE:** blade=bright blue, blade-holder=cyan, hash-marks=magenta
+- `GuillotineOverlay.uxml` - Restructured z-order: hash marks -> blade group -> posts -> lunette -> head -> basket. Added lunette-divider element.
+- `GameplayScreenManager.cs` - Added PlayerData/OpponentData public getters for guillotine overlay sync
+- `GuillotineOverlayManager.cs` - Adjusted blade position constants (7% top, 66% bottom)
+- `UIFlowController.cs` - Updated ShowGuillotineOverlay() to read real miss counts from GameplayScreenManager
 
-**Fixes Applied (STILL NEED TESTING):**
-1. **Hamburger button layout** - Explicit 36x36px sizing with min/max constraints, flex-shrink: 0, centered vertically with align-items: center on header bar
-2. **Guillotine overlay** - Positioned with absolute top/left/right/bottom: 0, pickingMode.Ignore on container so clicks pass through when not interacting with overlay
-3. **Guessed words separate counts** - Button shows "Guessed Words: You (X) | Opponent (Y)", panel has two sections with separate lists
-4. **Overlay click-through** - guessed-words-panel uses pickingMode.Ignore when hidden, pickingMode.Position when shown
-5. **QWERTY toggle** - RefreshKeyboardIfNeeded() now also calls _gameplayManager.SetQwertyLayout()
+**Debug Colors (TEMPORARY for testing):**
+- **Blade:** Bright blue (rgb(50, 100, 255))
+- **Blade holder:** Bright cyan (rgb(0, 200, 200))
+- **Hash marks:** Bright magenta (rgb(200, 50, 200))
+- These should be reverted to production colors after debugging: blade=silver gradient, blade-holder=wood brown (90, 60, 40), hash-marks=dark brown (60, 45, 30)
 
 **Priority Tasks for Next Session:**
-1. **TEST the fixes** - Verify hamburger click area works, guillotine displays at 300px, counts show separately
-2. If hamburger still has issues, may need to reconsider header layout approach
-3. Wire existing TableView to gameplay grid area
-4. Connect letter keyboard to GuessProcessingManager
-5. Connect grid cell clicks to coordinate guessing
-6. Wire miss counter updates to GameplayStateTracker
+1. **TEST guillotine visual** - Check blade/holder/hash visibility with debug colors
+2. **Fix any remaining guillotine issues** based on testing
+3. **Revert debug colors** once layout is confirmed correct
+4. Wire existing TableView to gameplay grid area
+5. Connect letter keyboard to GuessProcessingManager
+6. Connect grid cell clicks to coordinate guessing
+7. Wire miss counter updates to GameplayStateTracker
 
 **UIFlowController Inspector Setup (if not already done):**
 - Assign `_gameplayUxml` = Gameplay.uxml

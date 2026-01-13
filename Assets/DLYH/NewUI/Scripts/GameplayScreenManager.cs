@@ -486,6 +486,16 @@ namespace DLYH.TableUI
         #region Player Data
 
         /// <summary>
+        /// Gets the current player data (for guillotine overlay sync).
+        /// </summary>
+        public PlayerTabData PlayerData => _playerData;
+
+        /// <summary>
+        /// Gets the current opponent data (for guillotine overlay sync).
+        /// </summary>
+        public PlayerTabData OpponentData => _opponentData;
+
+        /// <summary>
         /// Sets the player and opponent data for the tabs.
         /// </summary>
         public void SetPlayerData(PlayerTabData playerData, PlayerTabData opponentData)

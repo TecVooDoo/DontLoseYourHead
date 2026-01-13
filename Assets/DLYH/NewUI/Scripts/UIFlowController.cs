@@ -692,22 +692,26 @@ namespace DLYH.TableUI
         {
             if (_guillotineOverlayManager == null) return;
 
-            // Create data from current state
+            // Get data from GameplayScreenManager
+            PlayerTabData playerTabData = _gameplayManager?.PlayerData;
+            PlayerTabData opponentTabData = _gameplayManager?.OpponentData;
+
+            // Create guillotine data from player tab data
             GuillotineData playerData = new GuillotineData
             {
-                Name = "You",
-                Color = _wizardManager?.PlayerColor ?? ColorRules.SelectableColors[0],
-                MissCount = 0, // TODO: Get from GameplayStateTracker
-                MissLimit = 20, // TODO: Get from GameplayStateTracker
+                Name = playerTabData?.Name ?? "You",
+                Color = playerTabData?.Color ?? _wizardManager?.PlayerColor ?? ColorRules.SelectableColors[0],
+                MissCount = playerTabData?.MissCount ?? 0,
+                MissLimit = playerTabData?.MissLimit ?? 20,
                 IsLocalPlayer = true
             };
 
             GuillotineData opponentData = new GuillotineData
             {
-                Name = "EXECUTIONER",
-                Color = ColorRules.SelectableColors[1],
-                MissCount = 0, // TODO: Get from GameplayStateTracker
-                MissLimit = 18, // TODO: Get from GameplayStateTracker
+                Name = opponentTabData?.Name ?? "EXECUTIONER",
+                Color = opponentTabData?.Color ?? ColorRules.SelectableColors[1],
+                MissCount = opponentTabData?.MissCount ?? 0,
+                MissLimit = opponentTabData?.MissLimit ?? 18,
                 IsLocalPlayer = false
             };
 

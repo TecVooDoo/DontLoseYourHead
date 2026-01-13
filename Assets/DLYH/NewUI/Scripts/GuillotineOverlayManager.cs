@@ -60,9 +60,11 @@ namespace DLYH.TableUI
         private GuillotineData _playerData;
         private GuillotineData _opponentData;
 
-        // Constants for blade position (percentage of travel from top to bottom)
-        private const float BLADE_TOP_PERCENT = 0f;
-        private const float BLADE_BOTTOM_PERCENT = 75f;
+        // Constants for blade position (percentage of container height)
+        // Top is just below beam (~7%), bottom positions blade tip at lunette top (~66%)
+        // Blade group is 60px tall (14% of 420px), lunette top at ~80% from top
+        private const float BLADE_TOP_PERCENT = 7f;
+        private const float BLADE_BOTTOM_PERCENT = 66f;
 
         // Face expressions based on danger level
         private static readonly string FACE_HAPPY = ":-)";
