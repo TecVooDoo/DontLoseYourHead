@@ -85,6 +85,8 @@
 
 .player-tab {
     flex-grow: 1;
+    flex-basis: 0;
+    width: 50%;
     padding: 10px 12px;
     margin: 0 4px;
     background-color: rgb(32, 32, 40);

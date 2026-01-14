@@ -86,6 +86,13 @@ namespace DLYH.TableUI
         private HashSet<char> _hitLetters = new HashSet<char>();
         private HashSet<char> _missLetters = new HashSet<char>();
 
+        // Opponent keyboard state (shown on Defend tab)
+        private HashSet<char> _opponentHitLetters = new HashSet<char>();
+        private HashSet<char> _opponentMissLetters = new HashSet<char>();
+
+        // Tab switching control
+        private bool _allowManualTabSwitch = true;
+
         // Status bar
         private Label _statusMessage;
 
@@ -357,9 +364,13 @@ namespace DLYH.TableUI
 
         /// <summary>
         /// Handles letter key click.
+        /// Only allows clicks when on Attack tab (player's keyboard is interactive).
         /// </summary>
         private void HandleLetterKeyClick(char letter)
         {
+            // Only allow keyboard clicks when on Attack tab
+            if (!_isAttackTabActive) return;
+
             OnLetterKeyClicked?.Invoke(letter);
         }
 
@@ -504,9 +515,13 @@ namespace DLYH.TableUI
 
         /// <summary>
         /// Selects the Attack tab (opponent's grid).
+        /// Called by UI click or auto-switch on turn change.
         /// </summary>
-        public void SelectAttackTab()
+        /// <param name="isAutoSwitch">True if called by turn system, false if user clicked</param>
+        public void SelectAttackTab(bool isAutoSwitch = false)
         {
+            // Block manual switching if not allowed
+            if (!isAutoSwitch && !_allowManualTabSwitch) return;
             if (_isAttackTabActive) return;
 
             _isAttackTabActive = true;
@@ -524,14 +539,21 @@ namespace DLYH.TableUI
             // Switch word rows
             ShowAttackWordRows();
 
+            // Switch keyboard to show player's guesses
+            RefreshKeyboardForCurrentTab();
+
             OnAttackTabSelected?.Invoke();
         }
 
         /// <summary>
         /// Selects the Defend tab (your grid).
+        /// Called by UI click or auto-switch on turn change.
         /// </summary>
-        public void SelectDefendTab()
+        /// <param name="isAutoSwitch">True if called by turn system, false if user clicked</param>
+        public void SelectDefendTab(bool isAutoSwitch = false)
         {
+            // Block manual switching if not allowed
+            if (!isAutoSwitch && !_allowManualTabSwitch) return;
             if (!_isAttackTabActive) return;
 
             _isAttackTabActive = false;
@@ -549,6 +571,9 @@ namespace DLYH.TableUI
             // Switch word rows
             ShowDefendWordRows();
 
+            // Switch keyboard to show opponent's guesses
+            RefreshKeyboardForCurrentTab();
+
             OnDefendTabSelected?.Invoke();
         }
 
@@ -556,6 +581,134 @@ namespace DLYH.TableUI
         /// Returns true if the attack tab is currently active.
         /// </summary>
         public bool IsAttackTabActive => _isAttackTabActive;
+
+        /// <summary>
+        /// Controls whether the user can manually switch tabs.
+        /// Set to false during opponent's turn.
+        /// </summary>
+        public void SetAllowManualTabSwitch(bool allow)
+        {
+            _allowManualTabSwitch = allow;
+        }
+
+        /// <summary>
+        /// Refreshes the keyboard display to show the correct player's guesses
+        /// based on which tab is active.
+        /// </summary>
+        private void RefreshKeyboardForCurrentTab()
+        {
+            // Clear all keyboard visual states first
+            foreach (KeyValuePair<char, Button> kvp in _letterKeys)
+            {
+                Button key = kvp.Value;
+                key.RemoveFromClassList("letter-hit");
+                key.RemoveFromClassList("letter-miss");
+                key.RemoveFromClassList("letter-found");
+                key.style.backgroundColor = StyleKeyword.Null;
+                key.style.color = StyleKeyword.Null;
+            }
+
+            // Apply the appropriate keyboard state
+            if (_isAttackTabActive)
+            {
+                // Show player's guesses (attack keyboard)
+                foreach (char letter in _hitLetters)
+                {
+                    if (_letterKeys.TryGetValue(letter, out Button key))
+                    {
+                        key.AddToClassList("letter-hit");
+                        key.style.backgroundColor = _playerColor;
+                        key.style.color = ColorRules.GetContrastingTextColor(_playerColor);
+                    }
+                }
+                foreach (char letter in _missLetters)
+                {
+                    if (!_hitLetters.Contains(letter) && _letterKeys.TryGetValue(letter, out Button key))
+                    {
+                        key.AddToClassList("letter-miss");
+                        key.style.backgroundColor = ColorRules.SystemRed;
+                        key.style.color = Color.white;
+                    }
+                }
+            }
+            else
+            {
+                // Show opponent's guesses (defend keyboard) - dim unguessed letters
+                // First, dim all letters to indicate keyboard is view-only
+                foreach (KeyValuePair<char, Button> kvp in _letterKeys)
+                {
+                    char letter = kvp.Key;
+                    Button key = kvp.Value;
+
+                    if (_opponentHitLetters.Contains(letter))
+                    {
+                        // Hit - show opponent color
+                        key.AddToClassList("letter-hit");
+                        key.style.backgroundColor = _opponentColor;
+                        key.style.color = ColorRules.GetContrastingTextColor(_opponentColor);
+                    }
+                    else if (_opponentMissLetters.Contains(letter))
+                    {
+                        // Miss - show red
+                        key.AddToClassList("letter-miss");
+                        key.style.backgroundColor = ColorRules.SystemRed;
+                        key.style.color = Color.white;
+                    }
+                    else
+                    {
+                        // Unguessed - dim/grey out to indicate view-only
+                        key.style.backgroundColor = new Color(0.3f, 0.3f, 0.3f, 0.6f);
+                        key.style.color = new Color(0.6f, 0.6f, 0.6f, 1f);
+                    }
+                }
+            }
+        }
+
+        #endregion
+
+        #region Opponent Keyboard State
+
+        /// <summary>
+        /// Marks a letter as hit by opponent (shown on Defend tab keyboard).
+        /// </summary>
+        public void MarkOpponentLetterHit(char letter)
+        {
+            letter = char.ToUpper(letter);
+            _opponentHitLetters.Add(letter);
+            _opponentMissLetters.Remove(letter);
+
+            // If defend tab is active, update display immediately
+            if (!_isAttackTabActive)
+            {
+                RefreshKeyboardForCurrentTab();
+            }
+        }
+
+        /// <summary>
+        /// Marks a letter as missed by opponent (shown on Defend tab keyboard).
+        /// </summary>
+        public void MarkOpponentLetterMiss(char letter)
+        {
+            letter = char.ToUpper(letter);
+            if (_opponentHitLetters.Contains(letter)) return;
+
+            _opponentMissLetters.Add(letter);
+
+            // If defend tab is active, update display immediately
+            if (!_isAttackTabActive)
+            {
+                RefreshKeyboardForCurrentTab();
+            }
+        }
+
+        /// <summary>
+        /// Clears opponent's keyboard state for a new game.
+        /// </summary>
+        public void ClearOpponentKeyboardStates()
+        {
+            _opponentHitLetters.Clear();
+            _opponentMissLetters.Clear();
+        }
 
         #endregion
 
@@ -1083,10 +1236,12 @@ namespace DLYH.TableUI
         public void Reset()
         {
             ClearKeyboardStates();
+            ClearOpponentKeyboardStates();
             ClearGuessedWords();
             SetStatusMessage("");
-            SelectAttackTab();
+            SelectAttackTab(true); // Force switch even if tab switching disabled
             SetPlayerTurn(true);
+            SetAllowManualTabSwitch(true);
 
             _playerData = null;
             _opponentData = null;

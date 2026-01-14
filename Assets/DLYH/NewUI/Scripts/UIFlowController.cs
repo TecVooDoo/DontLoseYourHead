@@ -7,6 +7,10 @@ using TecVooDoo.DontLoseYourHead.Core;
 using TecVooDoo.DontLoseYourHead.UI;
 using DLYH.Audio;
 using DLYH.Telemetry;
+using DLYH.Networking;
+using DLYH.AI.Config;
+using DLYH.AI.Strategies;
+using Cysharp.Threading.Tasks;
 
 namespace DLYH.TableUI
 {
@@ -75,6 +79,10 @@ namespace DLYH.TableUI
         private WordRowsContainer _wordRowsContainer;
         private PlacementAdapter _placementAdapter;
         private WordSuggestionDropdown _wordSuggestionDropdown;
+
+        // Defense view components (player's grid for opponent to attack)
+        private TableModel _defenseTableModel;
+        private WordRowsContainer _defenseWordRows;
 
         // Services
         private WordValidationService _wordValidationService;
@@ -148,6 +156,16 @@ namespace DLYH.TableUI
         // Gameplay guess manager
         private GameplayGuessManager _guessManager;
         private bool _isPlayerTurn = true;
+        private bool _isGameOver = false;
+
+        // AI Opponent
+        [SerializeField] private ExecutionerConfigSO _aiConfig;
+        [SerializeField] private List<WordListSO> _wordLists;
+        private IOpponent _aiOpponent;
+        private PlayerSetupData _playerSetupData;
+        private Coroutine _turnDelayCoroutine;
+        private const float TURN_SWITCH_DELAY = 0.8f; // Delay before switching turns
+        private const float AI_THINK_MIN_DELAY = 0.5f; // Minimum AI "thinking" time
 
         // Hamburger menu state
         private VisualElement _hamburgerMenuContainer;
@@ -688,24 +706,25 @@ namespace DLYH.TableUI
             switch (result)
             {
                 case GuessResult.Hit:
-                    // Letter exists in words - start as Found (yellow)
-                    // Will upgrade to Hit (player color) when coordinate is also known
-                    _gameplayManager?.SetKeyboardLetterState(letter, LetterKeyState.Found);
+                    // Keyboard state is set by HandleLetterHit event handler
+                    // (Found/yellow if not all coords known, Hit/player color if all coords known)
                     _gameplayManager?.SetStatusMessage($"HIT! '{letter}' is in their words!", GameplayScreenManager.StatusType.Hit);
-                    // TODO: End turn after UI updates
+                    _aiOpponent?.RecordPlayerGuess(true);
+                    CheckForPlayerWin();
+                    EndPlayerTurn();
                     break;
 
                 case GuessResult.Miss:
                     _gameplayManager?.SetKeyboardLetterState(letter, LetterKeyState.Miss);
                     _gameplayManager?.SetStatusMessage($"Miss! '{letter}' not in any word.", GameplayScreenManager.StatusType.Miss);
-                    // Update miss count in UI
                     UpdateMissCountDisplay(true);
-                    // TODO: End turn
+                    _aiOpponent?.RecordPlayerGuess(false);
+                    EndPlayerTurn();
                     break;
 
                 case GuessResult.AlreadyGuessed:
                     _gameplayManager?.SetStatusMessage($"Already guessed '{letter}'", GameplayScreenManager.StatusType.Normal);
-                    // Don't end turn
+                    // Don't end turn - let player try again
                     break;
             }
         }
@@ -740,17 +759,21 @@ namespace DLYH.TableUI
             {
                 case GuessResult.Hit:
                     _gameplayManager?.SetStatusMessage($"HIT! Letter found at {colLetter}{displayRow}!", GameplayScreenManager.StatusType.Hit);
+                    _aiOpponent?.RecordPlayerGuess(true);
+                    CheckForPlayerWin();
+                    EndPlayerTurn();
                     break;
 
                 case GuessResult.Miss:
                     _gameplayManager?.SetStatusMessage($"Miss at {colLetter}{displayRow}", GameplayScreenManager.StatusType.Miss);
-                    // Update miss count in UI
                     UpdateMissCountDisplay(true);
+                    _aiOpponent?.RecordPlayerGuess(false);
+                    EndPlayerTurn();
                     break;
 
                 case GuessResult.AlreadyGuessed:
                     _gameplayManager?.SetStatusMessage($"Already guessed {colLetter}{displayRow}", GameplayScreenManager.StatusType.Normal);
-                    // Don't end turn
+                    // Don't end turn - let player try again
                     break;
             }
         }
@@ -791,6 +814,8 @@ namespace DLYH.TableUI
             _guessManager.OnCoordinateMiss += HandleCoordinateMiss;
         }
 
+        #region Guess Manager Event Handlers
+
         private void HandleMissCountChanged(bool isPlayer, int newMissCount, int missLimit)
         {
             Debug.Log($"[UIFlowController] Miss count changed - isPlayer: {isPlayer}, count: {newMissCount}/{missLimit}");
@@ -800,40 +825,429 @@ namespace DLYH.TableUI
         private void HandleGameOver(bool playerLost)
         {
             Debug.Log($"[UIFlowController] GAME OVER - Player lost: {playerLost}");
+            _isGameOver = true;
+
+            if (_turnDelayCoroutine != null)
+            {
+                StopCoroutine(_turnDelayCoroutine);
+                _turnDelayCoroutine = null;
+            }
+
+            // Update UI
+            _gameplayManager?.SetPlayerTurn(true); // Reset turn indicator
+            _gameplayManager?.SetStatusMessage(
+                playerLost ? "GAME OVER - You lost!" : "GAME OVER - Opponent lost!",
+                playerLost ? GameplayScreenManager.StatusType.Miss : GameplayScreenManager.StatusType.Hit
+            );
+
             // TODO: Show game over screen with guillotine animation
+            // TODO: Navigate to feedback/results screen
         }
+
+        #endregion
+
+        #region Turn Management
+
+        /// <summary>
+        /// Ends the player's turn and switches to opponent's turn after a delay.
+        /// </summary>
+        private void EndPlayerTurn()
+        {
+            if (_isGameOver) return;
+
+            // Immediately block player input
+            _isPlayerTurn = false;
+
+            // Start turn switch with delay for UI feedback
+            if (_turnDelayCoroutine != null)
+            {
+                StopCoroutine(_turnDelayCoroutine);
+            }
+            _turnDelayCoroutine = StartCoroutine(SwitchToOpponentTurnCoroutine());
+        }
+
+        /// <summary>
+        /// Ends the opponent's turn and switches back to player's turn.
+        /// </summary>
+        private void EndOpponentTurn()
+        {
+            if (_isGameOver) return;
+
+            // Start turn switch with delay
+            if (_turnDelayCoroutine != null)
+            {
+                StopCoroutine(_turnDelayCoroutine);
+            }
+            _turnDelayCoroutine = StartCoroutine(SwitchToPlayerTurnCoroutine());
+        }
+
+        private IEnumerator SwitchToOpponentTurnCoroutine()
+        {
+            yield return new WaitForSeconds(TURN_SWITCH_DELAY);
+
+            if (_isGameOver) yield break;
+
+            // _isPlayerTurn already set to false in EndPlayerTurn()
+            _gameplayManager?.SetPlayerTurn(false);
+            _gameplayManager?.SetStatusMessage("Opponent's turn...", GameplayScreenManager.StatusType.Normal);
+
+            // Auto-switch to Defend tab and disable manual switching during opponent's turn
+            _gameplayManager?.SetAllowManualTabSwitch(false);
+            _gameplayManager?.SelectDefendTab(isAutoSwitch: true);
+
+            Debug.Log("[UIFlowController] Switched to opponent's turn (auto-switched to Defend tab)");
+
+            // Trigger AI turn if in solo mode
+            if (_currentGameMode == GameMode.Solo && _aiOpponent != null)
+            {
+                yield return new WaitForSeconds(AI_THINK_MIN_DELAY);
+                TriggerAITurn();
+            }
+        }
+
+        private IEnumerator SwitchToPlayerTurnCoroutine()
+        {
+            yield return new WaitForSeconds(TURN_SWITCH_DELAY);
+
+            if (_isGameOver) yield break;
+
+            _isPlayerTurn = true;
+            _gameplayManager?.SetPlayerTurn(true);
+            _gameplayManager?.SetStatusMessage("Your turn! Tap a letter or cell.", GameplayScreenManager.StatusType.Normal);
+
+            // Re-enable manual tab switching and auto-switch to Attack tab
+            _gameplayManager?.SetAllowManualTabSwitch(true);
+            _gameplayManager?.SelectAttackTab(isAutoSwitch: true);
+
+            Debug.Log("[UIFlowController] Switched to player's turn (auto-switched to Attack tab)");
+        }
+
+        #endregion
+
+        #region AI Opponent
+
+        /// <summary>
+        /// Initializes the AI opponent for solo mode gameplay.
+        /// </summary>
+        private async void InitializeAIOpponent(int gridSize, int wordCount, DifficultySetting difficulty, Color playerColor)
+        {
+            if (_aiConfig == null)
+            {
+                Debug.LogWarning("[UIFlowController] No AI config assigned - AI opponent will not function");
+                return;
+            }
+
+            // Build word lists dictionary
+            Dictionary<int, WordListSO> wordListDict = new Dictionary<int, WordListSO>();
+            if (_wordLists != null)
+            {
+                foreach (WordListSO wordList in _wordLists)
+                {
+                    if (wordList != null && !wordListDict.ContainsKey(wordList.WordLength))
+                    {
+                        wordListDict[wordList.WordLength] = wordList;
+                    }
+                }
+            }
+
+            // Create AI opponent
+            _aiOpponent = new LocalAIOpponent(_aiConfig, gameObject, wordListDict);
+
+            // Subscribe to AI events
+            _aiOpponent.OnLetterGuess += HandleAILetterGuess;
+            _aiOpponent.OnCoordinateGuess += HandleAICoordinateGuess;
+            _aiOpponent.OnThinkingStarted += HandleAIThinkingStarted;
+            _aiOpponent.OnThinkingComplete += HandleAIThinkingComplete;
+
+            // Build player setup data for AI initialization
+            _playerSetupData = new PlayerSetupData
+            {
+                PlayerName = "Player",
+                PlayerColor = playerColor,
+                GridSize = gridSize,
+                WordCount = wordCount,
+                DifficultyLevel = difficulty,
+                WordLengths = TableLayout.GetStandardWordLengths(wordCount),
+                PlacedWords = new List<WordPlacementData>()
+            };
+
+            // Add placed words from placement adapter
+            if (_placementAdapter != null)
+            {
+                foreach (var kvp in _placementAdapter.PlacedLetters)
+                {
+                    // Note: We'd need to reconstruct WordPlacementData from the grid
+                    // For now, AI will work with what it can infer
+                }
+            }
+
+            // Initialize AI
+            await _aiOpponent.InitializeAsync(_playerSetupData);
+            Debug.Log($"[UIFlowController] AI opponent initialized: {_aiOpponent.OpponentName}");
+        }
+
+        /// <summary>
+        /// Triggers the AI to take its turn.
+        /// </summary>
+        private void TriggerAITurn()
+        {
+            if (_aiOpponent == null || _isGameOver || _isPlayerTurn) return;
+
+            // Build game state for AI decision making
+            AIGameState gameState = BuildAIGameState();
+            _aiOpponent.ExecuteTurn(gameState);
+        }
+
+        /// <summary>
+        /// Builds the current game state for AI decision making.
+        /// </summary>
+        private AIGameState BuildAIGameState()
+        {
+            AIGameState state = new AIGameState();
+
+            int gridSize = _tableLayout?.GridSize ?? 6;
+            state.GridSize = gridSize;
+            state.WordCount = _playerSetupData?.WordCount ?? 4;
+
+            // Get guessed letters and coordinates from guess manager
+            // For now, use empty sets - AI will track its own state
+            state.GuessedLetters = new HashSet<char>();
+            state.HitLetters = new HashSet<char>();
+            state.GuessedCoordinates = new HashSet<(int, int)>();
+            state.HitCoordinates = new HashSet<(int, int)>();
+            state.WordPatterns = new List<string>();
+            state.SkillLevel = 0.5f;
+            state.FillRatio = 0.3f;
+
+            return state;
+        }
+
+        private void HandleAILetterGuess(char letter)
+        {
+            if (_isGameOver || _isPlayerTurn) return;
+
+            Debug.Log($"[UIFlowController] AI guesses letter: {letter}");
+
+            // Process the guess against player's words
+            bool wasHit = ProcessAILetterGuess(letter);
+
+            // Update UI to show AI's guess
+            string resultText = wasHit ? "HIT" : "MISS";
+            _gameplayManager?.SetStatusMessage($"Opponent guessed '{letter}' - {resultText}!",
+                wasHit ? GameplayScreenManager.StatusType.Hit : GameplayScreenManager.StatusType.Miss);
+
+            // Update opponent's keyboard state (shown on Defend tab)
+            if (wasHit)
+            {
+                _gameplayManager?.MarkOpponentLetterHit(letter);
+                _aiOpponent?.RecordRevealedLetter(letter);
+
+                // Reveal letter in defense word rows
+                if (_defenseWordRows != null)
+                {
+                    Color opponentColor = ColorRules.SelectableColors[1];
+                    _defenseWordRows.RevealLetterInAllWords(letter, opponentColor);
+                }
+            }
+            else
+            {
+                _gameplayManager?.MarkOpponentLetterMiss(letter);
+            }
+
+            _aiOpponent?.AdvanceTurn();
+
+            // Check for AI win (player loss)
+            if (!_isGameOver)
+            {
+                EndOpponentTurn();
+            }
+        }
+
+        private void HandleAICoordinateGuess(int row, int col)
+        {
+            if (_isGameOver || _isPlayerTurn) return;
+
+            char colLetter = (char)('A' + col);
+            int displayRow = row + 1;
+            Debug.Log($"[UIFlowController] AI guesses coordinate: {colLetter}{displayRow}");
+
+            // Process the guess against player's grid
+            bool wasHit = ProcessAICoordinateGuess(col, row);
+
+            // Update UI
+            string resultText = wasHit ? "HIT" : "MISS";
+            _gameplayManager?.SetStatusMessage($"Opponent guessed {colLetter}{displayRow} - {resultText}!",
+                wasHit ? GameplayScreenManager.StatusType.Hit : GameplayScreenManager.StatusType.Miss);
+
+            // Update the defense grid visual
+            if (wasHit)
+            {
+                MarkDefenseGridCellHit(col, row);
+                _aiOpponent?.RecordOpponentHit(row, col);
+            }
+            else
+            {
+                MarkDefenseGridCellMiss(col, row);
+            }
+
+            _aiOpponent?.AdvanceTurn();
+
+            // Check for AI win
+            if (!_isGameOver)
+            {
+                EndOpponentTurn();
+            }
+        }
+
+        private bool ProcessAILetterGuess(char letter)
+        {
+            // Process AI's letter guess against player's defense grid
+            GuessResult result = _guessManager?.ProcessOpponentLetterGuess(letter) ?? GuessResult.Invalid;
+            return result == GuessResult.Hit;
+        }
+
+        private bool ProcessAICoordinateGuess(int col, int row)
+        {
+            // Process AI's coordinate guess against player's defense grid
+            GuessResult result = _guessManager?.ProcessOpponentCoordinateGuess(col, row) ?? GuessResult.Invalid;
+            return result == GuessResult.Hit;
+        }
+
+        /// <summary>
+        /// Marks a cell on the defense grid as hit by opponent (shows opponent color).
+        /// </summary>
+        private void MarkDefenseGridCellHit(int gridCol, int gridRow)
+        {
+            if (_defenseTableModel == null || _tableLayout == null) return;
+
+            (int tableRow, int tableCol) = _tableLayout.GridToTable(gridRow, gridCol);
+            _defenseTableModel.SetCellState(tableRow, tableCol, TableCellState.Hit);
+            // Cell already has the letter from CreateDefenseModel
+
+            Debug.Log($"[UIFlowController] Defense grid cell ({gridCol}, {gridRow}) marked as HIT");
+        }
+
+        /// <summary>
+        /// Marks a cell on the defense grid as missed by opponent (shows red).
+        /// </summary>
+        private void MarkDefenseGridCellMiss(int gridCol, int gridRow)
+        {
+            if (_defenseTableModel == null || _tableLayout == null) return;
+
+            (int tableRow, int tableCol) = _tableLayout.GridToTable(gridRow, gridCol);
+            _defenseTableModel.SetCellState(tableRow, tableCol, TableCellState.Miss);
+
+            Debug.Log($"[UIFlowController] Defense grid cell ({gridCol}, {gridRow}) marked as MISS");
+        }
+
+        private void HandleAIThinkingStarted()
+        {
+            Debug.Log("[UIFlowController] AI is thinking...");
+            _gameplayManager?.SetStatusMessage("Opponent is thinking...", GameplayScreenManager.StatusType.Normal);
+        }
+
+        private void HandleAIThinkingComplete()
+        {
+            Debug.Log("[UIFlowController] AI finished thinking");
+        }
+
+        #endregion
+
+        #region Win/Lose Detection
+
+        /// <summary>
+        /// Checks if the player has won by revealing all opponent's letters.
+        /// </summary>
+        private void CheckForPlayerWin()
+        {
+            if (_isGameOver || _attackWordRows == null) return;
+
+            // Check if all letters in all words have been revealed
+            if (_attackWordRows.AreAllWordsRevealed())
+            {
+                Debug.Log("[UIFlowController] PLAYER WINS - All opponent words revealed!");
+                _isGameOver = true;
+
+                if (_turnDelayCoroutine != null)
+                {
+                    StopCoroutine(_turnDelayCoroutine);
+                    _turnDelayCoroutine = null;
+                }
+
+                _gameplayManager?.SetStatusMessage("YOU WIN! All words revealed!", GameplayScreenManager.StatusType.Hit);
+                // TODO: Trigger win animation/screen
+            }
+        }
+
+        /// <summary>
+        /// Checks if the AI has won by revealing all player's letters.
+        /// </summary>
+        private void CheckForAIWin()
+        {
+            // TODO: Implement when defense grid word tracking is added
+        }
+
+        #endregion
+
+        #region Guess Event Handlers
 
         private void HandleLetterHit(char letter, List<Vector2Int> positions)
         {
             Debug.Log($"[UIFlowController] Letter '{letter}' hit at {positions.Count} positions");
 
             // Reveal the letter in the word rows (WORDS TO FIND section)
+            int revealed = 0;
             if (_attackWordRows != null)
             {
                 Color playerColor = _wizardManager?.PlayerColor ?? ColorRules.SelectableColors[0];
-                int revealed = _attackWordRows.RevealLetterInAllWords(letter, playerColor);
+                revealed = _attackWordRows.RevealLetterInAllWords(letter, playerColor);
                 Debug.Log($"[UIFlowController] Revealed letter '{letter}' in {revealed} word positions");
             }
 
-            // Only reveal cells that are ALREADY yellow (Revealed state from coordinate guesses)
-            // Cells still in Fog stay hidden - letter guesses don't reveal positions
-            bool anyRevealed = false;
+            // Upgrade any grid cells that are ALREADY yellow (Revealed state from coordinate guesses)
+            // Cells still in Fog stay hidden - letter guesses don't reveal grid positions
             foreach (Vector2Int pos in positions)
             {
-                // Check if this cell is in Revealed state (yellow)
                 if (IsGridCellInState(pos.x, pos.y, TableCellState.Revealed))
                 {
                     RevealGridCellFully(pos.x, pos.y, letter);
-                    anyRevealed = true;
                     Debug.Log($"[UIFlowController] Upgraded yellow cell ({pos.x}, {pos.y}) to show '{letter}'");
                 }
             }
 
-            // If any cells were revealed, upgrade keyboard letter from Found (yellow) to Hit (player color)
-            if (anyRevealed)
+            // Update keyboard letter state based on whether ALL coordinates for this letter are known
+            if (revealed > 0 && _gameplayManager != null)
             {
-                _gameplayManager?.SetKeyboardLetterState(letter, LetterKeyState.Hit);
+                bool allCoordinatesKnown = AreAllLetterPositionsCoordinateGuessed(letter, positions);
+                if (allCoordinatesKnown)
+                {
+                    _gameplayManager.SetKeyboardLetterState(letter, LetterKeyState.Hit);
+                    Debug.Log($"[UIFlowController] Keyboard '{letter}' -> Hit (all {positions.Count} coordinates known)");
+                }
+                else
+                {
+                    _gameplayManager.SetKeyboardLetterState(letter, LetterKeyState.Found);
+                    Debug.Log($"[UIFlowController] Keyboard '{letter}' -> Found (yellow, not all coordinates known yet)");
+                }
             }
+        }
+
+        /// <summary>
+        /// Checks if all grid positions for a letter have been coordinate-guessed.
+        /// Keyboard should only show player color when ALL coordinates for that letter are known.
+        /// </summary>
+        private bool AreAllLetterPositionsCoordinateGuessed(char letter, List<Vector2Int> positions)
+        {
+            if (_guessManager == null) return false;
+
+            foreach (Vector2Int pos in positions)
+            {
+                if (!_guessManager.HasPlayerGuessedCoordinate(pos.x, pos.y))
+                {
+                    return false;
+                }
+            }
+            return positions.Count > 0;
         }
 
         /// <summary>
@@ -867,15 +1281,19 @@ namespace DLYH.TableUI
                 // Letter already guessed - show it immediately with Hit state (player color)
                 RevealGridCellFully(position.x, position.y, letter);
 
-                // Upgrade keyboard letter from Found (yellow) to Hit (player color)
-                if (_gameplayManager != null)
+                // Check if ALL coordinates for this letter are now known
+                // Only upgrade keyboard to player color when all coordinates are guessed
+                List<Vector2Int> allPositions = _guessManager?.GetOpponentLetterPositions(letter) ?? new List<Vector2Int>();
+                bool allCoordinatesKnown = AreAllLetterPositionsCoordinateGuessed(letter, allPositions);
+
+                if (allCoordinatesKnown && _gameplayManager != null)
                 {
-                    Debug.Log($"[UIFlowController] Upgrading keyboard letter '{letter}' to Hit (player color)");
                     _gameplayManager.SetKeyboardLetterState(letter, LetterKeyState.Hit);
+                    Debug.Log($"[UIFlowController] Keyboard '{letter}' -> Hit (all {allPositions.Count} coordinates now known)");
                 }
                 else
                 {
-                    Debug.LogError("[UIFlowController] _gameplayManager is NULL - cannot upgrade keyboard letter!");
+                    Debug.Log($"[UIFlowController] Keyboard '{letter}' stays Found (yellow) - not all coordinates known yet");
                 }
             }
             else
@@ -890,6 +1308,10 @@ namespace DLYH.TableUI
             Debug.Log($"[UIFlowController] Coordinate miss at ({position.x}, {position.y})");
             MarkGridCellMiss(position.x, position.y);
         }
+
+        #endregion
+
+        #region Grid Cell State Helpers
 
         /// <summary>
         /// Fully reveals a grid cell with a hit letter (player color + letter shown).
@@ -956,40 +1378,102 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
-        /// Sets up the word rows for gameplay, showing opponent's words as underscores.
+        /// Sets up the word rows for gameplay.
+        /// Attack view: opponent's words shown as underscores (hidden until guessed).
+        /// Defend view: player's words fully visible.
         /// </summary>
         private void SetupGameplayWordRows(int wordCount, Color playerColor)
         {
             if (_wordRowsContainer == null || _gameplayManager == null) return;
 
-            // Get the opponent's words from the setup word rows
-            // For testing, we use the player's own words as the "opponent"
-            string[] opponentWords = new string[wordCount];
+            // Get the player's words from the setup word rows
+            // For testing, we use the player's own words as both "opponent" and "player"
+            string[] playerWords = new string[wordCount];
             int[] wordLengths = new int[wordCount];
 
             for (int i = 0; i < wordCount; i++)
             {
-                opponentWords[i] = _wordRowsContainer.GetWord(i);
+                playerWords[i] = _wordRowsContainer.GetWord(i);
                 wordLengths[i] = _wordRowsContainer.GetWordLength(i);
             }
 
-            // Create a new WordRowsContainer for attack view (opponent's words)
+            // Create a new WordRowsContainer for attack view (opponent's words - hidden)
             WordRowsContainer attackWordRows = new WordRowsContainer(wordCount, wordLengths);
             attackWordRows.SetPlayerColor(playerColor);
             attackWordRows.SetGameplayMode(true);
-            attackWordRows.SetWordsForGameplay(opponentWords);
+            attackWordRows.SetWordsForGameplay(playerWords); // Shows as underscores
 
-            // Set up the gameplay manager with the word rows
-            _gameplayManager.SetWordRowContainers(attackWordRows, null); // null for defend view (not implemented yet)
+            // Create a new WordRowsContainer for defense view (player's words - fully visible)
+            _defenseWordRows = new WordRowsContainer(wordCount, wordLengths);
+            _defenseWordRows.SetPlayerColor(playerColor);
+            _defenseWordRows.SetGameplayMode(false); // NOT gameplay mode - shows full letters
+            _defenseWordRows.HideAllButtons(); // No interaction on defense view
+            for (int i = 0; i < wordCount; i++)
+            {
+                _defenseWordRows.SetWord(i, playerWords[i]);
+            }
+
+            // Set up the gameplay manager with both word row containers
+            _gameplayManager.SetWordRowContainers(attackWordRows, _defenseWordRows);
 
             // Store reference for letter reveal updates
             _attackWordRows = attackWordRows;
 
-            Debug.Log($"[UIFlowController] Set up gameplay word rows with {wordCount} words");
+            Debug.Log($"[UIFlowController] Set up gameplay word rows: {wordCount} words for attack (hidden) and defense (visible)");
+        }
+
+        /// <summary>
+        /// Creates the defense TableModel with player's letters fully visible.
+        /// This is the grid the opponent attacks.
+        /// </summary>
+        private void CreateDefenseModel(int gridSize, Color playerColor)
+        {
+            if (_tableLayout == null || _placementAdapter == null) return;
+
+            // Create a new TableModel for the defense view
+            _defenseTableModel = new TableModel();
+            _defenseTableModel.Initialize(_tableLayout);
+
+            // Copy the player's placed letters to the defense model (fully visible)
+            IReadOnlyDictionary<Vector2Int, char> placedLetters = _placementAdapter.PlacedLetters;
+
+            foreach (KeyValuePair<Vector2Int, char> kvp in placedLetters)
+            {
+                Vector2Int gridPos = kvp.Key;
+                char letter = kvp.Value;
+
+                // Convert grid position to table position
+                (int tableRow, int tableCol) = _tableLayout.GridToTable(gridPos.y, gridPos.x);
+
+                // Set the cell to show the letter (Normal state = visible)
+                _defenseTableModel.SetCellChar(tableRow, tableCol, letter);
+                _defenseTableModel.SetCellState(tableRow, tableCol, TableCellState.Normal);
+                _defenseTableModel.SetCellOwner(tableRow, tableCol, CellOwner.Player1);
+            }
+
+            // Set empty cells to Fog (no letter there)
+            for (int gridRow = 0; gridRow < gridSize; gridRow++)
+            {
+                for (int gridCol = 0; gridCol < gridSize; gridCol++)
+                {
+                    Vector2Int pos = new Vector2Int(gridCol, gridRow);
+                    if (!placedLetters.ContainsKey(pos))
+                    {
+                        (int tableRow, int tableCol) = _tableLayout.GridToTable(gridRow, gridCol);
+                        _defenseTableModel.SetCellState(tableRow, tableCol, TableCellState.Fog);
+                    }
+                }
+            }
+
+            Debug.Log($"[UIFlowController] Created defense model with {placedLetters.Count} visible letters");
         }
 
         // Store reference to attack word rows for updates
         private WordRowsContainer _attackWordRows;
+
+        #endregion
+
+        #region UI Update Helpers
 
         private void UpdateMissCountDisplay(bool isPlayer)
         {
@@ -1038,6 +1522,8 @@ namespace DLYH.TableUI
 
             _guillotineOverlayManager.Show(playerData, opponentData);
         }
+
+        #endregion
 
         // === Navigation Handlers ===
 
@@ -2207,28 +2693,37 @@ namespace DLYH.TableUI
                     _gameplayManager.SetTableView(_tableView);
                 }
 
-                // TODO: Create attack grid model for opponent's board
-                // For now we just use the player's table model (shows player's own grid)
-                // In actual gameplay, attack tab would show opponent's fog-of-war grid
-                if (_tableModel != null)
+                // Create defense grid model (player's grid for opponent to attack)
+                // This shows all the player's letters (fully visible) with opponent's guesses marked
+                CreateDefenseModel(gridSize, playerColor);
+
+                // The attack model is the same as the setup model (for testing - player attacks their own board)
+                // In real gameplay, attack would show opponent's fog-of-war grid
+                if (_tableModel != null && _defenseTableModel != null)
                 {
-                    _gameplayManager.SetTableModels(_tableModel, _tableModel);
+                    _gameplayManager.SetTableModels(_tableModel, _defenseTableModel);
                 }
 
                 // Initialize guess manager with placement data
                 InitializeGuessManager(playerMissLimit, opponentMissLimit);
 
-                // Hide all grid cells for testing (fog of war)
-                // In real gameplay, the attack grid would start hidden
-                // For now, we hide the player's own grid to simulate attacking opponent
+                // Hide all grid cells on attack grid (fog of war)
                 HideAllGridCells(gridSize);
 
                 // Set up word rows for attack view (opponent's words with underscores)
+                // and defense view (player's words fully visible)
                 SetupGameplayWordRows(wordCount, playerColor);
 
-                // Set status message
+                // Set status message and turn state
                 _gameplayManager.SetStatusMessage("Game started! Tap a letter or cell to attack.", GameplayScreenManager.StatusType.Normal);
                 _isPlayerTurn = true;
+                _isGameOver = false;
+
+                // Initialize AI opponent for solo mode
+                if (_currentGameMode == GameMode.Solo)
+                {
+                    InitializeAIOpponent(gridSize, wordCount, playerDifficulty, playerColor);
+                }
             }
 
             // Show gameplay screen
@@ -2288,6 +2783,16 @@ namespace DLYH.TableUI
             if (_guillotineOverlayManager != null)
             {
                 _guillotineOverlayManager.Dispose();
+            }
+            // Clean up AI opponent
+            if (_aiOpponent != null)
+            {
+                _aiOpponent.OnLetterGuess -= HandleAILetterGuess;
+                _aiOpponent.OnCoordinateGuess -= HandleAICoordinateGuess;
+                _aiOpponent.OnThinkingStarted -= HandleAIThinkingStarted;
+                _aiOpponent.OnThinkingComplete -= HandleAIThinkingComplete;
+                _aiOpponent.Dispose();
+                _aiOpponent = null;
             }
         }
 

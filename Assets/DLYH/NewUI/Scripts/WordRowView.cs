@@ -418,6 +418,16 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
+        /// Hides all control buttons (for defense view where no interaction is needed).
+        /// </summary>
+        public void HideAllButtons()
+        {
+            _placementButton.style.display = DisplayStyle.None;
+            _clearButton.style.display = DisplayStyle.None;
+            _guessButton.style.display = DisplayStyle.None;
+        }
+
+        /// <summary>
         /// Clears the word and resets the display.
         /// </summary>
         public void Clear()

@@ -196,6 +196,17 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
+        /// Hides all control buttons on all word rows (for defense view).
+        /// </summary>
+        public void HideAllButtons()
+        {
+            for (int i = 0; i < _wordCount; i++)
+            {
+                _wordRows[i].HideAllButtons();
+            }
+        }
+
+        /// <summary>
         /// Sets the size class for all word rows based on grid dimensions.
         /// </summary>
         /// <param name="sizeClass">"small", "medium", or "large"</param>

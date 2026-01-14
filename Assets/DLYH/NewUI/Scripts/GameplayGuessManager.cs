@@ -331,7 +331,28 @@ namespace DLYH.TableUI
         /// <summary>
         /// Checks if a coordinate has been guessed by the player.
         /// </summary>
-        public bool HasPlayerGuessedCoordinate(int col, int row) => _playerGuessState?.GuessedCoordinates.Contains(new Vector2Int(col, row)) ?? false;
+        public bool HasPlayerGuessedCoordinate(int col, int row) =>
+            _playerGuessState?.GuessedCoordinates.Contains(new Vector2Int(col, row)) ?? false;
+
+        /// <summary>
+        /// Gets all positions where a specific letter appears in the opponent's words.
+        /// Used to check if all instances of a letter have been found on the grid.
+        /// </summary>
+        public List<Vector2Int> GetOpponentLetterPositions(char letter)
+        {
+            List<Vector2Int> positions = new List<Vector2Int>();
+            if (_opponentPlacedLetters == null) return positions;
+
+            letter = char.ToUpper(letter);
+            foreach (KeyValuePair<Vector2Int, char> kvp in _opponentPlacedLetters)
+            {
+                if (kvp.Value == letter)
+                {
+                    positions.Add(kvp.Key);
+                }
+            }
+            return positions;
+        }
 
         #endregion
     }

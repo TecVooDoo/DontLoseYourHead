@@ -4,7 +4,7 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 40
+**Document Version:** 41
 **Last Updated:** January 13, 2026
 
 ---
@@ -15,9 +15,9 @@
 
 **Key Innovation:** Asymmetric difficulty - mixed-skill players compete fairly with different grid sizes, word counts, and difficulty settings.
 
-**Current Phase:** Phase D IN PROGRESS - Gameplay guess logic working, word display with underscores implemented!
+**Current Phase:** Phase D IN PROGRESS - Defense view and turn switching implemented!
 
-**Last Session (Jan 13, 2026):** Thirtieth session - **Gameplay Guess Logic & Word Display!** Fixed grid/keyboard color state logic for coordinate vs letter guessing. Implemented dual-state tracking: grid cells (Fog → Yellow → Player Color), keyboard (Default → Yellow → Player Color). Red for misses working. Added "WORDS TO FIND" section showing opponent's words as underscores that reveal letters when guessed. Letter guessing now reveals letters in word rows with player color highlighting.
+**Last Session (Jan 13, 2026):** Thirty-first session - **Defense View & Turn Switching!** Implemented dual-view tab system: Attack tab (opponent's fog-of-war grid, player's guesses, player's keyboard state) vs Defend tab (player's visible grid, opponent's guesses, opponent's keyboard state). Auto-switches tabs based on turn (Attack during player turn, Defend during opponent turn). Manual tab switching blocked during opponent's turn. AI guesses now update defense grid visually (hit=player color, miss=red) and opponent keyboard state.
 
 **TODO for next session:**
 
@@ -53,9 +53,17 @@
 - [x] Fix grid cell state logic (coordinate vs letter guessing)
 - [x] Fix keyboard letter state colors (red miss, yellow found, player color hit)
 - [x] Implement "WORDS TO FIND" section with underscores and letter reveal
+- [x] Implement turn switching after guesses
+- [x] Add AI opponent turn logic
+- [x] Add defense view (player's grid with opponent's guesses)
+- [x] Auto-switch tabs based on turn
+- [x] Separate keyboard states for Attack vs Defend tabs
+- [x] **FIXED:** Defense word rows buttons hidden (no interaction on Defend tab)
+- [x] **FIXED:** Keyboard clicks disabled on Defend tab (view-only)
+- [x] **FIXED:** Keyboard letters dimmed/greyed on Defend tab initially
 - [ ] **NEEDS TESTING:** Guillotine 5-stage visual and blade positions
-- [ ] Implement turn switching after guesses
-- [ ] Add AI opponent turn logic
+- [ ] **NEEDS TESTING:** Defense view switching and AI guess visuals
+- [ ] Add extra turn on word completion (player or AI guessing full word)
 - [ ] Add win/lose detection
 
 **Phase E (Networking - batch together, requires C: drive copy):**
@@ -1380,6 +1388,7 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 41 | Jan 13, 2026 | Thirty-first session - **Defense View & Turn Switching!** Implemented dual-view tab system: Attack (opponent's grid, player's guesses/keyboard) vs Defend (player's grid, opponent's guesses/keyboard). Auto-switches tabs on turn change (Attack during player, Defend during opponent). Manual tab switching blocked during opponent turn. AI guesses update defense grid (Hit=player color, Miss=red) and opponent keyboard. Added _defenseTableModel, _defenseWordRows, CreateDefenseModel(), MarkDefenseGridCellHit/Miss() to UIFlowController. Added opponent keyboard state tracking to GameplayScreenManager. |
 | 40 | Jan 13, 2026 | Thirtieth session - **Gameplay Guess Logic & Word Display!** Fixed grid/keyboard color state logic: grid cells (Fog → Yellow/Revealed → Player Color/Hit), keyboard letters (Default → Yellow/Found → Player Color/Hit), red for misses. Added "WORDS TO FIND" section showing opponent words as underscores. Letter hits reveal in word rows with player color. Added SetWordForGameplay, RevealLetter, RevealAllOccurrences to WordRowView. Added SetWordsForGameplay, RevealLetterInAllWords to WordRowsContainer. |
 | 39 | Jan 13, 2026 | Twenty-ninth session - **Miss Limit Bug Fix & 5-Stage Guillotine!** Fixed critical miss limit bug in UIFlowController (was using wrong formula giving 101 misses, now uses DifficultyCalculator with correct 10-40 clamped range). Completely redesigned guillotine from per-miss hash marks to 5-stage system: blade moves only at 20/40/60/80/100% thresholds, 5-segment indicator track with color coding (green->yellow->orange->red), much cleaner visual. Smaller overlay (520x520 from 580x640), simpler guillotine (280px from 420px). |
 | 38 | Jan 12, 2026 | Twenty-eighth session - **Guillotine Visual Redesign!** Fixed hamburger button click area (renamed CSS class to avoid conflict). Fixed miss count sync between cards and overlay (added PlayerData/OpponentData getters). Redesigned guillotine: blade-group with wood holder, oval lunette with divider, transparent hash marks, proper z-ordering. Height increased to 420px. Needs testing: blade visibility through hash marks. |
@@ -1425,50 +1434,53 @@ After each work session, update this document:
 
 ## Next Session Instructions
 
-**Starting Point:** This document (DLYH_Status.md v40)
+**Starting Point:** This document (DLYH_Status.md v41)
 
 **Scene to Use:** NewUIScene.unity (for UI Toolkit work - Phase D)
 
 **Current State:**
 - Phase A & B COMPLETE - table data model and UI Toolkit renderer working
 - Phase C COMPLETE - Setup wizard fully functional with all polish
-- Phase D IN PROGRESS - Gameplay guess logic working, word display with underscores implemented
+- Phase D IN PROGRESS - Defense view and turn switching implemented!
 
 **Files Modified This Session:**
-- `UIFlowController.cs` - Added SetupGameplayWordRows(), updated HandleLetterHit() to reveal letters in word rows, added _attackWordRows field, added debug logging for coordinate hit logic
-- `GameplayScreenManager.cs` - Fixed MarkLetterHit() to remove "letter-found" class and convert to uppercase, added debug logging
-- `WordRowView.cs` - Added gameplay display methods: SetWordForGameplay(), RevealLetter(), RevealAllOccurrences(), IsFullyRevealed(), ActualWord property
-- `WordRowsContainer.cs` - Added gameplay methods: SetWordsForGameplay(), RevealLetterInAllWords(), RevealLetterAt(), AreAllWordsRevealed(), GetActualWord(), GetAllActualWords()
+- `UIFlowController.cs` - Added defense view fields (_defenseTableModel, _defenseWordRows), CreateDefenseModel(), MarkDefenseGridCellHit/Miss(), updated TransitionToGameplay() to create defense grid/words, updated AI guess handlers to show on defense grid and update opponent keyboard, added HideAllButtons() call for defense word rows
+- `GameplayScreenManager.cs` - Added opponent keyboard state (_opponentHitLetters, _opponentMissLetters), MarkOpponentLetterHit/Miss(), SetAllowManualTabSwitch(), RefreshKeyboardForCurrentTab(), updated SelectAttackTab/SelectDefendTab with isAutoSwitch parameter, added keyboard click guard for Defend tab, dimmed unguessed letters on Defend keyboard
+- `WordRowView.cs` - Added HideAllButtons() method
+- `WordRowsContainer.cs` - Added HideAllButtons() method
 
-**Key Changes:**
-1. **Grid Cell State Logic Fixed:**
-   - Fog (gray) → Revealed/Yellow (coordinate hit, letter unknown) → Hit/Player Color (both known)
-   - Miss = Red (coordinate guessed, no letter there)
-2. **Keyboard Letter State Logic Fixed:**
-   - Default → Found/Yellow (letter hit, no coordinate known) → Hit/Player Color (both known)
-   - Miss = Red (letter not in any word)
-3. **"WORDS TO FIND" Section Implemented:**
-   - Shows opponent's words as underscores initially (e.g., `_ _ _ _ _ _`)
-   - Letter guesses reveal letters in word rows with player color
-   - Uses WordRowsContainer in gameplay mode
+**Key Changes This Session:**
+1. **Defense View Implemented:**
+   - Player's grid with their letters fully visible
+   - AI guesses mark cells as Hit (player color) or Miss (red)
+   - Player's words fully visible in defense word rows
+2. **Dual Keyboard State:**
+   - Attack tab shows player's guess keyboard state
+   - Defend tab shows opponent's guess keyboard state
+   - Keyboard refreshes on tab switch
+3. **Auto Tab Switching:**
+   - Player's turn → Attack tab + manual switching enabled
+   - Opponent's turn → Defend tab + manual switching disabled
+4. **Tab Click Guarding:**
+   - `_allowManualTabSwitch` flag blocks clicks during opponent turn
+   - Auto-switch uses `isAutoSwitch: true` to bypass guard
 
-**Gameplay State Tracking Rules:**
-- Grid: Clicking coordinate → Yellow if hit (letter unknown), Red if miss
-- Grid: Guessing letter → Upgrades Yellow cells to Player Color (if letter matches)
-- Keyboard: Guessing letter → Yellow if hit (no coordinate known yet), Red if miss
-- Keyboard: Upgrades to Player Color when both letter AND coordinate are known
-- Word Rows: Letter guesses reveal that letter in all words with player color
+**Tab Behavior Summary:**
+| Tab | Grid Shows | Words Show | Keyboard Shows | Whose Guesses |
+|-----|------------|------------|----------------|---------------|
+| Attack | Opponent's (fog + your guesses) | Opponent's (hidden) | YOUR guesses | Yours |
+| Defend | YOUR (visible + AI guesses) | YOUR (visible) | AI's guesses | AI's |
 
 **Priority Tasks for Next Session:**
-1. **FIX keyboard letter color bug** - Letters with only ONE grid position stay yellow instead of player color after letter guess. Fix: In HandleLetterHit, upgrade keyboard to Hit (player color) when word rows reveal letters, not just when grid cells are upgraded. The word rows are the definitive source of "letter is known".
+1. **TEST defense view** - Verify tab switching, defense grid visuals, opponent keyboard
 2. **TEST guillotine 5-stage visual** - Verify blade positions, segment colors, stage labels
-3. Implement turn switching after guesses
-4. Add AI opponent turn logic (use existing OpponentTurnManager)
-5. Add win/lose detection (AreAllWordsRevealed() for win, miss limit for lose)
+3. Add extra turn on word completion (player or AI completing a word gets another turn)
+4. Add win/lose detection (AreAllWordsRevealed() for win, miss limit for lose)
+5. Add game end sequence with guillotine animation
 
 **Existing Systems to Wire (DO NOT REBUILD):**
-- `OpponentTurnManager` - AI turn execution (needs wiring)
 - `GameplayStateTracker` - State tracking (misses, letters, coordinates)
+- `WinConditionChecker` - Win/lose condition checking
 
 **Deferred to Phase E (requires C: drive copy for networking):**
 - Wire Join Code submit to networking code
