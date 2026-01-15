@@ -56,6 +56,8 @@ namespace DLYH.TableUI
         private VisualElement _tabDefend;
         private Label _opponentNameLabel;
         private Label _playerNameLabel;
+        private VisualElement _opponentColorSwatch;
+        private VisualElement _playerColorSwatch;
         private Label _opponentGridSizeLabel;
         private Label _opponentWordCountLabel;
         private Label _playerGridSizeLabel;
@@ -83,8 +85,9 @@ namespace DLYH.TableUI
         // Letter keyboard
         private VisualElement _letterKeyboard;
         private Dictionary<char, Button> _letterKeys = new Dictionary<char, Button>();
-        private HashSet<char> _hitLetters = new HashSet<char>();
-        private HashSet<char> _missLetters = new HashSet<char>();
+        private HashSet<char> _hitLetters = new HashSet<char>();      // All coords known - player color
+        private HashSet<char> _foundLetters = new HashSet<char>();    // Letter known but not all coords - yellow
+        private HashSet<char> _missLetters = new HashSet<char>();     // Letter not in any word - red
 
         // Opponent keyboard state (shown on Defend tab)
         private HashSet<char> _opponentHitLetters = new HashSet<char>(); // All coords known - show opponent color
@@ -234,6 +237,8 @@ namespace DLYH.TableUI
             _tabDefend = _root.Q<VisualElement>("tab-defend");
             _opponentNameLabel = _root.Q<Label>("opponent-name");
             _playerNameLabel = _root.Q<Label>("player-name");
+            _opponentColorSwatch = _root.Q<VisualElement>("opponent-color-swatch");
+            _playerColorSwatch = _root.Q<VisualElement>("player-color-swatch");
             _opponentGridSizeLabel = _root.Q<Label>("opponent-grid-size");
             _opponentWordCountLabel = _root.Q<Label>("opponent-word-count");
             _playerGridSizeLabel = _root.Q<Label>("player-grid-size");
@@ -382,6 +387,7 @@ namespace DLYH.TableUI
         {
             letter = char.ToUpper(letter);
             _hitLetters.Add(letter);
+            _foundLetters.Remove(letter); // Upgrade from Found to Hit
             _missLetters.Remove(letter);
 
             if (_letterKeys.TryGetValue(letter, out Button key))
@@ -416,7 +422,8 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
-        /// Refreshes keyboard visual states from stored hit/miss sets.
+        /// Refreshes keyboard visual states from stored hit/found/miss sets.
+        /// Priority: Hit > Found > Miss
         /// </summary>
         private void RefreshKeyboardStates()
         {
@@ -437,6 +444,12 @@ namespace DLYH.TableUI
                     key.style.backgroundColor = _playerColor;
                     key.style.color = ColorRules.GetContrastingTextColor(_playerColor);
                 }
+                else if (_foundLetters.Contains(letter))
+                {
+                    key.AddToClassList("letter-found");
+                    key.style.backgroundColor = ColorRules.SystemYellow;
+                    key.style.color = ColorRules.GetContrastingTextColor(ColorRules.SystemYellow);
+                }
                 else if (_missLetters.Contains(letter))
                 {
                     key.AddToClassList("letter-miss");
@@ -452,6 +465,7 @@ namespace DLYH.TableUI
         public void ClearKeyboardStates()
         {
             _hitLetters.Clear();
+            _foundLetters.Clear();
             _missLetters.Clear();
             RefreshKeyboardStates();
         }
@@ -477,8 +491,10 @@ namespace DLYH.TableUI
                     MarkLetterFound(letter);
                     break;
                 case LetterKeyState.Default:
-                    // Remove from both sets and refresh
+                    // Remove from all sets and refresh
+                    letter = char.ToUpper(letter);
                     _hitLetters.Remove(letter);
+                    _foundLetters.Remove(letter);
                     _missLetters.Remove(letter);
                     if (_letterKeys.TryGetValue(letter, out Button key))
                     {
@@ -501,18 +517,19 @@ namespace DLYH.TableUI
             letter = char.ToUpper(letter);
 
             // Don't downgrade from Hit to Found - Hit takes precedence
-            if (_letterKeys.TryGetValue(letter, out Button key) && key.ClassListContains("letter-hit"))
+            if (_hitLetters.Contains(letter))
             {
                 Debug.Log($"[GameplayScreenManager] Letter '{letter}' already Hit, not downgrading to Found");
                 return;
             }
 
-            _hitLetters.Add(letter); // Track as "known" letter
+            _foundLetters.Add(letter); // Track as "found" letter (yellow)
             _missLetters.Remove(letter);
 
-            if (key != null)
+            if (_letterKeys.TryGetValue(letter, out Button key))
             {
                 key.RemoveFromClassList("letter-miss");
+                key.RemoveFromClassList("letter-hit");
                 key.AddToClassList("letter-found");
                 key.style.backgroundColor = ColorRules.SystemYellow;
                 key.style.color = ColorRules.GetContrastingTextColor(ColorRules.SystemYellow);
@@ -625,6 +642,7 @@ namespace DLYH.TableUI
             if (_isAttackTabActive)
             {
                 // Show player's guesses (attack keyboard)
+                // Priority: Hit > Found > Miss
                 foreach (char letter in _hitLetters)
                 {
                     if (_letterKeys.TryGetValue(letter, out Button key))
@@ -634,9 +652,20 @@ namespace DLYH.TableUI
                         key.style.color = ColorRules.GetContrastingTextColor(_playerColor);
                     }
                 }
+                foreach (char letter in _foundLetters)
+                {
+                    // Only show Found if not already Hit
+                    if (!_hitLetters.Contains(letter) && _letterKeys.TryGetValue(letter, out Button key))
+                    {
+                        key.AddToClassList("letter-found");
+                        key.style.backgroundColor = ColorRules.SystemYellow;
+                        key.style.color = ColorRules.GetContrastingTextColor(ColorRules.SystemYellow);
+                    }
+                }
                 foreach (char letter in _missLetters)
                 {
-                    if (!_hitLetters.Contains(letter) && _letterKeys.TryGetValue(letter, out Button key))
+                    // Only show Miss if not Hit or Found
+                    if (!_hitLetters.Contains(letter) && !_foundLetters.Contains(letter) && _letterKeys.TryGetValue(letter, out Button key))
                     {
                         key.AddToClassList("letter-miss");
                         key.style.backgroundColor = ColorRules.SystemRed;
@@ -848,17 +877,15 @@ namespace DLYH.TableUI
                 UpdatePlayerMissDisplay();
             }
 
-            // Update color badges in tabs
-            VisualElement playerBadge = _tabDefend?.Q<VisualElement>("player-color-badge");
-            if (playerBadge != null && _playerData != null)
+            // Update color swatches in tabs
+            if (_playerColorSwatch != null && _playerData != null)
             {
-                playerBadge.style.backgroundColor = _playerData.Color;
+                _playerColorSwatch.style.backgroundColor = _playerData.Color;
             }
 
-            VisualElement opponentBadge = _tabAttack?.Q<VisualElement>("opponent-color-badge");
-            if (opponentBadge != null && _opponentData != null)
+            if (_opponentColorSwatch != null && _opponentData != null)
             {
-                opponentBadge.style.backgroundColor = _opponentData.Color;
+                _opponentColorSwatch.style.backgroundColor = _opponentData.Color;
             }
         }
 

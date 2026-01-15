@@ -281,7 +281,9 @@ namespace DLYH.TableUI
             // Check if there's a letter at this position
             if (targetLetters.TryGetValue(position, out char letter))
             {
-                // HIT
+                // HIT - also mark the letter as known
+                guessState.HitLetters.Add(letter);
+                guessState.GuessedLetters.Add(letter);
                 Debug.Log($"[GameplayGuessManager] HIT! Letter '{letter}' at ({col}, {row})");
 
                 if (isPlayerGuessing)

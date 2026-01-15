@@ -63,7 +63,9 @@ namespace DLYH.Networking
         // ============================================================
 
         public string OpponentName => _opponentSetupData?.PlayerName ?? "The Executioner";
-        public Color OpponentColor => _opponentSetupData?.PlayerColor ?? Color.red;
+        // Default to royal blue for The Executioner AI
+        private static readonly Color ExecutionerBlue = new Color(0.235f, 0.353f, 0.706f, 1f); // Royal blue RGB(60, 90, 180)
+        public Color OpponentColor => _opponentSetupData?.PlayerColor ?? ExecutionerBlue;
         public int GridSize => _opponentSetupData?.GridSize ?? 8;
         public int WordCount => _opponentSetupData?.WordCount ?? 3;
         public List<WordPlacementData> WordPlacements => _opponentSetupData?.PlacedWords ?? new List<WordPlacementData>();

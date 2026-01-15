@@ -21,6 +21,7 @@
             <ui:VisualElement name="tab-attack" class="player-tab tab-active">
                 <ui:VisualElement name="tab-attack-header" class="tab-header">
                     <ui:Label text="ATTACK:" class="tab-label" />
+                    <ui:VisualElement name="opponent-color-swatch" class="color-swatch" />
                     <ui:Label name="opponent-name" text="EXECUTIONER" class="tab-player-name" />
                 </ui:VisualElement>
                 <ui:VisualElement name="tab-attack-stats" class="tab-stats">
@@ -43,6 +44,7 @@
             <ui:VisualElement name="tab-defend" class="player-tab">
                 <ui:VisualElement name="tab-defend-header" class="tab-header">
                     <ui:Label text="DEFEND:" class="tab-label" />
+                    <ui:VisualElement name="player-color-swatch" class="color-swatch" />
                     <ui:Label name="player-name" text="You" class="tab-player-name" />
                 </ui:VisualElement>
                 <ui:VisualElement name="tab-defend-stats" class="tab-stats">
