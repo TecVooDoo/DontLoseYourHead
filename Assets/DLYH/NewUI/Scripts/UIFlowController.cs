@@ -1797,28 +1797,35 @@ namespace DLYH.TableUI
 
         /// <summary>
         /// Called after coordinate and letter processing to ensure keyboard state is correct.
-        /// This re-evaluates all hit letters and updates their keyboard state.
+        /// This re-evaluates all GUESSED letters (via keyboard) and updates their keyboard state.
+        /// NOTE: Only letters guessed via keyboard should appear on the keyboard tracker.
+        /// Coordinate hits do NOT update the keyboard - they only update the grid.
         /// </summary>
         private void RefreshKeyboardLetterStates()
         {
             if (_guessManager == null || _gameplayManager == null) return;
 
-            Color playerColor = _wizardManager?.PlayerColor ?? ColorRules.SelectableColors[0];
-
-            // Check each hit letter and update keyboard state
+            // Only check letters that were GUESSED VIA KEYBOARD, not just hit via coordinate
             foreach (char letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
             {
-                if (_guessManager.IsPlayerLetterHit(letter))
+                // Only update keyboard for letters the player explicitly guessed
+                if (_guessManager.HasPlayerGuessedLetter(letter))
                 {
-                    bool allCoordsKnown = _guessManager.AreAllLetterCoordinatesKnown(letter);
-                    if (allCoordsKnown)
+                    // Check if this letter exists in opponent's words (was it a hit?)
+                    if (_guessManager.IsPlayerLetterHit(letter))
                     {
-                        _gameplayManager.SetKeyboardLetterState(letter, LetterKeyState.Hit);
+                        // Letter was guessed AND exists - check if all coords known for player color
+                        bool allCoordsKnown = _guessManager.AreAllLetterCoordinatesKnown(letter);
+                        if (allCoordsKnown)
+                        {
+                            _gameplayManager.SetKeyboardLetterState(letter, LetterKeyState.Hit);
+                        }
+                        else
+                        {
+                            _gameplayManager.SetKeyboardLetterState(letter, LetterKeyState.Found);
+                        }
                     }
-                    else
-                    {
-                        _gameplayManager.SetKeyboardLetterState(letter, LetterKeyState.Found);
-                    }
+                    // If letter was guessed but NOT a hit, it's already marked as Miss by HandleLetterMiss
                 }
             }
         }
