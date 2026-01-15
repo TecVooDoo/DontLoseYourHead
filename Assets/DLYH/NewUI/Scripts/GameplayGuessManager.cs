@@ -281,10 +281,13 @@ namespace DLYH.TableUI
             // Check if there's a letter at this position
             if (targetLetters.TryGetValue(position, out char letter))
             {
-                // HIT - also mark the letter as known
+                // HIT - mark the coordinate as containing a letter
+                // NOTE: We do NOT add to GuessedLetters here! Coordinate guesses only reveal POSITIONS.
+                // The letter is only "known" if the player also guessed it via keyboard.
+                // HitLetters tracks which letters exist at hit coordinates (for upgrade checking).
                 guessState.HitLetters.Add(letter);
-                guessState.GuessedLetters.Add(letter);
-                Debug.Log($"[GameplayGuessManager] HIT! Letter '{letter}' at ({col}, {row})");
+                // guessState.GuessedLetters.Add(letter); // REMOVED - coordinate guesses don't reveal letters!
+                Debug.Log($"[GameplayGuessManager] HIT! Letter at ({col}, {row}) - coordinate revealed, letter hidden");
 
                 if (isPlayerGuessing)
                 {

@@ -560,6 +560,8 @@ namespace DLYH.TableUI
             // Switch grid model
             if (_tableView != null && _attackTableModel != null)
             {
+                // Attack grid: Player1=player's hit markers, Player2=opponent's letters (hidden)
+                _tableView.SetPlayerColors(_playerColor, _opponentColor);
                 _tableView.Bind(_attackTableModel);
                 _tableView.SetSetupMode(false);
                 _tableView.SetDefenseGrid(false); // Attack grid - hide letters in Revealed state
@@ -593,6 +595,8 @@ namespace DLYH.TableUI
             // Switch grid model
             if (_tableView != null && _defendTableModel != null)
             {
+                // Defense grid: Player1=player's letters, Player2=opponent's hit markers
+                _tableView.SetPlayerColors(_playerColor, _opponentColor);
                 _tableView.Bind(_defendTableModel);
                 _tableView.SetSetupMode(false);
                 _tableView.SetDefenseGrid(true); // Defense grid - show letters in Revealed state
