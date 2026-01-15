@@ -2,7 +2,7 @@ namespace DLYH.TableUI
 {
     /// <summary>
     /// Identifies which player or AI owns a cell's content.
-    /// Used for determining hit/reveal colors during gameplay.
+    /// Used for determining hit/reveal colors during gameplay.  
     /// </summary>
     public enum CellOwner
     {

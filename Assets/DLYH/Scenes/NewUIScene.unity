@@ -17034,6 +17034,12 @@ MonoBehaviour:
   _fourLetterWords: {fileID: 11400000, guid: 83e7ad5863c5046469a403a9dab4ec0c, type: 2}
   _fiveLetterWords: {fileID: 11400000, guid: d210015902afad641bbdd412067539a2, type: 2}
   _sixLetterWords: {fileID: 11400000, guid: cb4da1dbc7be8444cbc76bbbdbc7ef07, type: 2}
+  _aiConfig: {fileID: 11400000, guid: df8c91823e1b7f443b0ee20d57885195, type: 2}
+  _wordLists:
+  - {fileID: 11400000, guid: 06114520cd18e54439e47522617dbaa7, type: 2}
+  - {fileID: 11400000, guid: 83e7ad5863c5046469a403a9dab4ec0c, type: 2}
+  - {fileID: 11400000, guid: d210015902afad641bbdd412067539a2, type: 2}
+  - {fileID: 11400000, guid: cb4da1dbc7be8444cbc76bbbdbc7ef07, type: 2}
 --- !u!114 &1212632950
 MonoBehaviour:
   m_ObjectHideFlags: 0

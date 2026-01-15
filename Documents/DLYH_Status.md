@@ -4,8 +4,8 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 41
-**Last Updated:** January 13, 2026
+**Document Version:** 42
+**Last Updated:** January 14, 2026
 
 ---
 
@@ -15,9 +15,9 @@
 
 **Key Innovation:** Asymmetric difficulty - mixed-skill players compete fairly with different grid sizes, word counts, and difficulty settings.
 
-**Current Phase:** Phase D IN PROGRESS - Defense view and turn switching implemented!
+**Current Phase:** Phase D IN PROGRESS - Grid cell color rules fixed!
 
-**Last Session (Jan 13, 2026):** Thirty-first session - **Defense View & Turn Switching!** Implemented dual-view tab system: Attack tab (opponent's fog-of-war grid, player's guesses, player's keyboard state) vs Defend tab (player's visible grid, opponent's guesses, opponent's keyboard state). Auto-switches tabs based on turn (Attack during player turn, Defend during opponent turn). Manual tab switching blocked during opponent's turn. AI guesses now update defense grid visually (hit=player color, miss=red) and opponent keyboard state.
+**Last Session (Jan 14, 2026):** Thirty-second session - **Grid Cell Color Rules Fixed!** Corrected grid cell visibility for attack vs defense views. Attack grid: yellow (Revealed) cells do NOT show letters (opponent's letters are secret). Defense grid: yellow cells DO show letters (player's own grid). Added `_isDefenseGrid` flag to TableView with `SetDefenseGrid(bool)` method. Updated `UpdateCellVisual()` to conditionally show letters. GameplayScreenManager now sets defense mode when switching tabs.
 
 **TODO for next session:**
 
@@ -61,8 +61,11 @@
 - [x] **FIXED:** Defense word rows buttons hidden (no interaction on Defend tab)
 - [x] **FIXED:** Keyboard clicks disabled on Defend tab (view-only)
 - [x] **FIXED:** Keyboard letters dimmed/greyed on Defend tab initially
+- [x] **FIXED:** Attack grid letter visibility (yellow cells don't show letters - opponent's letters are secret)
+- [x] **FIXED:** Defense grid letter visibility (yellow cells DO show letters - player's own grid)
 - [ ] **NEEDS TESTING:** Guillotine 5-stage visual and blade positions
 - [ ] **NEEDS TESTING:** Defense view switching and AI guess visuals
+- [ ] **NEEDS TESTING:** Grid cell color rules (attack=no letters in yellow, defense=letters in yellow)
 - [ ] Add extra turn on word completion (player or AI guessing full word)
 - [ ] Add win/lose detection
 
@@ -1388,6 +1391,7 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 42 | Jan 14, 2026 | Thirty-second session - **Grid Cell Color Rules Fixed!** Corrected grid cell letter visibility: Attack grid yellow (Revealed) cells do NOT show letters (opponent's letters secret), Defense grid yellow cells DO show letters (player's own grid). Added `_isDefenseGrid` flag and `SetDefenseGrid(bool)` to TableView. Updated `UpdateCellVisual()` conditional logic. GameplayScreenManager sets defense mode on tab switch. |
 | 41 | Jan 13, 2026 | Thirty-first session - **Defense View & Turn Switching!** Implemented dual-view tab system: Attack (opponent's grid, player's guesses/keyboard) vs Defend (player's grid, opponent's guesses/keyboard). Auto-switches tabs on turn change (Attack during player, Defend during opponent). Manual tab switching blocked during opponent turn. AI guesses update defense grid (Hit=player color, Miss=red) and opponent keyboard. Added _defenseTableModel, _defenseWordRows, CreateDefenseModel(), MarkDefenseGridCellHit/Miss() to UIFlowController. Added opponent keyboard state tracking to GameplayScreenManager. |
 | 40 | Jan 13, 2026 | Thirtieth session - **Gameplay Guess Logic & Word Display!** Fixed grid/keyboard color state logic: grid cells (Fog → Yellow/Revealed → Player Color/Hit), keyboard letters (Default → Yellow/Found → Player Color/Hit), red for misses. Added "WORDS TO FIND" section showing opponent words as underscores. Letter hits reveal in word rows with player color. Added SetWordForGameplay, RevealLetter, RevealAllOccurrences to WordRowView. Added SetWordsForGameplay, RevealLetterInAllWords to WordRowsContainer. |
 | 39 | Jan 13, 2026 | Twenty-ninth session - **Miss Limit Bug Fix & 5-Stage Guillotine!** Fixed critical miss limit bug in UIFlowController (was using wrong formula giving 101 misses, now uses DifficultyCalculator with correct 10-40 clamped range). Completely redesigned guillotine from per-miss hash marks to 5-stage system: blade moves only at 20/40/60/80/100% thresholds, 5-segment indicator track with color coding (green->yellow->orange->red), much cleaner visual. Smaller overlay (520x520 from 580x640), simpler guillotine (280px from 420px). |
@@ -1444,26 +1448,27 @@ After each work session, update this document:
 - Phase D IN PROGRESS - Defense view and turn switching implemented!
 
 **Files Modified This Session:**
-- `UIFlowController.cs` - Added defense view fields (_defenseTableModel, _defenseWordRows), CreateDefenseModel(), MarkDefenseGridCellHit/Miss(), updated TransitionToGameplay() to create defense grid/words, updated AI guess handlers to show on defense grid and update opponent keyboard, added HideAllButtons() call for defense word rows
-- `GameplayScreenManager.cs` - Added opponent keyboard state (_opponentHitLetters, _opponentMissLetters), MarkOpponentLetterHit/Miss(), SetAllowManualTabSwitch(), RefreshKeyboardForCurrentTab(), updated SelectAttackTab/SelectDefendTab with isAutoSwitch parameter, added keyboard click guard for Defend tab, dimmed unguessed letters on Defend keyboard
-- `WordRowView.cs` - Added HideAllButtons() method
-- `WordRowsContainer.cs` - Added HideAllButtons() method
+- `TableView.cs` - Added `_isDefenseGrid` flag, `SetDefenseGrid(bool)` method, updated `UpdateCellVisual()` to conditionally show letters in Revealed state based on defense grid flag
+- `GameplayScreenManager.cs` - Updated `SelectAttackTab()` to call `SetDefenseGrid(false)`, `SelectDefendTab()` to call `SetDefenseGrid(true)`, `SetTableModels()` initial bind calls `SetDefenseGrid(false)`
+- `UIFlowController.cs` - Fixed `HandleWordGuessProcessed` color logic, added defense grid helper methods (`MarkDefenseGridCellFound()`, `MarkDefenseGridLetterFound()`, `UpgradeDefenseGridLetterToHit()`), updated `HandleAILetterGuess` and `RefreshOpponentKeyboardStates()` to upgrade grid cells
+- `TableView.uss` - 11x11 grid reduced from 30px to 28px
 
 **Key Changes This Session:**
-1. **Defense View Implemented:**
-   - Player's grid with their letters fully visible
-   - AI guesses mark cells as Hit (player color) or Miss (red)
-   - Player's words fully visible in defense word rows
-2. **Dual Keyboard State:**
-   - Attack tab shows player's guess keyboard state
-   - Defend tab shows opponent's guess keyboard state
-   - Keyboard refreshes on tab switch
-3. **Auto Tab Switching:**
-   - Player's turn → Attack tab + manual switching enabled
-   - Opponent's turn → Defend tab + manual switching disabled
-4. **Tab Click Guarding:**
-   - `_allowManualTabSwitch` flag blocks clicks during opponent turn
-   - Auto-switch uses `isAutoSwitch: true` to bypass guard
+1. **Grid Cell Letter Visibility Fixed:**
+   - Attack grid: Yellow (Revealed) cells do NOT show letters (opponent's letters are secret)
+   - Defense grid: Yellow cells DO show letters (player's own grid)
+   - Hit cells (player color) show letters on both grids
+2. **TableView Defense Mode:**
+   - Added `_isDefenseGrid` private flag
+   - `SetDefenseGrid(bool)` method to switch modes
+   - `UpdateCellVisual()` checks flag before showing letters in Revealed state
+3. **Tab Switch Integration:**
+   - `SelectAttackTab()` sets `SetDefenseGrid(false)`
+   - `SelectDefendTab()` sets `SetDefenseGrid(true)`
+4. **Color Rules Summary:**
+   - Red = Miss (coordinate guessed, no letter there)
+   - Yellow = Hit but letter unknown (attack: no letter shown, defense: letter shown)
+   - Player Color = Hit, letter AND coordinate known (letter shown on both)
 
 **Tab Behavior Summary:**
 | Tab | Grid Shows | Words Show | Keyboard Shows | Whose Guesses |
@@ -1472,11 +1477,12 @@ After each work session, update this document:
 | Defend | YOUR (visible + AI guesses) | YOUR (visible) | AI's guesses | AI's |
 
 **Priority Tasks for Next Session:**
-1. **TEST defense view** - Verify tab switching, defense grid visuals, opponent keyboard
-2. **TEST guillotine 5-stage visual** - Verify blade positions, segment colors, stage labels
-3. Add extra turn on word completion (player or AI completing a word gets another turn)
-4. Add win/lose detection (AreAllWordsRevealed() for win, miss limit for lose)
-5. Add game end sequence with guillotine animation
+1. **TEST grid cell color rules** - Verify attack grid hides letters in yellow cells, defense grid shows letters in yellow cells
+2. **TEST defense view** - Verify tab switching, defense grid visuals, opponent keyboard
+3. **TEST guillotine 5-stage visual** - Verify blade positions, segment colors, stage labels
+4. Add extra turn on word completion (player or AI completing a word gets another turn)
+5. Add win/lose detection (AreAllWordsRevealed() for win, miss limit for lose)
+6. Add game end sequence with guillotine animation
 
 **Existing Systems to Wire (DO NOT REBUILD):**
 - `GameplayStateTracker` - State tracking (misses, letters, coordinates)

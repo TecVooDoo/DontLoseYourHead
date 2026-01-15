@@ -655,6 +655,79 @@
     font-size: 11px;
 }
 
+/* Size xsmall (11x11) - very compact */
+.size-xsmall .placement-actions {
+    margin: 3px 0;
+}
+
+.size-xsmall .placement-actions .action-button {
+    height: 32px;
+    padding: 5px 12px;
+    font-size: 12px;
+    margin: 2px 3px;
+}
+
+.size-xsmall .start-button {
+    height: 36px;
+    margin-top: 5px;
+    padding: 6px 18px;
+    font-size: 15px;
+}
+
+.size-xsmall .back-button {
+    height: 26px;
+    margin-top: 3px;
+    padding: 3px 10px;
+    font-size: 11px;
+}
+
+/* Size med-small (9x9) - somewhat compact */
+.size-med-small .placement-actions {
+    margin: 4px 0;
+}
+
+.size-med-small .placement-actions .action-button {
+    height: 36px;
+    padding: 6px 14px;
+    font-size: 14px;
+    margin: 2px 4px;
+}
+
+.size-med-small .start-button {
+    height: 40px;
+    margin-top: 6px;
+    padding: 8px 22px;
+    font-size: 16px;
+}
+
+.size-med-small .back-button {
+    height: 28px;
+    margin-top: 4px;
+    padding: 4px 12px;
+    font-size: 12px;
+}
+
+/* Size med-large (7x7) - slightly compact */
+.size-med-large .placement-actions .action-button {
+    height: 36px;
+    padding: 6px 14px;
+    font-size: 14px;
+}
+
+.size-med-large .start-button {
+    height: 38px;
+    margin-top: 5px;
+    padding: 7px 22px;
+    font-size: 16px;
+}
+
+.size-med-large .back-button {
+    height: 28px;
+    margin-top: 4px;
+    padding: 4px 11px;
+    font-size: 12px;
+}
+
 /* === Utility Classes === */
 
 .hidden {

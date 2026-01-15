@@ -183,6 +183,15 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
+        /// Gets the word placement data for all placed words.
+        /// Returns a list of tuples: (rowIndex, word, startCol, startRow, dirCol, dirRow)
+        /// </summary>
+        public List<(int rowIndex, string word, int startCol, int startRow, int dCol, int dRow)> GetAllWordPlacements()
+        {
+            return _placementController.GetAllWordPlacements();
+        }
+
+        /// <summary>
         /// Checks if a position has a placed letter.
         /// </summary>
         public bool HasPlacedLetter(int gridCol, int gridRow)
@@ -243,6 +252,10 @@ namespace DLYH.TableUI
         private readonly Dictionary<Vector2Int, char> _placedLetters = new Dictionary<Vector2Int, char>();
         private readonly Dictionary<int, List<Vector2Int>> _wordRowPositions = new Dictionary<int, List<Vector2Int>>();
 
+        // Store word placement data for each row (word, start position, direction)
+        private readonly Dictionary<int, (string word, int startCol, int startRow, int dCol, int dRow)> _wordPlacementData =
+            new Dictionary<int, (string, int, int, int, int)>();
+
         // 8 directions: E, S, SE, NE, W, N, NW, SW
         private static readonly int[] DirCols = { 1, 0, 1, 1, -1, 0, -1, -1 };
         private static readonly int[] DirRows = { 0, 1, 1, -1, 0, -1, -1, 1 };
@@ -256,6 +269,20 @@ namespace DLYH.TableUI
 
         public IReadOnlyCollection<Vector2Int> AllPlacedPositions => _allPlacedPositions;
         public IReadOnlyDictionary<Vector2Int, char> PlacedLetters => _placedLetters;
+
+        /// <summary>
+        /// Gets the word placement data for all placed words.
+        /// Returns a list of tuples: (rowIndex, word, startCol, startRow, dirCol, dirRow)
+        /// </summary>
+        public List<(int rowIndex, string word, int startCol, int startRow, int dCol, int dRow)> GetAllWordPlacements()
+        {
+            List<(int, string, int, int, int, int)> result = new List<(int, string, int, int, int, int)>();
+            foreach (KeyValuePair<int, (string word, int startCol, int startRow, int dCol, int dRow)> kvp in _wordPlacementData)
+            {
+                result.Add((kvp.Key, kvp.Value.word, kvp.Value.startCol, kvp.Value.startRow, kvp.Value.dCol, kvp.Value.dRow));
+            }
+            return result;
+        }
 
         public TablePlacementController(TableModel tableModel, TableLayout tableLayout)
         {
@@ -464,6 +491,7 @@ namespace DLYH.TableUI
             }
 
             _wordRowPositions.Remove(rowIndex);
+            _wordPlacementData.Remove(rowIndex);
             Debug.Log($"[TablePlacementController] Cleared grid cells for row {rowIndex + 1}");
         }
 
@@ -481,6 +509,7 @@ namespace DLYH.TableUI
             _allPlacedPositions.Clear();
             _placedLetters.Clear();
             _wordRowPositions.Clear();
+            _wordPlacementData.Clear();
 
             Debug.Log("[TablePlacementController] Cleared all placed words");
         }
@@ -677,6 +706,9 @@ namespace DLYH.TableUI
 
             _wordRowPositions[_placementWordRowIndex] = new List<Vector2Int>(_placedCellPositions);
 
+            // Store the word placement data for later retrieval
+            _wordPlacementData[_placementWordRowIndex] = (_placementWord, startCol, startRow, dCol, dRow);
+
             int placedRowIndex = _placementWordRowIndex;
             string placedWord = _placementWord;
             List<Vector2Int> placedPositions = new List<Vector2Int>(_placedCellPositions);
@@ -689,7 +721,7 @@ namespace DLYH.TableUI
             _placedCellPositions.Clear();
 
             OnWordPlaced?.Invoke(placedRowIndex, placedWord, placedPositions);
-            Debug.Log("[TablePlacementController] Word placed successfully");
+            Debug.Log($"[TablePlacementController] Word '{placedWord}' placed at ({startCol},{startRow}) dir ({dCol},{dRow})");
             return true;
         }
 

@@ -87,7 +87,8 @@ namespace DLYH.TableUI
         private HashSet<char> _missLetters = new HashSet<char>();
 
         // Opponent keyboard state (shown on Defend tab)
-        private HashSet<char> _opponentHitLetters = new HashSet<char>();
+        private HashSet<char> _opponentHitLetters = new HashSet<char>(); // All coords known - show opponent color
+        private HashSet<char> _opponentFoundLetters = new HashSet<char>(); // Letter known but not all coords - show yellow
         private HashSet<char> _opponentMissLetters = new HashSet<char>();
 
         // Tab switching control
@@ -493,19 +494,29 @@ namespace DLYH.TableUI
 
         /// <summary>
         /// Marks a letter key as found (yellow) - letter exists but no coordinate known.
+        /// Public for word guess reveal logic.
         /// </summary>
-        private void MarkLetterFound(char letter)
+        public void MarkLetterFound(char letter)
         {
             letter = char.ToUpper(letter);
+
+            // Don't downgrade from Hit to Found - Hit takes precedence
+            if (_letterKeys.TryGetValue(letter, out Button key) && key.ClassListContains("letter-hit"))
+            {
+                Debug.Log($"[GameplayScreenManager] Letter '{letter}' already Hit, not downgrading to Found");
+                return;
+            }
+
             _hitLetters.Add(letter); // Track as "known" letter
             _missLetters.Remove(letter);
 
-            if (_letterKeys.TryGetValue(letter, out Button key))
+            if (key != null)
             {
                 key.RemoveFromClassList("letter-miss");
                 key.AddToClassList("letter-found");
                 key.style.backgroundColor = ColorRules.SystemYellow;
                 key.style.color = ColorRules.GetContrastingTextColor(ColorRules.SystemYellow);
+                Debug.Log($"[GameplayScreenManager] Letter '{letter}' marked as Found (yellow)");
             }
         }
 
@@ -534,6 +545,7 @@ namespace DLYH.TableUI
             {
                 _tableView.Bind(_attackTableModel);
                 _tableView.SetSetupMode(false);
+                _tableView.SetDefenseGrid(false); // Attack grid - hide letters in Revealed state
             }
 
             // Switch word rows
@@ -566,6 +578,7 @@ namespace DLYH.TableUI
             {
                 _tableView.Bind(_defendTableModel);
                 _tableView.SetSetupMode(false);
+                _tableView.SetDefenseGrid(true); // Defense grid - show letters in Revealed state
             }
 
             // Switch word rows
@@ -642,21 +655,37 @@ namespace DLYH.TableUI
 
                     if (_opponentHitLetters.Contains(letter))
                     {
-                        // Hit - show opponent color
+                        // Hit - all coords known, show opponent color
                         key.AddToClassList("letter-hit");
+                        key.RemoveFromClassList("letter-found");
+                        key.RemoveFromClassList("letter-miss");
                         key.style.backgroundColor = _opponentColor;
                         key.style.color = ColorRules.GetContrastingTextColor(_opponentColor);
+                    }
+                    else if (_opponentFoundLetters.Contains(letter))
+                    {
+                        // Found - letter known but not all coords, show yellow
+                        key.AddToClassList("letter-found");
+                        key.RemoveFromClassList("letter-hit");
+                        key.RemoveFromClassList("letter-miss");
+                        key.style.backgroundColor = ColorRules.SystemYellow;
+                        key.style.color = ColorRules.GetContrastingTextColor(ColorRules.SystemYellow);
                     }
                     else if (_opponentMissLetters.Contains(letter))
                     {
                         // Miss - show red
                         key.AddToClassList("letter-miss");
+                        key.RemoveFromClassList("letter-hit");
+                        key.RemoveFromClassList("letter-found");
                         key.style.backgroundColor = ColorRules.SystemRed;
                         key.style.color = Color.white;
                     }
                     else
                     {
                         // Unguessed - dim/grey out to indicate view-only
+                        key.RemoveFromClassList("letter-hit");
+                        key.RemoveFromClassList("letter-found");
+                        key.RemoveFromClassList("letter-miss");
                         key.style.backgroundColor = new Color(0.3f, 0.3f, 0.3f, 0.6f);
                         key.style.color = new Color(0.6f, 0.6f, 0.6f, 1f);
                     }
@@ -669,12 +698,41 @@ namespace DLYH.TableUI
         #region Opponent Keyboard State
 
         /// <summary>
-        /// Marks a letter as hit by opponent (shown on Defend tab keyboard).
+        /// Marks a letter as hit by opponent with all coords known (shown in opponent color on Defend tab keyboard).
         /// </summary>
-        public void MarkOpponentLetterHit(char letter)
+        public void MarkOpponentLetterHit(char letter, Color opponentColor)
         {
             letter = char.ToUpper(letter);
             _opponentHitLetters.Add(letter);
+            _opponentFoundLetters.Remove(letter);
+            _opponentMissLetters.Remove(letter);
+            _opponentColor = opponentColor; // Update color in case it's different
+
+            // If defend tab is active, update display immediately
+            if (!_isAttackTabActive)
+            {
+                RefreshKeyboardForCurrentTab();
+            }
+        }
+
+        /// <summary>
+        /// Legacy method - marks letter as hit with default opponent color.
+        /// </summary>
+        public void MarkOpponentLetterHit(char letter)
+        {
+            MarkOpponentLetterHit(letter, _opponentColor);
+        }
+
+        /// <summary>
+        /// Marks a letter as found by opponent but not all coords known (shown in yellow on Defend tab keyboard).
+        /// </summary>
+        public void MarkOpponentLetterFound(char letter)
+        {
+            letter = char.ToUpper(letter);
+            // Don't downgrade from Hit to Found
+            if (_opponentHitLetters.Contains(letter)) return;
+
+            _opponentFoundLetters.Add(letter);
             _opponentMissLetters.Remove(letter);
 
             // If defend tab is active, update display immediately
@@ -691,6 +749,7 @@ namespace DLYH.TableUI
         {
             letter = char.ToUpper(letter);
             if (_opponentHitLetters.Contains(letter)) return;
+            if (_opponentFoundLetters.Contains(letter)) return;
 
             _opponentMissLetters.Add(letter);
 
@@ -707,6 +766,7 @@ namespace DLYH.TableUI
         public void ClearOpponentKeyboardStates()
         {
             _opponentHitLetters.Clear();
+            _opponentFoundLetters.Clear();
             _opponentMissLetters.Clear();
         }
 
@@ -1142,6 +1202,7 @@ namespace DLYH.TableUI
             {
                 _tableView.Bind(_attackTableModel);
                 _tableView.SetSetupMode(false);
+                _tableView.SetDefenseGrid(false); // Attack grid - hide letters in Revealed state
             }
         }
 

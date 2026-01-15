@@ -53,6 +53,12 @@ namespace DLYH.TableUI
         /// <summary>Fired when a player loses (reaches miss limit). Parameters: isPlayer (true = player lost).</summary>
         public event Action<bool> OnGameOver;
 
+        /// <summary>Fired when a word guess is processed. Parameters: wordIndex, guessedWord, wasCorrect.</summary>
+        public event Action<int, string, bool> OnWordGuessProcessed;
+
+        /// <summary>Fired when a word is completely solved (all letters revealed). Parameters: wordIndex.</summary>
+        public event Action<int> OnWordSolved;
+
         #endregion
 
         #region Private Fields
@@ -60,6 +66,8 @@ namespace DLYH.TableUI
         // Opponent's word data (what the player is guessing against)
         private IReadOnlyDictionary<Vector2Int, char> _opponentPlacedLetters;
         private IReadOnlyCollection<Vector2Int> _opponentPlacedPositions;
+        private List<string> _opponentWords; // Opponent's actual words (for word guessing)
+        private HashSet<int> _opponentSolvedWordIndices; // Which opponent words have been guessed
 
         // Player's word data (what the opponent/AI is guessing against)
         private IReadOnlyDictionary<Vector2Int, char> _playerPlacedLetters;
@@ -68,6 +76,10 @@ namespace DLYH.TableUI
         // Guess state for each side
         private GuessState _playerGuessState;   // Player's guesses against opponent
         private GuessState _opponentGuessState; // Opponent's guesses against player
+
+        // Word guess tracking
+        private HashSet<string> _playerGuessedWords; // Words the player has guessed
+        private Func<string, bool> _validateWord; // Word validation callback
 
         private bool _isInitialized;
 
@@ -84,25 +96,34 @@ namespace DLYH.TableUI
         /// <param name="opponentPlacedPositions">Opponent's placed positions</param>
         /// <param name="playerMissLimit">Player's miss limit</param>
         /// <param name="opponentMissLimit">Opponent's miss limit</param>
+        /// <param name="opponentWords">Optional list of opponent's actual words for word guessing</param>
+        /// <param name="validateWord">Optional callback to validate word against dictionary</param>
         public void Initialize(
             IReadOnlyDictionary<Vector2Int, char> playerPlacedLetters,
             IReadOnlyCollection<Vector2Int> playerPlacedPositions,
             IReadOnlyDictionary<Vector2Int, char> opponentPlacedLetters,
             IReadOnlyCollection<Vector2Int> opponentPlacedPositions,
             int playerMissLimit,
-            int opponentMissLimit)
+            int opponentMissLimit,
+            List<string> opponentWords = null,
+            Func<string, bool> validateWord = null)
         {
             _playerPlacedLetters = playerPlacedLetters;
             _playerPlacedPositions = playerPlacedPositions;
             _opponentPlacedLetters = opponentPlacedLetters;
             _opponentPlacedPositions = opponentPlacedPositions;
+            _opponentWords = opponentWords ?? new List<string>();
+            _validateWord = validateWord;
 
             _playerGuessState = new GuessState { MissLimit = playerMissLimit };
             _opponentGuessState = new GuessState { MissLimit = opponentMissLimit };
 
+            _playerGuessedWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            _opponentSolvedWordIndices = new HashSet<int>();
+
             _isInitialized = true;
 
-            Debug.Log($"[GameplayGuessManager] Initialized - Player limit: {playerMissLimit}, Opponent limit: {opponentMissLimit}");
+            Debug.Log($"[GameplayGuessManager] Initialized - Player limit: {playerMissLimit}, Opponent limit: {opponentMissLimit}, Words: {_opponentWords.Count}");
         }
 
         /// <summary>
@@ -296,6 +317,104 @@ namespace DLYH.TableUI
 
         #endregion
 
+        #region Word Guessing
+
+        /// <summary>
+        /// Process a word guess from the player against the opponent's words.
+        /// </summary>
+        /// <param name="guessedWord">The word the player is guessing</param>
+        /// <param name="wordIndex">The index of the word row being guessed</param>
+        /// <returns>GuessResult indicating the outcome</returns>
+        public GuessResult ProcessPlayerWordGuess(string guessedWord, int wordIndex)
+        {
+            if (!_isInitialized)
+            {
+                Debug.LogWarning("[GameplayGuessManager] Not initialized");
+                return GuessResult.Invalid;
+            }
+
+            string normalizedGuess = guessedWord?.Trim().ToUpper() ?? "";
+            if (string.IsNullOrEmpty(normalizedGuess))
+            {
+                return GuessResult.Invalid;
+            }
+
+            Debug.Log($"[GameplayGuessManager] Word guess: '{normalizedGuess}' for word index {wordIndex}");
+
+            // Check if word is valid (in dictionary)
+            if (_validateWord != null && !_validateWord(normalizedGuess))
+            {
+                Debug.Log($"[GameplayGuessManager] '{normalizedGuess}' is not a valid word");
+                return GuessResult.Invalid;
+            }
+
+            // Check if already guessed this word
+            if (_playerGuessedWords.Contains(normalizedGuess))
+            {
+                Debug.Log($"[GameplayGuessManager] Already guessed word '{normalizedGuess}'");
+                return GuessResult.AlreadyGuessed;
+            }
+
+            // Mark as guessed
+            _playerGuessedWords.Add(normalizedGuess);
+
+            // Check if word matches the target word at this index
+            if (wordIndex >= 0 && wordIndex < _opponentWords.Count)
+            {
+                string targetWord = _opponentWords[wordIndex].ToUpper();
+                if (normalizedGuess == targetWord)
+                {
+                    // CORRECT!
+                    Debug.Log($"[GameplayGuessManager] CORRECT! Word '{normalizedGuess}' matches target");
+                    _opponentSolvedWordIndices.Add(wordIndex);
+
+                    // Mark all letters in this word as known/hit
+                    foreach (char c in targetWord)
+                    {
+                        _playerGuessState.GuessedLetters.Add(c);
+                        _playerGuessState.HitLetters.Add(c);
+                    }
+
+                    OnWordGuessProcessed?.Invoke(wordIndex, normalizedGuess, true);
+                    OnWordSolved?.Invoke(wordIndex);
+                    return GuessResult.Hit;
+                }
+            }
+
+            // WRONG - add 2 misses (word guess penalty)
+            Debug.Log($"[GameplayGuessManager] WRONG! Word '{normalizedGuess}' does not match. +2 misses");
+            _playerGuessState.MissCount += 2;
+
+            OnMissCountChanged?.Invoke(true, _playerGuessState.MissCount, _playerGuessState.MissLimit);
+            OnWordGuessProcessed?.Invoke(wordIndex, normalizedGuess, false);
+
+            // Check for game over
+            if (_playerGuessState.MissCount >= _playerGuessState.MissLimit)
+            {
+                Debug.Log("[GameplayGuessManager] GAME OVER - Player reached miss limit from word guess!");
+                OnGameOver?.Invoke(true);
+            }
+
+            return GuessResult.Miss;
+        }
+
+        /// <summary>
+        /// Checks if a word at the given index has been solved.
+        /// </summary>
+        public bool IsWordSolved(int wordIndex) => _opponentSolvedWordIndices?.Contains(wordIndex) ?? false;
+
+        /// <summary>
+        /// Gets the target word at the given index (for debugging/testing).
+        /// </summary>
+        public string GetOpponentWord(int wordIndex)
+        {
+            if (_opponentWords == null || wordIndex < 0 || wordIndex >= _opponentWords.Count)
+                return null;
+            return _opponentWords[wordIndex];
+        }
+
+        #endregion
+
         #region State Queries
 
         /// <summary>
@@ -335,6 +454,60 @@ namespace DLYH.TableUI
             _playerGuessState?.GuessedCoordinates.Contains(new Vector2Int(col, row)) ?? false;
 
         /// <summary>
+        /// Checks if a letter has been guessed by the opponent.
+        /// </summary>
+        public bool HasOpponentGuessedLetter(char letter) => _opponentGuessState?.GuessedLetters.Contains(char.ToUpper(letter)) ?? false;
+
+        /// <summary>
+        /// Checks if a letter was a hit for the opponent.
+        /// </summary>
+        public bool IsOpponentLetterHit(char letter) => _opponentGuessState?.HitLetters.Contains(char.ToUpper(letter)) ?? false;
+
+        /// <summary>
+        /// Checks if a coordinate has been guessed by the opponent.
+        /// </summary>
+        public bool HasOpponentGuessedCoordinate(int col, int row) =>
+            _opponentGuessState?.GuessedCoordinates.Contains(new Vector2Int(col, row)) ?? false;
+
+        /// <summary>
+        /// Gets all positions where a specific letter appears in the player's words.
+        /// Used to check if all instances of a letter have been found by the opponent.
+        /// </summary>
+        public List<Vector2Int> GetPlayerLetterPositions(char letter)
+        {
+            List<Vector2Int> positions = new List<Vector2Int>();
+            if (_playerPlacedLetters == null) return positions;
+
+            letter = char.ToUpper(letter);
+            foreach (KeyValuePair<Vector2Int, char> kvp in _playerPlacedLetters)
+            {
+                if (kvp.Value == letter)
+                {
+                    positions.Add(kvp.Key);
+                }
+            }
+            return positions;
+        }
+
+        /// <summary>
+        /// Checks if all coordinates for a letter in player's words have been guessed by the opponent.
+        /// </summary>
+        public bool AreAllPlayerLetterCoordinatesKnownByOpponent(char letter)
+        {
+            List<Vector2Int> positions = GetPlayerLetterPositions(letter);
+            if (positions.Count == 0) return false;
+
+            foreach (Vector2Int pos in positions)
+            {
+                if (!HasOpponentGuessedCoordinate(pos.x, pos.y))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
         /// Gets all positions where a specific letter appears in the opponent's words.
         /// Used to check if all instances of a letter have been found on the grid.
         /// </summary>
@@ -353,6 +526,97 @@ namespace DLYH.TableUI
             }
             return positions;
         }
+
+        /// <summary>
+        /// Checks if all coordinates for a letter have been guessed by the player.
+        /// Returns true if every position where this letter appears has been guessed.
+        /// </summary>
+        public bool AreAllLetterCoordinatesKnown(char letter)
+        {
+            List<Vector2Int> positions = GetOpponentLetterPositions(letter);
+            if (positions.Count == 0) return false;
+
+            foreach (Vector2Int pos in positions)
+            {
+                if (!HasPlayerGuessedCoordinate(pos.x, pos.y))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Checks if all opponent words have been correctly guessed via GUESS button.
+        /// </summary>
+        public bool AreAllOpponentWordsGuessed()
+        {
+            if (_opponentWords == null || _opponentSolvedWordIndices == null) return false;
+            return _opponentSolvedWordIndices.Count >= _opponentWords.Count;
+        }
+
+        /// <summary>
+        /// Checks if all coordinates containing letters have been guessed by the player.
+        /// </summary>
+        public bool AreAllOpponentCoordinatesKnown()
+        {
+            if (_opponentPlacedPositions == null || _playerGuessState == null) return false;
+
+            foreach (Vector2Int pos in _opponentPlacedPositions)
+            {
+                if (!_playerGuessState.GuessedCoordinates.Contains(pos))
+                {
+                    return false;
+                }
+            }
+            return _opponentPlacedPositions.Count > 0;
+        }
+
+        /// <summary>
+        /// Checks if all letters in opponent's words have been discovered (via letter or coordinate guesses).
+        /// </summary>
+        public bool AreAllOpponentLettersKnown()
+        {
+            if (_opponentPlacedLetters == null || _playerGuessState == null) return false;
+
+            // Get all unique letters in opponent's words
+            HashSet<char> requiredLetters = new HashSet<char>();
+            foreach (char letter in _opponentPlacedLetters.Values)
+            {
+                requiredLetters.Add(char.ToUpper(letter));
+            }
+
+            // Check if all required letters have been hit
+            foreach (char letter in requiredLetters)
+            {
+                if (!_playerGuessState.HitLetters.Contains(letter))
+                {
+                    return false;
+                }
+            }
+            return requiredLetters.Count > 0;
+        }
+
+        /// <summary>
+        /// Checks the win condition: all letters in word rows revealed AND all coordinates known on grid.
+        /// Win is achieved when:
+        /// 1. All letters in opponent's words are discovered (word rows complete)
+        /// 2. All grid coordinates containing letters have been found
+        /// </summary>
+        public bool HasPlayerWon()
+        {
+            return AreAllOpponentLettersKnown() && AreAllOpponentCoordinatesKnown();
+        }
+
+        /// <summary>
+        /// Gets the number of solved opponent words (via GUESS button).
+        /// </summary>
+        public int GetSolvedWordCount() => _opponentSolvedWordIndices?.Count ?? 0;
+
+        /// <summary>
+        /// Gets the total number of opponent words.
+        /// </summary>
+        public int GetTotalWordCount() => _opponentWords?.Count ?? 0;
 
         #endregion
     }

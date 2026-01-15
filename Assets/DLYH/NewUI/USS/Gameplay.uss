@@ -235,17 +235,17 @@
 .words-section {
     width: 100%;
     max-width: 500px;
-    padding: 8px 12px;
-    margin: 8px 0;
+    padding: 4px 10px;
+    margin: 4px 0;
     background-color: rgb(28, 28, 36);
-    border-radius: 8px;
+    border-radius: 6px;
     flex-shrink: 0;
 }
 
 .words-header {
-    font-size: 12px;
+    font-size: 11px;
     color: rgb(140, 140, 150);
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     -unity-font-style: bold;
     letter-spacing: 1px;
 }
@@ -261,7 +261,7 @@
 .letter-keyboard {
     flex-direction: column;
     align-items: center;
-    margin: 8px 0;
+    margin: 4px 0;
     flex-shrink: 0;
 }
 

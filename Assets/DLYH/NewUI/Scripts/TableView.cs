@@ -21,6 +21,7 @@ namespace DLYH.TableUI
         private Color _player1Color = ColorRules.SelectableColors[0]; // Blue default
         private Color _player2Color = ColorRules.SelectableColors[1]; // Purple default
         private bool _isSetupMode = true; // Default to setup mode
+        private bool _isDefenseGrid = false; // If true, show letters in Revealed state (player's own grid)
 
         // USS class names (cached to avoid string allocations)
         private static readonly string ClassTableRow = "table-row";
@@ -34,11 +35,14 @@ namespace DLYH.TableUI
         private static readonly string ClassCellHeaderRow = "cell-header-row";
         private static readonly string ClassCellGrid = "cell-grid";
 
-        // Size classes
-        private static readonly string ClassCellSizeTiny = "cell-size-tiny";
-        private static readonly string ClassCellSizeSmall = "cell-size-small";
-        private static readonly string ClassCellSizeMedium = "cell-size-medium";
-        private static readonly string ClassCellSizeLarge = "cell-size-large";
+        // Size classes - gradual scaling from 6x6 to 12x12
+        private static readonly string ClassCellSizeTiny = "cell-size-tiny";         // 22px - for 12x12
+        private static readonly string ClassCellSizeXSmall = "cell-size-xsmall";     // 26px - for 11x11
+        private static readonly string ClassCellSizeSmall = "cell-size-small";       // 30px - for 10x10
+        private static readonly string ClassCellSizeMedSmall = "cell-size-med-small";// 34px - for 9x9
+        private static readonly string ClassCellSizeMedium = "cell-size-medium";     // 38px - for 8x8
+        private static readonly string ClassCellSizeMedLarge = "cell-size-med-large";// 42px - for 7x7
+        private static readonly string ClassCellSizeLarge = "cell-size-large";       // 46px - for 6x6
 
         // Current size class (determined by grid dimensions)
         private string _currentSizeClass = ClassCellSizeMedium;
@@ -156,33 +160,64 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
+        /// Sets whether this is a defense grid (player's own grid being attacked).
+        /// Defense grids show letters even in Revealed state since the player can see their own letters.
+        /// Attack grids hide letters in Revealed state since the opponent's letters are unknown.
+        /// </summary>
+        public void SetDefenseGrid(bool isDefense)
+        {
+            _isDefenseGrid = isDefense;
+
+            // Force refresh if bound
+            if (_model != null)
+            {
+                RefreshAll();
+            }
+        }
+
+        /// <summary>
         /// Returns true if the view is in setup mode.
         /// </summary>
         public bool IsSetupMode => _isSetupMode;
 
         /// <summary>
         /// Determines the appropriate cell size class based on grid dimensions.
-        /// Larger grids get smaller cells to fit on screen.
+        /// Gradual scaling from large (6x6) to tiny (12x12).
+        /// Each grid size gets its own cell size for smooth scaling.
         /// </summary>
         private string DetermineSizeClass(int rows, int cols)
         {
             int maxDimension = Mathf.Max(rows, cols);
 
-            if (maxDimension >= 12)
+            // Note: rows/cols include headers, so:
+            // 6x6 grid = 7 rows/cols, 7x7 = 8, 8x8 = 9, 9x9 = 10, 10x10 = 11, 11x11 = 12, 12x12 = 13
+            if (maxDimension >= 13) // 12x12 grid
             {
-                return ClassCellSizeTiny;
+                return ClassCellSizeTiny;      // 22px cells
             }
-            else if (maxDimension >= 10)
+            else if (maxDimension >= 12) // 11x11 grid
             {
-                return ClassCellSizeSmall;
+                return ClassCellSizeXSmall;    // 26px cells
             }
-            else if (maxDimension >= 8)
+            else if (maxDimension >= 11) // 10x10 grid
             {
-                return ClassCellSizeMedium;
+                return ClassCellSizeSmall;     // 30px cells
             }
-            else
+            else if (maxDimension >= 10) // 9x9 grid
             {
-                return ClassCellSizeLarge;
+                return ClassCellSizeMedSmall;  // 34px cells
+            }
+            else if (maxDimension >= 9) // 8x8 grid
+            {
+                return ClassCellSizeMedium;    // 38px cells
+            }
+            else if (maxDimension >= 8) // 7x7 grid
+            {
+                return ClassCellSizeMedLarge;  // 42px cells
+            }
+            else // 6x6 grid and smaller
+            {
+                return ClassCellSizeLarge;     // 46px cells
             }
         }
 
@@ -305,8 +340,22 @@ namespace DLYH.TableUI
             VisualElement element = _cellElements[row, col];
             Label label = _cellLabels[row, col];
 
-            // Update text
-            if (cell.TextChar != '\0')
+            // Update text - hide letters in Fog state, and in Revealed state for attack grids
+            // Fog = completely hidden
+            // Revealed = coordinate hit but letter not guessed yet (yellow)
+            //   - Attack grid: hide letter (opponent's letters are unknown)
+            //   - Defense grid: show letter (player's own letters are visible)
+            if (cell.State == TableCellState.Fog)
+            {
+                // Fog - never show letters
+                label.text = string.Empty;
+            }
+            else if (cell.State == TableCellState.Revealed && !_isDefenseGrid)
+            {
+                // Revealed on attack grid - don't show letter (opponent's letters unknown)
+                label.text = string.Empty;
+            }
+            else if (cell.TextChar != '\0')
             {
                 label.text = cell.TextChar.ToString();
             }
@@ -457,12 +506,15 @@ namespace DLYH.TableUI
 
         /// <summary>
         /// Gets the current size class name for coordinating with word rows.
-        /// Returns "tiny", "small", "medium", or "large".
+        /// Returns "tiny", "xsmall", "small", "med-small", "medium", "med-large", or "large".
         /// </summary>
         public string GetSizeClassName()
         {
             if (_currentSizeClass == ClassCellSizeTiny) return "tiny";
+            if (_currentSizeClass == ClassCellSizeXSmall) return "xsmall";
             if (_currentSizeClass == ClassCellSizeSmall) return "small";
+            if (_currentSizeClass == ClassCellSizeMedSmall) return "med-small";
+            if (_currentSizeClass == ClassCellSizeMedLarge) return "med-large";
             if (_currentSizeClass == ClassCellSizeLarge) return "large";
             return "medium";
         }

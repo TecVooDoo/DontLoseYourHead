@@ -17,6 +17,7 @@ namespace DLYH.TableUI
         private int _activeRowIndex = -1;
         private bool _isGameplayMode;
         private Color _playerColor;
+        private int _wordGuessRowIndex = -1; // Which row is currently in word guess mode
 
         // USS class names
         private static readonly string ClassContainer = "word-rows-content";
@@ -38,6 +39,24 @@ namespace DLYH.TableUI
         /// Parameters: word index, word text.
         /// </summary>
         public event Action<int, string> OnGuessRequested;
+
+        /// <summary>
+        /// Event fired when word guess is submitted.
+        /// Parameters: word index, guessed word.
+        /// </summary>
+        public event Action<int, string> OnWordGuessSubmitted;
+
+        /// <summary>
+        /// Event fired when word guess is cancelled.
+        /// Parameter: word index.
+        /// </summary>
+        public event Action<int> OnWordGuessCancelled;
+
+        /// <summary>
+        /// Event fired when word guess mode is entered.
+        /// Parameter: word index.
+        /// </summary>
+        public event Action<int> OnWordGuessStarted;
 
         /// <summary>
         /// Event fired when a letter cell is clicked for text entry.
@@ -97,6 +116,9 @@ namespace DLYH.TableUI
                 row.OnClearRequested += HandleClearRequested;
                 row.OnGuessRequested += HandleGuessRequested;
                 row.OnLetterCellClicked += HandleLetterCellClicked;
+                row.OnWordGuessSubmitted += HandleWordGuessSubmitted;
+                row.OnWordGuessCancelled += HandleWordGuessCancelled;
+                row.OnWordGuessStarted += HandleWordGuessStarted;
 
                 row.SetPlayerColor(_playerColor);
 
@@ -380,6 +402,29 @@ namespace DLYH.TableUI
             OnLetterCellClicked?.Invoke(wordIndex, letterIndex);
         }
 
+        private void HandleWordGuessSubmitted(int wordIndex, string guessedWord)
+        {
+            _wordGuessRowIndex = -1;
+            OnWordGuessSubmitted?.Invoke(wordIndex, guessedWord);
+        }
+
+        private void HandleWordGuessCancelled(int wordIndex)
+        {
+            _wordGuessRowIndex = -1;
+            OnWordGuessCancelled?.Invoke(wordIndex);
+        }
+
+        private void HandleWordGuessStarted(int wordIndex)
+        {
+            // Exit any previous row's guess mode
+            if (_wordGuessRowIndex >= 0 && _wordGuessRowIndex != wordIndex && _wordGuessRowIndex < _wordCount)
+            {
+                _wordRows[_wordGuessRowIndex].ExitWordGuessMode();
+            }
+            _wordGuessRowIndex = wordIndex;
+            OnWordGuessStarted?.Invoke(wordIndex);
+        }
+
         private void CheckAllWordsPlaced()
         {
             if (AreAllWordsPlaced())
@@ -399,6 +444,9 @@ namespace DLYH.TableUI
                 _wordRows[i].OnClearRequested -= HandleClearRequested;
                 _wordRows[i].OnGuessRequested -= HandleGuessRequested;
                 _wordRows[i].OnLetterCellClicked -= HandleLetterCellClicked;
+                _wordRows[i].OnWordGuessSubmitted -= HandleWordGuessSubmitted;
+                _wordRows[i].OnWordGuessCancelled -= HandleWordGuessCancelled;
+                _wordRows[i].OnWordGuessStarted -= HandleWordGuessStarted;
             }
         }
 
@@ -430,6 +478,52 @@ namespace DLYH.TableUI
                 total += _wordRows[i].RevealAllOccurrences(letter, playerColor);
             }
             return total;
+        }
+
+        /// <summary>
+        /// Reveals all occurrences of a letter as "found" (yellow) - coordinates not yet known.
+        /// </summary>
+        /// <param name="letter">The letter to reveal</param>
+        /// <returns>Total number of positions revealed</returns>
+        public int RevealLetterAsFoundInAllWords(char letter)
+        {
+            letter = char.ToUpper(letter);
+            int total = 0;
+            for (int i = 0; i < _wordCount; i++)
+            {
+                string word = _wordRows[i].ActualWord;
+                for (int j = 0; j < word.Length; j++)
+                {
+                    if (word[j] == letter)
+                    {
+                        _wordRows[i].RevealLetterAsFound(j);
+                        total++;
+                    }
+                }
+            }
+            return total;
+        }
+
+        /// <summary>
+        /// Upgrades all occurrences of a letter from "found" (yellow) to player color.
+        /// Called when all coordinates for this letter are now known.
+        /// </summary>
+        /// <param name="letter">The letter to upgrade</param>
+        /// <param name="playerColor">The player's color</param>
+        public void UpgradeLetterToPlayerColorInAllWords(char letter, Color playerColor)
+        {
+            letter = char.ToUpper(letter);
+            for (int i = 0; i < _wordCount; i++)
+            {
+                string word = _wordRows[i].ActualWord;
+                for (int j = 0; j < word.Length; j++)
+                {
+                    if (word[j] == letter)
+                    {
+                        _wordRows[i].UpgradeLetterToPlayerColor(j, playerColor);
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -479,6 +573,95 @@ namespace DLYH.TableUI
                 words[i] = _wordRows[i].ActualWord;
             }
             return words;
+        }
+
+        /// <summary>
+        /// Gets the revealed word (with underscores for unrevealed letters).
+        /// </summary>
+        public string GetRevealedWord(int rowIndex)
+        {
+            if (rowIndex < 0 || rowIndex >= _wordCount) return "";
+            return _wordRows[rowIndex].GetDisplayedWord();
+        }
+
+        /// <summary>
+        /// Reveals all letters in a specific word row (when word is guessed correctly).
+        /// </summary>
+        public void RevealAllLettersInWord(int wordIndex, Color playerColor)
+        {
+            if (wordIndex < 0 || wordIndex >= _wordCount) return;
+            _wordRows[wordIndex].RevealAllLetters(playerColor);
+        }
+
+        /// <summary>
+        /// Hides the guess button for a specific word row (when word is solved).
+        /// </summary>
+        public void HideGuessButton(int wordIndex)
+        {
+            if (wordIndex < 0 || wordIndex >= _wordCount) return;
+            _wordRows[wordIndex].HideGuessButton();
+        }
+
+        #endregion
+
+        #region Word Guess Mode Keyboard Support
+
+        /// <summary>
+        /// Whether any row is currently in word guess mode.
+        /// </summary>
+        public bool IsInWordGuessMode => _wordGuessRowIndex >= 0;
+
+        /// <summary>
+        /// Gets the index of the row currently in word guess mode, or -1 if none.
+        /// </summary>
+        public int WordGuessRowIndex => _wordGuessRowIndex;
+
+        /// <summary>
+        /// Types a letter into the active word guess row.
+        /// </summary>
+        public bool TypeLetterInGuessMode(char letter)
+        {
+            if (_wordGuessRowIndex < 0 || _wordGuessRowIndex >= _wordCount) return false;
+            return _wordRows[_wordGuessRowIndex].TypeLetter(letter);
+        }
+
+        /// <summary>
+        /// Exits the current word guess mode.
+        /// </summary>
+        public void ExitWordGuessMode()
+        {
+            if (_wordGuessRowIndex >= 0 && _wordGuessRowIndex < _wordCount)
+            {
+                _wordRows[_wordGuessRowIndex].ExitWordGuessMode();
+                _wordGuessRowIndex = -1;
+            }
+        }
+
+        /// <summary>
+        /// Marks a letter position as revealed for a specific word.
+        /// </summary>
+        public void SetLetterRevealed(int wordIndex, int letterIndex, bool revealed)
+        {
+            if (wordIndex < 0 || wordIndex >= _wordCount) return;
+            _wordRows[wordIndex].SetPositionRevealed(letterIndex, revealed);
+        }
+
+        /// <summary>
+        /// Marks all positions of a letter as revealed across all words.
+        /// </summary>
+        public void SetLetterRevealedInAllWords(char letter, bool revealed)
+        {
+            for (int wordIdx = 0; wordIdx < _wordCount; wordIdx++)
+            {
+                string word = _wordRows[wordIdx].ActualWord;
+                for (int i = 0; i < word.Length; i++)
+                {
+                    if (char.ToUpper(word[i]) == char.ToUpper(letter))
+                    {
+                        _wordRows[wordIdx].SetPositionRevealed(i, revealed);
+                    }
+                }
+            }
         }
 
         #endregion
