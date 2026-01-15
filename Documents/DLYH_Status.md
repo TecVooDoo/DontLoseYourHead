@@ -4,7 +4,7 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 45
+**Document Version:** 46
 **Last Updated:** January 15, 2026
 
 **Archive:** `DLYH_Status_Archive.md` - Historical designs, old version history, completed phase details
@@ -17,9 +17,9 @@
 
 **Key Innovation:** Asymmetric difficulty - mixed-skill players compete fairly with different grid sizes, word counts, and difficulty settings.
 
-**Current Phase:** Phase D IN PROGRESS - Keyboard color tracking and AI word guessing fixed!
+**Current Phase:** Phase D IN PROGRESS - Architecture refactor complete!
 
-**Last Session (Jan 15, 2026):** Thirty-fourth session - **Keyboard Colors & Color Swatches!** Fixed keyboard letter state tracking (3-state: Hit/Found/Miss). Wired AI OnWordGuess event. Fixed defense keyboard showing all yellow (ProcessCoordinateGuess wasn't tracking HitLetters). Added color swatches to Attack/Defend tab cards. Set Executioner AI default color to royal blue RGB(60, 90, 180).
+**Last Session (Jan 15, 2026):** Thirty-fifth session - **Architecture Refactor & Gameplay Rules Clarification!** Major refactor to make game logic opponent-agnostic (AI vs human uses same code path). Simplified CellOwner enum to Player/Opponent (removed AI-specific values). Unified all opponent guess handling. Documented complete gameplay rules. Fixed Executioner color conflict (was red, now royal blue).
 
 ---
 
@@ -257,6 +257,27 @@
 **DLYH.Networking:**
 - IOpponent, LocalAIOpponent, RemotePlayerOpponent, OpponentFactory
 
+### Opponent Abstraction (v46 Refactor)
+
+The game logic is now completely opponent-agnostic. Whether the opponent is:
+- The Executioner AI (solo mode)
+- A Phantom AI (fake player when no PVP match found)
+- A Remote Human Player (PVP mode)
+
+...the game controller doesn't know or care. It just:
+1. Fires `OnOpponentTurnStarted` event
+2. Waits for a guess via `IOpponent.OnLetterGuess` / `OnCoordinateGuess` / `OnWordGuess`
+3. Processes the guess using the SAME code path as player guesses
+4. Updates UI using opponent's color from `IOpponent.OpponentColor`
+5. Fires `OnOpponentTurnEnded` event
+
+**Key Changes (v46):**
+- `CellOwner` enum simplified: `Player`, `Opponent` (removed `ExecutionerAI`, `PhantomAI`)
+- `_aiOpponent` renamed to `_opponent` throughout
+- `HandleAI*` methods renamed to `HandleOpponent*`
+- Removed `GameMode.Solo` checks from turn switching
+- Single color source: `IOpponent.OpponentColor`
+
 ### Key Folders
 
 ```
@@ -298,7 +319,104 @@ Assets/DLYH/
 
 ---
 
-## Game Rules
+## Game Rules (Complete Reference)
+
+### Core Concept
+DLYH is Battleship with words. Both players (P/O = Player/Opponent) see the same board structure with Attack and Defend sides. The only difference is whose words are shown where.
+
+### Board Views
+
+**Attack Board (viewing opponent's hidden words):**
+- Grid: Starts empty/hidden - shows results of YOUR guesses against opponent
+- Word Rows: Start as underscores (e.g., `_ _ _`, `_ _ _ _`)
+- Keyboard Tracker: Tracks YOUR letter guesses
+
+**Defend Board (viewing your own words):**
+- Grid: Shows YOUR words and positions (what you placed during setup)
+- Word Rows: Shows YOUR words fully visible
+- Keyboard Tracker: Tracks OPPONENT's letter guesses against you
+
+### Turn Flow
+1. First turn is random between P/O
+2. P/O makes ONE action: pick letter, pick coordinate, or guess word
+3. Turn switches to other P/O
+4. **Exception:** Extra turns earned for completing words (see below)
+
+### Action: Pick a Letter (Keyboard)
+
+**If letter IS in opponent's words:**
+- Word Rows: Replace underscore with that letter in ALL words containing it
+- Keyboard Tracker: Highlight based on coordinate knowledge (see Highlight Rules)
+- Grid: NO CHANGE (letter picking doesn't reveal coordinates)
+
+**If letter is NOT in opponent's words:**
+- Keyboard Tracker: Red (miss)
+- Miss count: +1
+
+### Action: Pick a Coordinate (Grid Cell)
+
+**If there IS a letter at that coordinate:**
+- Grid Cell: Highlight based on letter knowledge (see Highlight Rules)
+- Word Rows: NO CHANGE (coordinate picking doesn't reveal letters)
+- Keyboard Tracker: NO CHANGE
+
+**If there is NO letter at that coordinate:**
+- Grid Cell: Red (miss)
+- Miss count: +1
+
+### Action: Guess Word (GUESS Button)
+
+**If CORRECT:**
+- That word's letters fill in (as if each letter was guessed individually)
+- Other words in word rows also get those letters filled in
+- Keyboard Tracker and Grid update accordingly
+- Extra turn awarded
+
+**If INCORRECT:**
+- No change to board
+- Miss count: +2 (double penalty)
+
+### Highlight Hit Rules (Critical)
+
+**Keyboard Tracker & Word Rows:**
+| Condition | Color |
+|-----------|-------|
+| Letter is in words, but NOT all coordinates for that letter known on grid | Yellow |
+| Letter is in words AND all coordinates for that letter known on grid | Player/Opponent Color |
+
+**Grid Cells:**
+| Condition | Color | Letter Visibility |
+|-----------|-------|-------------------|
+| Valid coordinate, but letter NOT known | Yellow | Hidden (Attack) / Shown (Defend) |
+| Valid coordinate AND letter known | Player/Opponent Color | Shown (both boards) |
+
+### How Letters Become "Fully Known" (Player Color)
+
+A letter transitions from Yellow to Player Color when BOTH are true:
+1. The letter itself is known (via letter guess or word guess)
+2. ALL coordinates containing that letter are known (via coordinate guesses)
+
+**Grid vs Keyboard difference:**
+- **Grid cells:** Transition to Player Color individually when BOTH letter AND that specific coordinate are known
+- **Keyboard/Word Rows:** Transition to Player Color only when ALL coordinates containing that letter are known
+
+### Extra Turn Logic
+
+Extra turn awarded when ALL letters in a word row are revealed (underscores replaced).
+
+**Can chain:** If completing one word causes another word to complete (shared letters), each completion awards an extra turn.
+
+**Example:**
+- `_ _ T` and `_ _ L F`
+- Guess "C" -> `C _ T` and `C _ L F` (no word complete, turn ends)
+- Guess Word "CAT" -> correct -> `C A T` complete -> +1 extra turn
+- "A" fills into second word -> `C A L F` complete -> +1 extra turn
+- Total: 2 extra turns earned
+
+### Miss Count
+- Letter miss: +1
+- Coordinate miss: +1
+- Incorrect word guess: +2
 
 ### Miss Limit Formula
 
@@ -311,16 +429,18 @@ YourDifficultyModifier: Easy=+4, Normal=+0, Hard=-4
 ```
 
 ### Win Conditions
+1. P/O reveals ALL opponent's words AND all their grid coordinates
+2. P/O wins by default if opponent reaches their miss limit
+3. (Online PVP only) P/O wins if opponent abandons after 5 days
 
-- Reveal all opponent's letters AND grid positions, OR
-- Opponent reaches their miss limit
-
-### Key Mechanics
+### Key Mechanics Summary
 
 - 3 words HARDER than 4 (fewer letters to find)
 - Wrong word guess = 2 misses (double penalty)
 - Complete a word = extra turn (queued if multiple)
-- Grid cells only revealed via coordinate guesses (NOT word guesses)
+- Letter guesses reveal letters in word rows, NOT grid positions
+- Coordinate guesses reveal grid positions, NOT letters (unless letter already known)
+- Grid cells only show letter when BOTH letter AND coordinate are known
 
 ---
 
@@ -498,11 +618,11 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 46 | Jan 15, 2026 | Thirty-fifth session - **Architecture Refactor!** Made game logic opponent-agnostic. Simplified CellOwner enum (Player/Opponent only). Unified opponent guess handlers. Documented complete gameplay rules. Fixed Executioner color (royal blue). |
 | 45 | Jan 15, 2026 | Thirty-fourth session - **Keyboard Colors & Color Swatches!** Fixed keyboard 3-state tracking (Hit/Found/Miss). Wired AI OnWordGuess. Fixed defense keyboard all yellow. Added color swatches to tabs. Executioner default = royal blue. |
 | 44 | Jan 15, 2026 | Thirty-third session - **Roadmap Planning & Status Reorganization!** Created DLYH_Status_Archive.md. Defined complete roadmap (D->E->F->G). Key decisions: solo=no auth, PVP=auth required, phantom AI after 6 sec matchmaking, async games (5-day abandonment), rematch flow. Target: WebGL on Cloudflare, then Steam/mobile. |
 | 43 | Jan 15, 2026 | Status doc reorganization - moved v1-38 history, completed phase designs, implemented UX to archive. |
 | 42 | Jan 14, 2026 | **Grid Cell Color Rules Fixed!** Attack grid yellow cells hide letters, defense grid shows them. Added `_isDefenseGrid` flag to TableView. |
-| 41 | Jan 13, 2026 | **Defense View & Turn Switching!** Dual-view tab system, auto-switch on turn change, AI guesses update defense grid. |
 
 **Full version history:** See `DLYH_Status_Archive.md`
 
@@ -510,22 +630,25 @@ After each work session, update this document:
 
 ## Next Session Instructions
 
-**Starting Point:** This document (DLYH_Status.md v45)
+**Starting Point:** This document (DLYH_Status.md v46)
 
 **Scene to Use:** NewUIScene.unity (for UI Toolkit work - Phase D)
 
 **Current State:**
 - Phase A & B COMPLETE - table data model and UI Toolkit renderer working
 - Phase C COMPLETE - Setup wizard fully functional with all polish
-- Phase D IN PROGRESS (~85%) - Defense view and turn switching implemented!
+- Phase D IN PROGRESS (~85%) - Architecture refactor complete, needs testing!
+
+**Important:** Game logic is now opponent-agnostic! Use `_opponent` (not `_aiOpponent`), handlers are `HandleOpponent*` (not `HandleAI*`), and `CellOwner` only has `Player` and `Opponent` values.
 
 **Phase D Remaining (in priority order):**
-1. **TEST** grid cell color rules, defense view, guillotine 5-stage
-2. **Extra turn logic** - word completed via GUESS button OR all letters found in word row
-3. **Win/lose detection** - wire to existing WinConditionChecker
-4. **Game end sequence** - guillotine animation -> feedback modal (with Continue button) -> Main Menu
-5. **Audio wiring** - connect existing audio system (UIAudioManager, GuillotineAudioManager, MusicManager) to new UI Toolkit events
-6. **How to Play** - text instructions screen (accessible from main menu)
+1. **TEST** the refactored code - ensure it compiles and gameplay works
+2. **FIX** any bugs from the refactor (color rules, turn management, guess processing)
+3. **Extra turn logic** - word completed via GUESS button OR all letters found in word row
+4. **Win/lose detection** - wire to existing WinConditionChecker
+5. **Game end sequence** - guillotine animation -> feedback modal (with Continue button) -> Main Menu
+6. **Audio wiring** - connect existing audio system (UIAudioManager, GuillotineAudioManager, MusicManager) to new UI Toolkit events
+7. **How to Play** - text instructions screen (accessible from main menu)
 
 **Existing Systems to Wire (DO NOT REBUILD):**
 - `GameplayStateTracker` - State tracking (misses, letters, coordinates)

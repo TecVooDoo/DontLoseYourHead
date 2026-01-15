@@ -62,10 +62,11 @@ namespace DLYH.Networking
         // PROPERTIES
         // ============================================================
 
+        /// <summary>Default color for The Executioner - Royal Blue RGB(60, 90, 180).</summary>
+        public static readonly Color ExecutionerDefaultColor = new Color(0.235f, 0.353f, 0.706f, 1f);
+
         public string OpponentName => _opponentSetupData?.PlayerName ?? "The Executioner";
-        // Default to royal blue for The Executioner AI
-        private static readonly Color ExecutionerBlue = new Color(0.235f, 0.353f, 0.706f, 1f); // Royal blue RGB(60, 90, 180)
-        public Color OpponentColor => _opponentSetupData?.PlayerColor ?? ExecutionerBlue;
+        public Color OpponentColor => _opponentSetupData?.PlayerColor ?? ExecutionerDefaultColor;
         public int GridSize => _opponentSetupData?.GridSize ?? 8;
         public int WordCount => _opponentSetupData?.WordCount ?? 3;
         public List<WordPlacementData> WordPlacements => _opponentSetupData?.PlacedWords ?? new List<WordPlacementData>();
@@ -149,10 +150,10 @@ namespace DLYH.Networking
         /// </summary>
         private PlayerSetupData GenerateOpponentSetup(DifficultySetting playerDifficulty)
         {
-            var setup = new PlayerSetupData
+            PlayerSetupData setup = new PlayerSetupData
             {
                 PlayerName = "The Executioner",
-                PlayerColor = new Color(0.6f, 0.1f, 0.1f, 1f) // Dark red
+                PlayerColor = ExecutionerDefaultColor // Royal Blue - consistent with default
             };
 
             // Determine grid size and word count based on player difficulty

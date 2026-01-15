@@ -78,7 +78,7 @@ namespace DLYH.TableUI
             {
                 case TableCellState.Fog:
                     newState = TableCellState.Hit;
-                    newOwner = CellOwner.Player1;
+                    newOwner = CellOwner.Player;
                     _model.SetCellChar(row, col, 'X');
                     break;
                 case TableCellState.Hit:
@@ -132,7 +132,7 @@ namespace DLYH.TableUI
                         _model.SetGridCellLetter(gridRow, gridCol, letter);
                         _model.SetGridCellState(gridRow, gridCol, TableCellState.Hit);
                         _model.SetGridCellOwner(gridRow, gridCol,
-                            Random.value > 0.5f ? CellOwner.Player1 : CellOwner.Player2);
+                            Random.value > 0.5f ? CellOwner.Player : CellOwner.Opponent);
                     }
                 }
             }

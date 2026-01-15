@@ -203,24 +203,18 @@ namespace DLYH.TableUI
 
         /// <summary>
         /// Gets the color associated with a cell owner.
+        /// The game logic does not distinguish between AI and human opponents -
+        /// opponent color is always provided by the IOpponent instance.
         /// </summary>
-        public static Color GetOwnerColor(CellOwner owner, Color player1Color, Color player2Color)
+        public static Color GetOwnerColor(CellOwner owner, Color playerColor, Color opponentColor)
         {
             switch (owner)
             {
-                case CellOwner.Player1:
-                    return player1Color;
+                case CellOwner.Player:
+                    return playerColor;
 
-                case CellOwner.Player2:
-                    return player2Color;
-
-                case CellOwner.ExecutionerAI:
-                    // Executioner uses a distinctive color (dark red/crimson)
-                    return new Color(0.6f, 0.1f, 0.15f, 1f);
-
-                case CellOwner.PhantomAI:
-                    // Phantom AI uses a ghostly color
-                    return new Color(0.5f, 0.5f, 0.6f, 1f);
+                case CellOwner.Opponent:
+                    return opponentColor;
 
                 default:
                     return CellDefault;

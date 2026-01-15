@@ -453,22 +453,11 @@ namespace DLYH.TableUI
 
         /// <summary>
         /// Gets the color for a cell owner.
+        /// Uses ColorRules.GetOwnerColor to maintain single source of truth.
         /// </summary>
         private Color GetOwnerColor(CellOwner owner)
         {
-            switch (owner)
-            {
-                case CellOwner.Player1:
-                    return _player1Color;
-                case CellOwner.Player2:
-                    return _player2Color;
-                case CellOwner.ExecutionerAI:
-                    return new Color(0.6f, 0.1f, 0.15f, 1f);
-                case CellOwner.PhantomAI:
-                    return new Color(0.5f, 0.5f, 0.6f, 1f);
-                default:
-                    return ColorRules.CellDefault;
-            }
+            return ColorRules.GetOwnerColor(owner, _player1Color, _player2Color);
         }
 
         /// <summary>

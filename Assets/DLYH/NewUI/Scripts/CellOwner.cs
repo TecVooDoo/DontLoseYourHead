@@ -1,24 +1,20 @@
 namespace DLYH.TableUI
 {
     /// <summary>
-    /// Identifies which player or AI owns a cell's content.
-    /// Used for determining hit/reveal colors during gameplay.  
+    /// Identifies which player owns a cell's content.
+    /// Used for determining hit/reveal colors during gameplay.
+    /// The game logic does not distinguish between AI and human opponents -
+    /// both are simply "Opponent" with a name and color from IOpponent.
     /// </summary>
     public enum CellOwner
     {
         /// <summary>No owner (headers, spacers, empty cells).</summary>
         None,
 
-        /// <summary>Player 1 (local player in single-player, host in multiplayer).</summary>
-        Player1,
+        /// <summary>The local player (Player 1).</summary>
+        Player,
 
-        /// <summary>Player 2 (opponent in multiplayer).</summary>
-        Player2,
-
-        /// <summary>The Executioner AI opponent.</summary>
-        ExecutionerAI,
-
-        /// <summary>Phantom AI (fallback when no PVP match found).</summary>
-        PhantomAI
+        /// <summary>The opponent (Player 2) - could be AI or human, game doesn't care.</summary>
+        Opponent
     }
 }

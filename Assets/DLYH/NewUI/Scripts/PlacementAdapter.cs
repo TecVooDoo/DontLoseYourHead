@@ -734,7 +734,7 @@ namespace DLYH.TableUI
             // Set owner for placed cells
             if (state == TableCellState.Normal && letter != '\0')
             {
-                _tableModel.SetCellOwner(tableRow, tableCol, CellOwner.Player1);
+                _tableModel.SetCellOwner(tableRow, tableCol, CellOwner.Player);
             }
             else if (state == TableCellState.Fog)
             {
