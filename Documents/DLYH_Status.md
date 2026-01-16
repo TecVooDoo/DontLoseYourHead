@@ -4,7 +4,7 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 47
+**Document Version:** 48
 **Last Updated:** January 15, 2026
 
 **Archive:** `DLYH_Status_Archive.md` - Historical designs, old version history, completed phase details
@@ -19,7 +19,7 @@
 
 **Current Phase:** Phase D IN PROGRESS - Architecture refactor complete!
 
-**Last Session (Jan 15, 2026):** Thirty-sixth session - **Bug Fixes & Defense Board Color Issues!** Fixed AI turn timeout (wasn't being cancelled). Fixed tab switching after game over (now allowed for viewing). Attempted defense board color fixes but issues persist - letter guesses should NOT update grid cells. See Known Issues below.
+**Last Session (Jan 15, 2026):** Thirty-seventh session - **Defense Board Color Fix & AI Word Guess Bug!** Fixed coordinate guesses incorrectly updating keyboard tracker (was adding letters to HitLetters). Fixed AI repeatedly guessing same wrong word (added opponent word guess tracking to GameplayGuessManager and wired to AIGameState).
 
 ---
 
@@ -618,6 +618,7 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 48 | Jan 15, 2026 | Thirty-seventh session - **Defense Board Color Fix & AI Word Guess Bug!** Fixed coordinate guesses incorrectly updating keyboard (removed HitLetters.Add from ProcessCoordinateGuess). Fixed AI guessing same wrong word repeatedly (added opponent word guess tracking). |
 | 47 | Jan 15, 2026 | Thirty-sixth session - **Bug Fixes!** Fixed AI turn timeout cancellation. Fixed tab switching after game over. Defense board color issues persist (letter guesses incorrectly updating grid). |
 | 46 | Jan 15, 2026 | Thirty-fifth session - **Architecture Refactor!** Made game logic opponent-agnostic. Simplified CellOwner enum (Player/Opponent only). Unified opponent guess handlers. Documented complete gameplay rules. Fixed Executioner color (royal blue). |
 | 45 | Jan 15, 2026 | Thirty-fourth session - **Keyboard Colors & Color Swatches!** Fixed keyboard 3-state tracking (Hit/Found/Miss). Wired AI OnWordGuess. Fixed defense keyboard all yellow. Added color swatches to tabs. Executioner default = royal blue. |
@@ -628,28 +629,28 @@ After each work session, update this document:
 
 ---
 
-## Known Issues (v47)
+## Known Issues (v48)
 
-### Defense Board Color Bug (CRITICAL)
-**Problem:** When opponent guesses a letter via keyboard, the defense grid cells containing that letter are incorrectly being highlighted yellow. According to game rules, letter guesses should ONLY update:
-- Word rows (reveal the letter)
-- Keyboard tracker (yellow or opponent color)
-- Grid cells should NOT change until that specific coordinate is guessed
+**Architecture:**
+- GameplayUIController at ~1321 lines (reduced 50% from ~2619, within acceptable range)
+- Inconsistent namespace convention (TecVooDoo.DontLoseYourHead.* vs DLYH.*)
 
-**Root Cause:** `UpgradeDefenseGridLetterToHit(letter)` is being called in `HandleOpponentLetterGuess`, which upgrades cells where coordinates were already guessed. But something is still marking cells yellow that shouldn't be touched.
+**UI (To Be Replaced):**
+- Legacy WordPatternRow uses text field (migrating to table-based system)
+- uGUI cell vertical stretching bug in LetterCellUI/WordPatternRowUI prefabs
 
-**Location:** `UIFlowController.cs` around line 1455 in `HandleOpponentLetterGuess()`
+**Networking:**
+- NetworkGameManager still uses AuthService (needs update for Phase 1)
+- Full multiplayer gameplay not yet tested (setup exchange, turns, state sync)
 
-**Attempted Fixes:**
-- Removed `MarkDefenseGridLetterFound(letter)` call
-- Changed to only call `UpgradeDefenseGridLetterToHit(letter)` for cells where coord was already guessed
-- Issue persists - need to trace what else might be updating grid cells
+**Audio:**
+- Music crossfading/switching too frequently (should only switch at end of track)
 
 ---
 
 ## Next Session Instructions
 
-**Starting Point:** This document (DLYH_Status.md v47)
+**Starting Point:** This document (DLYH_Status.md v48)
 
 **Scene to Use:** NewUIScene.unity (for UI Toolkit work - Phase D)
 

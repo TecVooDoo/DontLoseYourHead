@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -594,7 +595,7 @@ namespace DLYH.TableUI
             if (_triviaLabel == null) return;
 
             StopTriviaRotation();
-            _currentTriviaIndex = Random.Range(0, TRIVIA_FACTS.Length);
+            _currentTriviaIndex = UnityEngine.Random.Range(0, TRIVIA_FACTS.Length);
             _triviaCoroutine = StartCoroutine(TriviaRotationCoroutine());
         }
 
@@ -1252,7 +1253,7 @@ namespace DLYH.TableUI
             state.GridSize = gridSize;
             state.WordCount = _playerSetupData?.WordCount ?? 4;
 
-            // Get AI's guessed letters and coordinates from guess manager
+            // Get AI's guessed letters, coordinates, and words from guess manager
             // This prevents the AI from guessing the same thing twice
             if (_guessManager != null)
             {
@@ -1260,6 +1261,7 @@ namespace DLYH.TableUI
                 state.HitLetters = _guessManager.GetOpponentHitLetters();
                 state.GuessedCoordinates = _guessManager.GetOpponentGuessedCoordinatesAsTuples();
                 state.HitCoordinates = _guessManager.GetOpponentHitCoordinatesAsTuples();
+                state.GuessedWords = _guessManager.GetOpponentGuessedWords();
             }
             else
             {
@@ -1267,6 +1269,7 @@ namespace DLYH.TableUI
                 state.HitLetters = new HashSet<char>();
                 state.GuessedCoordinates = new HashSet<(int, int)>();
                 state.HitCoordinates = new HashSet<(int, int)>();
+                state.GuessedWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             }
 
             // Build word patterns from player's word setup (what AI is trying to guess)
@@ -1586,6 +1589,17 @@ namespace DLYH.TableUI
             if (_isGameOver || _isPlayerTurn) return;
 
             Debug.Log($"[UIFlowController] Opponent guesses word: '{guessedWord}' for word index {wordIndex}");
+
+            // Record the word guess and check if already guessed
+            bool isNewGuess = _guessManager?.RecordOpponentWordGuess(guessedWord) ?? false;
+            if (!isNewGuess)
+            {
+                // Already guessed this word - skip processing, just advance turn
+                Debug.Log($"[UIFlowController] Opponent already guessed '{guessedWord}' - skipping");
+                _opponent?.AdvanceTurn();
+                EndOpponentTurn();
+                return;
+            }
 
             // Get the player's actual word at this index
             string actualWord = null;

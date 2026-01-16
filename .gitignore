@@ -82,3 +82,6 @@ crashlytics-build.properties
 
 # Windows reserved names (artifacts)
 nul
+
+# Claude Code temporary files
+tmpclaude-*

@@ -79,6 +79,7 @@ namespace DLYH.TableUI
 
         // Word guess tracking
         private HashSet<string> _playerGuessedWords; // Words the player has guessed
+        private HashSet<string> _opponentGuessedWords; // Words the opponent has guessed
         private Func<string, bool> _validateWord; // Word validation callback
 
         private bool _isInitialized;
@@ -119,6 +120,7 @@ namespace DLYH.TableUI
             _opponentGuessState = new GuessState { MissLimit = opponentMissLimit };
 
             _playerGuessedWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            _opponentGuessedWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             _opponentSolvedWordIndices = new HashSet<int>();
 
             _isInitialized = true;
@@ -281,12 +283,9 @@ namespace DLYH.TableUI
             // Check if there's a letter at this position
             if (targetLetters.TryGetValue(position, out char letter))
             {
-                // HIT - mark the coordinate as containing a letter
-                // NOTE: We do NOT add to GuessedLetters here! Coordinate guesses only reveal POSITIONS.
-                // The letter is only "known" if the player also guessed it via keyboard.
-                // HitLetters tracks which letters exist at hit coordinates (for upgrade checking).
-                guessState.HitLetters.Add(letter);
-                // guessState.GuessedLetters.Add(letter); // REMOVED - coordinate guesses don't reveal letters!
+                // HIT - coordinate revealed, letter hidden
+                // NOTE: Do NOT add letter to HitLetters here! Coordinate guesses only reveal positions,
+                // not letters. The keyboard tracker should only show letters guessed via keyboard.
                 Debug.Log($"[GameplayGuessManager] HIT! Letter at ({col}, {row}) - coordinate revealed, letter hidden");
 
                 if (isPlayerGuessing)
@@ -416,6 +415,50 @@ namespace DLYH.TableUI
             if (_opponentWords == null || wordIndex < 0 || wordIndex >= _opponentWords.Count)
                 return null;
             return _opponentWords[wordIndex];
+        }
+
+        /// <summary>
+        /// Checks if the opponent has already guessed a specific word.
+        /// </summary>
+        public bool HasOpponentGuessedWord(string word)
+        {
+            if (string.IsNullOrEmpty(word)) return false;
+            return _opponentGuessedWords?.Contains(word.ToUpper()) ?? false;
+        }
+
+        /// <summary>
+        /// Records that the opponent guessed a word (regardless of correctness).
+        /// Returns true if this is a new guess, false if already guessed.
+        /// </summary>
+        public bool RecordOpponentWordGuess(string word)
+        {
+            if (string.IsNullOrEmpty(word)) return false;
+            string normalized = word.Trim().ToUpper();
+
+            if (_opponentGuessedWords == null)
+            {
+                _opponentGuessedWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            if (_opponentGuessedWords.Contains(normalized))
+            {
+                Debug.Log($"[GameplayGuessManager] Opponent already guessed word '{normalized}'");
+                return false;
+            }
+
+            _opponentGuessedWords.Add(normalized);
+            Debug.Log($"[GameplayGuessManager] Recorded opponent word guess: '{normalized}'");
+            return true;
+        }
+
+        /// <summary>
+        /// Gets all words the opponent has guessed (for AI state building).
+        /// </summary>
+        public HashSet<string> GetOpponentGuessedWords()
+        {
+            return _opponentGuessedWords != null
+                ? new HashSet<string>(_opponentGuessedWords, StringComparer.OrdinalIgnoreCase)
+                : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
 
         #endregion
