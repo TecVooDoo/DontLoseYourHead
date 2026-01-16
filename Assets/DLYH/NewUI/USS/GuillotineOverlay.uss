@@ -41,7 +41,6 @@
     width: 520px;
     min-height: 520px;
     max-height: 80%;
-    z-index: 10;
 }
 
 /* === Header === */
@@ -172,7 +171,7 @@
     right: 28px;
     top: 24px;
     bottom: 70px;
-    flex-direction: column;
+    flex-direction: column-reverse;
     justify-content: space-between;
 }
 
@@ -225,12 +224,13 @@
 }
 
 /* Blade positions for each stage (percentage from top) */
-/* Stage 1: blade at top (~6%), Stage 5: blade near lunette (~52%) */
-.blade-group.stage-1 { top: 6%; }
-.blade-group.stage-2 { top: 18%; }
+/* Stage 1: blade at bottom near lunette (~52%), Stage 5: blade at top (~6%) */
+/* Blade starts resting just above the neck holder and rises UP with danger */
+.blade-group.stage-1 { top: 52%; }
+.blade-group.stage-2 { top: 42%; }
 .blade-group.stage-3 { top: 30%; }
-.blade-group.stage-4 { top: 42%; }
-.blade-group.stage-5 { top: 52%; }
+.blade-group.stage-4 { top: 18%; }
+.blade-group.stage-5 { top: 6%; }
 
 /* Wood holder on top of blade */
 .blade-holder {
@@ -245,7 +245,7 @@
 .blade {
     width: 100%;
     flex-grow: 1;
-    background: linear-gradient(180deg, rgb(180, 190, 200) 0%, rgb(140, 150, 165) 50%, rgb(200, 210, 220) 100%);
+    background-color: rgb(170, 180, 190);
     border-radius: 0 0 3px 3px;
     border-left-width: 1px;
     border-right-width: 1px;
@@ -414,6 +414,215 @@
     margin-top: 8px;
 }
 
+/* === Lever Assembly === */
+/* Lever attached to guillotine side post, pivots at attachment point */
+
+.lever-assembly {
+    position: absolute;
+    top: 140px;
+    width: 55px;
+    height: 60px;
+}
+
+/* Right lever - pivot at right post, arm extends right (toward executioner) */
+.lever-assembly.lever-right {
+    right: -35px;
+}
+
+/* Left lever - pivot at left post, arm extends left (toward executioner) */
+.lever-assembly.lever-left {
+    left: -35px;
+}
+
+.lever-pivot {
+    position: absolute;
+    top: 0;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: rgb(60, 45, 35);
+    border-width: 2px;
+    border-color: rgb(80, 60, 45);
+}
+
+/* Right lever pivot on left side */
+.lever-assembly.lever-right .lever-pivot {
+    left: 0;
+}
+
+/* Left lever pivot on right side */
+.lever-assembly.lever-left .lever-pivot {
+    right: 0;
+}
+
+.lever-arm {
+    position: absolute;
+    top: 5px;
+    width: 40px;
+    height: 6px;
+    background-color: rgb(90, 65, 45);
+    border-radius: 3px;
+    transition-property: rotate;
+    transition-duration: 0.4s;
+    transition-timing-function: ease-out;
+}
+
+/* Right lever arm - pivots from left, extends right */
+.lever-assembly.lever-right .lever-arm {
+    left: 5px;
+    transform-origin: left center;
+}
+
+/* Left lever arm - pivots from right, extends left */
+.lever-assembly.lever-left .lever-arm {
+    right: 5px;
+    transform-origin: right center;
+}
+
+/* Right lever rotates: stage 1 pointing down-right (45deg), stage 5 pointing up-right (-45deg) */
+.lever-assembly.lever-right .lever-arm.stage-1 { rotate: 45deg; }
+.lever-assembly.lever-right .lever-arm.stage-2 { rotate: 25deg; }
+.lever-assembly.lever-right .lever-arm.stage-3 { rotate: 0deg; }
+.lever-assembly.lever-right .lever-arm.stage-4 { rotate: -20deg; }
+.lever-assembly.lever-right .lever-arm.stage-5 { rotate: -40deg; }
+
+/* Left lever rotates: stage 1 pointing down-left (-45deg), stage 5 pointing up-left (45deg) */
+.lever-assembly.lever-left .lever-arm.stage-1 { rotate: -45deg; }
+.lever-assembly.lever-left .lever-arm.stage-2 { rotate: -25deg; }
+.lever-assembly.lever-left .lever-arm.stage-3 { rotate: 0deg; }
+.lever-assembly.lever-left .lever-arm.stage-4 { rotate: 20deg; }
+.lever-assembly.lever-left .lever-arm.stage-5 { rotate: 40deg; }
+
+/* When dropped, levers swing down sharply */
+.lever-assembly.lever-right .lever-arm.dropped { rotate: 75deg; }
+.lever-assembly.lever-left .lever-arm.dropped { rotate: -75deg; }
+
+.lever-handle {
+    position: absolute;
+    top: -5px;
+    width: 12px;
+    height: 12px;
+    background-color: rgb(120, 85, 55);
+    border-radius: 50%;
+    border-width: 1px;
+    border-color: rgb(100, 70, 45);
+}
+
+/* Handle at end of right lever */
+.lever-assembly.lever-right .lever-handle {
+    right: -6px;
+}
+
+/* Handle at end of left lever */
+.lever-assembly.lever-left .lever-handle {
+    left: -6px;
+}
+
+/* === Executioner Placeholder === */
+/* Larger stick figure in the center between guillotines */
+/* Head should match victim head size (~36px), feet at basket level */
+
+.executioner-container {
+    position: absolute;
+    left: 50%;
+    margin-left: -45px;
+    bottom: 150px;
+    width: 90px;
+    align-items: center;
+}
+
+.executioner-figure {
+    position: relative;
+    width: 90px;
+    height: 180px;
+}
+
+/* Executioner head - same size as victim heads (36px) */
+.executioner-head {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    margin-left: -18px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background-color: rgb(220, 180, 140);
+    border-width: 2px;
+    border-color: rgb(180, 140, 100);
+}
+
+/* Executioner body - taller torso */
+.executioner-body {
+    position: absolute;
+    top: 34px;
+    left: 50%;
+    margin-left: -12px;
+    width: 24px;
+    height: 80px;
+    background-color: rgb(50, 45, 60);
+    border-radius: 6px;
+    border-width: 2px;
+    border-color: rgb(80, 70, 90);
+}
+
+/* Executioner arms - longer, reaching toward levers */
+.executioner-arm {
+    position: absolute;
+    top: 45px;
+    width: 55px;
+    height: 10px;
+    background-color: rgb(50, 45, 60);
+    border-radius: 5px;
+    border-width: 2px;
+    border-color: rgb(80, 70, 90);
+}
+
+.executioner-arm.arm-left {
+    right: 50%;
+    margin-right: 8px;
+    transform-origin: right center;
+    rotate: -30deg;
+}
+
+.executioner-arm.arm-right {
+    left: 50%;
+    margin-left: 8px;
+    transform-origin: left center;
+    rotate: 30deg;
+}
+
+/* Executioner legs container */
+.executioner-legs {
+    position: absolute;
+    top: 110px;
+    left: 50%;
+    margin-left: -22px;
+    width: 44px;
+    height: 70px;
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+/* Individual legs */
+.executioner-leg {
+    width: 12px;
+    height: 70px;
+    background-color: rgb(50, 45, 60);
+    border-radius: 5px;
+    border-width: 2px;
+    border-color: rgb(80, 70, 90);
+}
+
+.executioner-leg.leg-left {
+    transform-origin: top center;
+    rotate: 8deg;
+}
+
+.executioner-leg.leg-right {
+    transform-origin: top center;
+    rotate: -8deg;
+}
+
 /* === Game Over States === */
 
 .guillotine-panel.loser {
@@ -434,9 +643,11 @@
     transition-timing-function: ease-in;
 }
 
-/* Blade at execution position */
+/* Blade at execution position (drops from top to lunette) */
 .blade-group.dropped {
     top: 58%;
+    transition-duration: 0.15s;
+    transition-timing-function: ease-in;
 }
 
 /* === Responsive === */

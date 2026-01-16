@@ -1,7 +1,7 @@
 namespace DLYH.TableUI
 {
     /// <summary>
-    /// Defines the type of content a table cell represents. 
+    /// Defines the type of content a table cell represents.  
     /// </summary>
     public enum TableCellKind
     {

@@ -160,6 +160,12 @@ namespace DLYH.TableUI
         private bool _feedbackIsPostGame = false;
         private bool _feedbackPlayerWon = false;
 
+        // Confirmation modal state
+        private VisualElement _confirmModalContainer;
+        private Label _confirmTitle;
+        private Label _confirmMessage;
+        private System.Action _confirmAction;
+
         // Gameplay guess manager
         private GameplayGuessManager _guessManager;
         private bool _isPlayerTurn = true;
@@ -177,9 +183,16 @@ namespace DLYH.TableUI
         private List<WordPlacementData> _opponentWordPlacements; // Stored for end-game reveal
         private Coroutine _turnDelayCoroutine;
         private Coroutine _opponentTurnTimeoutCoroutine;
+        private Coroutine _gameOverSequenceCoroutine;
         private const float TURN_SWITCH_DELAY = 0.8f; // Delay before switching turns
         private const float OPPONENT_THINK_MIN_DELAY = 0.5f; // Minimum AI "thinking" time
         private const float OPPONENT_TURN_TIMEOUT = 15f; // Maximum time to wait for AI turn
+
+        // Guillotine stage tracking for audio
+        private int _playerPreviousStage = 1;
+        private int _opponentPreviousStage = 1;
+        private bool _isGamePausedForStageTransition = false;
+        private bool _wasPlayerTurnBeforePause = true;
 
         // Hamburger menu state
         private VisualElement _hamburgerMenuContainer;
@@ -745,6 +758,7 @@ namespace DLYH.TableUI
             // Initialize guillotine overlay manager
             _guillotineOverlayManager = new GuillotineOverlayManager();
             _guillotineOverlayManager.Initialize(_gameplayScreen);
+            _guillotineOverlayManager.OnClosed += HandleGuillotineOverlayClosed;
 
             // Set QWERTY preference
             bool useQwerty = PlayerPrefs.GetInt(PREFS_QWERTY_KEYBOARD, 0) == 1;
@@ -771,10 +785,20 @@ namespace DLYH.TableUI
 
         private void HandleGameplayLetterClicked(char letter)
         {
+            // Play keyboard click sound immediately for responsiveness
+            DLYH.Audio.UIAudioManager.KeyboardClick();
+
             // Block input after game over
             if (_isGameOver)
             {
                 Debug.Log("[UIFlowController] Input blocked - game is over");
+                return;
+            }
+
+            // Block input during stage transition animation
+            if (_isGamePausedForStageTransition)
+            {
+                Debug.Log("[UIFlowController] Input blocked - stage transition in progress");
                 return;
             }
 
@@ -799,6 +823,7 @@ namespace DLYH.TableUI
             switch (result)
             {
                 case GuessResult.Hit:
+                    DLYH.Audio.UIAudioManager.Success();
                     // Keyboard state is set by HandleLetterHit event handler
                     // (Found/yellow if not all coords known, Hit/player color if all coords known)
                     _gameplayManager?.SetStatusMessage($"HIT! '{letter}' is in their words!", GameplayScreenManager.StatusType.Hit);
@@ -813,6 +838,7 @@ namespace DLYH.TableUI
                     break;
 
                 case GuessResult.Miss:
+                    DLYH.Audio.UIAudioManager.Error();
                     _gameplayManager?.SetKeyboardLetterState(letter, LetterKeyState.Miss);
                     _gameplayManager?.SetStatusMessage($"Miss! '{letter}' not in any word.", GameplayScreenManager.StatusType.Miss);
                     UpdateMissCountDisplay(true);
@@ -829,10 +855,20 @@ namespace DLYH.TableUI
 
         private void HandleGameplayGridCellClicked(int tableRow, int tableCol, bool isAttackGrid)
         {
+            // Play grid cell click sound immediately for responsiveness
+            DLYH.Audio.UIAudioManager.GridCellClick();
+
             // Block input after game over
             if (_isGameOver)
             {
                 Debug.Log("[UIFlowController] Input blocked - game is over");
+                return;
+            }
+
+            // Block input during stage transition animation
+            if (_isGamePausedForStageTransition)
+            {
+                Debug.Log("[UIFlowController] Input blocked - stage transition in progress");
                 return;
             }
 
@@ -864,6 +900,7 @@ namespace DLYH.TableUI
             switch (result)
             {
                 case GuessResult.Hit:
+                    DLYH.Audio.UIAudioManager.Success();
                     _gameplayManager?.SetStatusMessage($"HIT! Letter found at {colLetter}{displayRow}!", GameplayScreenManager.StatusType.Hit);
                     _opponent?.RecordPlayerGuess(true);
                     RefreshKeyboardLetterStates(); // Ensure keyboard colors are correct
@@ -872,6 +909,7 @@ namespace DLYH.TableUI
                     break;
 
                 case GuessResult.Miss:
+                    DLYH.Audio.UIAudioManager.Error();
                     _gameplayManager?.SetStatusMessage($"Miss at {colLetter}{displayRow}", GameplayScreenManager.StatusType.Miss);
                     UpdateMissCountDisplay(true);
                     _opponent?.RecordPlayerGuess(false);
@@ -953,6 +991,7 @@ namespace DLYH.TableUI
             switch (result)
             {
                 case GuessResult.Hit:
+                    DLYH.Audio.UIAudioManager.Success();
                     _gameplayManager?.SetStatusMessage($"Correct! '{guessedWord.ToUpper()}'", GameplayScreenManager.StatusType.Hit);
                     _gameplayManager?.AddGuessedWord(playerName, guessedWord.ToUpper(), true, true);
 
@@ -965,6 +1004,7 @@ namespace DLYH.TableUI
                     break;
 
                 case GuessResult.Miss:
+                    DLYH.Audio.UIAudioManager.Error();
                     _gameplayManager?.SetStatusMessage($"Wrong! '{guessedWord.ToUpper()}' +2 misses", GameplayScreenManager.StatusType.Miss);
                     _gameplayManager?.AddGuessedWord(playerName, guessedWord.ToUpper(), false, true);
                     EndPlayerTurn(); // Wrong guess always ends turn
@@ -1052,6 +1092,88 @@ namespace DLYH.TableUI
         {
             Debug.Log($"[UIFlowController] Miss count changed - isPlayer: {isPlayer}, count: {newMissCount}/{missLimit}");
             UpdateMissCountDisplay(isPlayer);
+
+            // Check for stage transition
+            int newStage = GetStageFromMissCount(newMissCount, missLimit);
+            int previousStage = isPlayer ? _playerPreviousStage : _opponentPreviousStage;
+
+            // Update tracked stage first
+            if (isPlayer)
+            {
+                _playerPreviousStage = newStage;
+            }
+            else
+            {
+                _opponentPreviousStage = newStage;
+            }
+
+            if (newStage > previousStage)
+            {
+                // Stage increased - pause game and show guillotine overlay with animation
+                Debug.Log($"[UIFlowController] Stage transition: {previousStage} -> {newStage} (isPlayer: {isPlayer}) - Pausing for animation");
+
+                // Pause the game
+                _isGamePausedForStageTransition = true;
+                _wasPlayerTurnBeforePause = _isPlayerTurn;
+
+                // Stop opponent turn timeout if running (we're paused)
+                if (_opponentTurnTimeoutCoroutine != null)
+                {
+                    StopCoroutine(_opponentTurnTimeoutCoroutine);
+                    _opponentTurnTimeoutCoroutine = null;
+                }
+
+                // Show guillotine overlay with blade at PREVIOUS position (for delayed animation)
+                ShowGuillotineOverlayWithDelayedAnimation(isPlayer, previousStage);
+
+                // After delay, animate blade to current position and play sound
+                StartCoroutine(AnimateBladeAfterDelay(1.5f, isPlayer));
+            }
+        }
+
+        private IEnumerator AnimateBladeAfterDelay(float delay, bool isPlayer)
+        {
+            yield return new WaitForSeconds(delay);
+
+            // Animate blade and lever to current position
+            _guillotineOverlayManager?.AnimateToCurrentStage(isPlayer);
+
+            // Play blade raise sound
+            DLYH.Audio.GuillotineAudioManager.BladeRaise();
+        }
+
+        private void HandleGuillotineOverlayClosed()
+        {
+            DLYH.Audio.UIAudioManager.PopupClose();
+
+            // If we were paused for a stage transition, unpause and resume game
+            if (_isGamePausedForStageTransition)
+            {
+                Debug.Log($"[UIFlowController] Guillotine overlay closed - Resuming game (wasPlayerTurn: {_wasPlayerTurnBeforePause})");
+                _isGamePausedForStageTransition = false;
+
+                // Resume the appropriate turn
+                if (!_wasPlayerTurnBeforePause && !_isGameOver)
+                {
+                    // It was opponent's turn - restart their turn timer
+                    _opponentTurnTimeoutCoroutine = StartCoroutine(OpponentTurnTimeoutCoroutine());
+                }
+            }
+        }
+
+        /// <summary>
+        /// Converts miss count to stage number (1-5) matching GuillotineOverlayManager.
+        /// </summary>
+        private int GetStageFromMissCount(int missCount, int missLimit)
+        {
+            if (missLimit <= 0) return 1;
+            float percent = Mathf.Clamp01((float)missCount / missLimit) * 100f;
+
+            if (percent >= 80f) return 5;
+            if (percent >= 60f) return 4;
+            if (percent >= 40f) return 3;
+            if (percent >= 20f) return 2;
+            return 1;
         }
 
         private void HandleGameOver(bool playerLost)
@@ -1081,18 +1203,97 @@ namespace DLYH.TableUI
             // Switch to Attack tab to show what the player didn't find
             _gameplayManager?.SelectAttackTab(isAutoSwitch: true);
 
-            // Update UI
-            _gameplayManager?.SetPlayerTurn(true); // Reset turn indicator
-            _gameplayManager?.SetStatusMessage(
-                playerLost ? "GAME OVER - You lost!" : "YOU WIN! Opponent lost!",
-                playerLost ? GameplayScreenManager.StatusType.Miss : GameplayScreenManager.StatusType.Hit
-            );
-
             // Reveal any remaining unfound opponent words/positions
             RevealUnfoundOpponentWords();
 
-            // TODO: Show game over screen with guillotine animation
-            // TODO: Navigate to feedback/results screen
+            // Start game end sequence with guillotine animation
+            _gameOverSequenceCoroutine = StartCoroutine(GameOverSequenceCoroutine(!playerLost));
+        }
+
+        /// <summary>
+        /// Game end sequence coroutine - shows guillotine animation and then feedback modal.
+        /// </summary>
+        /// <param name="playerWon">True if player won, false if player lost</param>
+        private IEnumerator GameOverSequenceCoroutine(bool playerWon)
+        {
+            // Animation timing constants (matching GuillotineDisplay.cs)
+            const float PAUSE_BEFORE_EXECUTION = 2f;
+            const float FINAL_RAISE_DURATION = 4f;
+            const float PAUSE_BEFORE_HOOK_UNLOCK = 0.3f;
+            const float PAUSE_AFTER_HOOK_UNLOCK = 0.4f;
+            const float BLADE_DROP_DURATION = 0.15f;
+            const float HEAD_FALL_DURATION = 0.4f;
+            const float PAUSE_AFTER_HEAD_FALL = 1.5f;
+
+            // Show initial status message
+            _gameplayManager?.SetPlayerTurn(true); // Reset turn indicator
+            _gameplayManager?.SetStatusMessage(
+                playerWon ? "YOU WIN!" : "GAME OVER",
+                playerWon ? GameplayScreenManager.StatusType.Hit : GameplayScreenManager.StatusType.Miss
+            );
+
+            // Brief pause for players to see the result
+            yield return new WaitForSeconds(PAUSE_BEFORE_EXECUTION);
+
+            // Prepare guillotine data
+            PlayerTabData playerTabData = _gameplayManager?.PlayerData;
+            PlayerTabData opponentTabData = _gameplayManager?.OpponentData;
+
+            GuillotineData playerData = new GuillotineData
+            {
+                Name = playerTabData?.Name ?? "You",
+                Color = playerTabData?.Color ?? _wizardManager?.PlayerColor ?? ColorRules.SelectableColors[0],
+                MissCount = playerTabData?.MissCount ?? 0,
+                MissLimit = playerTabData?.MissLimit ?? 20,
+                IsLocalPlayer = true
+            };
+
+            GuillotineData opponentData = new GuillotineData
+            {
+                Name = opponentTabData?.Name ?? "EXECUTIONER",
+                Color = opponentTabData?.Color ?? ColorRules.SelectableColors[1],
+                MissCount = opponentTabData?.MissCount ?? 0,
+                MissLimit = opponentTabData?.MissLimit ?? 18,
+                IsLocalPlayer = false
+            };
+
+            // Show guillotine overlay in game over state (this applies dropped/in-basket classes)
+            _guillotineOverlayManager?.ShowGameOver(playerData, opponentData, playerWon);
+
+            // Play execution audio sequence
+            // Part 1: Final raise
+            DLYH.Audio.GuillotineAudioManager.FinalRaise();
+            yield return new WaitForSeconds(FINAL_RAISE_DURATION);
+
+            // Part 2: Hook unlock
+            yield return new WaitForSeconds(PAUSE_BEFORE_HOOK_UNLOCK);
+            DLYH.Audio.GuillotineAudioManager.HookUnlock();
+            yield return new WaitForSeconds(PAUSE_AFTER_HOOK_UNLOCK);
+
+            // Part 3: Blade drop (chop) - sync animation with audio
+            DLYH.Audio.GuillotineAudioManager.FinalChop();
+            _guillotineOverlayManager?.TriggerBladeDrop(!playerWon);
+            yield return new WaitForSeconds(BLADE_DROP_DURATION);
+
+            // Head falls - sync animation with audio
+            DLYH.Audio.GuillotineAudioManager.HeadRemoved();
+            _guillotineOverlayManager?.TriggerHeadFall(!playerWon);
+            yield return new WaitForSeconds(HEAD_FALL_DURATION);
+
+            // Pause to let player see the result
+            yield return new WaitForSeconds(PAUSE_AFTER_HEAD_FALL);
+
+            // Hide guillotine overlay
+            _guillotineOverlayManager?.Hide();
+
+            // Show feedback modal
+            ShowFeedbackModal(
+                playerWon ? "Victory!" : "Defeat!",
+                isPostGame: true,
+                playerWon: playerWon
+            );
+
+            _gameOverSequenceCoroutine = null;
         }
 
         #endregion
@@ -2036,13 +2237,13 @@ namespace DLYH.TableUI
             // Switch to Attack tab to show the revealed opponent words
             _gameplayManager?.SelectAttackTab(isAutoSwitch: true);
 
-            _gameplayManager?.SetStatusMessage(message, GameplayScreenManager.StatusType.Hit);
             Debug.Log($"[UIFlowController] Game Over - Player Wins: {message}");
 
             // Reveal any remaining unfound opponent words/positions
             RevealUnfoundOpponentWords();
 
-            // TODO: Trigger win animation/screen
+            // Start game end sequence with guillotine animation (player won)
+            _gameOverSequenceCoroutine = StartCoroutine(GameOverSequenceCoroutine(true));
         }
 
         /// <summary>
@@ -2474,7 +2675,48 @@ namespace DLYH.TableUI
                 IsLocalPlayer = false
             };
 
+            DLYH.Audio.UIAudioManager.PopupOpen();
             _guillotineOverlayManager.Show(playerData, opponentData);
+        }
+
+        /// <summary>
+        /// Shows guillotine overlay with the specified player's blade at a previous position
+        /// for delayed animation effect.
+        /// </summary>
+        private void ShowGuillotineOverlayWithDelayedAnimation(bool isPlayer, int previousStage)
+        {
+            DLYH.Audio.UIAudioManager.PopupOpen();
+
+            if (_guillotineOverlayManager == null) return;
+
+            // Get data from GameplayScreenManager
+            PlayerTabData playerTabData = _gameplayManager?.PlayerData;
+            PlayerTabData opponentTabData = _gameplayManager?.OpponentData;
+
+            // Create guillotine data from player tab data
+            GuillotineData playerData = new GuillotineData
+            {
+                Name = playerTabData?.Name ?? "You",
+                Color = playerTabData?.Color ?? _wizardManager?.PlayerColor ?? ColorRules.SelectableColors[0],
+                MissCount = playerTabData?.MissCount ?? 0,
+                MissLimit = playerTabData?.MissLimit ?? 20,
+                IsLocalPlayer = true
+            };
+
+            GuillotineData opponentData = new GuillotineData
+            {
+                Name = opponentTabData?.Name ?? "EXECUTIONER",
+                Color = opponentTabData?.Color ?? ColorRules.SelectableColors[1],
+                MissCount = opponentTabData?.MissCount ?? 0,
+                MissLimit = opponentTabData?.MissLimit ?? 18,
+                IsLocalPlayer = false
+            };
+
+            // Pass initial stage for the transitioning player so blade starts at previous position
+            int initialPlayerStage = isPlayer ? previousStage : -1;
+            int initialOpponentStage = isPlayer ? -1 : previousStage;
+
+            _guillotineOverlayManager.Show(playerData, opponentData, initialPlayerStage, initialOpponentStage);
         }
 
         #endregion
@@ -2483,6 +2725,27 @@ namespace DLYH.TableUI
 
         private void HandleGameModeSelected(GameMode mode)
         {
+            DLYH.Audio.UIAudioManager.ButtonClick();
+
+            // Check if there's an active game in progress
+            if (_hasActiveGame)
+            {
+                ShowConfirmationModal(
+                    "End Current Game?",
+                    "Starting a new game will end your current game. Are you sure you want to continue?",
+                    () => StartNewGame(mode)
+                );
+                return;
+            }
+
+            StartNewGame(mode);
+        }
+
+        private void StartNewGame(GameMode mode)
+        {
+            // Clear any existing game state
+            ResetGameState();
+
             // Reset wizard state for a new game
             _wizardManager?.Reset();
 
@@ -2492,19 +2755,72 @@ namespace DLYH.TableUI
             ShowSetupWizard();
         }
 
+        private void ResetGameState()
+        {
+            // Reset game-related flags
+            _isGameOver = false;
+            _hasActiveGame = false;
+            _isPlayerTurn = true;
+            _isGamePausedForStageTransition = false;
+
+            // Clear extra turn queues
+            _playerExtraTurnQueue.Clear();
+            _opponentExtraTurnQueue.Clear();
+
+            // Stop any running coroutines
+            if (_opponentTurnTimeoutCoroutine != null)
+            {
+                StopCoroutine(_opponentTurnTimeoutCoroutine);
+                _opponentTurnTimeoutCoroutine = null;
+            }
+            if (_gameOverSequenceCoroutine != null)
+            {
+                StopCoroutine(_gameOverSequenceCoroutine);
+                _gameOverSequenceCoroutine = null;
+            }
+
+            // Reset guess manager
+            _guessManager = null;
+
+            // Dispose existing opponent
+            if (_opponent != null)
+            {
+                _opponent.OnLetterGuess -= HandleOpponentLetterGuess;
+                _opponent.OnCoordinateGuess -= HandleOpponentCoordinateGuess;
+                _opponent.OnWordGuess -= HandleOpponentWordGuess;
+                _opponent.OnThinkingStarted -= HandleOpponentThinkingStarted;
+                _opponent.OnThinkingComplete -= HandleOpponentThinkingComplete;
+                _opponent.Dispose();
+                _opponent = null;
+            }
+
+            // Reset guillotine overlay
+            _guillotineOverlayManager?.ResetGameOverState();
+            _guillotineOverlayManager?.Hide();
+
+            // Reset tracked stages
+            _playerPreviousStage = 1;
+            _opponentPreviousStage = 1;
+
+            Debug.Log("[UIFlowController] Game state reset for new game");
+        }
+
         private void HandleContinueGameClicked()
         {
+            DLYH.Audio.UIAudioManager.ButtonClick();
             // Return to the setup wizard where the game was in progress
             ShowSetupWizard();
         }
 
         private void HandleHowToPlayClicked()
         {
+            DLYH.Audio.UIAudioManager.ButtonClick();
             // TODO: Implement how to play screen
         }
 
         private void HandleFeedbackClicked()
         {
+            DLYH.Audio.UIAudioManager.ButtonClick();
             ShowFeedbackModal("Share Feedback", false, false);
         }
 
@@ -2517,6 +2833,8 @@ namespace DLYH.TableUI
         public void ShowFeedbackModal(string title, bool isPostGame, bool playerWon)
         {
             if (_feedbackModalContainer == null) return;
+
+            DLYH.Audio.UIAudioManager.PopupOpen();
 
             _feedbackIsPostGame = isPostGame;
             _feedbackPlayerWon = playerWon;
@@ -2539,6 +2857,8 @@ namespace DLYH.TableUI
 
         private void HideFeedbackModal()
         {
+            DLYH.Audio.UIAudioManager.PopupClose();
+
             // Reset word guess mode if active
             _isWordGuessMode = false;
             _wordGuessTargetIndex = -1;
@@ -2546,6 +2866,14 @@ namespace DLYH.TableUI
             if (_feedbackModalContainer != null)
             {
                 _feedbackModalContainer.AddToClassList("hidden");
+            }
+
+            // If this was post-game feedback, return to main menu
+            if (_feedbackIsPostGame)
+            {
+                _feedbackIsPostGame = false;
+                _hasActiveGame = false; // Clear active game state
+                ShowMainMenu();
             }
         }
 
@@ -2623,6 +2951,128 @@ namespace DLYH.TableUI
             Debug.Log($"[UIFlowController] Feedback submitted: {feedbackText.Substring(0, Mathf.Min(50, feedbackText.Length))}...");
 
             HideFeedbackModal();
+        }
+
+        // === Confirmation Modal ===
+
+        private void CreateConfirmationModal()
+        {
+            _confirmModalContainer = new VisualElement();
+            _confirmModalContainer.name = "confirm-modal-container";
+            _confirmModalContainer.style.position = Position.Absolute;
+            _confirmModalContainer.style.left = 0;
+            _confirmModalContainer.style.right = 0;
+            _confirmModalContainer.style.top = 0;
+            _confirmModalContainer.style.bottom = 0;
+            _confirmModalContainer.style.alignItems = Align.Center;
+            _confirmModalContainer.style.justifyContent = Justify.Center;
+            _confirmModalContainer.style.backgroundColor = new Color(0, 0, 0, 0.7f);
+
+            // Modal panel
+            VisualElement panel = new VisualElement();
+            panel.name = "confirm-panel";
+            panel.style.backgroundColor = new Color(0.15f, 0.14f, 0.16f, 1f);
+            panel.style.borderTopLeftRadius = 16;
+            panel.style.borderTopRightRadius = 16;
+            panel.style.borderBottomLeftRadius = 16;
+            panel.style.borderBottomRightRadius = 16;
+            panel.style.paddingTop = 24;
+            panel.style.paddingBottom = 24;
+            panel.style.paddingLeft = 32;
+            panel.style.paddingRight = 32;
+            panel.style.minWidth = 300;
+            panel.style.maxWidth = 400;
+
+            // Title
+            _confirmTitle = new Label("Confirm");
+            _confirmTitle.name = "confirm-title";
+            _confirmTitle.style.fontSize = 24;
+            _confirmTitle.style.unityFontStyleAndWeight = FontStyle.Bold;
+            _confirmTitle.style.color = Color.white;
+            _confirmTitle.style.marginBottom = 16;
+            _confirmTitle.style.unityTextAlign = TextAnchor.MiddleCenter;
+            panel.Add(_confirmTitle);
+
+            // Message
+            _confirmMessage = new Label("Are you sure?");
+            _confirmMessage.name = "confirm-message";
+            _confirmMessage.style.fontSize = 16;
+            _confirmMessage.style.color = new Color(0.8f, 0.8f, 0.8f, 1f);
+            _confirmMessage.style.marginBottom = 24;
+            _confirmMessage.style.whiteSpace = WhiteSpace.Normal;
+            _confirmMessage.style.unityTextAlign = TextAnchor.MiddleCenter;
+            panel.Add(_confirmMessage);
+
+            // Button container
+            VisualElement buttonRow = new VisualElement();
+            buttonRow.style.flexDirection = FlexDirection.Row;
+            buttonRow.style.justifyContent = Justify.Center;
+
+            // Cancel button
+            Button cancelBtn = new Button(() => HideConfirmationModal());
+            cancelBtn.text = "Cancel";
+            cancelBtn.style.marginRight = 16;
+            cancelBtn.style.paddingLeft = 24;
+            cancelBtn.style.paddingRight = 24;
+            cancelBtn.style.paddingTop = 12;
+            cancelBtn.style.paddingBottom = 12;
+            buttonRow.Add(cancelBtn);
+
+            // Confirm button
+            Button confirmBtn = new Button(() =>
+            {
+                System.Action action = _confirmAction;
+                HideConfirmationModal();
+                action?.Invoke();
+            });
+            confirmBtn.text = "Yes";
+            confirmBtn.style.paddingLeft = 24;
+            confirmBtn.style.paddingRight = 24;
+            confirmBtn.style.paddingTop = 12;
+            confirmBtn.style.paddingBottom = 12;
+            confirmBtn.style.backgroundColor = new Color(0.6f, 0.2f, 0.2f, 1f);
+            buttonRow.Add(confirmBtn);
+
+            panel.Add(buttonRow);
+            _confirmModalContainer.Add(panel);
+
+            // Click outside to close
+            _confirmModalContainer.RegisterCallback<ClickEvent>(evt =>
+            {
+                if (evt.target == _confirmModalContainer)
+                {
+                    HideConfirmationModal();
+                }
+            });
+
+            _root.Add(_confirmModalContainer);
+            _confirmModalContainer.AddToClassList("hidden");
+        }
+
+        private void ShowConfirmationModal(string title, string message, System.Action onConfirm)
+        {
+            if (_confirmModalContainer == null)
+            {
+                CreateConfirmationModal();
+            }
+
+            DLYH.Audio.UIAudioManager.PopupOpen();
+
+            _confirmTitle.text = title;
+            _confirmMessage.text = message;
+            _confirmAction = onConfirm;
+            _confirmModalContainer.RemoveFromClassList("hidden");
+        }
+
+        private void HideConfirmationModal()
+        {
+            DLYH.Audio.UIAudioManager.PopupClose();
+
+            if (_confirmModalContainer != null)
+            {
+                _confirmModalContainer.AddToClassList("hidden");
+            }
+            _confirmAction = null;
         }
 
         // === Hamburger Menu ===
@@ -2740,6 +3190,8 @@ namespace DLYH.TableUI
 
         private void ShowHamburgerOverlay()
         {
+            DLYH.Audio.UIAudioManager.ButtonClick();
+
             if (_hamburgerOverlay != null)
             {
                 // Sync settings values before showing
@@ -2750,6 +3202,8 @@ namespace DLYH.TableUI
 
         private void HideHamburgerOverlay()
         {
+            DLYH.Audio.UIAudioManager.ButtonClick();
+
             if (_hamburgerOverlay != null)
             {
                 _hamburgerOverlay.AddToClassList("hidden");
@@ -2851,6 +3305,16 @@ namespace DLYH.TableUI
 
         private void ShowMainMenu()
         {
+            // Stop any running game over sequence
+            if (_gameOverSequenceCoroutine != null)
+            {
+                StopCoroutine(_gameOverSequenceCoroutine);
+                _gameOverSequenceCoroutine = null;
+            }
+
+            // Hide guillotine overlay if visible
+            _guillotineOverlayManager?.Hide();
+
             if (_mainMenuScreen != null)
             {
                 _mainMenuScreen.style.display = DisplayStyle.Flex;
@@ -3461,6 +3925,8 @@ namespace DLYH.TableUI
 
         private void HandleRandomWords()
         {
+            DLYH.Audio.UIAudioManager.ButtonClick();
+
             if (_wordRowsContainer == null || _tableLayout == null) return;
 
             // Hide dropdown when filling random words
@@ -3501,6 +3967,8 @@ namespace DLYH.TableUI
 
         private void HandleRandomPlacement()
         {
+            DLYH.Audio.UIAudioManager.ButtonClick();
+
             if (_wordRowsContainer == null || _placementAdapter == null || _tableLayout == null) return;
 
             // Clear existing placements first
@@ -3568,6 +4036,8 @@ namespace DLYH.TableUI
 
         private void HandleReadyClicked()
         {
+            DLYH.Audio.UIAudioManager.ButtonClick();
+
             if (_wordRowsContainer == null) return;
 
             // Check if all words are placed
@@ -3689,6 +4159,13 @@ namespace DLYH.TableUI
             // Clear extra turn queues for new game
             _playerExtraTurnQueue.Clear();
             _opponentExtraTurnQueue.Clear();
+
+            // Reset guillotine stage tracking for new game
+            _playerPreviousStage = 1;
+            _opponentPreviousStage = 1;
+
+            // Reset guillotine overlay styling for new game
+            _guillotineOverlayManager?.ResetGameOverState();
 
             // Show gameplay screen
             ShowGameplayScreen();
@@ -4013,6 +4490,7 @@ namespace DLYH.TableUI
             }
             if (_guillotineOverlayManager != null)
             {
+                _guillotineOverlayManager.OnClosed -= HandleGuillotineOverlayClosed;
                 _guillotineOverlayManager.Dispose();
             }
             // Clean up AI opponent

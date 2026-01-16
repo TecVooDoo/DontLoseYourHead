@@ -4,7 +4,7 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 50
+**Document Version:** 54
 **Last Updated:** January 16, 2026
 
 **Archive:** `DLYH_Status_Archive.md` - Historical designs, old version history, completed phase details
@@ -19,19 +19,17 @@
 
 **Current Phase:** Phase D IN PROGRESS - Architecture refactor complete!
 
-**Last Session (Jan 16, 2026):** Thirty-ninth session - **Extra Turn Logic & End-Game Reveal!**
-- Implemented extra turn queue system for player and opponent
-- Player gets extra turn when: correctly guessing a word (GUESS button), or completing a word row via letter guesses
-- Opponent (AI) also gets extra turns for word completions (fairness)
-- Added word completion detection via snapshot comparison (before/after guess)
-- Added end-game word reveal - unfound opponent words/positions shown in grey when game ends
-- Added `GetRevealedSnapshot()` and `GetNewlyCompletedWords()` to WordRowsContainer
-- Fixed: Opponent extra turn timing issue - AI was rejecting extra turn because it was still processing previous turn (added delay via `TriggerOpponentExtraTurnCoroutine`)
-- Fixed: End-game grid reveal now uses Hit state instead of Revealed (attack grid hides letters in Revealed state)
-- Fixed: Game over now switches to Attack tab to show revealed words
-- Fixed: AI now skips letter guesses when all letters are already found (focuses on coordinates)
-- Fixed: AI now skips coordinate guesses when all letter positions are already found (focuses on letters)
-- Added `AreAllLettersFound()` and `AreAllCoordinatesFound()` to AIGameState
+**Last Session (Jan 16, 2026):** Forty-third session - **Gameplay Audio & New Game Confirmation!**
+- Wired UIAudioManager for all gameplay sounds:
+  - KeyboardClick() on letter key presses
+  - GridCellClick() on grid cell clicks
+  - Success() on hits, Error() on misses (letters, coordinates, words)
+  - ButtonClick() on main menu, Ready, Random Words, Random Placement, hamburger menu
+  - PopupOpen()/PopupClose() on feedback modal, guillotine overlay, confirmation modal
+- Added confirmation popup when starting new game during active game
+- Added `ResetGameState()` method for proper game cleanup when starting fresh
+- Added `ShowConfirmationModal()` reusable confirmation dialog
+- Found existing How to Play content in HelpOverlay.cs (HELP_CONTENT constant) - to be used next session
 
 ---
 
@@ -51,14 +49,17 @@
 | Playtest platform | WebGL on Cloudflare (dlyh.pages.dev), must work on mobile |
 | Production platforms | Steam (PC), mobile apps (iOS/Android) - post-playtest |
 
-### Phase D: Gameplay UI (~90% complete)
-- [ ] Testing (grid colors, defense view, guillotine 5-stage)
+### Phase D: Gameplay UI (~99% complete)
+- [x] Testing (grid colors, defense view, guillotine 5-stage) - ✅ Jan 16 (playtested throughout session)
 - [x] Extra turn logic (word completed via GUESS button OR all letters found) - ✅ Jan 16
 - [x] Win/lose detection (wire to existing WinConditionChecker) - ✅ Already working (confirmed Jan 15)
 - [x] End-game reveal (unfound words shown in grey) - ✅ Jan 16
-- [ ] Game end sequence (guillotine animation -> feedback modal with Continue)
-- [ ] Audio wiring (connect existing audio system to new UI Toolkit)
-- [ ] How to Play screen (text instructions)
+- [x] Game end sequence (guillotine animation -> feedback modal with Continue) - ✅ Jan 16
+- [x] Audio wiring - guillotine sounds (blade raise, execution sequence) - ✅ Jan 16
+- [x] Audio sync - stage transition and game-over animations synced with audio - ✅ Jan 16
+- [x] Audio wiring - gameplay sounds (hit/miss, button clicks, etc.) - ✅ Jan 16
+- [x] New game confirmation popup (prevents accidental game loss) - ✅ Jan 16
+- [ ] How to Play screen (text instructions) - content exists in HelpOverlay.cs
 
 ### Phase E: Networking & Auth
 **Auth (port from Dots and Boxes):**
@@ -144,11 +145,17 @@
 - [x] **FIXED:** Defense keyboard all yellow (ProcessCoordinateGuess wasn't tracking HitLetters)
 - [x] **ADDED:** Color swatches on Attack/Defend tab cards
 - [x] **ADDED:** Executioner AI default color = royal blue RGB(60, 90, 180)
-- [ ] **NEEDS TESTING:** Guillotine 5-stage visual and blade positions
-- [ ] **NEEDS TESTING:** Defense view switching and AI guess visuals
-- [ ] **NEEDS TESTING:** Keyboard colors and color swatches
-- [ ] Add extra turn on word completion (player or AI guessing full word)
-- [ ] Add win/lose detection
+- [x] **TESTED:** Guillotine 5-stage visual and blade positions - ✅ Jan 16
+- [x] **TESTED:** Defense view switching and AI guess visuals - ✅ Jan 16
+- [x] **TESTED:** Keyboard colors and color swatches - ✅ Jan 16
+- [x] **FIXED:** Lever positioning (pivots on inner side posts toward executioner)
+- [x] **FIXED:** Executioner z-order (renders above both panels)
+- [x] **FIXED:** Stage transition audio timing (1.5s delay, then animate with audio)
+- [x] **FIXED:** Game-over audio sync (blade/head animations trigger with audio)
+- [x] **ADDED:** Gameplay audio wiring (keyboard, grid, hit/miss, buttons, popups) - ✅ Jan 16
+- [x] **ADDED:** New game confirmation popup (prevents accidental game loss) - ✅ Jan 16
+- [x] **ADDED:** ResetGameState() for proper game cleanup - ✅ Jan 16
+- [ ] How to Play screen (text instructions) - content exists in HelpOverlay.cs
 
 **Deferred to Phase F:**
 - [ ] Document new interfaces/controllers in Architecture section
@@ -631,13 +638,11 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
-| 49 | Jan 15, 2026 | Thirty-eighth session - **Keyboard/Word Row Color Upgrade & Opponent Win Detection!** Fixed RefreshOpponentKeyboardStates to iterate all player letters (not just HitLetters). Added HasOpponentWon(), CheckForOpponentWin(). Game now properly ends when opponent wins. |
-| 48 | Jan 15, 2026 | Thirty-seventh session - **Defense Board Color Fix & AI Word Guess Bug!** Fixed coordinate guesses incorrectly updating keyboard (removed HitLetters.Add from ProcessCoordinateGuess). Fixed AI guessing same wrong word repeatedly (added opponent word guess tracking). |
-| 47 | Jan 15, 2026 | Thirty-sixth session - **Bug Fixes!** Fixed AI turn timeout cancellation. Fixed tab switching after game over. Defense board color issues persist (letter guesses incorrectly updating grid). |
-| 46 | Jan 15, 2026 | Thirty-fifth session - **Architecture Refactor!** Made game logic opponent-agnostic. Simplified CellOwner enum (Player/Opponent only). Unified opponent guess handlers. Documented complete gameplay rules. Fixed Executioner color (royal blue). |
-| 45 | Jan 15, 2026 | Thirty-fourth session - **Keyboard Colors & Color Swatches!** Fixed keyboard 3-state tracking (Hit/Found/Miss). Wired AI OnWordGuess. Fixed defense keyboard all yellow. Added color swatches to tabs. Executioner default = royal blue. |
-| 44 | Jan 15, 2026 | Thirty-third session - **Roadmap Planning & Status Reorganization!** Created DLYH_Status_Archive.md. Defined complete roadmap (D->E->F->G). Key decisions: solo=no auth, PVP=auth required, phantom AI after 6 sec matchmaking, async games (5-day abandonment), rematch flow. Target: WebGL on Cloudflare, then Steam/mobile. |
-| 43 | Jan 15, 2026 | Status doc reorganization - moved v1-38 history, completed phase designs, implemented UX to archive. |
+| 54 | Jan 16, 2026 | Forty-third session - **Gameplay Audio & New Game Confirmation!** Wired UIAudioManager (keyboard, grid, hit/miss, buttons, popups). Added confirmation popup when starting new game during active game. Added ResetGameState() for proper cleanup. |
+| 53 | Jan 16, 2026 | Forty-second session - **Guillotine Polish & Audio Sync!** Fixed lever positioning (inner posts). Fixed executioner z-order and vertical position. Removed invalid USS properties. Synced stage transition audio (1.5s delay). Synced game-over animations with audio (blade drop, head fall). |
+| 52 | Jan 16, 2026 | Forty-first session - **Guillotine Visual Fixes & Executioner Placeholder!** Fixed blade direction (rises with danger). Added executioner stick figure. Added lever assemblies. Auto-show overlay on stage transition. Blade raise audio. |
+| 49 | Jan 15, 2026 | Thirty-eighth session - **Keyboard/Word Row Color Upgrade & Opponent Win Detection!** Fixed RefreshOpponentKeyboardStates. Added HasOpponentWon(), CheckForOpponentWin(). |
+| 48 | Jan 15, 2026 | Thirty-seventh session - **Defense Board Color Fix & AI Word Guess Bug!** Fixed coordinate guesses incorrectly updating keyboard. Fixed AI guessing same wrong word repeatedly. |
 
 **Full version history:** See `DLYH_Status_Archive.md`
 
@@ -664,32 +669,28 @@ After each work session, update this document:
 
 ## Next Session Instructions
 
-**Starting Point:** This document (DLYH_Status.md v49)
+**Starting Point:** This document (DLYH_Status.md v54)
 
 **Scene to Use:** NewUIScene.unity (for UI Toolkit work - Phase D)
 
 **Current State:**
 - Phase A & B COMPLETE - table data model and UI Toolkit renderer working
 - Phase C COMPLETE - Setup wizard fully functional with all polish
-- Phase D IN PROGRESS (~85%) - Architecture refactor complete, needs testing!
+- Phase D IN PROGRESS (~99%) - Core gameplay working, all audio wired!
 
 **Important:** Game logic is now opponent-agnostic! Use `_opponent` (not `_aiOpponent`), handlers are `HandleOpponent*` (not `HandleAI*`), and `CellOwner` only has `Player` and `Opponent` values.
 
-**Phase D Remaining (in priority order):**
-1. **TEST** the refactored code - ensure it compiles and gameplay works
-2. **FIX** any bugs from the refactor (color rules, turn management, guess processing)
-3. **Extra turn logic** - word completed via GUESS button OR all letters found in word row
-4. **Win/lose detection** - wire to existing WinConditionChecker
-5. **Game end sequence** - guillotine animation -> feedback modal (with Continue button) -> Main Menu
-6. **Audio wiring** - connect existing audio system (UIAudioManager, GuillotineAudioManager, MusicManager) to new UI Toolkit events
-7. **How to Play** - text instructions screen (accessible from main menu)
+**Phase D Remaining (1 item):**
+1. **How to Play screen** - text instructions accessible from main menu
+   - Content already exists in `HelpOverlay.cs` (HELP_CONTENT constant)
+   - Wire to HandleHowToPlayClicked() in UIFlowController
 
-**Existing Systems to Wire (DO NOT REBUILD):**
-- `GameplayStateTracker` - State tracking (misses, letters, coordinates)
-- `WinConditionChecker` - Win/lose condition checking
-- `UIAudioManager` - Keyboard clicks, button clicks, hit/miss sounds
-- `GuillotineAudioManager` - Blade raise, hook unlock, chop, head removed
-- `MusicManager` - Already playing, wire tension hooks (80%/95% danger)
+**What's Already Wired:**
+- `UIAudioManager` - Keyboard clicks, button clicks, hit/miss sounds - ✅ COMPLETE
+- `GuillotineAudioManager` - Blade raise, hook unlock, chop, head removed - ✅ COMPLETE
+- `GameplayStateTracker` - State tracking - ✅ COMPLETE
+- `WinConditionChecker` - Win/lose detection - ✅ COMPLETE
+- `MusicManager` - Already playing (tension hooks optional for post-playtest)
 
 **Tab Behavior Summary:**
 | Tab | Grid Shows | Words Show | Keyboard Shows | Whose Guesses |

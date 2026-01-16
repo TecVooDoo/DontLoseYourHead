@@ -16,7 +16,7 @@
                 <ui:Button name="btn-close-overlay" text="&#10005;" class="close-button" />
             </ui:VisualElement>
 
-            <!-- Guillotines Side by Side -->
+            <!-- Guillotines Side by Side with Executioner in Center -->
             <ui:VisualElement name="guillotines-container" class="guillotines-container">
 
                 <!-- Player Guillotine (Left) -->
@@ -60,6 +60,14 @@
 
                         <!-- Basket -->
                         <ui:VisualElement name="player-basket" class="basket" />
+
+                        <!-- Lever on right side of guillotine -->
+                        <ui:VisualElement name="player-lever-assembly" class="lever-assembly lever-right">
+                            <ui:VisualElement name="player-lever-pivot" class="lever-pivot" />
+                            <ui:VisualElement name="player-lever-arm" class="lever-arm">
+                                <ui:VisualElement name="player-lever-handle" class="lever-handle" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
                     </ui:VisualElement>
 
                     <!-- Stage Indicator Text -->
@@ -118,6 +126,14 @@
 
                         <!-- Basket -->
                         <ui:VisualElement name="opponent-basket" class="basket" />
+
+                        <!-- Lever on left side of guillotine -->
+                        <ui:VisualElement name="opponent-lever-assembly" class="lever-assembly lever-left">
+                            <ui:VisualElement name="opponent-lever-pivot" class="lever-pivot" />
+                            <ui:VisualElement name="opponent-lever-arm" class="lever-arm">
+                                <ui:VisualElement name="opponent-lever-handle" class="lever-handle" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
                     </ui:VisualElement>
 
                     <!-- Stage Indicator Text -->
@@ -133,6 +149,26 @@
 
                     <!-- Flavor Text -->
                     <ui:Label name="opponent-flavor-text" text="Sitting pretty." class="flavor-text" />
+                </ui:VisualElement>
+
+                <!-- Executioner Placeholder (Center) - placed last for z-order -->
+                <ui:VisualElement name="executioner-container" class="executioner-container">
+                    <!-- Simple stick figure executioner placeholder -->
+                    <ui:VisualElement name="executioner-figure" class="executioner-figure">
+                        <!-- Head -->
+                        <ui:VisualElement name="executioner-head" class="executioner-head" />
+                        <!-- Body -->
+                        <ui:VisualElement name="executioner-body" class="executioner-body" />
+                        <!-- Left arm (reaching toward player lever) -->
+                        <ui:VisualElement name="executioner-arm-left" class="executioner-arm arm-left" />
+                        <!-- Right arm (reaching toward opponent lever) -->
+                        <ui:VisualElement name="executioner-arm-right" class="executioner-arm arm-right" />
+                        <!-- Legs -->
+                        <ui:VisualElement name="executioner-legs" class="executioner-legs">
+                            <ui:VisualElement class="executioner-leg leg-left" />
+                            <ui:VisualElement class="executioner-leg leg-right" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
                 </ui:VisualElement>
 
             </ui:VisualElement>

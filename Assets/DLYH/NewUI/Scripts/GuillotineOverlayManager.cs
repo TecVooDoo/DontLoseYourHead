@@ -95,6 +95,10 @@ namespace DLYH.TableUI
         private VisualElement _opponentStageTrack;
         private List<VisualElement> _opponentStageSegments = new List<VisualElement>();
 
+        // Lever elements
+        private VisualElement _playerLeverArm;
+        private VisualElement _opponentLeverArm;
+
         // State
         private bool _isVisible;
         private GuillotineData _playerData;
@@ -193,6 +197,10 @@ namespace DLYH.TableUI
                     }
                 }
             }
+
+            // Lever elements
+            _playerLeverArm = _overlayRoot.Q<VisualElement>("player-lever-arm");
+            _opponentLeverArm = _overlayRoot.Q<VisualElement>("opponent-lever-arm");
         }
 
         private void WireEvents()
@@ -217,14 +225,46 @@ namespace DLYH.TableUI
         /// </summary>
         public void Show(GuillotineData playerData, GuillotineData opponentData)
         {
+            Show(playerData, opponentData, -1, -1);
+        }
+
+        /// <summary>
+        /// Shows the guillotine overlay with optional initial blade positions.
+        /// If initialPlayerStage or initialOpponentStage is >= 1, the blade starts at that position
+        /// instead of the current stage (for delayed animation effect).
+        /// </summary>
+        public void Show(GuillotineData playerData, GuillotineData opponentData, int initialPlayerStage, int initialOpponentStage)
+        {
             _playerData = playerData;
             _opponentData = opponentData;
 
-            UpdatePlayerDisplay();
-            UpdateOpponentDisplay();
+            UpdatePlayerDisplay(initialPlayerStage);
+            UpdateOpponentDisplay(initialOpponentStage);
 
             _overlayRoot?.RemoveFromClassList("hidden");
             _isVisible = true;
+        }
+
+        /// <summary>
+        /// Animates the blade and lever to the current stage position.
+        /// Call this after a delay when showing the overlay with initial stages.
+        /// </summary>
+        public void AnimateToCurrentStage(bool isPlayer)
+        {
+            if (isPlayer && _playerData != null)
+            {
+                float percent = GetDangerPercent(_playerData);
+                int stage = GetStageFromPercent(percent);
+                UpdateBladePosition(_playerBladeGroup, stage);
+                UpdateLeverPosition(_playerLeverArm, stage);
+            }
+            else if (!isPlayer && _opponentData != null)
+            {
+                float percent = GetDangerPercent(_opponentData);
+                int stage = GetStageFromPercent(percent);
+                UpdateBladePosition(_opponentBladeGroup, stage);
+                UpdateLeverPosition(_opponentLeverArm, stage);
+            }
         }
 
         /// <summary>
@@ -246,7 +286,7 @@ namespace DLYH.TableUI
 
         #region Update Display
 
-        private void UpdatePlayerDisplay()
+        private void UpdatePlayerDisplay(int initialStage = -1)
         {
             if (_playerData == null) return;
 
@@ -267,6 +307,9 @@ namespace DLYH.TableUI
             // Calculate stage and percentage
             float percent = GetDangerPercent(_playerData);
             int stage = GetStageFromPercent(percent);
+
+            // Use initial stage for blade/lever if specified (for delayed animation)
+            int bladeStage = initialStage >= 1 ? initialStage : stage;
 
             // Miss counter text
             if (_playerMissLabel != null)
@@ -291,8 +334,11 @@ namespace DLYH.TableUI
             // Stage segments (light up segments up to current stage)
             UpdateStageSegments(_playerStageSegments, stage);
 
-            // Blade position (uses stage class)
-            UpdateBladePosition(_playerBladeGroup, stage);
+            // Blade position (uses stage class) - may use initial stage for delayed animation
+            UpdateBladePosition(_playerBladeGroup, bladeStage);
+
+            // Lever position (uses stage class) - may use initial stage for delayed animation
+            UpdateLeverPosition(_playerLeverArm, bladeStage);
 
             // Face expression
             if (_playerHeadFace != null)
@@ -308,7 +354,7 @@ namespace DLYH.TableUI
             }
         }
 
-        private void UpdateOpponentDisplay()
+        private void UpdateOpponentDisplay(int initialStage = -1)
         {
             if (_opponentData == null) return;
 
@@ -329,6 +375,9 @@ namespace DLYH.TableUI
             // Calculate stage and percentage
             float percent = GetDangerPercent(_opponentData);
             int stage = GetStageFromPercent(percent);
+
+            // Use initial stage for blade/lever if specified (for delayed animation)
+            int bladeStage = initialStage >= 1 ? initialStage : stage;
 
             // Miss counter text
             if (_opponentMissLabel != null)
@@ -353,8 +402,11 @@ namespace DLYH.TableUI
             // Stage segments (light up segments up to current stage)
             UpdateStageSegments(_opponentStageSegments, stage);
 
-            // Blade position (uses stage class)
-            UpdateBladePosition(_opponentBladeGroup, stage);
+            // Blade position (uses stage class) - may use initial stage for delayed animation
+            UpdateBladePosition(_opponentBladeGroup, bladeStage);
+
+            // Lever position (uses stage class) - may use initial stage for delayed animation
+            UpdateLeverPosition(_opponentLeverArm, bladeStage);
 
             // Face expression
             if (_opponentHeadFace != null)
@@ -438,6 +490,20 @@ namespace DLYH.TableUI
 
             // Add current stage class
             bladeGroup.AddToClassList($"stage-{stage}");
+        }
+
+        private void UpdateLeverPosition(VisualElement leverArm, int stage)
+        {
+            if (leverArm == null) return;
+
+            // Remove all stage classes
+            for (int i = 1; i <= TOTAL_STAGES; i++)
+            {
+                leverArm.RemoveFromClassList($"stage-{i}");
+            }
+
+            // Add current stage class
+            leverArm.AddToClassList($"stage-{stage}");
         }
 
         private void UpdateDangerClass(VisualElement fillBar, float percent)
@@ -536,6 +602,7 @@ namespace DLYH.TableUI
 
         /// <summary>
         /// Shows the overlay in game over state with winner/loser styling.
+        /// Does NOT trigger blade drop or head fall animations - call those separately to sync with audio.
         /// </summary>
         public void ShowGameOver(GuillotineData playerData, GuillotineData opponentData, bool playerWon)
         {
@@ -550,17 +617,13 @@ namespace DLYH.TableUI
                 _titleLabel.text = playerWon ? "VICTORY!" : "DEFEATED!";
             }
 
-            // Apply winner/loser styling
+            // Apply winner/loser styling (but NOT the animations yet)
             if (playerWon)
             {
                 _playerPanel?.AddToClassList("winner");
                 _playerPanel?.RemoveFromClassList("loser");
                 _opponentPanel?.AddToClassList("loser");
                 _opponentPanel?.RemoveFromClassList("winner");
-
-                // Opponent's blade drops, head falls
-                _opponentBladeGroup?.AddToClassList("dropped");
-                _opponentHead?.AddToClassList("in-basket");
             }
             else
             {
@@ -568,10 +631,6 @@ namespace DLYH.TableUI
                 _playerPanel?.RemoveFromClassList("winner");
                 _opponentPanel?.AddToClassList("winner");
                 _opponentPanel?.RemoveFromClassList("loser");
-
-                // Player's blade drops, head falls
-                _playerBladeGroup?.AddToClassList("dropped");
-                _playerHead?.AddToClassList("in-basket");
             }
 
             // Update face expressions for game over
@@ -584,6 +643,40 @@ namespace DLYH.TableUI
             {
                 if (_playerHeadFace != null) _playerHeadFace.text = FACE_HORROR;
                 if (_opponentHeadFace != null) _opponentHeadFace.text = FACE_EVIL;
+            }
+        }
+
+        /// <summary>
+        /// Triggers the blade drop animation for the loser.
+        /// Call this when the blade drop audio plays.
+        /// </summary>
+        public void TriggerBladeDrop(bool playerLost)
+        {
+            if (playerLost)
+            {
+                _playerBladeGroup?.AddToClassList("dropped");
+                _playerLeverArm?.AddToClassList("dropped");
+            }
+            else
+            {
+                _opponentBladeGroup?.AddToClassList("dropped");
+                _opponentLeverArm?.AddToClassList("dropped");
+            }
+        }
+
+        /// <summary>
+        /// Triggers the head fall animation for the loser.
+        /// Call this when the head removed audio plays.
+        /// </summary>
+        public void TriggerHeadFall(bool playerLost)
+        {
+            if (playerLost)
+            {
+                _playerHead?.AddToClassList("in-basket");
+            }
+            else
+            {
+                _opponentHead?.AddToClassList("in-basket");
             }
         }
 
@@ -602,6 +695,10 @@ namespace DLYH.TableUI
             _opponentBladeGroup?.RemoveFromClassList("dropped");
             _opponentHead?.RemoveFromClassList("in-basket");
 
+            // Reset lever dropped state
+            _playerLeverArm?.RemoveFromClassList("dropped");
+            _opponentLeverArm?.RemoveFromClassList("dropped");
+
             // Remove all stage classes from blade groups
             if (_playerBladeGroup != null)
             {
@@ -615,6 +712,22 @@ namespace DLYH.TableUI
                 for (int i = 1; i <= TOTAL_STAGES; i++)
                 {
                     _opponentBladeGroup.RemoveFromClassList($"stage-{i}");
+                }
+            }
+
+            // Remove all stage classes from lever arms
+            if (_playerLeverArm != null)
+            {
+                for (int i = 1; i <= TOTAL_STAGES; i++)
+                {
+                    _playerLeverArm.RemoveFromClassList($"stage-{i}");
+                }
+            }
+            if (_opponentLeverArm != null)
+            {
+                for (int i = 1; i <= TOTAL_STAGES; i++)
+                {
+                    _opponentLeverArm.RemoveFromClassList($"stage-{i}");
                 }
             }
 
