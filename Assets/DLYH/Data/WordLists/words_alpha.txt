@@ -3387,7 +3387,6 @@ dwarf
 dwell
 dwelt
 dying
-dykes
 eager
 eagle
 earls

@@ -165,11 +165,16 @@ namespace DLYH.TableUI
         private bool _isPlayerTurn = true;
         private bool _isGameOver = false;
 
+        // Extra turn tracking
+        private Queue<int> _playerExtraTurnQueue = new Queue<int>(); // Word indices for player extra turns
+        private Queue<int> _opponentExtraTurnQueue = new Queue<int>(); // Word indices for opponent extra turns
+
         // AI Opponent
         [SerializeField] private ExecutionerConfigSO _aiConfig;
         [SerializeField] private List<WordListSO> _wordLists;
         private IOpponent _opponent;
         private PlayerSetupData _playerSetupData;
+        private List<WordPlacementData> _opponentWordPlacements; // Stored for end-game reveal
         private Coroutine _turnDelayCoroutine;
         private Coroutine _opponentTurnTimeoutCoroutine;
         private const float TURN_SWITCH_DELAY = 0.8f; // Delay before switching turns
@@ -786,6 +791,9 @@ namespace DLYH.TableUI
                 return;
             }
 
+            // Take snapshot of word completion state BEFORE the guess
+            bool[] preGuessSnapshot = _attackWordRows?.GetRevealedSnapshot();
+
             GuessResult result = _guessManager.ProcessPlayerLetterGuess(letter);
 
             switch (result)
@@ -796,8 +804,12 @@ namespace DLYH.TableUI
                     _gameplayManager?.SetStatusMessage($"HIT! '{letter}' is in their words!", GameplayScreenManager.StatusType.Hit);
                     _opponent?.RecordPlayerGuess(true);
                     RefreshKeyboardLetterStates(); // Ensure keyboard colors are correct
+
+                    // Check for newly completed words and queue extra turns
+                    QueueExtraTurnsForCompletedWords(preGuessSnapshot, true);
+
                     CheckForPlayerWin();
-                    EndPlayerTurn();
+                    ProcessPlayerTurnEnd();
                     break;
 
                 case GuessResult.Miss:
@@ -805,7 +817,7 @@ namespace DLYH.TableUI
                     _gameplayManager?.SetStatusMessage($"Miss! '{letter}' not in any word.", GameplayScreenManager.StatusType.Miss);
                     UpdateMissCountDisplay(true);
                     _opponent?.RecordPlayerGuess(false);
-                    EndPlayerTurn();
+                    EndPlayerTurn(); // Miss always ends turn - no extra turn possible
                     break;
 
                 case GuessResult.AlreadyGuessed:
@@ -943,14 +955,19 @@ namespace DLYH.TableUI
                 case GuessResult.Hit:
                     _gameplayManager?.SetStatusMessage($"Correct! '{guessedWord.ToUpper()}'", GameplayScreenManager.StatusType.Hit);
                     _gameplayManager?.AddGuessedWord(playerName, guessedWord.ToUpper(), true, true);
+
+                    // Correct word guess always grants an extra turn
+                    _playerExtraTurnQueue.Enqueue(wordIndex);
+                    Debug.Log($"[UIFlowController] Correct word guess - queued extra turn for word {wordIndex}");
+
                     CheckForPlayerWin();
-                    EndPlayerTurn();
+                    ProcessPlayerTurnEnd();
                     break;
 
                 case GuessResult.Miss:
                     _gameplayManager?.SetStatusMessage($"Wrong! '{guessedWord.ToUpper()}' +2 misses", GameplayScreenManager.StatusType.Miss);
                     _gameplayManager?.AddGuessedWord(playerName, guessedWord.ToUpper(), false, true);
-                    EndPlayerTurn();
+                    EndPlayerTurn(); // Wrong guess always ends turn
                     break;
 
                 case GuessResult.Invalid:
@@ -1061,12 +1078,18 @@ namespace DLYH.TableUI
             // Re-enable tab switching so player can view both boards after game over
             _gameplayManager?.SetAllowManualTabSwitch(true);
 
+            // Switch to Attack tab to show what the player didn't find
+            _gameplayManager?.SelectAttackTab(isAutoSwitch: true);
+
             // Update UI
             _gameplayManager?.SetPlayerTurn(true); // Reset turn indicator
             _gameplayManager?.SetStatusMessage(
                 playerLost ? "GAME OVER - You lost!" : "YOU WIN! Opponent lost!",
                 playerLost ? GameplayScreenManager.StatusType.Miss : GameplayScreenManager.StatusType.Hit
             );
+
+            // Reveal any remaining unfound opponent words/positions
+            RevealUnfoundOpponentWords();
 
             // TODO: Show game over screen with guillotine animation
             // TODO: Navigate to feedback/results screen
@@ -1078,10 +1101,14 @@ namespace DLYH.TableUI
 
         /// <summary>
         /// Ends the player's turn and switches to opponent's turn after a delay.
+        /// Called when there are no extra turns to process.
         /// </summary>
         private void EndPlayerTurn()
         {
             if (_isGameOver) return;
+
+            // Clear any remaining extra turns (shouldn't happen, but safety)
+            _playerExtraTurnQueue.Clear();
 
             // Immediately block player input
             _isPlayerTurn = false;
@@ -1095,11 +1122,121 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
+        /// Checks for newly completed words after a guess and queues extra turns.
+        /// </summary>
+        /// <param name="preGuessSnapshot">Snapshot of word completion state from before the guess</param>
+        /// <param name="isPlayer">True if player, false if opponent</param>
+        private void QueueExtraTurnsForCompletedWords(bool[] preGuessSnapshot, bool isPlayer)
+        {
+            WordRowsContainer wordRows = isPlayer ? _attackWordRows : _defenseWordRows;
+            if (wordRows == null || preGuessSnapshot == null) return;
+
+            List<int> newlyCompleted = wordRows.GetNewlyCompletedWords(preGuessSnapshot);
+
+            foreach (int wordIndex in newlyCompleted)
+            {
+                if (isPlayer)
+                {
+                    _playerExtraTurnQueue.Enqueue(wordIndex);
+                    Debug.Log($"[UIFlowController] Player completed word {wordIndex} - queued extra turn");
+                }
+                else
+                {
+                    _opponentExtraTurnQueue.Enqueue(wordIndex);
+                    Debug.Log($"[UIFlowController] Opponent completed word {wordIndex} - queued extra turn");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Processes the end of player's action - grants extra turn if queued, otherwise ends turn.
+        /// </summary>
+        private void ProcessPlayerTurnEnd()
+        {
+            if (_isGameOver) return;
+
+            if (_playerExtraTurnQueue.Count > 0)
+            {
+                int completedWordIndex = _playerExtraTurnQueue.Dequeue();
+                string completedWord = _attackWordRows?.GetActualWord(completedWordIndex) ?? $"Word {completedWordIndex + 1}";
+
+                // Show extra turn message
+                _gameplayManager?.SetStatusMessage($"EXTRA TURN! Completed '{completedWord}'", GameplayScreenManager.StatusType.Hit);
+                Debug.Log($"[UIFlowController] Player extra turn granted for completing '{completedWord}'. {_playerExtraTurnQueue.Count} extra turns remaining.");
+
+                // Player keeps their turn - don't call EndPlayerTurn
+                // The turn indicator stays as player's turn
+            }
+            else
+            {
+                // No extra turns - end turn normally
+                EndPlayerTurn();
+            }
+        }
+
+        /// <summary>
+        /// Processes the end of opponent's action - grants extra turn if queued, otherwise ends turn.
+        /// </summary>
+        private void ProcessOpponentTurnEnd()
+        {
+            if (_isGameOver) return;
+
+            if (_opponentExtraTurnQueue.Count > 0)
+            {
+                int completedWordIndex = _opponentExtraTurnQueue.Dequeue();
+                string completedWord = _defenseWordRows?.GetActualWord(completedWordIndex) ?? $"Word {completedWordIndex + 1}";
+
+                // Show extra turn message
+                string opponentName = _opponent?.OpponentName ?? "Opponent";
+                _gameplayManager?.SetStatusMessage($"{opponentName} EXTRA TURN! Completed '{completedWord}'", GameplayScreenManager.StatusType.Miss);
+                Debug.Log($"[UIFlowController] Opponent extra turn granted for completing '{completedWord}'. {_opponentExtraTurnQueue.Count} extra turns remaining.");
+
+                // Cancel the old timeout coroutine - we'll start a new one after the delay
+                if (_opponentTurnTimeoutCoroutine != null)
+                {
+                    StopCoroutine(_opponentTurnTimeoutCoroutine);
+                    _opponentTurnTimeoutCoroutine = null;
+                }
+
+                // Opponent keeps their turn - trigger another opponent guess after a short delay
+                // The delay is needed because the AI is still processing its previous turn (async)
+                // and will reject ExecuteTurn calls while "thinking"
+                StartCoroutine(TriggerOpponentExtraTurnCoroutine());
+            }
+            else
+            {
+                // No extra turns - end opponent's turn normally
+                EndOpponentTurn();
+            }
+        }
+
+        /// <summary>
+        /// Triggers opponent extra turn after a short delay to let the AI finish processing.
+        /// </summary>
+        private IEnumerator TriggerOpponentExtraTurnCoroutine()
+        {
+            // Wait for the AI to finish its current async operation
+            yield return new WaitForSeconds(OPPONENT_THINK_MIN_DELAY);
+
+            if (_isGameOver) yield break;
+
+            // Trigger the extra turn
+            TriggerOpponentTurn();
+
+            // Start a new timeout coroutine for the extra turn
+            _opponentTurnTimeoutCoroutine = StartCoroutine(OpponentTurnTimeoutCoroutine());
+        }
+
+        /// <summary>
         /// Ends the opponent's turn and switches back to player's turn.
+        /// Called when there are no extra turns to process.
         /// </summary>
         private void EndOpponentTurn()
         {
             if (_isGameOver) return;
+
+            // Clear any remaining extra turns (shouldn't happen, but safety)
+            _opponentExtraTurnQueue.Clear();
 
             // Cancel the timeout coroutine since opponent completed their turn
             if (_opponentTurnTimeoutCoroutine != null)
@@ -1419,6 +1556,9 @@ namespace DLYH.TableUI
 
             Debug.Log($"[UIFlowController] Opponent guesses letter: {letter}");
 
+            // Take snapshot of word completion state BEFORE the guess
+            bool[] preGuessSnapshot = _defenseWordRows?.GetRevealedSnapshot();
+
             // Process the guess against player's words
             bool wasHit = ProcessOpponentLetterGuess(letter);
 
@@ -1469,6 +1609,9 @@ namespace DLYH.TableUI
 
                 // Refresh all opponent keyboard states in case other letters are now fully known
                 RefreshOpponentKeyboardStates();
+
+                // Check for newly completed words and queue extra turns
+                QueueExtraTurnsForCompletedWords(preGuessSnapshot, false);
             }
             else
             {
@@ -1482,7 +1625,16 @@ namespace DLYH.TableUI
 
             if (!_isGameOver)
             {
-                EndOpponentTurn();
+                // Process turn end with extra turn logic
+                if (wasHit)
+                {
+                    ProcessOpponentTurnEnd();
+                }
+                else
+                {
+                    // Miss always ends turn - no extra turn possible
+                    EndOpponentTurn();
+                }
             }
         }
 
@@ -1671,8 +1823,9 @@ namespace DLYH.TableUI
                 // Refresh keyboard states to update any letters that now have all coords known
                 RefreshOpponentKeyboardStates();
 
-                // Opponent gets an extra turn for completing a word
-                // TODO: Implement extra turn logic
+                // Correct word guess always grants opponent an extra turn
+                _opponentExtraTurnQueue.Enqueue(wordIndex);
+                Debug.Log($"[UIFlowController] Opponent correct word guess - queued extra turn for word {wordIndex}");
             }
             else
             {
@@ -1699,7 +1852,16 @@ namespace DLYH.TableUI
 
             if (!_isGameOver)
             {
-                EndOpponentTurn();
+                // Process turn end with extra turn logic
+                if (wasCorrect)
+                {
+                    ProcessOpponentTurnEnd();
+                }
+                else
+                {
+                    // Wrong guess always ends turn
+                    EndOpponentTurn();
+                }
             }
         }
 
@@ -1871,8 +2033,15 @@ namespace DLYH.TableUI
             // Re-enable tab switching so player can view both boards after game over
             _gameplayManager?.SetAllowManualTabSwitch(true);
 
+            // Switch to Attack tab to show the revealed opponent words
+            _gameplayManager?.SelectAttackTab(isAutoSwitch: true);
+
             _gameplayManager?.SetStatusMessage(message, GameplayScreenManager.StatusType.Hit);
             Debug.Log($"[UIFlowController] Game Over - Player Wins: {message}");
+
+            // Reveal any remaining unfound opponent words/positions
+            RevealUnfoundOpponentWords();
+
             // TODO: Trigger win animation/screen
         }
 
@@ -1888,6 +2057,85 @@ namespace DLYH.TableUI
             {
                 Debug.Log("[UIFlowController] OPPONENT WINS - All player words found!");
                 HandleGameOver(true); // true = player lost
+            }
+        }
+
+        /// <summary>
+        /// Reveals all unfound words and positions on the attack grid at game end.
+        /// Shows what the player didn't find in a neutral "reveal" color (grey/white).
+        /// </summary>
+        private void RevealUnfoundOpponentWords()
+        {
+            if (_opponentWordPlacements == null || _attackWordRows == null) return;
+
+            Debug.Log("[UIFlowController] Revealing unfound opponent words at game end...");
+
+            // Define reveal color - a neutral grey/white to distinguish from gameplay colors
+            Color revealColor = new Color(0.7f, 0.7f, 0.7f, 1f); // Light grey
+
+            // 1. Reveal all remaining letters in word rows
+            for (int i = 0; i < _opponentWordPlacements.Count && i < _attackWordRows.WordCount; i++)
+            {
+                WordRowView row = _attackWordRows.GetRow(i);
+                if (row != null && !row.IsFullyRevealed())
+                {
+                    row.RevealAllLetters(revealColor);
+                    row.HideGuessButton(); // Hide GUESS button for revealed words
+                }
+            }
+
+            // 2. Reveal all remaining grid cells that weren't found
+            int totalCellsRevealed = 0;
+            foreach (WordPlacementData wordData in _opponentWordPlacements)
+            {
+                int col = wordData.StartCol;
+                int row = wordData.StartRow;
+
+                for (int i = 0; i < wordData.Word.Length; i++)
+                {
+                    char letter = char.ToUpper(wordData.Word[i]);
+
+                    // Check if this coordinate was already guessed
+                    bool wasGuessed = _guessManager?.HasPlayerGuessedCoordinate(col, row) ?? false;
+
+                    if (!wasGuessed)
+                    {
+                        // Cell was never guessed - reveal it with the letter
+                        RevealGridCellAtEndGame(col, row, letter, revealColor);
+                        totalCellsRevealed++;
+                    }
+
+                    col += wordData.DirCol;
+                    row += wordData.DirRow;
+                }
+            }
+            Debug.Log($"[UIFlowController] End-game reveal: {totalCellsRevealed} grid cells revealed");
+
+            Debug.Log("[UIFlowController] End-game reveal complete");
+        }
+
+        /// <summary>
+        /// Reveals a grid cell at end of game (unfound cell).
+        /// </summary>
+        private void RevealGridCellAtEndGame(int gridCol, int gridRow, char letter, Color revealColor)
+        {
+            if (_attackTableModel == null || _attackTableLayout == null) return;
+
+            (int tableRow, int tableCol) = _attackTableLayout.GridToTable(gridRow, gridCol);
+            if (tableRow < 0 || tableCol < 0) return;
+
+            TableCell cell = _attackTableModel.GetCell(tableRow, tableCol);
+
+            // Only reveal cells that are still in Fog state (not already guessed)
+            if (cell.State == TableCellState.Fog)
+            {
+                // Use Hit state (not Revealed) because attack grids hide letters in Revealed state
+                // Hit state will show the letter with the owner's color
+                // Use CellOwner.None which will render as grey via ColorRules
+                _attackTableModel.SetCellChar(tableRow, tableCol, letter);
+                _attackTableModel.SetCellState(tableRow, tableCol, TableCellState.Hit);
+                _attackTableModel.SetCellOwner(tableRow, tableCol, CellOwner.None); // None = end-game reveal (grey)
+                Debug.Log($"[UIFlowController] End-game reveal: grid ({gridCol},{gridRow}) -> table ({tableRow},{tableCol}) letter '{letter}'");
             }
         }
 
@@ -3414,6 +3662,9 @@ namespace DLYH.TableUI
             _gameplayManager.SetPlayerData(playerData, opponentData);
             _gameplayManager.SetPlayerTurn(true); // Player goes first
 
+            // Store opponent placements for end-game reveal
+            _opponentWordPlacements = opponentWordPlacements;
+
             // Create ATTACK model based on AI's grid size (this is what player attacks)
             CreateAttackModel(opponentGridSize, opponentWordPlacements, opponentColor);
 
@@ -3434,6 +3685,10 @@ namespace DLYH.TableUI
             _gameplayManager.SetStatusMessage("Game started! Tap a letter or cell to attack.", GameplayScreenManager.StatusType.Normal);
             _isPlayerTurn = true;
             _isGameOver = false;
+
+            // Clear extra turn queues for new game
+            _playerExtraTurnQueue.Clear();
+            _opponentExtraTurnQueue.Clear();
 
             // Show gameplay screen
             ShowGameplayScreen();

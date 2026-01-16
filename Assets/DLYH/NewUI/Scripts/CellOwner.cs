@@ -1,7 +1,7 @@
 namespace DLYH.TableUI
 {
     /// <summary>
-    /// Identifies which player owns a cell's content. 
+    /// Identifies which player owns a cell's content.  
     /// Used for determining hit/reveal colors during gameplay.
     /// The game logic does not distinguish between AI and human opponents -
     /// both are simply "Opponent" with a name and color from IOpponent.

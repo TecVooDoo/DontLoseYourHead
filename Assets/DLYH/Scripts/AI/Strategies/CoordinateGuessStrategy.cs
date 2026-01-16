@@ -58,6 +58,14 @@ namespace DLYH.AI.Strategies
         /// <returns>Coordinate guess recommendation</returns>
         public GuessRecommendation Evaluate(AIGameState state)
         {
+            // Check if all coordinates containing letters are already found
+            // If so, no point guessing more coordinates - focus on letters instead
+            if (state.AreAllCoordinatesFound())
+            {
+                Debug.Log("[CoordinateGuessStrategy] All letter coordinates already found - skipping coordinate guess");
+                return GuessRecommendation.CreateInvalid();
+            }
+
             // Get unguessed coordinates
             List<(int row, int col)> unguessedCoords = state.GetUnguessedCoordinates();
 

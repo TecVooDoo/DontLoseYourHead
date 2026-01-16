@@ -67,6 +67,14 @@ namespace DLYH.AI.Strategies
         /// <returns>Letter guess recommendation</returns>
         public GuessRecommendation Evaluate(AIGameState state)
         {
+            // Check if all letters in opponent's words are already found
+            // If so, no point guessing more letters - focus on coordinates instead
+            if (state.AreAllLettersFound())
+            {
+                Debug.Log("[LetterGuessStrategy] All letters already found - skipping letter guess");
+                return GuessRecommendation.CreateInvalid();
+            }
+
             // Get unguessed letters
             HashSet<char> unguessedLetters = state.GetUnguessedLetters();
 

@@ -554,6 +554,50 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
+        /// Gets a snapshot of which word rows are currently fully revealed.
+        /// Used to detect newly completed words after a guess.
+        /// </summary>
+        /// <returns>Array of booleans indicating which words are fully revealed</returns>
+        public bool[] GetRevealedSnapshot()
+        {
+            bool[] snapshot = new bool[_wordCount];
+            for (int i = 0; i < _wordCount; i++)
+            {
+                snapshot[i] = _wordRows[i].IsFullyRevealed();
+            }
+            return snapshot;
+        }
+
+        /// <summary>
+        /// Compares current state to a previous snapshot and returns indices of newly completed words.
+        /// </summary>
+        /// <param name="previousSnapshot">Snapshot from before the guess</param>
+        /// <returns>List of word indices that are now complete but weren't before</returns>
+        public System.Collections.Generic.List<int> GetNewlyCompletedWords(bool[] previousSnapshot)
+        {
+            System.Collections.Generic.List<int> newlyCompleted = new System.Collections.Generic.List<int>();
+
+            if (previousSnapshot == null || previousSnapshot.Length != _wordCount)
+            {
+                // No valid snapshot - return empty list
+                return newlyCompleted;
+            }
+
+            for (int i = 0; i < _wordCount; i++)
+            {
+                bool wasComplete = previousSnapshot[i];
+                bool isComplete = _wordRows[i].IsFullyRevealed();
+
+                if (!wasComplete && isComplete)
+                {
+                    newlyCompleted.Add(i);
+                }
+            }
+
+            return newlyCompleted;
+        }
+
+        /// <summary>
         /// Gets the actual word for a row (for gameplay validation).
         /// </summary>
         public string GetActualWord(int rowIndex)

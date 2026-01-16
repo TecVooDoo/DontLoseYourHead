@@ -4,8 +4,8 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 49
-**Last Updated:** January 15, 2026
+**Document Version:** 50
+**Last Updated:** January 16, 2026
 
 **Archive:** `DLYH_Status_Archive.md` - Historical designs, old version history, completed phase details
 
@@ -19,7 +19,19 @@
 
 **Current Phase:** Phase D IN PROGRESS - Architecture refactor complete!
 
-**Last Session (Jan 15, 2026):** Thirty-eighth session - **Keyboard/Word Row Color Upgrade & Opponent Win Detection!** Fixed keyboard and word rows not upgrading to opponent color when all coordinates known. Implemented opponent win detection (game now ends when AI finds all player letters/coordinates).
+**Last Session (Jan 16, 2026):** Thirty-ninth session - **Extra Turn Logic & End-Game Reveal!**
+- Implemented extra turn queue system for player and opponent
+- Player gets extra turn when: correctly guessing a word (GUESS button), or completing a word row via letter guesses
+- Opponent (AI) also gets extra turns for word completions (fairness)
+- Added word completion detection via snapshot comparison (before/after guess)
+- Added end-game word reveal - unfound opponent words/positions shown in grey when game ends
+- Added `GetRevealedSnapshot()` and `GetNewlyCompletedWords()` to WordRowsContainer
+- Fixed: Opponent extra turn timing issue - AI was rejecting extra turn because it was still processing previous turn (added delay via `TriggerOpponentExtraTurnCoroutine`)
+- Fixed: End-game grid reveal now uses Hit state instead of Revealed (attack grid hides letters in Revealed state)
+- Fixed: Game over now switches to Attack tab to show revealed words
+- Fixed: AI now skips letter guesses when all letters are already found (focuses on coordinates)
+- Fixed: AI now skips coordinate guesses when all letter positions are already found (focuses on letters)
+- Added `AreAllLettersFound()` and `AreAllCoordinatesFound()` to AIGameState
 
 ---
 
@@ -39,10 +51,11 @@
 | Playtest platform | WebGL on Cloudflare (dlyh.pages.dev), must work on mobile |
 | Production platforms | Steam (PC), mobile apps (iOS/Android) - post-playtest |
 
-### Phase D: Gameplay UI (~85% complete)
+### Phase D: Gameplay UI (~90% complete)
 - [ ] Testing (grid colors, defense view, guillotine 5-stage)
-- [ ] Extra turn logic (word completed via GUESS button OR all letters found)
-- [ ] Win/lose detection (wire to existing WinConditionChecker)
+- [x] Extra turn logic (word completed via GUESS button OR all letters found) - ✅ Jan 16
+- [x] Win/lose detection (wire to existing WinConditionChecker) - ✅ Already working (confirmed Jan 15)
+- [x] End-game reveal (unfound words shown in grey) - ✅ Jan 16
 - [ ] Game end sequence (guillotine animation -> feedback modal with Continue)
 - [ ] Audio wiring (connect existing audio system to new UI Toolkit)
 - [ ] How to Play screen (text instructions)

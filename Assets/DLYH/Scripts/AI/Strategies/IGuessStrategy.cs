@@ -302,6 +302,63 @@ namespace DLYH.AI.Strategies
 
             return unguessed;
         }
+
+        /// <summary>
+        /// Checks if all letters in the opponent's words have been found.
+        /// Returns true if no underscores remain in any word pattern.
+        /// When true, the AI should stop guessing letters and focus on coordinates.
+        /// </summary>
+        public bool AreAllLettersFound()
+        {
+            if (WordPatterns == null || WordPatterns.Count == 0)
+            {
+                return false;
+            }
+
+            foreach (string pattern in WordPatterns)
+            {
+                if (string.IsNullOrEmpty(pattern))
+                {
+                    continue;
+                }
+
+                // If any pattern still has underscores, not all letters are found
+                if (pattern.Contains('_'))
+                {
+                    return false;
+                }
+            }
+
+            // All patterns are fully revealed
+            return true;
+        }
+
+        /// <summary>
+        /// Checks if all coordinates containing letters have been found.
+        /// Returns true if HitCoordinates count equals the total letter count across all words.
+        /// When true, the AI should stop guessing coordinates and focus on letters.
+        /// </summary>
+        public bool AreAllCoordinatesFound()
+        {
+            if (WordPatterns == null || WordPatterns.Count == 0)
+            {
+                return false;
+            }
+
+            // Calculate total number of letter positions (sum of all word lengths)
+            int totalLetterPositions = 0;
+            foreach (string pattern in WordPatterns)
+            {
+                if (!string.IsNullOrEmpty(pattern))
+                {
+                    totalLetterPositions += pattern.Length;
+                }
+            }
+
+            // Check if we've hit all letter positions
+            int hitCount = HitCoordinates?.Count ?? 0;
+            return hitCount >= totalLetterPositions;
+        }
     }
 
     /// <summary>
