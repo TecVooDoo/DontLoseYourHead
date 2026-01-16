@@ -664,6 +664,22 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
+        /// Gets all unique letters in the player's placed words.
+        /// Used for iterating through all letters to check coordinate knowledge.
+        /// </summary>
+        public HashSet<char> GetAllPlayerLetters()
+        {
+            HashSet<char> letters = new HashSet<char>();
+            if (_playerPlacedLetters == null) return letters;
+
+            foreach (char letter in _playerPlacedLetters.Values)
+            {
+                letters.Add(char.ToUpper(letter));
+            }
+            return letters;
+        }
+
+        /// <summary>
         /// Gets all positions where a specific letter appears in the opponent's words.
         /// Used to check if all instances of a letter have been found on the grid.
         /// </summary>
@@ -765,6 +781,49 @@ namespace DLYH.TableUI
         public bool HasPlayerWon()
         {
             return AreAllOpponentLettersKnown() && AreAllOpponentCoordinatesKnown();
+        }
+
+        /// <summary>
+        /// Checks if the opponent has won the game by finding all player's letters and coordinates.
+        /// </summary>
+        public bool HasOpponentWon()
+        {
+            return AreAllPlayerLettersKnownByOpponent() && AreAllPlayerCoordinatesKnownByOpponent();
+        }
+
+        /// <summary>
+        /// Checks if all unique letters in player's words have had all their coordinates guessed by opponent.
+        /// </summary>
+        private bool AreAllPlayerLettersKnownByOpponent()
+        {
+            if (_playerPlacedLetters == null || _playerPlacedLetters.Count == 0) return false;
+
+            HashSet<char> uniqueLetters = GetAllPlayerLetters();
+            foreach (char letter in uniqueLetters)
+            {
+                if (!AreAllPlayerLetterCoordinatesKnownByOpponent(letter))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Checks if all coordinates containing letters in player's grid have been guessed by opponent.
+        /// </summary>
+        private bool AreAllPlayerCoordinatesKnownByOpponent()
+        {
+            if (_playerPlacedPositions == null || _opponentGuessState == null) return false;
+
+            foreach (Vector2Int pos in _playerPlacedPositions)
+            {
+                if (!_opponentGuessState.GuessedCoordinates.Contains(pos))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         /// <summary>

@@ -1478,6 +1478,8 @@ namespace DLYH.TableUI
             _opponent?.AdvanceTurn();
 
             // Check for opponent win (player loss)
+            CheckForOpponentWin();
+
             if (!_isGameOver)
             {
                 EndOpponentTurn();
@@ -1529,7 +1531,9 @@ namespace DLYH.TableUI
 
             _opponent?.AdvanceTurn();
 
-            // Check for opponent win
+            // Check for opponent win (player loss)
+            CheckForOpponentWin();
+
             if (!_isGameOver)
             {
                 EndOpponentTurn();
@@ -1547,26 +1551,28 @@ namespace DLYH.TableUI
 
             Color opponentColor = _opponent?.OpponentColor ?? _gameplayManager.OpponentData?.Color ?? ColorRules.SelectableColors[1];
 
-            // Check each letter the opponent has hit
-            foreach (char letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+            // Get all unique letters in the player's words
+            HashSet<char> playerLetters = _guessManager.GetAllPlayerLetters();
+
+            // Check each letter that exists in the player's words
+            foreach (char letter in playerLetters)
             {
-                if (_guessManager.IsOpponentLetterHit(letter))
+                // Check if all coordinates for this letter have been guessed by opponent
+                bool allCoordsKnown = _guessManager.AreAllPlayerLetterCoordinatesKnownByOpponent(letter);
+
+                if (allCoordsKnown)
                 {
-                    bool allCoordsKnown = _guessManager.AreAllPlayerLetterCoordinatesKnownByOpponent(letter);
-                    if (allCoordsKnown)
-                    {
-                        // Upgrade keyboard to opponent color
-                        _gameplayManager.MarkOpponentLetterHit(letter, opponentColor);
-                        // Upgrade word rows to opponent color
-                        _defenseWordRows?.UpgradeLetterToPlayerColorInAllWords(letter, opponentColor);
-                        // Upgrade grid cells to opponent color (only guessed coords)
-                        UpgradeDefenseGridLetterToHit(letter);
-                    }
-                    else
-                    {
-                        _gameplayManager.MarkOpponentLetterFound(letter);
-                    }
+                    // All coordinates known - upgrade to opponent color
+                    _gameplayManager.MarkOpponentLetterHit(letter, opponentColor);
+                    _defenseWordRows?.UpgradeLetterToPlayerColorInAllWords(letter, opponentColor);
+                    UpgradeDefenseGridLetterToHit(letter);
                 }
+                else if (_guessManager.IsOpponentLetterHit(letter))
+                {
+                    // Letter guessed via keyboard but not all coords known - yellow
+                    _gameplayManager.MarkOpponentLetterFound(letter);
+                }
+                // If letter not guessed and coords not all known, leave it alone
             }
         }
 
@@ -1688,7 +1694,9 @@ namespace DLYH.TableUI
 
             _opponent?.AdvanceTurn();
 
-            // Check for opponent win (player loss) or game over
+            // Check for opponent win (player loss)
+            CheckForOpponentWin();
+
             if (!_isGameOver)
             {
                 EndOpponentTurn();
@@ -1873,7 +1881,14 @@ namespace DLYH.TableUI
         /// </summary>
         private void CheckForOpponentWin()
         {
-            // TODO: Implement when defense grid word tracking is added
+            if (_isGameOver || _guessManager == null) return;
+
+            // Check win condition: opponent has found all player's letters AND all coordinates
+            if (_guessManager.HasOpponentWon())
+            {
+                Debug.Log("[UIFlowController] OPPONENT WINS - All player words found!");
+                HandleGameOver(true); // true = player lost
+            }
         }
 
         #endregion
