@@ -6,7 +6,7 @@ namespace Obvious.Soap.Example
     [HelpURL("https://obvious-game.gitbook.io/soap/scene-documentation/1_scriptablevariables/solving-dependencies")]
     public class PlayerMovement : MonoBehaviour
     {
-        [SerializeField] private Vector2Variable _inputs = null;
+        [SerializeField] private Vector2VariableReadOnly _inputs = null;
         [SerializeField] private FloatReference _speed = null;
         void Update()
         {

@@ -13,7 +13,7 @@ namespace Obvious.Soap
     [RequireComponent(typeof(Text))]
     public class BindText: CacheComponent<Text>
     {
-        public CustomVariableType Type = CustomVariableType.None;
+        public BindingVariableType Type = BindingVariableType.None;
         
         [SerializeField] private BoolVariable _boolVariable = null;
         [SerializeField] private IntVariable _intVariable = null;
@@ -46,7 +46,7 @@ namespace Obvious.Soap
         protected override void Awake()
         {
             base.Awake();
-            if (Type == CustomVariableType.None)
+            if (Type == BindingVariableType.None)
             {
                 Debug.LogError("Select a type for this binding component", gameObject);
                 return;
@@ -63,19 +63,19 @@ namespace Obvious.Soap
 
             switch (Type)
             {
-                case CustomVariableType.Bool:
+                case BindingVariableType.Bool:
                     _stringBuilder.Append(_boolVariable.Value ? "True" : "False");
                     break;
-                case CustomVariableType.Int:
+                case BindingVariableType.Int:
                     var clampedInt = IsClamped ? Mathf.Clamp(_intVariable.Value, MinMaxInt.x, MinMaxInt.y) : _intVariable.Value;
                     _stringBuilder.Append(clampedInt + Increment);
                     break;
-                case CustomVariableType.Float:
+                case BindingVariableType.Float:
                     double clampedFloat = IsClamped ? Mathf.Clamp(_floatVariable.Value, MinMaxFloat.x, MinMaxFloat.y) : _floatVariable.Value;
                     double rounded = System.Math.Round(clampedFloat, DecimalAmount);
                     _stringBuilder.Append(rounded);
                     break;
-                case CustomVariableType.String:
+                case BindingVariableType.String:
                     _stringBuilder.Append(_stringVariable.Value);
                     break;
             }
@@ -88,28 +88,28 @@ namespace Obvious.Soap
         {
             switch (Type)
             {
-                case CustomVariableType.Bool:
+                case BindingVariableType.Bool:
                     if (_boolVariable != null)
                     {
                         _boolValueChangedHandler = value => Refresh();
                         _boolVariable.OnValueChanged += _boolValueChangedHandler;
                     }
                     break;
-                case CustomVariableType.Int:
+                case BindingVariableType.Int:
                     if (_intVariable != null)
                     {
                         _intValueChangedHandler = value => Refresh();
                         _intVariable.OnValueChanged += _intValueChangedHandler;
                     }
                     break;
-                case CustomVariableType.Float:
+                case BindingVariableType.Float:
                     if (_floatVariable != null)
                     {
                         _floatValueChangedHandler = value => Refresh();
                         _floatVariable.OnValueChanged += _floatValueChangedHandler;
                     }
                     break;
-                case CustomVariableType.String:
+                case BindingVariableType.String:
                     if (_stringVariable != null)
                     {
                         _stringValueChangedHandler = value => Refresh();
@@ -123,19 +123,19 @@ namespace Obvious.Soap
         {
             switch (Type)
             {
-                case CustomVariableType.Bool:
+                case BindingVariableType.Bool:
                     if (_boolVariable != null)
                         _boolVariable.OnValueChanged -= _boolValueChangedHandler;
                     break;
-                case CustomVariableType.Int:
+                case BindingVariableType.Int:
                     if (_intVariable != null)
                         _intVariable.OnValueChanged -= _intValueChangedHandler;
                     break;
-                case CustomVariableType.Float:
+                case BindingVariableType.Float:
                     if (_floatVariable != null)
                         _floatVariable.OnValueChanged -= _floatValueChangedHandler;
                     break;
-                case CustomVariableType.String:
+                case BindingVariableType.String:
                     if (_stringVariable != null)
                         _stringVariable.OnValueChanged -= _stringValueChangedHandler;
                     break;

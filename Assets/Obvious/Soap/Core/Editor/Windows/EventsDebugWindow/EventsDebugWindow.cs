@@ -11,14 +11,14 @@ namespace Obvious.Soap.Editor
         private bool _hasClicked = false;
         private bool _wasFound = false;
 
-        [MenuItem("Window/Obvious Game/Soap/Events Debug Window")]
+        [MenuItem("Window/Obvious Game/\ud83e\uddfc Soap/Events Debug Window")]
         public new static void Show()
         {
             var window = GetWindow<EventsDebugWindow>(typeof(SceneView));
             window.titleContent = new GUIContent("Events Debug Window", EditorGUIUtility.ObjectContent(CreateInstance<ScriptableEventNoParam>(), typeof(ScriptableEventNoParam)).image);
         }
 
-        [MenuItem("Tools/Obvious Game/Soap/Event Debug Window")]
+        [MenuItem("Tools/Obvious Game/\ud83e\uddfc Soap/Event Debug Window")]
         private static void OpenEventDebugWindow() => Show();
 
         private void OnLostFocus()

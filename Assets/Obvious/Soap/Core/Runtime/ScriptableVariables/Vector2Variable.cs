@@ -20,4 +20,9 @@ namespace Obvious.Soap
             base.Load();
         }
     }
+
+    [System.Serializable]
+    public class Vector2VariableReadOnly : ScriptableVariableReadOnly<Vector2Variable, Vector2>
+    {
+    }
 }

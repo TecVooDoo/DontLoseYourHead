@@ -19,7 +19,7 @@ namespace Obvious.Soap.Editor
         private SoapWindowSettings _soapWindowSettings;
 
         private string HeaderTitle => $" SOAP - Version {Version}";
-        private const string Version = "3.6.1";
+        private const string Version = "3.7.0";
         private const string DocURL = "https://obvious-game.gitbook.io/soap";
         private const string SceneDocURL = "https://obvious-game.gitbook.io/soap/scene-documentation/";
         private const string DiscordURL = "https://discord.gg/CVhCNDbxF5";
@@ -35,7 +35,7 @@ namespace Obvious.Soap.Editor
             "10_ScriptableSingletons"
         };
 
-        [MenuItem("Window/Obvious Game/Soap/Soap Window", priority = 0)]
+        [MenuItem("Window/Obvious Game/\ud83e\uddfc Soap/Soap Window", priority = 0)]
         public static void Open()
         {
             var window = GetWindow(typeof(SoapWindow), true, "Soap Window");

@@ -5,6 +5,6 @@ AssetOrigin:
   serializedVersion: 1
   productId: 232107
   packageName: Soap - ScriptableObject Architecture Pattern
-  packageVersion: 3.6.1
+  packageVersion: 3.7.0
   assetPath: Assets/Obvious/Soap/Core/Runtime/RuntimeInjectors/RuntimeGameObjectVariableInjector.cs
-  uploadId: 814588
+  uploadId: 846992

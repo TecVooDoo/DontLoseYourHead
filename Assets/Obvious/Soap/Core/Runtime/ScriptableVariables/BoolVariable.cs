@@ -26,4 +26,10 @@ namespace Obvious.Soap
             Value = !Value;
         }
     }
+
+    [System.Serializable]
+    public class BoolVariableReadOnly : ScriptableVariableReadOnly<BoolVariable, bool>
+    {
+        
+    }
 }

@@ -240,7 +240,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 57bd829b9478fa7489ccd49858729de9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _inputs: {fileID: 11400000, guid: 942121ed39c0d7444b86b1d1eba32708, type: 2}
+  _inputs:
+    _soapScriptable: {fileID: 11400000, guid: 942121ed39c0d7444b86b1d1eba32708, type: 2}
   _speed:
     UseLocal: 0
     LocalValue: 0
@@ -5273,7 +5274,10 @@ MonoBehaviour:
   _binding: 0
   _disableAfterSubscribing: 0
   _eventResponses:
-  - Delay: 0
+  - Delay:
+      UseLocal: 1
+      LocalValue: 0
+      Variable: {fileID: 0}
     _scriptableEvent: {fileID: 11400000, guid: c7763aedbe7be0c40a542b792395a449, type: 2}
     _response:
       m_PersistentCalls:
@@ -10117,7 +10121,10 @@ MonoBehaviour:
   _binding: 0
   _disableAfterSubscribing: 0
   _eventResponses:
-  - Delay: 0
+  - Delay:
+      UseLocal: 1
+      LocalValue: 0
+      Variable: {fileID: 0}
     _scriptableEvent: {fileID: 11400000, guid: a6a20d8ae577ba640ae4778b26c41a34, type: 2}
     _response:
       m_PersistentCalls:

@@ -6,3 +6,8 @@ public class ScriptableList$TYPENAME$ : ScriptableList<$TYPE$>
 {
     
 }
+
+[System.Serializable]
+public class ScriptableList$TYPENAME$ReadOnly : ScriptableListReadOnly<ScriptableList$TYPENAME$, $TYPE$>
+{
+}

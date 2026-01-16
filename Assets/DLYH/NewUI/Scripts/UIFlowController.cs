@@ -1057,6 +1057,9 @@ namespace DLYH.TableUI
             // Exit word guess mode if active
             _attackWordRows?.ExitWordGuessMode();
 
+            // Re-enable tab switching so player can view both boards after game over
+            _gameplayManager?.SetAllowManualTabSwitch(true);
+
             // Update UI
             _gameplayManager?.SetPlayerTurn(true); // Reset turn indicator
             _gameplayManager?.SetStatusMessage(
@@ -1096,6 +1099,13 @@ namespace DLYH.TableUI
         private void EndOpponentTurn()
         {
             if (_isGameOver) return;
+
+            // Cancel the timeout coroutine since opponent completed their turn
+            if (_opponentTurnTimeoutCoroutine != null)
+            {
+                StopCoroutine(_opponentTurnTimeoutCoroutine);
+                _opponentTurnTimeoutCoroutine = null;
+            }
 
             // Start turn switch with delay
             if (_turnDelayCoroutine != null)
@@ -1232,6 +1242,7 @@ namespace DLYH.TableUI
 
         /// <summary>
         /// Builds the current game state for AI decision making.
+        /// Includes AI's tracked guesses and a word bank for pattern matching.
         /// </summary>
         private AIGameState BuildOpponentGameState()
         {
@@ -1241,17 +1252,162 @@ namespace DLYH.TableUI
             state.GridSize = gridSize;
             state.WordCount = _playerSetupData?.WordCount ?? 4;
 
-            // Get guessed letters and coordinates from guess manager
-            // For now, use empty sets - AI will track its own state
-            state.GuessedLetters = new HashSet<char>();
-            state.HitLetters = new HashSet<char>();
-            state.GuessedCoordinates = new HashSet<(int, int)>();
-            state.HitCoordinates = new HashSet<(int, int)>();
-            state.WordPatterns = new List<string>();
-            state.SkillLevel = 0.5f;
-            state.FillRatio = 0.3f;
+            // Get AI's guessed letters and coordinates from guess manager
+            // This prevents the AI from guessing the same thing twice
+            if (_guessManager != null)
+            {
+                state.GuessedLetters = _guessManager.GetOpponentGuessedLetters();
+                state.HitLetters = _guessManager.GetOpponentHitLetters();
+                state.GuessedCoordinates = _guessManager.GetOpponentGuessedCoordinatesAsTuples();
+                state.HitCoordinates = _guessManager.GetOpponentHitCoordinatesAsTuples();
+            }
+            else
+            {
+                state.GuessedLetters = new HashSet<char>();
+                state.HitLetters = new HashSet<char>();
+                state.GuessedCoordinates = new HashSet<(int, int)>();
+                state.HitCoordinates = new HashSet<(int, int)>();
+            }
+
+            // Build word patterns from player's word setup (what AI is trying to guess)
+            // Patterns show known letters, e.g., "_A_E" for a 4-letter word with A and E known
+            state.WordPatterns = BuildWordPatternsForOpponent();
+
+            // Build WordsSolved list (parallel to WordPatterns) - AI tracks which words it has completely guessed
+            state.WordsSolved = BuildWordsSolvedForOpponent();
+
+            // Build word bank from available word lists (for AI pattern matching)
+            state.WordBank = BuildWordBankForOpponent();
+
+            // Calculate skill level based on difficulty
+            state.SkillLevel = GetSkillLevelFromDifficulty(_playerSetupData?.DifficultyLevel ?? DifficultySetting.Normal);
+
+            // Calculate fill ratio (letters / total cells)
+            int totalCells = gridSize * gridSize;
+            int letterCount = _playerSetupData?.PlacedWords?.Count > 0
+                ? _playerSetupData.PlacedWords.Sum(w => w.Word?.Length ?? 0)
+                : 0;
+            state.FillRatio = totalCells > 0 ? (float)letterCount / totalCells : 0.3f;
 
             return state;
+        }
+
+        /// <summary>
+        /// Builds word patterns showing what the AI knows about each player word.
+        /// '_' = unknown letter, uppercase letter = known letter.
+        /// </summary>
+        private List<string> BuildWordPatternsForOpponent()
+        {
+            List<string> patterns = new List<string>();
+
+            if (_playerSetupData?.PlacedWords == null || _guessManager == null)
+                return patterns;
+
+            foreach (var wordPlacement in _playerSetupData.PlacedWords)
+            {
+                if (string.IsNullOrEmpty(wordPlacement.Word)) continue;
+
+                char[] pattern = new char[wordPlacement.Word.Length];
+                for (int i = 0; i < wordPlacement.Word.Length; i++)
+                {
+                    char letter = char.ToUpper(wordPlacement.Word[i]);
+                    // If AI has guessed this letter, show it in the pattern
+                    if (_guessManager.HasOpponentGuessedLetter(letter) &&
+                        _guessManager.IsOpponentLetterHit(letter))
+                    {
+                        pattern[i] = letter;
+                    }
+                    else
+                    {
+                        pattern[i] = '_';
+                    }
+                }
+                patterns.Add(new string(pattern));
+            }
+
+            return patterns;
+        }
+
+        /// <summary>
+        /// Builds a list of booleans indicating which player words the AI has fully solved.
+        /// Must be parallel to WordPatterns (same index = same word).
+        /// </summary>
+        private List<bool> BuildWordsSolvedForOpponent()
+        {
+            List<bool> solved = new List<bool>();
+
+            if (_playerSetupData?.PlacedWords == null)
+                return solved;
+
+            // For each player word, check if all letters have been guessed by the opponent
+            foreach (var wordPlacement in _playerSetupData.PlacedWords)
+            {
+                if (string.IsNullOrEmpty(wordPlacement.Word))
+                {
+                    solved.Add(false);
+                    continue;
+                }
+
+                // A word is "solved" if all its letters have been guessed by the opponent
+                bool allLettersKnown = true;
+                foreach (char letter in wordPlacement.Word)
+                {
+                    if (_guessManager != null && !_guessManager.HasOpponentGuessedLetter(letter))
+                    {
+                        allLettersKnown = false;
+                        break;
+                    }
+                }
+                solved.Add(allLettersKnown);
+            }
+
+            return solved;
+        }
+
+        /// <summary>
+        /// Builds a word bank from available word lists for AI pattern matching.
+        /// </summary>
+        private HashSet<string> BuildWordBankForOpponent()
+        {
+            HashSet<string> wordBank = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+
+            // Add words from all available word lists
+            AddWordsFromList(_threeLetterWords, wordBank);
+            AddWordsFromList(_fourLetterWords, wordBank);
+            AddWordsFromList(_fiveLetterWords, wordBank);
+            AddWordsFromList(_sixLetterWords, wordBank);
+
+            return wordBank;
+        }
+
+        /// <summary>
+        /// Adds words from a WordListSO to the word bank.
+        /// </summary>
+        private void AddWordsFromList(WordListSO wordList, HashSet<string> wordBank)
+        {
+            if (wordList == null || wordList.Words == null) return;
+
+            foreach (string word in wordList.Words)
+            {
+                if (!string.IsNullOrEmpty(word))
+                {
+                    wordBank.Add(word.ToUpper());
+                }
+            }
+        }
+
+        /// <summary>
+        /// Converts difficulty setting to skill level (0-1).
+        /// </summary>
+        private float GetSkillLevelFromDifficulty(DifficultySetting difficulty)
+        {
+            return difficulty switch
+            {
+                DifficultySetting.Easy => 0.3f,
+                DifficultySetting.Normal => 0.5f,
+                DifficultySetting.Hard => 0.8f,
+                _ => 0.5f
+            };
         }
 
         private void HandleOpponentLetterGuess(char letter)
@@ -1292,9 +1448,11 @@ namespace DLYH.TableUI
                     }
                 }
 
-                // Mark defense grid cells as "found" (yellow) - letter known but coords not all guessed
-                // This should show yellow on the grid cells that contain this letter
-                MarkDefenseGridLetterFound(letter);
+                // NOTE: Letter guesses do NOT update the grid!
+                // Grid cells only update when coordinates are guessed.
+                // If opponent already guessed coordinates containing this letter,
+                // those cells should upgrade from Revealed (yellow) to Hit (opponent color).
+                UpgradeDefenseGridLetterToHit(letter);
 
                 // Update opponent keyboard with appropriate color
                 if (allCoordsKnown)
@@ -1342,8 +1500,21 @@ namespace DLYH.TableUI
             // Update the defense grid visual
             if (wasHit)
             {
-                MarkDefenseGridCellHit(col, row);
                 _opponent?.RecordOpponentHit(row, col);
+
+                // Get the letter at this position to determine if it's been guessed via keyboard
+                char? letterAtPos = _guessManager?.GetPlayerLetterAtPosition(col, row);
+
+                if (letterAtPos.HasValue && (_guessManager?.HasOpponentGuessedLetter(letterAtPos.Value) ?? false))
+                {
+                    // Letter was already guessed via keyboard - full reveal (opponent color)
+                    MarkDefenseGridCellHit(col, row);
+                }
+                else
+                {
+                    // Letter not yet guessed - just coordinate revealed (yellow)
+                    MarkDefenseGridCellRevealedByCoord(col, row);
+                }
 
                 // Check if this coordinate hit reveals any letters whose coords are now fully known
                 RefreshOpponentKeyboardStates();
@@ -1435,21 +1606,32 @@ namespace DLYH.TableUI
                 _gameplayManager?.SetStatusMessage($"Opponent guessed '{normalizedGuess}' - CORRECT!",
                     GameplayScreenManager.StatusType.Hit);
 
-                // Mark all letters in this word as known by opponent
+                // Track guessed word (correct - shown with opponent color background)
+                string opponentName = _opponent?.OpponentName ?? "Opponent";
+                _gameplayManager?.AddGuessedWord(opponentName, normalizedGuess, true, false);
+
+                // Mark all letters in this word as known by opponent AND reveal in ALL word rows
                 foreach (char letter in actualWord)
                 {
                     _opponent?.RecordRevealedLetter(letter);
-                    _gameplayManager?.MarkOpponentLetterHit(letter, opponentColor);
-                }
 
-                // Reveal the entire word in defense word rows with opponent color
-                if (_defenseWordRows != null)
-                {
-                    WordRowView row = _defenseWordRows.GetRow(wordIndex);
-                    if (row != null)
+                    // Process as if opponent guessed each letter individually
+                    // This ensures letters appear in ALL word rows, not just this word
+                    _guessManager?.ProcessOpponentLetterGuess(letter);
+
+                    // Check if all coordinates for this letter are now known
+                    bool allCoordsKnown = _guessManager?.AreAllPlayerLetterCoordinatesKnownByOpponent(letter) ?? false;
+
+                    if (allCoordsKnown)
                     {
-                        // Reveal all letters in this word with opponent color
-                        row.RevealAllLetters(opponentColor);
+                        _gameplayManager?.MarkOpponentLetterHit(letter, opponentColor);
+                        _defenseWordRows?.UpgradeLetterToPlayerColorInAllWords(letter, opponentColor);
+                    }
+                    else
+                    {
+                        _gameplayManager?.MarkOpponentLetterFound(letter);
+                        // Reveal letter in ALL defense word rows as yellow (found)
+                        _defenseWordRows?.RevealLetterAsFoundInAllWords(letter);
                     }
                 }
 
@@ -1466,7 +1648,7 @@ namespace DLYH.TableUI
                     }
                 }
 
-                // Refresh keyboard states
+                // Refresh keyboard states to update any letters that now have all coords known
                 RefreshOpponentKeyboardStates();
 
                 // Opponent gets an extra turn for completing a word
@@ -1479,19 +1661,15 @@ namespace DLYH.TableUI
                 _gameplayManager?.SetStatusMessage($"Opponent guessed '{normalizedGuess}' - WRONG! (+2 misses)",
                     GameplayScreenManager.StatusType.Miss);
 
-                // Add 2 misses to opponent
-                if (_guessManager != null)
-                {
-                    // Note: GuessManager doesn't have a direct method for opponent word guess miss
-                    // We simulate it by manually updating the miss count display
-                    // This is a simplification - ideally GuessManager would handle this
-                }
+                // Track guessed word (incorrect - shown with red background)
+                string opponentName = _opponent?.OpponentName ?? "Opponent";
+                _gameplayManager?.AddGuessedWord(opponentName, normalizedGuess, false, false);
 
-                // Update miss display (opponent side) - need to get current miss count
-                int currentMisses = _guessManager?.GetOpponentMissCount() ?? 0;
-                int missLimit = _guessManager?.GetOpponentMissLimit() ?? 24;
-                // Add 2 misses manually since we don't have ProcessOpponentWordGuess
-                // For now, just show the message - full implementation would need GuessManager update
+                // Add 2 misses to opponent
+                _guessManager?.AddOpponentMisses(2);
+
+                // Update miss display
+                UpdateMissCountDisplay(false);
             }
 
             _opponent?.AdvanceTurn();
@@ -1504,7 +1682,8 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
-        /// Marks a cell on the defense grid as hit by opponent (shows opponent color).
+        /// Marks a cell on the defense grid as fully hit by opponent (shows opponent color).
+        /// Use this only when BOTH the coordinate AND the letter are known.
         /// </summary>
         private void MarkDefenseGridCellHit(int gridCol, int gridRow)
         {
@@ -1512,10 +1691,30 @@ namespace DLYH.TableUI
 
             (int tableRow, int tableCol) = _tableLayout.GridToTable(gridRow, gridCol);
             _defenseTableModel.SetCellState(tableRow, tableCol, TableCellState.Hit);
-            // Set owner to Player2 (opponent) so it shows in opponent color when hit
+            // Set owner to Opponent so it shows in opponent color when hit
             _defenseTableModel.SetCellOwner(tableRow, tableCol, CellOwner.Opponent);
 
-            Debug.Log($"[UIFlowController] Defense grid cell ({gridCol}, {gridRow}) marked as HIT by opponent");
+            Debug.Log($"[UIFlowController] Defense grid cell ({gridCol}, {gridRow}) marked as HIT by opponent (full reveal)");
+        }
+
+        /// <summary>
+        /// Marks a cell on the defense grid as revealed by coordinate guess (yellow).
+        /// Coordinate is known but letter hasn't been guessed yet.
+        /// </summary>
+        private void MarkDefenseGridCellRevealedByCoord(int gridCol, int gridRow)
+        {
+            if (_defenseTableModel == null || _tableLayout == null) return;
+
+            (int tableRow, int tableCol) = _tableLayout.GridToTable(gridRow, gridCol);
+
+            // Only set to Revealed if not already Hit (letter was already guessed)
+            TableCell cell = _defenseTableModel.GetCell(tableRow, tableCol);
+            if (cell.State != TableCellState.Hit)
+            {
+                _defenseTableModel.SetCellState(tableRow, tableCol, TableCellState.Revealed);
+                // Revealed cells are yellow, no owner color needed
+                Debug.Log($"[UIFlowController] Defense grid cell ({gridCol}, {gridRow}) marked as REVEALED (coord known, letter unknown)");
+            }
         }
 
         /// <summary>
@@ -1550,8 +1749,9 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
-        /// Marks all defense grid cells with a specific letter as "found" (yellow).
-        /// Called when opponent guesses a letter.
+        /// Updates defense grid cells when opponent guesses a letter.
+        /// - If coordinate was already guessed: upgrade to Hit (opponent color)
+        /// - If coordinate not yet guessed: mark as Revealed (yellow)
         /// </summary>
         private void MarkDefenseGridLetterFound(char letter)
         {
@@ -1560,7 +1760,16 @@ namespace DLYH.TableUI
             List<Vector2Int> positions = _guessManager.GetPlayerLetterPositions(letter);
             foreach (Vector2Int pos in positions)
             {
-                MarkDefenseGridCellFound(pos.x, pos.y);
+                if (_guessManager.HasOpponentGuessedCoordinate(pos.x, pos.y))
+                {
+                    // Both letter AND coordinate known - full reveal (opponent color)
+                    MarkDefenseGridCellHit(pos.x, pos.y);
+                }
+                else
+                {
+                    // Letter known but coordinate not yet guessed - yellow
+                    MarkDefenseGridCellFound(pos.x, pos.y);
+                }
             }
         }
 
@@ -1636,6 +1845,9 @@ namespace DLYH.TableUI
                 StopCoroutine(_opponentTurnTimeoutCoroutine);
                 _opponentTurnTimeoutCoroutine = null;
             }
+
+            // Re-enable tab switching so player can view both boards after game over
+            _gameplayManager?.SetAllowManualTabSwitch(true);
 
             _gameplayManager?.SetStatusMessage(message, GameplayScreenManager.StatusType.Hit);
             Debug.Log($"[UIFlowController] Game Over - Player Wins: {message}");

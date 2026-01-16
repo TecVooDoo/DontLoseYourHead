@@ -8,23 +8,32 @@ namespace Obvious.Soap.Editor
     [CustomPropertyDrawer(typeof(ScriptableBase), true)]
     public abstract class ScriptableBasePropertyDrawer : PropertyDrawer
     {
-        private UnityEditor.Editor _editor;
+        protected UnityEditor.Editor _editor;
         private const float WidthRatioWhenNull = 0.82f;
         protected virtual float WidthRatio => 0.82f;
         protected bool? _canBeSubAsset;
         private bool CanBeSubAsset => _canBeSubAsset != null && _canBeSubAsset.Value;
+        protected bool? IsReadOnly { get; private set; }
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             EditorGUI.BeginProperty(position, label, property);
-            if (_canBeSubAsset == null)
+
+            if (!_canBeSubAsset.HasValue)
+            {
                 _canBeSubAsset = SoapEditorUtils.CanBeSubAsset(property, fieldInfo);
+            }
 
             var targetObject = property.objectReferenceValue;
             if (targetObject == null)
             {
                 DrawIfNull(position, property, label);
                 return;
+            }
+
+            if (!IsReadOnly.HasValue)
+            {
+                IsReadOnly = fieldInfo.DeclaringType.IsSubclassOf(typeof(ReadOnlyBase));
             }
 
             DrawIfNotNull(position, property, label, targetObject);
@@ -66,19 +75,18 @@ namespace Obvious.Soap.Editor
                     if (GUI.Button(rect, guiContent))
                     {
                         var soapSettings = SoapEditorUtils.GetOrCreateSoapSettings();
-                        var tag = GetTagIndexFromAttribute(soapSettings);
+                        var prefix = soapSettings.GetPrefix(fieldInfo.FieldType);
+                        var assetName = $"{prefix}{GetFieldName()}";
                         if (CanBeSubAsset)
-                            CreateSubAsset(property, tag);
+                            SoapEditorUtils.CreateSubAsset(property, fieldInfo, assetName);
                         else
                         {
-                            var prefix = soapSettings.GetPrefix(fieldInfo.FieldType);
-                            var assetName = $"{prefix}{GetFieldName()}";
                             if (soapSettings.NamingOnCreationMode == ENamingCreationMode.Manual)
                             {
                                 var popUpRect = new Rect(EditorWindow.focusedWindow.position);
                                 PopupWindow.Show(new Rect(), new SoapAssetCreatorPopup(popUpRect,
                                     SoapAssetCreatorPopup.EOrigin.Inspector,
-                                    fieldInfo.FieldType, assetName, tag, scriptableBase =>
+                                    fieldInfo, assetName, scriptableBase =>
                                     {
                                         property.objectReferenceValue = scriptableBase;
                                         property.serializedObject.ApplyModifiedProperties();
@@ -86,7 +94,7 @@ namespace Obvious.Soap.Editor
                             }
                             else
                             {
-                                CreateSoapSoAtPath(property, assetName, tag);
+                                SoapEditorUtils.CreateSoapSoAtPath(property, fieldInfo, assetName);
                             }
                         }
                     }
@@ -111,36 +119,7 @@ namespace Obvious.Soap.Editor
 
             return null;
         }
-
-        private void CreateSoapSoAtPath(SerializedProperty property, string assetName, int tagIndex)
-        {
-            var soapSettings = SoapEditorUtils.GetOrCreateSoapSettings();
-            var isCustomPath = soapSettings.CreatePathMode == ECreatePathMode.Manual;
-            var path = isCustomPath
-                ? SoapEditorUtils.CustomCreationPath
-                : SoapFileUtils.GetSelectedFolderPathInProjectWindow();
-            var scriptable = SoapEditorUtils.CreateScriptableObject(fieldInfo.FieldType, assetName, path);
-            var scriptableBase = (ScriptableBase)scriptable;
-            scriptableBase.TagIndex = tagIndex;
-            property.objectReferenceValue = scriptableBase;
-            AssetDatabase.SaveAssets();
-        }
-
-        private void CreateSubAsset(SerializedProperty property, int tagIndex)
-        {
-            var soapSettings = SoapEditorUtils.GetOrCreateSoapSettings();
-            var mainAsset = property.serializedObject.targetObject;
-            var subAsset = ScriptableObject.CreateInstance(fieldInfo.FieldType);
-            var prefix = soapSettings.GetPrefix(fieldInfo.FieldType);
-            var cleanedName = SoapEditorUtils.CleanSubAssetName(GetFieldName());
-            subAsset.name = $"{prefix}{cleanedName}";
-            AssetDatabase.AddObjectToAsset(subAsset, mainAsset);
-            var scriptableBase = (ScriptableBase)subAsset;
-            scriptableBase.TagIndex = tagIndex;
-            property.objectReferenceValue = subAsset;
-            property.serializedObject.ApplyModifiedProperties();
-            AssetDatabase.SaveAssets();
-        }
+        
 
         protected void DrawIfNotNull(Rect position, SerializedProperty property, GUIContent label,
             Object targetObject)
@@ -160,14 +139,17 @@ namespace Obvious.Soap.Editor
                     label.image = SoapInspectorUtils.Icons.SubAsset;
                 }
 
+                if (IsReadOnly.HasValue && IsReadOnly.Value)
+                {
+                    label.image = SoapInspectorUtils.Icons.ReadOnly;
+                }
+
                 EditorGUI.PropertyField(rect, property, label);
                 EditorGUI.indentLevel++;
                 var cacheBgColor = GUI.backgroundColor;
                 GUI.backgroundColor = SoapEditorUtils.SoapColor;
                 GUILayout.BeginVertical(GUI.skin.box);
-                if (_editor == null)
-                    UnityEditor.Editor.CreateCachedEditor(targetObject, null, ref _editor);
-                _editor.OnInspectorGUI();
+                DrawEmbeddedEditor(targetObject);
                 GUI.backgroundColor = cacheBgColor;
                 GUILayout.EndVertical();
                 EditorGUI.indentLevel--;
@@ -176,6 +158,16 @@ namespace Obvious.Soap.Editor
             {
                 DrawUnExpanded(position, property, label, targetObject);
             }
+        }
+
+        protected virtual void DrawEmbeddedEditor(Object targetObject)
+        {
+            if (_editor == null)
+            {
+                UnityEditor.Editor.CreateCachedEditor(targetObject, null, ref _editor);
+            }
+
+            _editor.OnInspectorGUI();
         }
 
         protected virtual string GetFieldName()
@@ -201,6 +193,11 @@ namespace Obvious.Soap.Editor
             {
                 label.text = SoapEditorUtils.CleanSubAssetName(label.text);
                 label.image = SoapInspectorUtils.Icons.SubAsset;
+            }
+
+            if (IsReadOnly.HasValue && IsReadOnly.Value)
+            {
+                label.image = SoapInspectorUtils.Icons.ReadOnly;
             }
 
             var propertyRect = new Rect(position);

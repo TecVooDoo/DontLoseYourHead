@@ -7,4 +7,10 @@ namespace Obvious.Soap.Example
     {
         
     }
+
+    [System.Serializable]
+    public class PlayerVariableReadOnly : ScriptableVariableReadOnly<PlayerVariable, Player>
+    {
+        
+    }
 }

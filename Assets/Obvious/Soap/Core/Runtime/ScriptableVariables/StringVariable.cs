@@ -17,4 +17,10 @@ namespace Obvious.Soap
             base.Load();
         }
     }
+
+    [System.Serializable]
+    public class StringVariableReadOnly : ScriptableVariableReadOnly<StringVariable, string>
+    {
+        
+    }
 }

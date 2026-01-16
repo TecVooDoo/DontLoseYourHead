@@ -5,7 +5,7 @@ MonoImporter:
   serializedVersion: 2
   defaultReferences: []
   executionOrder: 0
-  icon: {fileID: 2800000, guid: 7ac24cd0440b6c941996e400d1a4fda5, type: 3}
+  icon: {instanceID: 0}
   userData: 
   assetBundleName: 
   assetBundleVariant: 
@@ -13,6 +13,6 @@ AssetOrigin:
   serializedVersion: 1
   productId: 232107
   packageName: Soap - ScriptableObject Architecture Pattern
-  packageVersion: 3.6.1
+  packageVersion: 3.7.0
   assetPath: Assets/Obvious/Soap/Core/Runtime/RuntimeInjectors/RuntimeVariableInjector.cs
-  uploadId: 814588
+  uploadId: 846992

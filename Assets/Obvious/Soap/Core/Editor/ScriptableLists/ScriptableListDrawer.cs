@@ -80,7 +80,9 @@ namespace Obvious.Soap.Editor
                 _scriptableBase.RepaintRequest += OnRepaintRequested;
             }
             else if (obj == PlayModeStateChange.EnteredEditMode)
+            {
                 _scriptableBase.RepaintRequest -= OnRepaintRequested;
+            }
         }
 
         private void OnRepaintRequested() => Repaint();

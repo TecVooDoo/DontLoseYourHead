@@ -7,3 +7,8 @@ public class $TYPENAME$Variable : ScriptableVariable<$TYPE$>
     
 }
 
+[System.Serializable]
+public class $TYPENAME$VariableReadOnly : ScriptableVariableReadOnly<$TYPENAME$Variable, $TYPE$>
+{
+}
+

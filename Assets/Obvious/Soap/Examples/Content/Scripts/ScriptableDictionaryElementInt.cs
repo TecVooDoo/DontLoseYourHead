@@ -7,4 +7,11 @@ namespace Obvious.Soap.Example
     public class ScriptableDictionaryElementInt : ScriptableDictionary<ScriptableEnumElement, int>
     {
     }
+
+    [System.Serializable]
+    public class
+        ScriptableDictionaryElementIntReadOnly : ScriptableDictionaryReadOnly<ScriptableEnumElement, int,
+        ScriptableDictionaryElementInt>
+    {
+    }
 }

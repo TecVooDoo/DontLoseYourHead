@@ -37,18 +37,18 @@ namespace Obvious.Soap.Editor
         {
             EditorGUI.BeginChangeCheck();
             Undo.RecordObject(_targetScript, "Modified Custom Inspector");
-            _targetScript.Type = (CustomVariableType)EditorGUILayout.EnumPopup("Variable Type", _targetScript.Type);
+            _targetScript.Type = (BindingVariableType)EditorGUILayout.EnumPopup("Variable Type", _targetScript.Type);
 
             switch (_targetScript.Type)
             {
-                case CustomVariableType.None:
+                case BindingVariableType.None:
                     break;
-                case CustomVariableType.Bool:
+                case BindingVariableType.Bool:
                     EditorGUILayout.PropertyField(_boolVariable, new GUIContent("Bool Variable"));
                     EditorGUILayout.PropertyField(_boolComparer, new GUIContent("Bool Comparer"));
                     EditorGUILayout.PropertyField(_unityEvent, new GUIContent("Event"));
                     break;
-                case CustomVariableType.Int:
+                case BindingVariableType.Int:
                     EditorGUILayout.PropertyField(_intVariable, new GUIContent("Int Variable"));
                     _targetScript.Comparison =
                         (BindComparisonToUnityEvent.Comparator)EditorGUILayout.EnumPopup("Operation",
@@ -56,7 +56,7 @@ namespace Obvious.Soap.Editor
                     EditorGUILayout.PropertyField(_intComparer, new GUIContent("Int Comparer"));
                     EditorGUILayout.PropertyField(_unityEvent, new GUIContent("Event"));
                     break;
-                case CustomVariableType.Float:
+                case BindingVariableType.Float:
                     EditorGUILayout.PropertyField(_floatVariable, new GUIContent("Float Variable"));
                     _targetScript.Comparison =
                         (BindComparisonToUnityEvent.Comparator)EditorGUILayout.EnumPopup("Operation",
@@ -64,7 +64,7 @@ namespace Obvious.Soap.Editor
                     EditorGUILayout.PropertyField(_floatComparer, new GUIContent("Float Comparer"));
                     EditorGUILayout.PropertyField(_unityEvent, new GUIContent("Event"));
                     break;
-                case CustomVariableType.String:
+                case BindingVariableType.String:
                     EditorGUILayout.PropertyField(_stringVariable, new GUIContent("String Variable"));
                     EditorGUILayout.PropertyField(_stringComparer, new GUIContent("String Comparer"));
                     EditorGUILayout.PropertyField(_unityEvent, new GUIContent("Event"));

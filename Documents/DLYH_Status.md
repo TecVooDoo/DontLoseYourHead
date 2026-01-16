@@ -4,7 +4,7 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 46
+**Document Version:** 47
 **Last Updated:** January 15, 2026
 
 **Archive:** `DLYH_Status_Archive.md` - Historical designs, old version history, completed phase details
@@ -19,7 +19,7 @@
 
 **Current Phase:** Phase D IN PROGRESS - Architecture refactor complete!
 
-**Last Session (Jan 15, 2026):** Thirty-fifth session - **Architecture Refactor & Gameplay Rules Clarification!** Major refactor to make game logic opponent-agnostic (AI vs human uses same code path). Simplified CellOwner enum to Player/Opponent (removed AI-specific values). Unified all opponent guess handling. Documented complete gameplay rules. Fixed Executioner color conflict (was red, now royal blue).
+**Last Session (Jan 15, 2026):** Thirty-sixth session - **Bug Fixes & Defense Board Color Issues!** Fixed AI turn timeout (wasn't being cancelled). Fixed tab switching after game over (now allowed for viewing). Attempted defense board color fixes but issues persist - letter guesses should NOT update grid cells. See Known Issues below.
 
 ---
 
@@ -618,19 +618,38 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 47 | Jan 15, 2026 | Thirty-sixth session - **Bug Fixes!** Fixed AI turn timeout cancellation. Fixed tab switching after game over. Defense board color issues persist (letter guesses incorrectly updating grid). |
 | 46 | Jan 15, 2026 | Thirty-fifth session - **Architecture Refactor!** Made game logic opponent-agnostic. Simplified CellOwner enum (Player/Opponent only). Unified opponent guess handlers. Documented complete gameplay rules. Fixed Executioner color (royal blue). |
 | 45 | Jan 15, 2026 | Thirty-fourth session - **Keyboard Colors & Color Swatches!** Fixed keyboard 3-state tracking (Hit/Found/Miss). Wired AI OnWordGuess. Fixed defense keyboard all yellow. Added color swatches to tabs. Executioner default = royal blue. |
 | 44 | Jan 15, 2026 | Thirty-third session - **Roadmap Planning & Status Reorganization!** Created DLYH_Status_Archive.md. Defined complete roadmap (D->E->F->G). Key decisions: solo=no auth, PVP=auth required, phantom AI after 6 sec matchmaking, async games (5-day abandonment), rematch flow. Target: WebGL on Cloudflare, then Steam/mobile. |
 | 43 | Jan 15, 2026 | Status doc reorganization - moved v1-38 history, completed phase designs, implemented UX to archive. |
-| 42 | Jan 14, 2026 | **Grid Cell Color Rules Fixed!** Attack grid yellow cells hide letters, defense grid shows them. Added `_isDefenseGrid` flag to TableView. |
 
 **Full version history:** See `DLYH_Status_Archive.md`
 
 ---
 
+## Known Issues (v47)
+
+### Defense Board Color Bug (CRITICAL)
+**Problem:** When opponent guesses a letter via keyboard, the defense grid cells containing that letter are incorrectly being highlighted yellow. According to game rules, letter guesses should ONLY update:
+- Word rows (reveal the letter)
+- Keyboard tracker (yellow or opponent color)
+- Grid cells should NOT change until that specific coordinate is guessed
+
+**Root Cause:** `UpgradeDefenseGridLetterToHit(letter)` is being called in `HandleOpponentLetterGuess`, which upgrades cells where coordinates were already guessed. But something is still marking cells yellow that shouldn't be touched.
+
+**Location:** `UIFlowController.cs` around line 1455 in `HandleOpponentLetterGuess()`
+
+**Attempted Fixes:**
+- Removed `MarkDefenseGridLetterFound(letter)` call
+- Changed to only call `UpgradeDefenseGridLetterToHit(letter)` for cells where coord was already guessed
+- Issue persists - need to trace what else might be updating grid cells
+
+---
+
 ## Next Session Instructions
 
-**Starting Point:** This document (DLYH_Status.md v46)
+**Starting Point:** This document (DLYH_Status.md v47)
 
 **Scene to Use:** NewUIScene.unity (for UI Toolkit work - Phase D)
 

@@ -28,14 +28,14 @@ namespace Obvious.Soap.Editor
 
         private bool AllowMonoBehaviour => !_save;
 
-        [MenuItem("Window/Obvious Game/Soap/Soap Type Creator")]
+        [MenuItem("Window/Obvious Game/\ud83e\uddfc Soap/Soap Type Creator")]
         public new static void Show()
         {
             var window = GetWindow<SoapTypeCreatorWindow>(typeof(SceneView));
             window.titleContent = new GUIContent("Soap Type Creator", Resources.Load<Texture>("Icons/icon_soapLogo"));
         }
 
-        [MenuItem("Tools/Obvious Game/Soap/Soap Type Creator %#t")]
+        [MenuItem("Tools/Obvious Game/\ud83e\uddfc Soap/Soap Type Creator %#t")]
         private static void OpenSoapTypeCreator() => Show();
 
         private void OnEnable()

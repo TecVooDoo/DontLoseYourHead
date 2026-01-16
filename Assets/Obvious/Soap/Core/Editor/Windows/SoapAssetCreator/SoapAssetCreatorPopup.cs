@@ -43,25 +43,25 @@ namespace Obvious.Soap.Editor
 
         public SoapAssetCreatorPopup(Rect rect, EOrigin origin)
         {
-            Init(rect, origin, null, string.Empty, 0);
+            Init(rect, origin, null, string.Empty);
             SoapWizardWindow.IsPopupOpen = true;
         }
 
-        public SoapAssetCreatorPopup(Rect rect, EOrigin origin, Type type, string assetName, int tag,
+        public SoapAssetCreatorPopup(Rect rect, EOrigin origin, FieldInfo fieldInfo, string assetName,
             Action<ScriptableBase> onAssetCreated)
         {
-            Init(rect, origin, type, assetName, tag);
+            Init(rect, origin, fieldInfo, assetName);
             _onAssetCreated = onAssetCreated;
         }
 
-        private void Init(Rect rect, EOrigin origin, Type type, string assetName, int tag)
+        private void Init(Rect rect, EOrigin origin, FieldInfo fieldInfo, string assetName)
         {
             _position = rect;
             _origin = origin;
-            _selectedType = type;
+            _selectedType = fieldInfo?.FieldType;
             _assetName = assetName;
-            _tagIndex = tag;
             _soapSettings = SoapEditorUtils.GetOrCreateSoapSettings();
+            _tagIndex = SoapEditorUtils.GetTagIndexFromAttribute(fieldInfo);
             Load();
         }
 
@@ -221,7 +221,7 @@ namespace Obvious.Soap.Editor
             _onAssetCreated?.Invoke(scriptableBase);
             AssetDatabase.SaveAssets();
         }
-
+        
         private void ShowAssetCreatorDropdown(Action<Type> callback)
         {
             Vector2 dropdownSize = new Vector2(345, 270);
@@ -243,21 +243,15 @@ namespace Obvious.Soap.Editor
                 DropdownSize = dropdownSize
             };
 
-            dropdown.Show(new Rect());
-            var widthOffset = (_position.width - dropdownSize.x) / 2f;
-            var heightOffset = (_position.height - dropdownSize.y) / 2f + 12f;
-            Vector2 xy = new Vector2(_position.x + widthOffset, _position.y + heightOffset);
-            var rect = new Rect(xy.x, xy.y, _position.width, _position.height);
-
-            var window =
-                typeof(TypeSelectorDropdown)
-                    .GetField("m_WindowInstance", BindingFlags.Instance | BindingFlags.NonPublic)
-                    ?.GetValue(dropdown) as EditorWindow;
-
-            window.position = rect;
+            Rect anchorRect = GUILayoutUtility.GetRect(
+                dropdownSize.x,
+                EditorGUIUtility.singleLineHeight
+            );
+            
+            dropdown.Show(anchorRect);
         }
 
-        [MenuItem(itemName: "Assets/Create/Soap Asset Creator %&a", isValidateFunction: false, priority: -1)]
+        [MenuItem(itemName: "Assets/Create/\ud83e\uddfc Soap Asset Creator %&a", isValidateFunction: false, priority: -1)]
         public static void SoapSearchMenu()
         {
             var project =
@@ -302,7 +296,7 @@ namespace Obvious.Soap.Editor
         {
             private readonly PathTree<Type> _typeTree;
             private readonly Action<Type> _onTypeSelected;
-            private readonly List<Type> _typeRegistry = new List<Type>();
+            private Dictionary<string, Type> _typeByLabel = new Dictionary<string, Type>();
 
             public Vector2 DropdownSize
             {
@@ -320,9 +314,9 @@ namespace Obvious.Soap.Editor
 
             protected override void ItemSelected(AdvancedDropdownItem item)
             {
-                if (item.id >= 0 && item.id < _typeRegistry.Count)
+                if (_typeByLabel.TryGetValue(item.name, out Type type))
                 {
-                    _onTypeSelected?.Invoke(_typeRegistry[item.id]);
+                    _onTypeSelected?.Invoke(type);
                 }
             }
 
@@ -342,8 +336,8 @@ namespace Obvious.Soap.Editor
             {
                 if (node.Data != null)
                 {
-                    _typeRegistry.Add(node.Data);
-                    parentItem.AddChild(new AdvancedDropdownItem(label) { id = _typeRegistry.Count - 1 });
+                    _typeByLabel[label] = node.Data;
+                    parentItem.AddChild(new AdvancedDropdownItem(label));
                     return;
                 }
 

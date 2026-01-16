@@ -1,3 +1,11 @@
+## [3.7.0] - 2026-01-13
+- Fixed Soap Asset Creator for Unity 6 compatibility
+- Modified Reset On mode naming for better clarity
+- Added Read-Only support for Scriptable Variables, Scriptable Lists, and Scriptable Dictionaries
+- Added a menu item on all MonoBehaviours and ScriptableObjects to create all referenced Soap assets and sub-assets in one click
+- Added a Settings button to the Soap Wizard
+- Removed the Reset Value button from the Scriptable Variable drawer to simplify the UI
+
 ## [3.6.1] - 2025-11-05
 - Fixed ignoring anything that is no an .asset when GUID are assigned
 - Fixed Assembly name for GC2 compatibility

@@ -10,7 +10,7 @@ namespace Obvious.Soap
     [AddComponentMenu("Soap/Bindings/BindComparisonToUnityEvent")]
     public class BindComparisonToUnityEvent : MonoBehaviour
     {
-        public CustomVariableType Type = CustomVariableType.None;
+        public BindingVariableType Type = BindingVariableType.None;
 
         [SerializeField] private BoolVariable _boolVariable = null;
         [SerializeField] private BoolReference _boolComparer = null;
@@ -42,16 +42,16 @@ namespace Obvious.Soap
         {
             switch (Type)
             {
-                case CustomVariableType.Bool:
+                case BindingVariableType.Bool:
                     Evaluate(_boolVariable.Value);
                     break;
-                case CustomVariableType.Int:
+                case BindingVariableType.Int:
                     Evaluate(_intVariable.Value);
                     break;
-                case CustomVariableType.Float:
+                case BindingVariableType.Float:
                     Evaluate(_floatVariable.Value);
                     break;
-                case CustomVariableType.String:
+                case BindingVariableType.String:
                     Evaluate(_stringVariable.Value);
                     break;
             }
@@ -127,16 +127,16 @@ namespace Obvious.Soap
         {
             switch (Type)
             {
-                case CustomVariableType.Bool:
+                case BindingVariableType.Bool:
                     _boolVariable.OnValueChanged += Evaluate;
                     break;
-                case CustomVariableType.Int:
+                case BindingVariableType.Int:
                     _intVariable.OnValueChanged += Evaluate;
                     break;
-                case CustomVariableType.Float:
+                case BindingVariableType.Float:
                     _floatVariable.OnValueChanged += Evaluate;
                     break;
-                case CustomVariableType.String:
+                case BindingVariableType.String:
                     _stringVariable.OnValueChanged += Evaluate;
                     break;
             }
@@ -146,16 +146,16 @@ namespace Obvious.Soap
         {
             switch (Type)
             {
-                case CustomVariableType.Bool:
+                case BindingVariableType.Bool:
                     _boolVariable.OnValueChanged -= Evaluate;
                     break;
-                case CustomVariableType.Int:
+                case BindingVariableType.Int:
                     _intVariable.OnValueChanged -= Evaluate;
                     break;
-                case CustomVariableType.Float:
+                case BindingVariableType.Float:
                     _floatVariable.OnValueChanged -= Evaluate;
                     break;
-                case CustomVariableType.String:
+                case BindingVariableType.String:
                     _stringVariable.OnValueChanged -= Evaluate;
                     break;
             }

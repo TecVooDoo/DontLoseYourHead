@@ -6,4 +6,9 @@ namespace Obvious.Soap
     public class ScriptableListVector3 : ScriptableList<Vector3>
     {
     }
+    
+    [System.Serializable]
+    public class ScriptableListVector3ReadOnly : ScriptableListReadOnly<ScriptableListVector3, Vector3>
+    {
+    }
 }

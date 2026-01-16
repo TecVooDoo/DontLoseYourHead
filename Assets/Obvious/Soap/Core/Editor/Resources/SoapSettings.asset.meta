@@ -6,3 +6,10 @@ NativeFormatImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 232107
+  packageName: Soap - ScriptableObject Architecture Pattern
+  packageVersion: 3.7.0
+  assetPath: Assets/Obvious/Soap/Core/Editor/Resources/SoapSettings.asset
+  uploadId: 846992

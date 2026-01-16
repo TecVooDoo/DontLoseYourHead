@@ -33,4 +33,9 @@ namespace Obvious.Soap
             Value = beautifulColor;
         }
     }
+    
+    [System.Serializable]
+    public class ColorVariableReadOnly : ScriptableVariableReadOnly<ColorVariable, Color>
+    {
+    }
 }

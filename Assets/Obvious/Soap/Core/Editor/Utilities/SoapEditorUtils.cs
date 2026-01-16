@@ -151,6 +151,36 @@ namespace Obvious.Soap.Editor
             return false;
         }
 
+        internal static void CreateSoapSoAtPath(SerializedProperty property, FieldInfo fieldInfo, string assetName)
+        {
+            var soapSettings = GetOrCreateSoapSettings();
+            var isCustomPath = soapSettings.CreatePathMode == ECreatePathMode.Manual;
+            var path = isCustomPath ? CustomCreationPath : SoapFileUtils.GetSelectedFolderPathInProjectWindow();
+            var scriptable = CreateScriptableObject(fieldInfo.FieldType, assetName, path);
+            var scriptableBase = (ScriptableBase)scriptable;
+            var tagIndex = GetTagIndexFromAttribute(fieldInfo);
+            scriptableBase.TagIndex = tagIndex;
+            property.objectReferenceValue = scriptableBase;
+            property.serializedObject.ApplyModifiedProperties();
+            AssetDatabase.SaveAssets();
+        }
+
+        internal static void CreateSubAsset(SerializedProperty property, FieldInfo fieldInfo, string assetName)
+        {
+            var soapSettings = GetOrCreateSoapSettings();
+            var mainAsset = property.serializedObject.targetObject;
+            var subAsset = ScriptableObject.CreateInstance(fieldInfo.FieldType);
+            var prefix = soapSettings.GetPrefix(fieldInfo.FieldType);
+            var cleanedName = CleanSubAssetName(assetName);
+            subAsset.name = $"{prefix}{cleanedName}";
+            AssetDatabase.AddObjectToAsset(subAsset, mainAsset);
+            var scriptableBase = (ScriptableBase)subAsset;
+            scriptableBase.TagIndex = GetTagIndexFromAttribute(fieldInfo);
+            property.objectReferenceValue = subAsset;
+            property.serializedObject.ApplyModifiedProperties();
+            AssetDatabase.SaveAssets();
+        }
+
         /// <summary>
         /// Creates a copy of an object. Also adds a number to the copy name.
         /// </summary>
@@ -279,7 +309,7 @@ namespace Obvious.Soap.Editor
             newFile = CreateNewDictionaryClass(folderName, nameSpace, type, key, value, fileName, path);
             return newFile != null;
         }
-        
+
         private static TextAsset CreateNewClass(string templateName, string nameSpace, string type, string fileName,
             string path)
         {
@@ -807,7 +837,7 @@ namespace Obvious.Soap.Editor
             return true;
         }
 
-        public static string GenerateGuid(Object obj)
+        internal static string GenerateGuid(Object obj)
         {
             var guid = string.Empty;
             //SubAssets
@@ -836,13 +866,58 @@ namespace Obvious.Soap.Editor
             return guid;
         }
 
-        public static string CleanSubAssetName(string input)
+        internal static string CleanSubAssetName(string input)
         {
             if (string.IsNullOrEmpty(input))
                 return string.Empty;
 
             Match match = Regex.Match(input, "<([^>]+)>");
             return match.Success ? match.Groups[1].Value : input;
+        }
+
+        internal static IEnumerable<FieldInfo> GetSerializableFields(Type type, Type wanted)
+        {
+            // Walk the inheritance chain (Unity serializes base fields too)
+            const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic |
+                                       BindingFlags.DeclaredOnly;
+
+
+            for (var t = type; t != null && t != typeof(MonoBehaviour); t = t.BaseType)
+            {
+                var fields = t.GetFields(flags);
+                foreach (var f in fields)
+                {
+                    if (f.IsStatic) continue;
+                    if (!wanted.IsAssignableFrom(f.FieldType)) continue;
+                    if (f.IsDefined(typeof(NonSerializedAttribute), inherit: false)) continue;
+
+                    bool isSerialized = f.IsPublic || f.IsDefined(typeof(SerializeField), inherit: false);
+                    if (!isSerialized) continue;
+
+                    yield return f;
+                }
+            }
+        }
+
+        internal static int GetTagIndexFromAttribute(FieldInfo fieldInfo)
+        {
+            if (fieldInfo == null)
+                return 0;
+
+            var soapSettings = GetOrCreateSoapSettings();
+
+            var tagAttribute = (AutoTag)Attribute.GetCustomAttribute(fieldInfo,
+                typeof(AutoTag));
+
+            if (tagAttribute == null)
+                return 0;
+
+            if (string.IsNullOrEmpty(tagAttribute.Tag))
+            {
+                return soapSettings.GetTagIndex(tagAttribute.TagIndex);
+            }
+
+            return soapSettings.GetTagIndex(tagAttribute.Tag);
         }
 
         /// <summary>

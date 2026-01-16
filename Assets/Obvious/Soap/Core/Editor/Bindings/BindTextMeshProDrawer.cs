@@ -27,7 +27,7 @@ namespace Obvious.Soap.Editor
         {
             EditorGUI.BeginChangeCheck();
             Undo.RecordObject(_targetScript, "Modified Custom Inspector");
-            _targetScript.Type = (CustomVariableType)EditorGUILayout.EnumPopup("Variable Type", _targetScript.Type);
+            _targetScript.Type = (BindingVariableType)EditorGUILayout.EnumPopup("Variable Type", _targetScript.Type);
             _targetScript.Prefix = EditorGUILayout.TextField(new GUIContent("Prefix",
                 "Adds a text in front of the value"), _targetScript.Prefix);
             _targetScript.Suffix = EditorGUILayout.TextField(new GUIContent("Suffix",
@@ -35,12 +35,12 @@ namespace Obvious.Soap.Editor
 
             switch (_targetScript.Type)
             {
-                case CustomVariableType.None:
+                case BindingVariableType.None:
                     break;
-                case CustomVariableType.Bool:
+                case BindingVariableType.Bool:
                     EditorGUILayout.PropertyField(_boolVariableProperty, new GUIContent("Bool"));
                     break;
-                case CustomVariableType.Int:
+                case BindingVariableType.Int:
                     EditorGUILayout.PropertyField(_intVariableProperty, new GUIContent("Int"));
                     _targetScript.Increment = EditorGUILayout.IntField(new GUIContent("Increment",
                             "Useful to add an offset, for example for Level counts. If your level index is  0, add 1, so it displays Level : 1"),
@@ -54,7 +54,7 @@ namespace Obvious.Soap.Editor
                     }
 
                     break;
-                case CustomVariableType.Float:
+                case BindingVariableType.Float:
                     EditorGUILayout.PropertyField(_floatVariableProperty, new GUIContent("Float"));
                     var decimalAmount = EditorGUILayout.IntField(new GUIContent("Decimal",
                         "Round the float to a decimal"), _targetScript.DecimalAmount);
@@ -68,7 +68,7 @@ namespace Obvious.Soap.Editor
                     }
 
                     break;
-                case CustomVariableType.String:
+                case BindingVariableType.String:
                     EditorGUILayout.PropertyField(_stringVariableProperty, new GUIContent("String"));
                     break;
             }

@@ -96,4 +96,15 @@ namespace Obvious.Soap
         }
 #endif
     }
+    
+    [System.Serializable]
+    public class FloatVariableReadOnly : ScriptableVariableReadOnly<FloatVariable,float>
+    {
+        public bool IsClamped => _soapScriptable.IsClamped;
+        public float Min => _soapScriptable.Min;
+        public FloatReference MinReference => _soapScriptable.MinReference;
+        public FloatReference MaxReference => _soapScriptable.MaxReference;
+        public float Max => _soapScriptable.Max;
+        public float Ratio => _soapScriptable.Ratio;
+    }
 }

@@ -53,7 +53,7 @@ namespace Obvious.Soap
                  " Application Start : Once, when the application starts." +
                  " None : Never.")]
         [SerializeField]
-        private ResetType _resetOn = ResetType.SceneLoaded;
+        private ResetType _resetOn = ResetType.OnSingleSceneLoad;
 
         public override ResetType ResetType
         {
@@ -188,7 +188,7 @@ namespace Obvious.Soap
 #else
             Init();
 #endif
-            if (_resetOn == ResetType.SceneLoaded)
+            if (_resetOn == ResetType.OnSingleSceneLoad)
                 SceneManager.sceneLoaded += OnSceneLoaded;
         }
 
@@ -203,7 +203,7 @@ namespace Obvious.Soap
         protected virtual void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
             //the reset mode can change after the game has started, so we need to check it here.
-            if (_resetOn != ResetType.SceneLoaded)
+            if (_resetOn != ResetType.OnSingleSceneLoad)
                 return;
 
             if (mode == LoadSceneMode.Single)
@@ -261,7 +261,7 @@ namespace Obvious.Soap
             _runtimeValue = default;
             PreviousValue = default;
             _saved = false;
-            _resetOn = ResetType.SceneLoaded;
+            _resetOn = ResetType.OnSingleSceneLoad;
             _debugLogEnabled = false;
         }
 
@@ -320,23 +320,11 @@ namespace Obvious.Soap
 
         public static implicit operator T(ScriptableVariable<T> variable) => variable.Value;
     }
-
-    /// <summary>
-    /// Defines when the variable is reset.
-    /// </summary>
+    
     public enum ResetType
     {
-        SceneLoaded,
-        ApplicationStarts,
+        OnSingleSceneLoad,
+        OnApplicationStart,
         None
-    }
-
-    public enum CustomVariableType
-    {
-        None,
-        Bool,
-        Int,
-        Float,
-        String
     }
 }

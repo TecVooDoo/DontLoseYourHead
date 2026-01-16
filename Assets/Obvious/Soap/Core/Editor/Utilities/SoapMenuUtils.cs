@@ -5,14 +5,14 @@ namespace Obvious.Soap.Editor
 {
     public static class SoapMenuUtils
     {
-        [MenuItem("Tools/Obvious Game/Soap/Delete Player Pref %#d", priority = 0)]
+        [MenuItem("Tools/Obvious Game/\ud83e\uddfc Soap/Delete Player Pref %#d", priority = 0)]
         public static void DeletePlayerPrefs()
         {
             PlayerPrefs.DeleteAll();
             Debug.Log($"<color={SoapEditorUtils.SoapColorHtml}>--Player Prefs deleted--</color>");
         }
 
-        [MenuItem("Tools/Obvious Game/Soap/ToggleFastPlayMode %l", priority = 1)]
+        [MenuItem("Tools/Obvious Game/\ud83e\uddfc Soap/ToggleFastPlayMode %l", priority = 1)]
         public static void ToggleFastPlayMode()
         {
             EditorSettings.enterPlayModeOptionsEnabled = !EditorSettings.enterPlayModeOptionsEnabled;
@@ -26,7 +26,7 @@ namespace Obvious.Soap.Editor
 
         [MenuItem("CONTEXT/ScriptableVariableBase/Reset Value", false, 2)]
         private static void ResetValue(MenuCommand command) => ResetValue(command.context);
-        
+
         [MenuItem("CONTEXT/ScriptableCollection/Clear", false, 2)]
         private static void Clear(MenuCommand command) => ResetValue(command.context);
 
@@ -48,7 +48,7 @@ namespace Obvious.Soap.Editor
 
         [MenuItem("CONTEXT/ScriptableObject/Delete All SubAssets", false, 0)]
         private static void DeleteAllSubAssets(MenuCommand command) => DeleteAllSubAssets(command.context);
-        
+
         [MenuItem("Assets/Soap/Delete All SubAssets")]
         private static void DeleteAllSubAssets() => DeleteAllSubAssets(Selection.activeObject);
 
@@ -76,19 +76,19 @@ namespace Obvious.Soap.Editor
             AssetDatabase.SaveAssets();
             AssetDatabase.ImportAsset(AssetDatabase.GetAssetPath(unityObject), ImportAssetOptions.ForceUpdate);
         }
-        
+
         [MenuItem("CONTEXT/ScriptableObject/Delete SubAsset", false, 0)]
         private static void DeleteSubAsset(MenuCommand command) => DeleteSubAsset(command.context);
-        
+
         [MenuItem("Assets/Soap/Delete SubAsset")]
         private static void DeleteSubAsset() => DeleteSubAsset(Selection.activeObject);
-        
+
         [MenuItem("CONTEXT/ScriptableObject/Delete SubAsset", true)]
         private static bool ValidateDeleteSubAsset(MenuCommand command) => CanDeleteSubAsset(command.context);
 
         [MenuItem("Assets/Soap/Delete SubAsset", true)]
         private static bool ValidateDeleteSubAsset() => CanDeleteSubAsset(Selection.activeObject);
-        
+
         private static bool CanDeleteSubAsset(Object obj)
         {
             var isScriptable = obj is ScriptableObject;
@@ -96,29 +96,34 @@ namespace Obvious.Soap.Editor
                 return false;
             return AssetDatabase.IsSubAsset(obj);
         }
-        
+
         private static void DeleteSubAsset(Object unityObject)
         {
             SoapEditorUtils.DeleteSubAsset(unityObject);
         }
 
         [MenuItem("CONTEXT/ScriptableBase/\ud83d\udd0dFind References/In Scene and Project", false, 0)]
-        private static void FindReferencesAll(MenuCommand command) => FindReferenceFor(command.context, FindReferenceType.All);
+        private static void FindReferencesAll(MenuCommand command) =>
+            FindReferenceFor(command.context, FindReferenceType.All);
 
         [MenuItem("CONTEXT/ScriptableBase/\ud83d\udd0dFind References/In Scene", false, 0)]
-        private static void FindReferencesInScene(MenuCommand command) => FindReferenceFor(command.context, FindReferenceType.Scene);
+        private static void FindReferencesInScene(MenuCommand command) =>
+            FindReferenceFor(command.context, FindReferenceType.Scene);
 
         [MenuItem("CONTEXT/ScriptableBase/\ud83d\udd0dFind References/In Project", false, 0)]
-        private static void FindReferencesInProject(MenuCommand command) => FindReferenceFor(command.context, FindReferenceType.Project);
-        
+        private static void FindReferencesInProject(MenuCommand command) =>
+            FindReferenceFor(command.context, FindReferenceType.Project);
+
         [MenuItem("Assets/Soap/\ud83d\udd0d Find References/In Scene and Project")]
         private static void FindReferencesAll() => FindReferenceFor(Selection.activeObject, FindReferenceType.All);
 
         [MenuItem("Assets/Soap/\ud83d\udd0d Find References/In Scene")]
-        private static void FindReferencesInScene() => FindReferenceFor(Selection.activeObject, FindReferenceType.Scene);
+        private static void FindReferencesInScene() =>
+            FindReferenceFor(Selection.activeObject, FindReferenceType.Scene);
 
         [MenuItem("Assets/Soap/\ud83d\udd0d Find References/In Project")]
-        private static void FindReferencesInProject() => FindReferenceFor(Selection.activeObject, FindReferenceType.Project);
+        private static void FindReferencesInProject() =>
+            FindReferenceFor(Selection.activeObject, FindReferenceType.Project);
 
 
         [MenuItem("CONTEXT/ScriptableBase/Find References/In Scene and Project", true)]
@@ -126,13 +131,13 @@ namespace Obvious.Soap.Editor
 
         [MenuItem("Assets/Soap/\ud83d\udd0d Find References/In Scene and Project", true)]
         private static bool ValidateFindReferenceAll() => CanFindReferenceFor(Selection.activeObject);
-        
+
         [MenuItem("CONTEXT/ScriptableBase/Find References/In Scene", true)]
         private static bool ValidateFindReferenceInScene(MenuCommand command) => CanFindReferenceFor(command.context);
 
         [MenuItem("Assets/Soap/\ud83d\udd0d Find References/In Scene", true)]
         private static bool ValidateFindReferenceInScene() => CanFindReferenceFor(Selection.activeObject);
-        
+
         [MenuItem("CONTEXT/ScriptableBase/Find References/In Project", true)]
         private static bool ValidateFindReferenceInProject(MenuCommand command) => CanFindReferenceFor(command.context);
 
@@ -211,6 +216,67 @@ namespace Obvious.Soap.Editor
             var isScriptable = obj is ScriptableBase;
             var isSubAsset = !AssetDatabase.IsMainAsset(obj);
             return isScriptable && isSubAsset;
+        }
+
+        [MenuItem("CONTEXT/Object/\ud83e\uddfc Create Soap ScriptableObjects", false, 0)]
+        private static void CreateSoapScriptableObjects(MenuCommand command)
+        {
+            var obj = command.context;
+            var isValid = command.context as MonoBehaviour || command.context as ScriptableObject;
+            if (!isValid)
+                return;
+
+            var so = new SerializedObject(command.context);
+            so.Update();
+
+            // Find all serializable fields of type ScriptableBase (or derived)
+            var soapFields = SoapEditorUtils.GetSerializableFields(obj.GetType(),
+                typeof(ScriptableBase));
+            bool didAnything = false;
+
+            foreach (var soapField in soapFields)
+            {
+                SerializedProperty property = so.FindProperty(soapField.Name);
+                if (property == null)
+                    continue;
+
+                // ensure it's an object reference field and is currently null
+                if (property.propertyType != SerializedPropertyType.ObjectReference ||
+                    property.objectReferenceValue != null)
+                    continue;
+
+                var variableName = soapField.Name;
+                var prefix = SoapEditorUtils.GetOrCreateSoapSettings().GetPrefix(soapField.FieldType);
+                var assetName = $"{prefix}{variableName}";
+
+                if (SoapEditorUtils.CanBeSubAsset(property, soapField))
+                    SoapEditorUtils.CreateSubAsset(property, soapField, assetName);
+                else
+                    SoapEditorUtils.CreateSoapSoAtPath(property, soapField, assetName);
+
+                didAnything = true;
+            }
+
+            if (didAnything)
+            {
+                so.ApplyModifiedProperties();
+                EditorUtility.SetDirty(obj);
+            }
+        }
+
+        [MenuItem("CONTEXT/Object/\ud83e\uddfc Create Soap ScriptableObjects", true)]
+        private static bool ValidateCreateSoapScriptableObjects(MenuCommand command)
+        {
+            var isValid = command.context as MonoBehaviour || command.context as ScriptableObject;
+            if (!isValid)
+                return false;
+            var t = command.context.GetType();
+            foreach (var field in SoapEditorUtils.GetSerializableFields(t, typeof(ScriptableBase)))
+            {
+                if (typeof(ScriptableBase).IsAssignableFrom(field.FieldType))
+                    return true;
+            }
+            return false;
         }
     }
 }

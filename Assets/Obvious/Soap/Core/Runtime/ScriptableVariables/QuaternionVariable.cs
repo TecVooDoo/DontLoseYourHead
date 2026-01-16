@@ -1,5 +1,4 @@
 using UnityEngine;
-using Obvious.Soap;
 
 namespace Obvious.Soap
 {
@@ -7,5 +6,10 @@ namespace Obvious.Soap
     public class QuaternionVariable : ScriptableVariable<Quaternion>
     {
             
+    }
+
+    [System.Serializable]
+    public class QuaternionVariableReadOnly : ScriptableVariableReadOnly<QuaternionVariable, Quaternion>
+    {
     }
 }

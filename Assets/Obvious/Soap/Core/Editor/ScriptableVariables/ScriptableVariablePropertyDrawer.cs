@@ -9,8 +9,7 @@
         private SerializedObject _serializedObject;
         private ScriptableVariableBase _scriptableVariable;
         private float? _propertyWidthRatio;
-        private Object _previousTargetObjectValue;
-        
+        private ScriptableVariableEditor _scriptableVariableEditor;
 
         protected override string GetFieldName()
         {
@@ -20,12 +19,27 @@
             return fieldName;
         }
 
+        protected override void DrawEmbeddedEditor(Object targetObject)
+        {
+            if (_scriptableVariableEditor == null)
+            {
+                var editorType = typeof(ScriptableVariableEditor);
+#if !ODIN_INSPECTOR
+                editorType = typeof(ScriptableVariableDrawer); //Override to non-odin drawer as cannot instantiate abstract class
+#endif
+                Editor.CreateCachedEditor(targetObject, editorType, ref _editor);
+                _scriptableVariableEditor = _editor as ScriptableVariableEditor;
+                _scriptableVariableEditor.SetIsReadOnly(IsReadOnly.HasValue && IsReadOnly.Value);
+            }
+            _scriptableVariableEditor.OnInspectorGUI();
+        }
+
         protected override void DrawUnExpanded(Rect position, SerializedProperty property, GUIContent label,
             Object targetObject)
         {
             if (_serializedObject == null || _serializedObject.targetObject != targetObject)
                 _serializedObject = new SerializedObject(targetObject);
-
+            
             _serializedObject.UpdateIfRequiredOrScript();
             base.DrawUnExpanded(position, property, label, targetObject);
             if (_serializedObject.targetObject != null) //can be destroyed when using sub assets
@@ -62,18 +76,23 @@
 
             if (isSceneObject)
             {
+                GUI.enabled = !IsReadOnly.HasValue || !IsReadOnly.Value;
                 var objectValue = EditorGUI.ObjectField(rect, value.objectReferenceValue, genericType, true);
                 if (objectValue != value.objectReferenceValue)
                 {
                     _serializedObject.targetObject.GetType().GetProperty("Value")?
                         .SetValue(_serializedObject.targetObject, objectValue);
-                    _previousTargetObjectValue = objectValue;
                 }
+                GUI.enabled = true;
             }
             else
             {
                 if (value != null)
+                {
+                    GUI.enabled = !IsReadOnly.HasValue || !IsReadOnly.Value;
                     EditorGUI.PropertyField(rect, value, GUIContent.none);
+                    GUI.enabled = true;
+                }
             }
         }
 
@@ -83,6 +102,7 @@
             _serializedObject = serializedObject;
             _scriptableVariable = scriptableVariableBase;
             _propertyWidthRatio = null;
+            
         }
 
         public ScriptableVariablePropertyDrawer()

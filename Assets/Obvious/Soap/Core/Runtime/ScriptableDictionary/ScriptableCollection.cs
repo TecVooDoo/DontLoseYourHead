@@ -13,7 +13,7 @@ namespace Obvious.Soap
             "Clear the collection when:\n" +
             " Scene Loaded : when a scene is loaded.\n" +
             " Application Start : Once, when the application starts. Modifications persist between scenes")]
-        [SerializeField] protected ResetType _resetOn = ResetType.SceneLoaded;
+        [SerializeField] protected ResetType _resetOn = ResetType.OnSingleSceneLoad;
 
         [HideInInspector] public Action Modified;
         public event Action OnCleared;
@@ -45,12 +45,12 @@ namespace Obvious.Soap
 
         private void RegisterResetHooks(ResetType resetType)
         {
-            if (resetType == ResetType.SceneLoaded)
+            if (resetType == ResetType.OnSingleSceneLoad)
             {
                 SceneManager.sceneLoaded += OnSceneLoaded;
             }
 #if UNITY_EDITOR
-            if (resetType == ResetType.ApplicationStarts || resetType == ResetType.SceneLoaded)
+            if (resetType == ResetType.OnApplicationStart || resetType == ResetType.OnSingleSceneLoad)
             {
                 EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
             }
@@ -59,12 +59,12 @@ namespace Obvious.Soap
 
         private void UnregisterResetHooks(ResetType resetType)
         {
-            if (resetType == ResetType.SceneLoaded)
+            if (resetType == ResetType.OnSingleSceneLoad)
             {
                 SceneManager.sceneLoaded -= OnSceneLoaded;
             }
 #if UNITY_EDITOR
-            if (resetType == ResetType.ApplicationStarts || resetType == ResetType.SceneLoaded)
+            if (resetType == ResetType.OnApplicationStart || resetType == ResetType.OnSingleSceneLoad)
             {
                 EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
             }
@@ -88,7 +88,7 @@ namespace Obvious.Soap
         internal override void Reset()
         {
             base.Reset();
-            _resetOn = ResetType.SceneLoaded;
+            _resetOn = ResetType.OnSingleSceneLoad;
             Clear();
         }
 

@@ -18,8 +18,13 @@ namespace Obvious.Soap
             var x = PlayerPrefs.GetFloat(Guid + "_x", DefaultValue.x);
             var y = PlayerPrefs.GetFloat(Guid + "_y", DefaultValue.y);
             var z = PlayerPrefs.GetFloat(Guid + "_z", DefaultValue.z);
-            Value = new Vector3(x,y,z);
+            Value = new Vector3(x, y, z);
             base.Load();
         }
+    }
+
+    [System.Serializable]
+    public class Vector3VariableReadOnly : ScriptableVariableReadOnly<Vector3Variable, Vector3>
+    {
     }
 }

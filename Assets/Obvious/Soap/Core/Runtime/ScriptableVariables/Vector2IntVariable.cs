@@ -16,8 +16,13 @@ namespace Obvious.Soap
         {
             var x = PlayerPrefs.GetInt(Guid + "_x", DefaultValue.x);
             var y = PlayerPrefs.GetInt(Guid + "_y", DefaultValue.y);
-            Value = new Vector2Int(x,y);
+            Value = new Vector2Int(x, y);
             base.Load();
         }
+    }
+
+    [System.Serializable]
+    public class Vector2IntVariableReadOnly : ScriptableVariableReadOnly<Vector2IntVariable, Vector2Int>
+    {
     }
 }

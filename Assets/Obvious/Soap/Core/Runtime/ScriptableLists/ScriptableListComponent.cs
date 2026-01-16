@@ -6,4 +6,9 @@ namespace Obvious.Soap
     public class ScriptableListComponent : ScriptableList<Component>
     {
     }
+    
+    [System.Serializable]
+    public class ScriptableListComponentReadOnly : ScriptableListReadOnly<ScriptableListGameObject, GameObject>
+    {
+    }
 }

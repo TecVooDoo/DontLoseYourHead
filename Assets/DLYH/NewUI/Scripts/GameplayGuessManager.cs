@@ -443,6 +443,98 @@ namespace DLYH.TableUI
         public int GetOpponentMissLimit() => _opponentGuessState?.MissLimit ?? 0;
 
         /// <summary>
+        /// Adds misses to the opponent's count (e.g., for incorrect word guesses).
+        /// </summary>
+        public void AddOpponentMisses(int count)
+        {
+            if (_opponentGuessState == null) return;
+
+            _opponentGuessState.MissCount += count;
+            Debug.Log($"[GameplayGuessManager] Added {count} misses to opponent. Total: {_opponentGuessState.MissCount}/{_opponentGuessState.MissLimit}");
+
+            OnMissCountChanged?.Invoke(false, _opponentGuessState.MissCount, _opponentGuessState.MissLimit);
+
+            // Check for game over
+            if (_opponentGuessState.MissCount >= _opponentGuessState.MissLimit)
+            {
+                Debug.Log("[GameplayGuessManager] GAME OVER - Opponent reached miss limit!");
+                OnGameOver?.Invoke(false); // false = opponent lost
+            }
+        }
+
+        /// <summary>
+        /// Adds misses to the player's count (e.g., for incorrect word guesses).
+        /// </summary>
+        public void AddPlayerMisses(int count)
+        {
+            if (_playerGuessState == null) return;
+
+            _playerGuessState.MissCount += count;
+            Debug.Log($"[GameplayGuessManager] Added {count} misses to player. Total: {_playerGuessState.MissCount}/{_playerGuessState.MissLimit}");
+
+            OnMissCountChanged?.Invoke(true, _playerGuessState.MissCount, _playerGuessState.MissLimit);
+
+            // Check for game over
+            if (_playerGuessState.MissCount >= _playerGuessState.MissLimit)
+            {
+                Debug.Log("[GameplayGuessManager] GAME OVER - Player reached miss limit!");
+                OnGameOver?.Invoke(true); // true = player lost
+            }
+        }
+
+        /// <summary>
+        /// Gets all letters the opponent has guessed (for AI state building).
+        /// </summary>
+        public HashSet<char> GetOpponentGuessedLetters() =>
+            _opponentGuessState?.GuessedLetters != null
+                ? new HashSet<char>(_opponentGuessState.GuessedLetters)
+                : new HashSet<char>();
+
+        /// <summary>
+        /// Gets all letters that were hits for the opponent (for AI state building).
+        /// </summary>
+        public HashSet<char> GetOpponentHitLetters() =>
+            _opponentGuessState?.HitLetters != null
+                ? new HashSet<char>(_opponentGuessState.HitLetters)
+                : new HashSet<char>();
+
+        /// <summary>
+        /// Gets all coordinates the opponent has guessed (for AI state building).
+        /// </summary>
+        public HashSet<(int row, int col)> GetOpponentGuessedCoordinatesAsTuples()
+        {
+            var result = new HashSet<(int row, int col)>();
+            if (_opponentGuessState?.GuessedCoordinates != null)
+            {
+                foreach (var pos in _opponentGuessState.GuessedCoordinates)
+                {
+                    result.Add((pos.y, pos.x)); // Convert Vector2Int(col, row) to tuple(row, col)
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Gets all coordinates that were hits for the opponent (for AI state building).
+        /// </summary>
+        public HashSet<(int row, int col)> GetOpponentHitCoordinatesAsTuples()
+        {
+            var result = new HashSet<(int row, int col)>();
+            if (_opponentGuessState?.GuessedCoordinates != null && _playerPlacedLetters != null)
+            {
+                foreach (var pos in _opponentGuessState.GuessedCoordinates)
+                {
+                    // Check if this coordinate has a letter (was a hit)
+                    if (_playerPlacedLetters.ContainsKey(pos))
+                    {
+                        result.Add((pos.y, pos.x)); // Convert Vector2Int(col, row) to tuple(row, col)
+                    }
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
         /// Checks if a letter has been guessed by the player.
         /// </summary>
         public bool HasPlayerGuessedLetter(char letter) => _playerGuessState?.GuessedLetters.Contains(char.ToUpper(letter)) ?? false;
@@ -473,6 +565,22 @@ namespace DLYH.TableUI
         /// </summary>
         public bool HasOpponentGuessedCoordinate(int col, int row) =>
             _opponentGuessState?.GuessedCoordinates.Contains(new Vector2Int(col, row)) ?? false;
+
+        /// <summary>
+        /// Gets the letter at a specific position in the player's grid.
+        /// Returns null if no letter exists at that position.
+        /// </summary>
+        public char? GetPlayerLetterAtPosition(int col, int row)
+        {
+            if (_playerPlacedLetters == null) return null;
+
+            Vector2Int pos = new Vector2Int(col, row);
+            if (_playerPlacedLetters.TryGetValue(pos, out char letter))
+            {
+                return char.ToUpper(letter);
+            }
+            return null;
+        }
 
         /// <summary>
         /// Gets all positions where a specific letter appears in the player's words.
@@ -578,7 +686,9 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
-        /// Checks if all letters in opponent's words have been discovered (via letter or coordinate guesses).
+        /// Checks if all letters in opponent's words have been GUESSED via keyboard.
+        /// This means all word rows are complete (letters revealed in word display).
+        /// NOTE: This checks GuessedLetters (keyboard guesses), NOT HitLetters (coordinate reveals).
         /// </summary>
         public bool AreAllOpponentLettersKnown()
         {
@@ -591,10 +701,11 @@ namespace DLYH.TableUI
                 requiredLetters.Add(char.ToUpper(letter));
             }
 
-            // Check if all required letters have been hit
+            // Check if all required letters have been GUESSED via keyboard
+            // This is what fills in the word rows
             foreach (char letter in requiredLetters)
             {
-                if (!_playerGuessState.HitLetters.Contains(letter))
+                if (!_playerGuessState.GuessedLetters.Contains(letter))
                 {
                     return false;
                 }

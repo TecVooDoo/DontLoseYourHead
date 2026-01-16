@@ -33,7 +33,7 @@ namespace Obvious.Soap.Editor
         }
 
         internal static void DrawCustomInspector(this SerializedObject serializedObject, HashSet<string> fieldsToSkip,
-            System.Type genericType)
+            System.Type genericType, bool isReadOnly)
         {
             serializedObject.Update();
             var prop = serializedObject.GetIterator();
@@ -51,7 +51,7 @@ namespace Obvious.Soap.Editor
 
                     if (prop.name == "_value")
                     {
-                        DrawValueField(prop.name, serializedObject.targetObject);
+                        DrawValueField(prop.name, serializedObject.targetObject, isReadOnly);
                     }
                     else if (prop.name != "_runtimeValue")
                     {
@@ -68,27 +68,32 @@ namespace Obvious.Soap.Editor
 
             serializedObject.ApplyModifiedProperties();
 
-            void DrawValueField(string propertyName, Object target)
+            void DrawValueField(string propertyName, Object target, bool isValueReadOnly)
             {
+                var isUnityObject = genericType != null && typeof(UnityEngine.Object).IsAssignableFrom(genericType);
                 if (Application.isPlaying)
                 {
                     //Draw Object field
-                    if (genericType != null)
+                    if (isUnityObject)
                     {
+                        GUI.enabled = !isValueReadOnly;
                         var objectValue = EditorGUILayout.ObjectField("Runtime Value",
                             runtimeValueProperty.objectReferenceValue, genericType,
                             true);
                         target.GetType().GetProperty("Value").SetValue(target, objectValue);
+                        GUI.enabled = true;
                     }
                     else
                     {
+                        GUI.enabled = !isValueReadOnly;
                         EditorGUILayout.PropertyField(runtimeValueProperty);
+                        GUI.enabled = true;
                     }
                 }
                 else
                 {
                     //Draw Object field
-                    if (genericType != null)
+                    if (isUnityObject)
                     {
                         var tooltip = "The value should only be set at runtime.";
                         GUI.enabled = false;
@@ -97,7 +102,9 @@ namespace Obvious.Soap.Editor
                     }
                     else
                     {
+                        GUI.enabled = !isValueReadOnly;
                         EditorGUILayout.PropertyField(serializedObject.FindProperty(propertyName), true);
+                        GUI.enabled = true;
                     }
                 }
             }
@@ -408,6 +415,13 @@ namespace Obvious.Soap.Editor
                 ? _scriptableSingleton
                 : _scriptableSingleton =
                     Resources.Load<Texture>("Icons/icon_scriptableSingleton");
+            
+            private static Texture _readOnly;
+
+            internal static Texture ReadOnly => _readOnly
+                ? _readOnly
+                : _readOnly =
+                    Resources.Load<Texture>("Icons/icon_lock");
 
             #region Icon Utils
 

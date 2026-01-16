@@ -7,3 +7,8 @@ public class $TYPE$ : ScriptableDictionary<$KEY$,$VALUE$>
 {
     
 }
+
+[System.Serializable]
+public class $TYPE$ReadOnly : ScriptableDictionaryReadOnly<$KEY$, $VALUE$, $TYPE$>
+{
+}

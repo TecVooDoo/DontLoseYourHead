@@ -196,6 +196,7 @@ namespace DLYH.TableUI
             public string Word;
             public bool WasHit;
             public bool IsPlayerGuess;
+            public Color GuesserColor; // Color of the guesser (player or opponent color)
         }
 
         #endregion
@@ -596,6 +597,7 @@ namespace DLYH.TableUI
             if (_tableView != null && _defendTableModel != null)
             {
                 // Defense grid: Player1=player's letters, Player2=opponent's hit markers
+                Debug.Log($"[GameplayScreenManager] SelectDefendTab - Setting colors: Player RGB({_playerColor.r:F2}, {_playerColor.g:F2}, {_playerColor.b:F2}), Opponent RGB({_opponentColor.r:F2}, {_opponentColor.g:F2}, {_opponentColor.b:F2})");
                 _tableView.SetPlayerColors(_playerColor, _opponentColor);
                 _tableView.Bind(_defendTableModel);
                 _tableView.SetSetupMode(false);
@@ -828,11 +830,13 @@ namespace DLYH.TableUI
             if (playerData != null)
             {
                 _playerColor = playerData.Color;
+                Debug.Log($"[GameplayScreenManager] SetPlayerData - Player color: RGB({_playerColor.r:F2}, {_playerColor.g:F2}, {_playerColor.b:F2})");
             }
 
             if (opponentData != null)
             {
                 _opponentColor = opponentData.Color;
+                Debug.Log($"[GameplayScreenManager] SetPlayerData - Opponent color: RGB({_opponentColor.r:F2}, {_opponentColor.g:F2}, {_opponentColor.b:F2})");
             }
 
             UpdateTabDisplays();
@@ -1078,14 +1082,20 @@ namespace DLYH.TableUI
         /// <summary>
         /// Adds a word to the guessed words list.
         /// </summary>
-        public void AddGuessedWord(string playerName, string word, bool wasHit, bool isPlayerGuess)
+        /// <param name="playerName">Name of the guesser</param>
+        /// <param name="word">The word that was guessed</param>
+        /// <param name="wasHit">True if guess was correct</param>
+        /// <param name="isPlayerGuess">True if this was the player's guess, false for opponent</param>
+        /// <param name="guesserColor">Optional color for correct guesses (player/opponent color)</param>
+        public void AddGuessedWord(string playerName, string word, bool wasHit, bool isPlayerGuess, Color? guesserColor = null)
         {
             GuessedWordEntry entry = new GuessedWordEntry
             {
                 PlayerName = playerName,
                 Word = word,
                 WasHit = wasHit,
-                IsPlayerGuess = isPlayerGuess
+                IsPlayerGuess = isPlayerGuess,
+                GuesserColor = guesserColor ?? (isPlayerGuess ? _playerColor : _opponentColor)
             };
 
             _guessedWords.Add(entry);
@@ -1182,13 +1192,29 @@ namespace DLYH.TableUI
             VisualElement row = new VisualElement();
             row.AddToClassList("guessed-word-entry");
 
+            // Set background color based on result
+            // Correct = guesser's color, Incorrect = red
+            if (entry.WasHit)
+            {
+                row.style.backgroundColor = entry.GuesserColor;
+            }
+            else
+            {
+                row.style.backgroundColor = ColorRules.SystemRed;
+            }
+
             Label wordLabel = new Label(entry.Word);
             wordLabel.AddToClassList("guessed-word-text");
+            // Use contrasting text color
+            wordLabel.style.color = ColorRules.GetContrastingTextColor(
+                entry.WasHit ? entry.GuesserColor : ColorRules.SystemRed);
             row.Add(wordLabel);
 
-            Label resultLabel = new Label(entry.WasHit ? "HIT" : "MISS");
+            Label resultLabel = new Label(entry.WasHit ? "CORRECT" : "WRONG");
             resultLabel.AddToClassList("guessed-word-result");
             resultLabel.AddToClassList(entry.WasHit ? "result-hit" : "result-miss");
+            resultLabel.style.color = ColorRules.GetContrastingTextColor(
+                entry.WasHit ? entry.GuesserColor : ColorRules.SystemRed);
             row.Add(resultLabel);
 
             return row;

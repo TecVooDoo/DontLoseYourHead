@@ -7,7 +7,7 @@ using UnityEngine;
 namespace Obvious.Soap.Editor
 {
     [CustomEditor(typeof(ScriptableVariableBase), true)]
-    public class ScriptableVariableDrawer : UnityEditor.Editor
+    public class ScriptableVariableDrawer : ScriptableVariableEditor
     {
         private ScriptableBase _scriptableBase = null;
         private ScriptableVariableBase _scriptableVariable = null;
@@ -50,24 +50,18 @@ namespace Obvious.Soap.Editor
 
             DrawPlayModeObjects();
         }
-
+        
         private void DrawMinimal()
         {
             var fieldName = Application.isPlaying ? "_runtimeValue" : "_value";
-            serializedObject.DrawOnlyField(fieldName, false);
+            serializedObject.DrawOnlyField(fieldName, _isReadOnly);
         }
 
         private void DrawDefault(Type genericType = null)
         {
             serializedObject.DrawOnlyField("m_Script", true);
             var propertiesToHide = new HashSet<string>() { "m_Script", "_guid", "_saveGuid" };
-            serializedObject.DrawCustomInspector(propertiesToHide, genericType);
-
-            if (GUILayout.Button("Reset Value"))
-            {
-                var so = (IReset)target;
-                so.ResetValue();
-            }
+            serializedObject.DrawCustomInspector(propertiesToHide, genericType, _isReadOnly);
         }
 
         private void DisplayAll(IReadOnlyList<UnityEngine.Object> objects)

@@ -63,14 +63,14 @@ namespace Obvious.Soap.Editor
             Favorites
         }
 
-        [MenuItem("Window/Obvious Game/Soap/Soap Wizard")]
+        [MenuItem("Window/Obvious Game/\ud83e\uddfc Soap/Soap Wizard")]
         public new static void Show()
         {
             var window = GetWindow<SoapWizardWindow>(typeof(SceneView));
             window.titleContent = new GUIContent("Soap Wizard", Resources.Load<Texture>("Icons/icon_soapLogo"));
         }
 
-        [MenuItem("Tools/Obvious Game/Soap/Soap Wizard %#w")]
+        [MenuItem("Tools/Obvious Game/\ud83e\uddfc Soap/Soap Wizard %#w")]
         private static void OpenSoapWizard() => Show();
 
         private void OnEnable()
@@ -115,7 +115,7 @@ namespace Obvious.Soap.Editor
 
         private void LoadIcons()
         {
-            _icons = new Texture[7];
+            _icons = new Texture[8];
             _icons[0] = EditorGUIUtility.IconContent("Favorite On Icon").image;
             _icons[1] = Resources.Load<Texture>("Icons/icon_edit");
             _icons[2] = Resources.Load<Texture>("Icons/icon_duplicate");
@@ -123,6 +123,7 @@ namespace Obvious.Soap.Editor
             _icons[4] = EditorGUIUtility.IconContent("Favorite Icon").image;
             _icons[5] = EditorGUIUtility.IconContent("Folder Icon").image;
             _icons[6] = Resources.Load<Texture>("Icons/icon_ping");
+            _icons[7] = EditorGUIUtility.IconContent("Settings").image;
         }
 
         private void LoadSavedData()
@@ -324,9 +325,16 @@ namespace Obvious.Soap.Editor
             _stringBuilder.Append(_currentFolderPath);
             _stringBuilder.Append("/");
             var displayedPath = _stringBuilder.ToString();
-
-            //var displayedPath = $"{_currentFolderPath}/";
             EditorGUILayout.LabelField(displayedPath);
+            
+            //Settings button
+            _guiContent.image = _icons[7];
+            _guiContent.tooltip = "Open Settings";
+            if (GUILayout.Button(_guiContent, _buttonStyle, GUILayout.MaxWidth(25), GUILayout.MaxHeight(20)))
+            {
+                SoapEditorUtils.WindowLastCategory = "Settings";
+                SoapWindow.Open();
+            }
             EditorGUILayout.EndHorizontal();
         }
 
@@ -342,7 +350,7 @@ namespace Obvious.Soap.Editor
             }
 
             EditorGUILayout.LabelField("Tags", GUILayout.MaxWidth(70));
-            _tagMask = EditorGUILayout.MaskField(_tagMask, _tags);
+            _tagMask = EditorGUILayout.MaskField(_tagMask, _tags, GUILayout.MaxWidth(150));
             EditorGUILayout.EndHorizontal();
         }
 
