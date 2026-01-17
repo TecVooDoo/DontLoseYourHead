@@ -4,7 +4,7 @@
 
 **Related Document:** `DLYH_Status.md` (active status document)
 
-**Last Updated:** January 15, 2026
+**Last Updated:** January 16, 2026
 
 ---
 
@@ -32,22 +32,31 @@ At the end of each session, move the following to this archive:
 
 ## Table of Contents
 
-1. [Version History (Sessions 1-38)](#version-history-sessions-1-38)
+1. [Version History (Sessions 1-44)](#version-history-sessions-1-44)
 2. [Phase A Design (Complete)](#phase-a-design-complete)
 3. [Phase B Design (Complete)](#phase-b-design-complete)
 4. [Phase C Design (Complete)](#phase-c-design-complete)
-5. [UX Design: Navigation & Settings (Implemented)](#ux-design-navigation--settings-implemented)
-6. [UX Redesign: Mode Selection (Implemented)](#ux-redesign-mode-selection-implemented)
-7. [Setup Wizard Flow (Superseded)](#setup-wizard-flow-superseded)
-8. [Table Model Spec (Implemented)](#table-model-spec-implemented)
-9. [Data Flow Diagrams](#data-flow-diagrams)
+5. [Phase D Design (Complete)](#phase-d-design-complete)
+6. [UX Design: Navigation & Settings (Implemented)](#ux-design-navigation--settings-implemented)
+7. [UX Redesign: Mode Selection (Implemented)](#ux-redesign-mode-selection-implemented)
+8. [Setup Wizard Flow (Superseded)](#setup-wizard-flow-superseded)
+9. [Table Model Spec (Implemented)](#table-model-spec-implemented)
+10. [Data Flow Diagrams](#data-flow-diagrams)
 
 ---
 
-## Version History (Sessions 1-38)
+## Version History (Sessions 1-44)
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 55 | Jan 16, 2026 | Forty-fourth session - **Phase D Complete!** Implemented How to Play modal with scrollable help content. Moved DefenseViewPlan.md and UI_Toolkit_Integration_Plan.md to Archive. |
+| 54 | Jan 16, 2026 | Forty-third session - **Gameplay Audio & New Game Confirmation!** Wired UIAudioManager (keyboard, grid, hit/miss, buttons, popups). Added confirmation popup when starting new game during active game. Added ResetGameState() for proper cleanup. |
+| 53 | Jan 16, 2026 | Forty-second session - **Guillotine Polish & Audio Sync!** Fixed lever positioning (inner posts). Fixed executioner z-order and vertical position. Removed invalid USS properties. Synced stage transition audio (1.5s delay). Synced game-over animations with audio (blade drop, head fall). |
+| 52 | Jan 16, 2026 | Forty-first session - **Guillotine Visual Fixes & Executioner Placeholder!** Fixed blade direction (rises with danger). Added executioner stick figure. Added lever assemblies. Auto-show overlay on stage transition. Blade raise audio. |
+| 51 | Jan 16, 2026 | Fortieth session - Guillotine 5-stage implementation, game-over sequence, blade positions. |
+| 50 | Jan 15, 2026 | Thirty-ninth session - Extra turn logic, win/lose detection wiring, end-game reveal. |
+| 49 | Jan 15, 2026 | Thirty-eighth session - **Keyboard/Word Row Color Upgrade & Opponent Win Detection!** Fixed RefreshOpponentKeyboardStates. Added HasOpponentWon(), CheckForOpponentWin(). |
+| 48 | Jan 15, 2026 | Thirty-seventh session - **Defense Board Color Fix & AI Word Guess Bug!** Fixed coordinate guesses incorrectly updating keyboard. Fixed AI guessing same wrong word repeatedly. |
 | 38 | Jan 12, 2026 | Twenty-eighth session - **Guillotine Visual Redesign!** Fixed hamburger button click area (renamed CSS class to avoid conflict). Fixed miss count sync between cards and overlay (added PlayerData/OpponentData getters). Redesigned guillotine: blade-group with wood holder, oval lunette with divider, transparent hash marks, proper z-ordering. Height increased to 420px. Needs testing: blade visibility through hash marks. |
 | 37 | Jan 11, 2026 | Twenty-seventh session - **Phase D Testing & Bug Fixes!** Fixed multiple gameplay UI issues: header bar hamburger button overlap (CSS layout with flex-shrink, explicit sizing), guillotine overlay positioning (absolute positioning + pickingMode.Ignore), enlarged guillotine visual to 300px height. Implemented separate guessed words lists for player vs opponent. Wired QWERTY toggle to update gameplay keyboard. Fixed overlay panels blocking clicks with pickingMode handling. **Still needs testing:** hamburger click area, guillotine overlay, separate counts. |
 | 36 | Jan 11, 2026 | Twenty-sixth session - **Phase D Implementation Started!** Created all core gameplay UI files: Gameplay.uxml/uss (main layout with tabs, grid area, word rows, keyboard), GuillotineOverlay.uxml/uss (modal with blade positions and game over states), GameplayScreenManager.cs (~650 lines), GuillotineOverlayManager.cs (~450 lines). Updated UIFlowController with TransitionToGameplay(), CreateGameplayScreen(), and all event wiring. Ready button now transitions from setup wizard to gameplay screen. |
@@ -163,6 +172,47 @@ Replace monolithic setup screen with guided wizard using table UI.
 - `TablePlacementController.cs`
 - `WordSuggestionDropdown.cs`
 - `UIFlowController.cs`
+
+---
+
+## Phase D Design (Complete)
+
+**Status:** COMPLETE (Jan 16, 2026)
+
+### Goal
+Convert gameplay UI to UI Toolkit with Attack/Defend tab switching, guillotine overlay, and full audio integration.
+
+### Key Features Implemented
+- **Attack/Defend Tabs** - Single-grid focused layout with tab switching
+- **Defense View** - Player's grid showing opponent's guesses
+- **Auto-tab Switching** - Switches to Defend during opponent's turn
+- **Separate Keyboard States** - Attack shows player's guesses, Defend shows opponent's
+- **Guillotine Overlay** - 5-stage visual (not per-miss hash marks)
+- **Game End Sequence** - Blade drop, head fall animations synced with audio
+- **Extra Turn Logic** - Queue-based for multiple word completions
+- **How to Play Modal** - Scrollable help content accessible from main menu
+
+### Audio Integration
+- `UIAudioManager` - Keyboard clicks, grid clicks, hit/miss sounds, button clicks, popup sounds
+- `GuillotineAudioManager` - Blade raise, hook unlock, chop, head removed
+- Stage transition audio with 1.5s delay before animation
+
+### Files Created/Modified
+- `Gameplay.uxml` / `Gameplay.uss` - Main gameplay layout
+- `GuillotineOverlay.uxml` / `GuillotineOverlay.uss` - Guillotine modal
+- `GameplayScreenManager.cs` (~650 lines) - Tab switching, keyboard, status
+- `GuillotineOverlayManager.cs` (~450 lines) - Overlay controller with animations
+- `UIFlowController.cs` - Extended with gameplay transitions, help modal
+
+### Tab Behavior
+| Tab | Grid Shows | Words Show | Keyboard Shows | Whose Guesses |
+|-----|------------|------------|----------------|---------------|
+| Attack | Opponent's (fog + your guesses) | Opponent's (hidden) | YOUR guesses | Yours |
+| Defend | YOUR (visible + opponent guesses) | YOUR (visible) | Opponent's guesses | Opponent's |
+
+### Archived Plan Documents
+- `DefenseViewPlan.md` - Moved to Archive/
+- `UI_Toolkit_Integration_Plan.md` - Moved to Archive/
 
 ---
 

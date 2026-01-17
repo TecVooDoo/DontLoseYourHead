@@ -1,589 +1,125 @@
-// MainMenuController.cs
-// Controls the Main Menu navigation and container visibility
-// Created: December 13, 2025
-// Updated: December 14, 2025 - Added Continue Game, Main Menu from Setup/Gameplay
-// Updated: January 4, 2026 - Added 2-Player multiplayer support
-
+using System;
 using UnityEngine;
-using UnityEngine.UI;
-using TMPro;
-using System.Collections;
-using TecVooDoo.DontLoseYourHead.UI;
-using DLYH.Networking.UI;
-using DLYH.Networking.Services;
+using UnityEngine.UIElements;
 
-namespace DLYH.UI
+namespace DLYH.TableUI
 {
+    /// <summary>
+    /// Controls the main menu screen.
+    /// Shows game title and navigation buttons.
+    /// </summary>
+    [RequireComponent(typeof(UIDocument))]
     public class MainMenuController : MonoBehaviour
     {
-        [Header("Containers")]
-        [SerializeField] private GameObject _mainMenuContainer;
-        [SerializeField] private GameObject _setupContainer;
-        [SerializeField] private GameObject _gameplayContainer;
-        [SerializeField] private GameObject _multiplayerLobbyContainer;
+        [Header("References")]
+        [SerializeField] private SetupWizardController _setupWizard;
 
-        [Header("Main Menu Buttons")]
-        [SerializeField] private Button _newGameButton;
-        [SerializeField] private Button _twoPlayerButton;
-        [SerializeField] private Button _continueGameButton;
-        [SerializeField] private Button _settingsButton;
-        [SerializeField] private Button _feedbackButton;
-        [SerializeField] private Button _exitButton;
+        private UIDocument _uiDocument;
+        private VisualElement _root;
 
-        [Header("Settings Panel")]
-        [SerializeField] private GameObject _settingsPanel;
+        // Buttons
+        private Button _btnStartGame;
+        private Button _btnHowToPlay;
+        private Button _btnSettings;
 
-        [Header("Setup Panel Reference")]
-        [SerializeField] private SetupSettingsPanel _setupSettingsPanel;
+        // Events
+        public event Action OnStartGame;
+        public event Action OnHowToPlay;
+        public event Action OnSettings;
 
-        [Header("Gameplay Panel Reference")]
-        [SerializeField] private GameplayUIController _gameplayUIController;
-
-        [Header("Feedback Panel")]
-        [SerializeField] private FeedbackPanel _feedbackPanel;
-
-        [Header("Multiplayer")]
-        [SerializeField] private MultiplayerLobbyController _multiplayerLobby;
-        [SerializeField] private SupabaseConfig _supabaseConfig;
-
-        [Header("Trivia Display")]
-        [SerializeField] private TextMeshProUGUI _triviaText;
-        [SerializeField] private float _triviaDisplayDuration = 5f;
-        [SerializeField] private float _triviaFadeDuration = 0.5f;
-
-        // Track if a game is in progress (gameplay has started)
-        private bool _gameInProgress = false;
-        private Coroutine _triviaCoroutine;
-
-        // Guillotine and beheading trivia facts
-        private static readonly string[] TriviaFacts = new string[]
+        private void Awake()
         {
-            "The guillotine was used in France until 1977.",
-            "Dr. Joseph-Ignace Guillotin proposed the device as a humane execution method.",
-            "During the Reign of Terror, over 16,000 were guillotined in France.",
-            "The guillotine was nicknamed 'The National Razor' in France.",
-            "Marie Antoinette was executed by guillotine on October 16, 1793.",
-            "King Louis XVI was guillotined on January 21, 1793.",
-            "The last public guillotine execution in France was in 1939.",
-            "Executioners in France were often from families that held the job for generations.",
-            "The guillotine blade falls at approximately 21 feet per second.",
-            "Some believe a severed head remains conscious for several seconds.",
-            "Anne Boleyn requested a skilled French swordsman for her execution.",
-            "Sir Walter Raleigh asked to see the axe before his beheading.",
-            "Charles I wore two shirts to his execution so he would not shiver from cold.",
-            "Mary, Queen of Scots required three blows of the axe.",
-            "The Tower of London saw only 7 beheadings - most were on Tower Hill.",
-            "Robespierre, architect of the Terror, was himself guillotined in 1794.",
-            "The Halifax Gibbet predated the French guillotine by centuries.",
-            "Scotland's 'Maiden' guillotine was used from 1564 to 1708.",
-            "Legend says the guillotine blade weighs about 88 pounds.",
-            "Heads were sometimes held up to the crowd after execution.",
-            "Some executioners became celebrities in revolutionary France.",
-            "The guillotine was considered more egalitarian than other methods.",
-            "Charlotte Corday was guillotined for assassinating Jean-Paul Marat.",
-            "Lavoisier, the father of chemistry, was guillotined in 1794.",
-            "The term 'guillotine' was not used until after Dr. Guillotin's proposal."
-        };
-
-        private int _currentTriviaIndex = -1;
-
-        // Track last game result for feedback panel
-        private bool _lastGamePlayerWon = false;
+            _uiDocument = GetComponent<UIDocument>();
+        }
 
         private void Start()
         {
-            WireButtonEvents();
-            WireSetupEvents();
-            WireGameplayEvents();
-            WireMultiplayerEvents();
-            ShowMainMenu();
-            UpdateContinueButtonVisibility();
+            Initialize();
         }
 
-        private void WireButtonEvents()
+        private void Initialize()
         {
-            if (_newGameButton != null)
+            _root = _uiDocument.rootVisualElement;
+
+            // Cache button references
+            _btnStartGame = _root.Q<Button>("btn-start-game");
+            _btnHowToPlay = _root.Q<Button>("btn-how-to-play");
+            _btnSettings = _root.Q<Button>("btn-settings");
+
+            // Set up button handlers
+            if (_btnStartGame != null)
             {
-                _newGameButton.onClick.AddListener(OnNewGameClicked);
+                _btnStartGame.clicked += HandleStartGame;
+            }
+            if (_btnHowToPlay != null)
+            {
+                _btnHowToPlay.clicked += HandleHowToPlay;
+            }
+            if (_btnSettings != null)
+            {
+                _btnSettings.clicked += HandleSettings;
             }
 
-            if (_twoPlayerButton != null)
+            // Set version label
+            Label versionLabel = _root.Q<Label>("version-label");
+            if (versionLabel != null)
             {
-                _twoPlayerButton.onClick.AddListener(OnTwoPlayerClicked);
+                versionLabel.text = $"v{Application.version}";
             }
 
-            if (_continueGameButton != null)
-            {
-                _continueGameButton.onClick.AddListener(OnContinueGameClicked);
-            }
-
-            if (_settingsButton != null)
-            {
-                _settingsButton.onClick.AddListener(OnSettingsClicked);
-            }
-
-            if (_feedbackButton != null)
-            {
-                _feedbackButton.onClick.AddListener(OnFeedbackClicked);
-            }
-
-            if (_exitButton != null)
-            {
-                _exitButton.onClick.AddListener(OnExitClicked);
-            }
         }
 
-        private void WireSetupEvents()
+        private void HandleStartGame()
         {
-            if (_setupSettingsPanel != null)
-            {
-                _setupSettingsPanel.OnMainMenuRequested += OnMainMenuRequestedFromSetup;
-            }
-        }
+            OnStartGame?.Invoke();
 
-        private void WireMultiplayerEvents()
-        {
-            if (_multiplayerLobby != null)
+            // If setup wizard is assigned, show it and hide menu
+            if (_setupWizard != null)
             {
-                _multiplayerLobby.OnCancel += OnMultiplayerCancelled;
-                _multiplayerLobby.OnGameReady += OnMultiplayerGameReady;
-                _multiplayerLobby.OnAIFallback += OnMultiplayerAIFallback;
+                Hide();
+                _setupWizard.gameObject.SetActive(true);
             }
         }
 
-        private void WireGameplayEvents()
+        private void HandleHowToPlay()
         {
-            if (_gameplayUIController != null)
-            {
-                _gameplayUIController.OnMainMenuRequested += OnMainMenuRequestedFromGameplay;
-                _gameplayUIController.OnGameStarted += OnGameStarted;
-                _gameplayUIController.OnGameEnded += OnGameEnded;
-            }
-
-            if (_feedbackPanel != null)
-            {
-                _feedbackPanel.OnFeedbackComplete += OnFeedbackComplete;
-            }
+            OnHowToPlay?.Invoke();
         }
 
-        private void OnDestroy()
+        private void HandleSettings()
         {
-            if (_newGameButton != null)
-            {
-                _newGameButton.onClick.RemoveListener(OnNewGameClicked);
-            }
-
-            if (_twoPlayerButton != null)
-            {
-                _twoPlayerButton.onClick.RemoveListener(OnTwoPlayerClicked);
-            }
-
-            if (_continueGameButton != null)
-            {
-                _continueGameButton.onClick.RemoveListener(OnContinueGameClicked);
-            }
-
-            if (_settingsButton != null)
-            {
-                _settingsButton.onClick.RemoveListener(OnSettingsClicked);
-            }
-
-            if (_feedbackButton != null)
-            {
-                _feedbackButton.onClick.RemoveListener(OnFeedbackClicked);
-            }
-
-            if (_exitButton != null)
-            {
-                _exitButton.onClick.RemoveListener(OnExitClicked);
-            }
-
-            if (_setupSettingsPanel != null)
-            {
-                _setupSettingsPanel.OnMainMenuRequested -= OnMainMenuRequestedFromSetup;
-            }
-
-            if (_gameplayUIController != null)
-            {
-                _gameplayUIController.OnMainMenuRequested -= OnMainMenuRequestedFromGameplay;
-                _gameplayUIController.OnGameStarted -= OnGameStarted;
-                _gameplayUIController.OnGameEnded -= OnGameEnded;
-            }
-
-            if (_feedbackPanel != null)
-            {
-                _feedbackPanel.OnFeedbackComplete -= OnFeedbackComplete;
-            }
-
-            if (_multiplayerLobby != null)
-            {
-                _multiplayerLobby.OnCancel -= OnMultiplayerCancelled;
-                _multiplayerLobby.OnGameReady -= OnMultiplayerGameReady;
-                _multiplayerLobby.OnAIFallback -= OnMultiplayerAIFallback;
-            }
-        }
-
-        #region Button Handlers
-
-        private void OnNewGameClicked()
-        {
-            Debug.Log("[MainMenuController] New Game clicked");
-            _gameInProgress = false;
-            StartNewGame();
-        }
-
-        private void OnTwoPlayerClicked()
-        {
-            Debug.Log("[MainMenuController] 2 Player clicked");
-            ShowMultiplayerLobby();
-        }
-
-        private void OnContinueGameClicked()
-        {
-            Debug.Log("[MainMenuController] Continue Game clicked");
-            ContinueGame();
-        }
-
-        private void OnSettingsClicked()
-        {
-            Debug.Log("[MainMenuController] Settings clicked");
-            ShowSettingsPanel();
-        }
-
-        private void OnFeedbackClicked()
-        {
-            Debug.Log("[MainMenuController] Feedback clicked");
-            ShowFeedbackFromMenu();
-        }
-
-        private void OnExitClicked()
-        {
-            Debug.Log("[MainMenuController] Exit clicked");
-            ExitGame();
-        }
-
-        private void OnMainMenuRequestedFromSetup()
-        {
-            Debug.Log("[MainMenuController] Main Menu requested from Setup");
-            ShowMainMenu();
-        }
-
-        private void OnMainMenuRequestedFromGameplay()
-        {
-            Debug.Log("[MainMenuController] Main Menu requested from Gameplay");
-            ShowMainMenu();
-        }
-
-        private void OnGameStarted()
-        {
-            _gameInProgress = true;
-            Debug.Log("[MainMenuController] Game started - Continue button will be available");
-        }
-
-        private void OnGameEnded(bool playerWon)
-        {
-            _gameInProgress = false;
-            _lastGamePlayerWon = playerWon;
-            Debug.Log($"[MainMenuController] Game ended - Player {(playerWon ? "won" : "lost")}");
-
-            // Show feedback panel after a short delay to let the win/lose popup show
-            if (_feedbackPanel != null)
-            {
-                // Use Invoke to delay showing feedback panel
-                Invoke(nameof(ShowFeedbackPanel), 2.5f);
-            }
-            else
-            {
-                // No feedback panel, go directly to main menu
-                ShowMainMenu();
-            }
-        }
-
-        private void ShowFeedbackPanel()
-        {
-            // Hide gameplay container
-            if (_gameplayContainer != null)
-            {
-                _gameplayContainer.SetActive(false);
-            }
-
-            // Show MainMenuContainer (FeedbackPanel is a child of it)
-            if (_mainMenuContainer != null)
-            {
-                _mainMenuContainer.SetActive(true);
-            }
-
-            // Hide the button container so only feedback panel shows
-            Transform buttonContainer = _mainMenuContainer?.transform.Find("ButtonContainer");
-            if (buttonContainer != null)
-            {
-                buttonContainer.gameObject.SetActive(false);
-            }
-
-            // Hide title text
-            Transform titleText = _mainMenuContainer?.transform.Find("TitleText");
-            if (titleText != null)
-            {
-                titleText.gameObject.SetActive(false);
-            }
-
-            // Show feedback panel
-            if (_feedbackPanel != null)
-            {
-                _feedbackPanel.Show(_lastGamePlayerWon);
-            }
-        }
-
-        private void OnFeedbackComplete()
-        {
-            Debug.Log("[MainMenuController] Feedback complete - returning to main menu");
-            ShowMainMenu();
-        }
-
-        private void OnMultiplayerCancelled()
-        {
-            Debug.Log("[MainMenuController] Multiplayer cancelled - returning to main menu");
-            ShowMainMenu();
-        }
-
-        private void OnMultiplayerGameReady(string gameCode, bool isHost)
-        {
-            Debug.Log($"[MainMenuController] Multiplayer game ready: {gameCode}, isHost: {isHost}");
-            // TODO: Start multiplayer game with RemotePlayerOpponent
-            // For now, go to setup with multiplayer flag
-            HideMultiplayerLobby();
-            StartNewGame(); // Will need to pass multiplayer info later
-        }
-
-        private void OnMultiplayerAIFallback()
-        {
-            Debug.Log("[MainMenuController] Multiplayer timeout - falling back to AI");
-            HideMultiplayerLobby();
-            StartNewGame(); // Start single player game with AI
-        }
-
-        #endregion
-
-        #region Navigation
-
-        public void ShowMainMenu()
-        {
-            SetContainerVisibility(mainMenu: true, setup: false, gameplay: false, multiplayer: false);
-            HideSettingsPanel();
-            HideFeedbackPanel();
-
-            // Restore button container and title (hidden when showing feedback after game)
-            Transform buttonContainer = _mainMenuContainer?.transform.Find("ButtonContainer");
-            if (buttonContainer != null)
-            {
-                buttonContainer.gameObject.SetActive(true);
-            }
-
-            Transform titleText = _mainMenuContainer?.transform.Find("TitleText");
-            if (titleText != null)
-            {
-                titleText.gameObject.SetActive(true);
-            }
-
-            UpdateContinueButtonVisibility();
-            StartTriviaRotation();
-        }
-
-        public void StartNewGame()
-        {
-            StopTriviaRotation();
-            SetContainerVisibility(mainMenu: false, setup: true, gameplay: false, multiplayer: false);
-            UpdateContinueButtonVisibility();
-
-            // Reset setup panel for new game
-            if (_setupSettingsPanel != null)
-            {
-                _setupSettingsPanel.ResetForNewGame();
-            }
-        }
-
-        public void ContinueGame()
-        {
-            if (_gameInProgress)
-            {
-                StopTriviaRotation();
-                SetContainerVisibility(mainMenu: false, setup: false, gameplay: true, multiplayer: false);
-            }
-        }
-
-        public void ShowMultiplayerLobby()
-        {
-            StopTriviaRotation();
-            SetContainerVisibility(mainMenu: false, setup: false, gameplay: false, multiplayer: true);
-
-            if (_multiplayerLobby != null)
-            {
-                _multiplayerLobby.Show();
-            }
-        }
-
-        public void HideMultiplayerLobby()
-        {
-            if (_multiplayerLobby != null)
-            {
-                _multiplayerLobby.Hide();
-            }
-        }
-
-        public void ShowSettingsPanel()
-        {
-            if (_settingsPanel != null)
-            {
-                _settingsPanel.SetActive(true);
-            }
+            OnSettings?.Invoke();
         }
 
         /// <summary>
-        /// Show feedback panel from main menu (not after game end)
+        /// Shows the main menu.
         /// </summary>
-        public void ShowFeedbackFromMenu()
+        public void Show()
         {
-            if (_feedbackPanel != null)
-            {
-                _feedbackPanel.ShowFromMenu();
-            }
+            gameObject.SetActive(true);
+            _root?.RemoveFromClassList("hidden");
         }
 
-        public void HideSettingsPanel()
+        /// <summary>
+        /// Hides the main menu.
+        /// </summary>
+        public void Hide()
         {
-            if (_settingsPanel != null)
-            {
-                _settingsPanel.SetActive(false);
-            }
+            _root?.AddToClassList("hidden");
+            gameObject.SetActive(false);
         }
 
-        public void HideFeedbackPanel()
+        /// <summary>
+        /// Shows the main menu and resets setup wizard if returning from game.
+        /// </summary>
+        public void ReturnToMenu()
         {
-            if (_feedbackPanel != null)
+            Show();
+            if (_setupWizard != null)
             {
-                _feedbackPanel.Hide();
+                _setupWizard.Reset();
+                _setupWizard.gameObject.SetActive(false);
             }
         }
-
-        public void ReturnToMainMenu()
-        {
-            ShowMainMenu();
-        }
-
-        private void SetContainerVisibility(bool mainMenu, bool setup, bool gameplay, bool multiplayer = false)
-        {
-            if (_mainMenuContainer != null)
-            {
-                _mainMenuContainer.SetActive(mainMenu);
-            }
-
-            if (_setupContainer != null)
-            {
-                _setupContainer.SetActive(setup);
-            }
-
-            if (_gameplayContainer != null)
-            {
-                _gameplayContainer.SetActive(gameplay);
-            }
-
-            if (_multiplayerLobbyContainer != null)
-            {
-                _multiplayerLobbyContainer.SetActive(multiplayer);
-            }
-        }
-
-        private void UpdateContinueButtonVisibility()
-        {
-            if (_continueGameButton != null)
-            {
-                _continueGameButton.gameObject.SetActive(_gameInProgress);
-            }
-        }
-
-        #endregion
-
-        #region Exit
-
-        private void ExitGame()
-        {
-#if UNITY_EDITOR
-            UnityEditor.EditorApplication.isPlaying = false;
-#else
-            Application.Quit();
-#endif
-        }
-
-        #endregion
-
-        #region Trivia Display
-
-        private void StartTriviaRotation()
-        {
-            if (_triviaText == null) return;
-
-            StopTriviaRotation();
-            _triviaCoroutine = StartCoroutine(TriviaRotationCoroutine());
-        }
-
-        private void StopTriviaRotation()
-        {
-            if (_triviaCoroutine != null)
-            {
-                StopCoroutine(_triviaCoroutine);
-                _triviaCoroutine = null;
-            }
-
-            if (_triviaText != null)
-            {
-                _triviaText.gameObject.SetActive(false);
-            }
-        }
-
-        private IEnumerator TriviaRotationCoroutine()
-        {
-            _triviaText.gameObject.SetActive(true);
-
-            // Shuffle starting point
-            _currentTriviaIndex = Random.Range(0, TriviaFacts.Length);
-
-            while (true)
-            {
-                // Set new trivia text
-                _triviaText.text = TriviaFacts[_currentTriviaIndex];
-
-                // Fade in
-                yield return FadeTrivia(0f, 1f);
-
-                // Wait for display duration
-                yield return new WaitForSeconds(_triviaDisplayDuration);
-
-                // Fade out
-                yield return FadeTrivia(1f, 0f);
-
-                // Move to next trivia (wrap around)
-                _currentTriviaIndex = (_currentTriviaIndex + 1) % TriviaFacts.Length;
-            }
-        }
-
-        private IEnumerator FadeTrivia(float startAlpha, float endAlpha)
-        {
-            float elapsed = 0f;
-            Color color = _triviaText.color;
-
-            while (elapsed < _triviaFadeDuration)
-            {
-                elapsed += Time.deltaTime;
-                float t = elapsed / _triviaFadeDuration;
-                color.a = Mathf.Lerp(startAlpha, endAlpha, t);
-                _triviaText.color = color;
-                yield return null;
-            }
-
-            color.a = endAlpha;
-            _triviaText.color = color;
-        }
-
-        #endregion
     }
 }

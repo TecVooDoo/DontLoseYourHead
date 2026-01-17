@@ -4,7 +4,7 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 54
+**Document Version:** 57
 **Last Updated:** January 16, 2026
 
 **Archive:** `DLYH_Status_Archive.md` - Historical designs, old version history, completed phase details
@@ -17,19 +17,13 @@
 
 **Key Innovation:** Asymmetric difficulty - mixed-skill players compete fairly with different grid sizes, word counts, and difficulty settings.
 
-**Current Phase:** Phase D IN PROGRESS - Architecture refactor complete!
+**Current Phase:** Phase E - Networking & Auth
 
-**Last Session (Jan 16, 2026):** Forty-third session - **Gameplay Audio & New Game Confirmation!**
-- Wired UIAudioManager for all gameplay sounds:
-  - KeyboardClick() on letter key presses
-  - GridCellClick() on grid cell clicks
-  - Success() on hits, Error() on misses (letters, coordinates, words)
-  - ButtonClick() on main menu, Ready, Random Words, Random Placement, hamburger menu
-  - PopupOpen()/PopupClose() on feedback modal, guillotine overlay, confirmation modal
-- Added confirmation popup when starting new game during active game
-- Added `ResetGameState()` method for proper game cleanup when starting fresh
-- Added `ShowConfirmationModal()` reusable confirmation dialog
-- Found existing How to Play content in HelpOverlay.cs (HELP_CONTENT constant) - to be used next session
+**Last Session (Jan 16, 2026):** Forty-sixth session - **Refactoring Finalized & Folder Cleanup!**
+- Reorganized folder structure: moved NewUI/Scripts/* to Scripts/UI/, NewUI assets to UI/
+- Cleaned up scene: removed GameObjects with missing scripts (SetupModelController, GameplayUIController)
+- Removed development comments (TODO, FIXME, Debug.Log) from UI scripts
+- Phase 2 refactoring plan marked as FINAL
 
 ---
 
@@ -49,17 +43,17 @@
 | Playtest platform | WebGL on Cloudflare (dlyh.pages.dev), must work on mobile |
 | Production platforms | Steam (PC), mobile apps (iOS/Android) - post-playtest |
 
-### Phase D: Gameplay UI (~99% complete)
-- [x] Testing (grid colors, defense view, guillotine 5-stage) - ✅ Jan 16 (playtested throughout session)
-- [x] Extra turn logic (word completed via GUESS button OR all letters found) - ✅ Jan 16
-- [x] Win/lose detection (wire to existing WinConditionChecker) - ✅ Already working (confirmed Jan 15)
-- [x] End-game reveal (unfound words shown in grey) - ✅ Jan 16
-- [x] Game end sequence (guillotine animation -> feedback modal with Continue) - ✅ Jan 16
-- [x] Audio wiring - guillotine sounds (blade raise, execution sequence) - ✅ Jan 16
-- [x] Audio sync - stage transition and game-over animations synced with audio - ✅ Jan 16
-- [x] Audio wiring - gameplay sounds (hit/miss, button clicks, etc.) - ✅ Jan 16
-- [x] New game confirmation popup (prevents accidental game loss) - ✅ Jan 16
-- [ ] How to Play screen (text instructions) - content exists in HelpOverlay.cs
+### Phase D: Gameplay UI (COMPLETE - Jan 16, 2026)
+- [x] Testing (grid colors, defense view, guillotine 5-stage)
+- [x] Extra turn logic (word completed via GUESS button OR all letters found)
+- [x] Win/lose detection (wire to existing WinConditionChecker)
+- [x] End-game reveal (unfound words shown in grey)
+- [x] Game end sequence (guillotine animation -> feedback modal with Continue)
+- [x] Audio wiring - guillotine sounds (blade raise, execution sequence)
+- [x] Audio sync - stage transition and game-over animations synced with audio
+- [x] Audio wiring - gameplay sounds (hit/miss, button clicks, etc.)
+- [x] New game confirmation popup (prevents accidental game loss)
+- [x] How to Play screen (scrollable modal with help content)
 
 ### Phase E: Networking & Auth
 **Auth (port from Dots and Boxes):**
@@ -109,53 +103,13 @@
 
 ## Active TODO
 
-**Phase D:** Gameplay UI conversion - Testing and integration in progress
-- [x] Create `Gameplay.uxml` - Main gameplay layout with tabs, grid area, word rows, keyboard
-- [x] Create `Gameplay.uss` - Styles with responsive placeholders
-- [x] Create `GuillotineOverlay.uxml` - Modal for viewing guillotines
-- [x] Create `GuillotineOverlay.uss` - Overlay styles with blade positions
-- [x] Create `GameplayScreenManager.cs` - Tab switching, keyboard, status, guessed words
-- [x] Create `GuillotineOverlayManager.cs` - Overlay controller with animations
-- [x] Wire to UIFlowController (TransitionToGameplay method)
-- [x] Fix header bar/hamburger button layout (CSS updates)
-- [x] Fix guillotine overlay positioning (absolute positioning, pickingMode)
-- [x] Implement separate guessed words lists (player vs opponent)
-- [x] Wire QWERTY toggle to update gameplay keyboard
-- [x] Fix overlay click-through issues (pickingMode.Ignore when hidden)
-- [x] Fix gameplay hamburger button click area (renamed class to avoid CSS conflict)
-- [x] Fix miss count sync between cards and guillotine overlay
-- [x] Redesign guillotine visual (blade with holder, oval lunette with divider, proper z-order)
-- [x] Fix miss limit calculation bug (was using wrong formula, now uses DifficultyCalculator)
-- [x] Redesign guillotine to 5-stage system (no more per-miss hash marks)
-- [x] Fix grid cell state logic (coordinate vs letter guessing)
-- [x] Fix keyboard letter state colors (red miss, yellow found, player color hit)
-- [x] Implement "WORDS TO FIND" section with underscores and letter reveal
-- [x] Implement turn switching after guesses
-- [x] Add AI opponent turn logic
-- [x] Add defense view (player's grid with opponent's guesses)
-- [x] Auto-switch tabs based on turn
-- [x] Separate keyboard states for Attack vs Defend tabs
-- [x] **FIXED:** Defense word rows buttons hidden (no interaction on Defend tab)
-- [x] **FIXED:** Keyboard clicks disabled on Defend tab (view-only)
-- [x] **FIXED:** Keyboard letters dimmed/greyed on Defend tab initially
-- [x] **FIXED:** Attack grid letter visibility (yellow cells don't show letters - opponent's letters are secret)
-- [x] **FIXED:** Defense grid letter visibility (yellow cells DO show letters - player's own grid)
-- [x] **FIXED:** Keyboard 3-state color tracking (Hit=player color, Found=yellow, Miss=red)
-- [x] **FIXED:** AI OnWordGuess event wired (was never subscribed)
-- [x] **FIXED:** Defense keyboard all yellow (ProcessCoordinateGuess wasn't tracking HitLetters)
-- [x] **ADDED:** Color swatches on Attack/Defend tab cards
-- [x] **ADDED:** Executioner AI default color = royal blue RGB(60, 90, 180)
-- [x] **TESTED:** Guillotine 5-stage visual and blade positions - ✅ Jan 16
-- [x] **TESTED:** Defense view switching and AI guess visuals - ✅ Jan 16
-- [x] **TESTED:** Keyboard colors and color swatches - ✅ Jan 16
-- [x] **FIXED:** Lever positioning (pivots on inner side posts toward executioner)
-- [x] **FIXED:** Executioner z-order (renders above both panels)
-- [x] **FIXED:** Stage transition audio timing (1.5s delay, then animate with audio)
-- [x] **FIXED:** Game-over audio sync (blade/head animations trigger with audio)
-- [x] **ADDED:** Gameplay audio wiring (keyboard, grid, hit/miss, buttons, popups) - ✅ Jan 16
-- [x] **ADDED:** New game confirmation popup (prevents accidental game loss) - ✅ Jan 16
-- [x] **ADDED:** ResetGameState() for proper game cleanup - ✅ Jan 16
-- [ ] How to Play screen (text instructions) - content exists in HelpOverlay.cs
+**Phase E:** Networking & Auth - Not started
+- [ ] Port auth from Dots and Boxes (Google/Facebook sign-in)
+- [ ] Wire Join Code to Supabase
+- [ ] Implement 6-second matchmaking with phantom AI fallback
+- [ ] Setup data exchange between players
+- [ ] Turn synchronization
+- [ ] State sync during gameplay
 
 **Deferred to Phase F:**
 - [ ] Document new interfaces/controllers in Architecture section
@@ -226,12 +180,8 @@
 ## Known Issues
 
 **Architecture:**
-- GameplayUIController at ~1321 lines (reduced 50% from ~2619, within acceptable range)
+- UIFlowController at ~4400 lines (could extract Turn Management and AI Opponent coordination if needed)
 - Inconsistent namespace convention (TecVooDoo.DontLoseYourHead.* vs DLYH.*)
-
-**UI (To Be Replaced):**
-- Legacy WordPatternRow uses text field (migrating to table-based system)
-- uGUI cell vertical stretching bug in LetterCellUI/WordPatternRowUI prefabs
 
 **Networking:**
 - NetworkGameManager still uses AuthService (needs update for Phase 1)
@@ -253,6 +203,7 @@
 | `DLYH.AI.Core` | 4 | AI controllers |
 | `DLYH.AI.Strategies` | 4 | AI guess strategies |
 | `DLYH.Audio` | 5 | UI, guillotine, music audio |
+| `DLYH.UI` | 1 | Audio settings helper (SettingsPanel) |
 | `DLYH.TableUI` | 15+ | UI Toolkit implementation |
 | `DLYH.Networking` | 4 | Opponent abstraction, factory |
 | `DLYH.Networking.Services` | 8 | Supabase, auth, player, realtime |
@@ -260,9 +211,8 @@
 ### Key Types by Namespace
 
 **TecVooDoo.DontLoseYourHead.UI:**
-- GameplayUIController, PlayerGridPanel, SetupSettingsPanel, WordPatternRow
-- Controllers/: GameplayPanelConfigurator, GameplayUIUpdater, PopupMessageController, OpponentTurnManager, GuessProcessingManager
-- Services/: GuessProcessor, GameplayStateTracker, WinConditionChecker, WordGuessModeController
+- WordPlacementData, GameplayStateTracker (Core/GameState/)
+- Services/: WordValidationService
 
 **DLYH.TableUI:**
 - TableCellKind, TableCellState, CellOwner (enums)
@@ -305,27 +255,29 @@ Assets/DLYH/
   Scripts/
     AI/           - ExecutionerAI, strategies, config
     Audio/        - UIAudioManager, MusicManager, GuillotineAudioManager
-    Core/         - WordListSO, DifficultyCalculator
+    Core/         - WordListSO, DifficultyCalculator, GameState
+    Editor/       - Editor scripts
     Networking/   - IOpponent, services
-    UI/           - Main UI scripts, controllers, services
-  NewUI/          - UI Toolkit implementation (DLYH.TableUI)
-    Scripts/      - TableModel, TableView, UIFlowController, etc.
+    Telemetry/    - Analytics
+    UI/           - All UI scripts (TableModel, TableView, UIFlowController, etc.)
+      Services/   - WordValidationService
+  UI/             - UI Toolkit assets (not scripts)
     USS/          - Stylesheets
     UXML/         - Layout files
+    Prefabs/      - UI Toolkit prefabs
   Scenes/
-    NewPlayTesting.unity - Current working scene (single player)
+    NewUIScene.unity     - Primary active scene
     NetworkingTest.unity - Multiplayer testing
-    NewUIScene.unity     - UI Toolkit development scene
 ```
 
 ### Key Scripts
 
 | Script | Lines | Purpose |
 |--------|-------|---------|
-| UIFlowController | ~2700 | Screen flow + setup wizard + gameplay + modals |
+| UIFlowController | ~4400 | Screen flow + gameplay + modals |
+| SetupWizardUIManager | ~817 | Setup wizard flow (extracted from UIFlowController) |
 | GameplayScreenManager | ~650 | Gameplay UI state, tab switching, keyboard |
 | GuillotineOverlayManager | ~450 | Guillotine overlay modal controller |
-| GameplayUIController | ~1321 | Master gameplay controller (legacy) |
 | ExecutionerAI | ~493 | AI opponent coordination |
 
 ### Packages
@@ -638,25 +590,21 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 57 | Jan 16, 2026 | Forty-sixth session - **Refactoring Finalized!** Reorganized folders (NewUI -> Scripts/UI, UI/). Scene cleanup. Removed dev comments from UI scripts. Phase 2 refactoring plan marked FINAL. |
+| 56 | Jan 16, 2026 | Forty-fifth session - **Phase 2 Refactoring Complete!** Extracted SetupWizardUIManager. Deleted legacy UI controllers, scripts, and prefabs. Created AudioSettings.cs. Fixed compile errors. Full game tested successfully. |
+| 55 | Jan 16, 2026 | Forty-fourth session - **Phase D Complete!** Implemented How to Play modal with scrollable help content. Moved DefenseViewPlan.md and UI_Toolkit_Integration_Plan.md to Archive. |
 | 54 | Jan 16, 2026 | Forty-third session - **Gameplay Audio & New Game Confirmation!** Wired UIAudioManager (keyboard, grid, hit/miss, buttons, popups). Added confirmation popup when starting new game during active game. Added ResetGameState() for proper cleanup. |
 | 53 | Jan 16, 2026 | Forty-second session - **Guillotine Polish & Audio Sync!** Fixed lever positioning (inner posts). Fixed executioner z-order and vertical position. Removed invalid USS properties. Synced stage transition audio (1.5s delay). Synced game-over animations with audio (blade drop, head fall). |
-| 52 | Jan 16, 2026 | Forty-first session - **Guillotine Visual Fixes & Executioner Placeholder!** Fixed blade direction (rises with danger). Added executioner stick figure. Added lever assemblies. Auto-show overlay on stage transition. Blade raise audio. |
-| 49 | Jan 15, 2026 | Thirty-eighth session - **Keyboard/Word Row Color Upgrade & Opponent Win Detection!** Fixed RefreshOpponentKeyboardStates. Added HasOpponentWon(), CheckForOpponentWin(). |
-| 48 | Jan 15, 2026 | Thirty-seventh session - **Defense Board Color Fix & AI Word Guess Bug!** Fixed coordinate guesses incorrectly updating keyboard. Fixed AI guessing same wrong word repeatedly. |
 
 **Full version history:** See `DLYH_Status_Archive.md`
 
 ---
 
-## Known Issues (v49)
+## Known Issues (v57)
 
 **Architecture:**
-- GameplayUIController at ~1321 lines (reduced 50% from ~2619, within acceptable range)
+- UIFlowController at ~4400 lines (could extract Turn Management and AI Opponent coordination if needed)
 - Inconsistent namespace convention (TecVooDoo.DontLoseYourHead.* vs DLYH.*)
-
-**UI (To Be Replaced):**
-- Legacy WordPatternRow uses text field (migrating to table-based system)
-- uGUI cell vertical stretching bug in LetterCellUI/WordPatternRowUI prefabs
 
 **Networking:**
 - NetworkGameManager still uses AuthService (needs update for Phase 1)
@@ -669,28 +617,29 @@ After each work session, update this document:
 
 ## Next Session Instructions
 
-**Starting Point:** This document (DLYH_Status.md v54)
+**Starting Point:** This document (DLYH_Status.md v55)
 
-**Scene to Use:** NewUIScene.unity (for UI Toolkit work - Phase D)
+**Scene to Use:** NetworkingTest.unity (for Phase E networking work)
 
 **Current State:**
-- Phase A & B COMPLETE - table data model and UI Toolkit renderer working
-- Phase C COMPLETE - Setup wizard fully functional with all polish
-- Phase D IN PROGRESS (~99%) - Core gameplay working, all audio wired!
+- Phase A, B, C, D COMPLETE - Full single-player gameplay working!
+- Phase E next - Networking & Auth
 
 **Important:** Game logic is now opponent-agnostic! Use `_opponent` (not `_aiOpponent`), handlers are `HandleOpponent*` (not `HandleAI*`), and `CellOwner` only has `Player` and `Opponent` values.
 
-**Phase D Remaining (1 item):**
-1. **How to Play screen** - text instructions accessible from main menu
-   - Content already exists in `HelpOverlay.cs` (HELP_CONTENT constant)
-   - Wire to HandleHowToPlayClicked() in UIFlowController
+**Phase E Starting Point:**
+1. Review existing networking code in `DLYH.Networking` and `DLYH.Networking.Services`
+2. Port auth from Dots and Boxes project
+3. Wire Join Code to Supabase
+4. Implement matchmaking with phantom AI fallback
 
-**What's Already Wired:**
-- `UIAudioManager` - Keyboard clicks, button clicks, hit/miss sounds - ✅ COMPLETE
-- `GuillotineAudioManager` - Blade raise, hook unlock, chop, head removed - ✅ COMPLETE
-- `GameplayStateTracker` - State tracking - ✅ COMPLETE
-- `WinConditionChecker` - Win/lose detection - ✅ COMPLETE
-- `MusicManager` - Already playing (tension hooks optional for post-playtest)
+**Existing Networking Foundation (Phase 0.5):**
+- `IOpponent` interface for opponent abstraction
+- `LocalAIOpponent` wrapping ExecutionerAI
+- `RemotePlayerOpponent` for network play (stub)
+- `OpponentFactory` for creating opponents
+- Supabase services (Auth, GameSession, Realtime, StateSynchronizer)
+- `PlayerService` for creating player records without auth
 
 **Tab Behavior Summary:**
 | Tab | Grid Shows | Words Show | Keyboard Shows | Whose Guesses |
@@ -699,9 +648,8 @@ After each work session, update this document:
 | Defend | YOUR (visible + AI guesses) | YOUR (visible) | AI's guesses | AI's |
 
 **Do NOT:**
-- Delete NetworkingTest.unity scene yet (needed for Phase E)
+- Delete NetworkingTest.unity scene (needed for Phase E)
 - Over-polish visuals yet (functional first, polish in Phase F)
-- Rebuild existing audio/win-condition systems - wire to them
 
 ---
 

@@ -190,7 +190,7 @@ namespace DLYH.Networking
             // Calculate miss limit based on opponent's grid
             // (Will be set when opponent data arrives)
             _missLimit = GameplayStateTracker.CalculateMissLimit(
-                localPlayerSetup.DifficultyLevel,
+                (int)localPlayerSetup.DifficultyLevel,
                 localPlayerSetup.GridSize,
                 localPlayerSetup.WordCount
             );
@@ -242,7 +242,7 @@ namespace DLYH.Networking
 
                     // Update miss limit based on opponent's actual grid
                     _missLimit = GameplayStateTracker.CalculateMissLimit(
-                        _opponentSetupData.DifficultyLevel,
+                        (int)_opponentSetupData.DifficultyLevel,
                         _opponentSetupData.GridSize,
                         _opponentSetupData.WordCount
                     );
