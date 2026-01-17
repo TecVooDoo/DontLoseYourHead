@@ -1,6 +1,7 @@
 // GameStateSynchronizer.cs
 // Synchronizes local game state with network state
 // Created: January 4, 2026
+// Updated: January 16, 2026 - Added opponent setup waiting
 // Developer: TecVooDoo LLC
 
 using System;
@@ -31,6 +32,12 @@ namespace DLYH.Networking.Services
 
         /// <summary>Fired when sync error occurs</summary>
         public event Action<string> OnSyncError;
+
+        /// <summary>Fired when opponent completes setup</summary>
+        public event Action<DLYHSetupData> OnOpponentSetupComplete;
+
+        /// <summary>Fired when both players are ready and game starts</summary>
+        public event Action OnGameStarted;
 
         // ============================================================
         // STATE
@@ -264,10 +271,88 @@ namespace DLYH.Networking.Services
                     };
                 }
 
-                return await _sessionService.UpdateGameState(_gameCode, _lastKnownState, "active");
+                bool success = await _sessionService.UpdateGameState(_gameCode, _lastKnownState, "active");
+                if (success)
+                {
+                    OnGameStarted?.Invoke();
+                }
+                return success;
             }
 
             return await _sessionService.UpdateGameState(_gameCode, _lastKnownState);
+        }
+
+        /// <summary>
+        /// Waits for opponent to complete their setup.
+        /// Polls the server until opponent's setupComplete is true.
+        /// </summary>
+        /// <param name="timeoutSeconds">Max time to wait (default 300 = 5 minutes)</param>
+        /// <param name="pollIntervalMs">Polling interval in ms (default 2000)</param>
+        /// <returns>Opponent's setup data, or null on timeout</returns>
+        public async UniTask<DLYHSetupData> WaitForOpponentSetupAsync(
+            float timeoutSeconds = 300f,
+            int pollIntervalMs = 2000)
+        {
+            float elapsedTime = 0f;
+
+            Debug.Log("[GameStateSynchronizer] Waiting for opponent setup...");
+
+            while (elapsedTime < timeoutSeconds)
+            {
+                await UniTask.Delay(pollIntervalMs);
+                elapsedTime += pollIntervalMs / 1000f;
+
+                // Fetch current state
+                var state = await FetchCurrentStateAsync();
+                if (state == null)
+                {
+                    continue;
+                }
+
+                // Check opponent's setup status
+                var opponentData = _isPlayer1 ? state.player2 : state.player1;
+                if (opponentData != null && opponentData.setupComplete && opponentData.setupData != null)
+                {
+                    Debug.Log($"[GameStateSynchronizer] Opponent setup complete: {opponentData.name}");
+                    OnOpponentSetupComplete?.Invoke(opponentData.setupData);
+                    return opponentData.setupData;
+                }
+            }
+
+            Debug.LogWarning("[GameStateSynchronizer] Timed out waiting for opponent setup");
+            return null;
+        }
+
+        /// <summary>
+        /// Checks if opponent has completed setup (non-blocking).
+        /// </summary>
+        /// <returns>True if opponent setup is complete</returns>
+        public bool IsOpponentSetupComplete()
+        {
+            if (_lastKnownState == null) return false;
+
+            var opponentData = _isPlayer1 ? _lastKnownState.player2 : _lastKnownState.player1;
+            return opponentData != null && opponentData.setupComplete;
+        }
+
+        /// <summary>
+        /// Gets opponent's setup data if available.
+        /// </summary>
+        public DLYHSetupData GetOpponentSetupData()
+        {
+            if (_lastKnownState == null) return null;
+
+            var opponentData = _isPlayer1 ? _lastKnownState.player2 : _lastKnownState.player1;
+            return opponentData?.setupData;
+        }
+
+        /// <summary>
+        /// Gets opponent's player data if available.
+        /// </summary>
+        public DLYHPlayerData GetOpponentPlayerData()
+        {
+            if (_lastKnownState == null) return null;
+            return _isPlayer1 ? _lastKnownState.player2 : _lastKnownState.player1;
         }
 
         /// <summary>

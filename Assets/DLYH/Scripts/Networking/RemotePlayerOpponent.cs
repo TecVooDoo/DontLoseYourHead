@@ -1,6 +1,7 @@
 // RemotePlayerOpponent.cs
 // Implements IOpponent for network multiplayer games
 // Created: January 4, 2026
+// Updated: January 16, 2026 - Enhanced turn detection
 // Developer: TecVooDoo LLC
 
 using System;
@@ -348,45 +349,48 @@ namespace DLYH.Networking
         /// </summary>
         private void DetectOpponentAction(DLYHGameplayState newState)
         {
-            if (_lastOpponentGameplayState == null) return;
+            // Initialize last state arrays if needed for comparison
+            int lastCoordCount = _lastOpponentGameplayState?.guessedCoordinates?.Length ?? 0;
+            int lastLetterCount = _lastOpponentGameplayState?.knownLetters?.Length ?? 0;
+            int lastSolvedCount = _lastOpponentGameplayState?.solvedWordRows?.Length ?? 0;
 
-            // Check for new guessed coordinates
-            if (newState.guessedCoordinates != null && _lastOpponentGameplayState.guessedCoordinates != null)
+            // Check for new guessed coordinates (coordinate guess)
+            if (newState.guessedCoordinates != null && newState.guessedCoordinates.Length > lastCoordCount)
             {
-                if (newState.guessedCoordinates.Length > _lastOpponentGameplayState.guessedCoordinates.Length)
-                {
-                    var lastCoord = newState.guessedCoordinates[newState.guessedCoordinates.Length - 1];
-                    Debug.Log($"[RemotePlayerOpponent] Opponent guessed coordinate: ({lastCoord.row}, {lastCoord.col})");
-                    OnCoordinateGuess?.Invoke(lastCoord.row, lastCoord.col);
-                    return;
-                }
+                var lastCoord = newState.guessedCoordinates[newState.guessedCoordinates.Length - 1];
+                Debug.Log($"[RemotePlayerOpponent] Opponent guessed coordinate: ({lastCoord.row}, {lastCoord.col})");
+                OnCoordinateGuess?.Invoke(lastCoord.row, lastCoord.col);
+                return;
             }
 
             // Check for new known letters (letter guess that revealed letters)
-            if (newState.knownLetters != null && _lastOpponentGameplayState.knownLetters != null)
+            if (newState.knownLetters != null && newState.knownLetters.Length > lastLetterCount)
             {
-                if (newState.knownLetters.Length > _lastOpponentGameplayState.knownLetters.Length)
+                // Multiple letters might have been revealed - report the most recent
+                string lastLetter = newState.knownLetters[newState.knownLetters.Length - 1];
+                if (!string.IsNullOrEmpty(lastLetter))
                 {
-                    string lastLetter = newState.knownLetters[newState.knownLetters.Length - 1];
-                    if (!string.IsNullOrEmpty(lastLetter))
-                    {
-                        Debug.Log($"[RemotePlayerOpponent] Opponent guessed letter: {lastLetter}");
-                        OnLetterGuess?.Invoke(lastLetter[0]);
-                        return;
-                    }
+                    Debug.Log($"[RemotePlayerOpponent] Opponent guessed letter: {lastLetter}");
+                    OnLetterGuess?.Invoke(lastLetter[0]);
+                    return;
                 }
             }
 
-            // Check for newly solved word rows
-            if (newState.solvedWordRows != null && _lastOpponentGameplayState.solvedWordRows != null)
+            // Check for newly solved word rows (word guess)
+            if (newState.solvedWordRows != null && newState.solvedWordRows.Length > lastSolvedCount)
             {
-                if (newState.solvedWordRows.Length > _lastOpponentGameplayState.solvedWordRows.Length)
-                {
-                    int lastRow = newState.solvedWordRows[newState.solvedWordRows.Length - 1];
-                    Debug.Log($"[RemotePlayerOpponent] Opponent solved word row: {lastRow}");
-                    OnWordGuess?.Invoke("", lastRow); // Word text not available until game end
-                    return;
-                }
+                int lastRow = newState.solvedWordRows[newState.solvedWordRows.Length - 1];
+                Debug.Log($"[RemotePlayerOpponent] Opponent solved word row: {lastRow}");
+                OnWordGuess?.Invoke("", lastRow); // Word text not available until game end
+                return;
+            }
+
+            // Check for miss count increase (opponent made a miss)
+            int lastMisses = _lastOpponentGameplayState?.misses ?? 0;
+            if (newState.misses > lastMisses)
+            {
+                Debug.Log($"[RemotePlayerOpponent] Opponent misses increased: {lastMisses} -> {newState.misses}");
+                // No event for this - turn will pass naturally
             }
         }
 

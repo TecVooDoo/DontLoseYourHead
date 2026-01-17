@@ -3,9 +3,9 @@
 **Project:** Don't Lose Your Head (DLYH)
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
-**Source:** `E:\Unity\DontLoseYourHead`
-**Document Version:** 57
-**Last Updated:** January 16, 2026
+**Source:** `C:\Unity\DontLoseYourHead`
+**Document Version:** 58
+**Last Updated:** January 17, 2026
 
 **Archive:** `DLYH_Status_Archive.md` - Historical designs, old version history, completed phase details
 
@@ -19,11 +19,14 @@
 
 **Current Phase:** Phase E - Networking & Auth
 
-**Last Session (Jan 16, 2026):** Forty-sixth session - **Refactoring Finalized & Folder Cleanup!**
-- Reorganized folder structure: moved NewUI/Scripts/* to Scripts/UI/, NewUI assets to UI/
-- Cleaned up scene: removed GameObjects with missing scripts (SetupModelController, GameplayUIController)
-- Removed development comments (TODO, FIXME, Debug.Log) from UI scripts
-- Phase 2 refactoring plan marked as FINAL
+**Last Session (Jan 17, 2026):** Forty-seventh session - **WebGL Auth Setup!**
+- Set up OAuth redirect URL for Cloudflare Pages (`dlyh.pages.dev/auth-callback`)
+- Updated AuthService.cs redirect constant to match deployment URL
+- Added redirect URL to Supabase dashboard (URL Configuration)
+- Created custom WebGL template (`Assets/WebGLTemplates/DLYH/`) with `_redirects` file for Cloudflare SPA routing
+- Template ensures OAuth callback route (`/auth-callback`) serves index.html properly
+
+**Previous Session (Jan 16, 2026):** Forty-sixth session - Refactoring Finalized & Folder Cleanup
 
 ---
 
@@ -103,8 +106,16 @@
 
 ## Active TODO
 
-**Phase E:** Networking & Auth - Not started
-- [ ] Port auth from Dots and Boxes (Google/Facebook sign-in)
+**Immediate:**
+- [ ] Create WebGL build in Unity (select DLYH template in Player Settings → WebGL → Resolution and Presentation)
+- [ ] Deploy build to Cloudflare Pages (dlyh.pages.dev)
+- [ ] Test OAuth flow end-to-end
+
+**Phase E:** Networking & Auth - In Progress
+- [x] Set up OAuth redirect URL for Cloudflare Pages
+- [x] Create custom WebGL template with `_redirects` for SPA routing
+- [x] Configure Supabase redirect URLs
+- [ ] Port auth UI from Dots and Boxes (Google/Facebook sign-in buttons)
 - [ ] Wire Join Code to Supabase
 - [ ] Implement 6-second matchmaking with phantom AI fallback
 - [ ] Setup data exchange between players
@@ -266,8 +277,8 @@ Assets/DLYH/
     UXML/         - Layout files
     Prefabs/      - UI Toolkit prefabs
   Scenes/
-    NewUIScene.unity     - Primary active scene
-    NetworkingTest.unity - Multiplayer testing
+    NetworkingScene.unity  - Primary active scene
+    NetworkingBackup.unity - Backup before networking work
 ```
 
 ### Key Scripts
@@ -590,11 +601,11 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 58 | Jan 17, 2026 | Forty-seventh session - **WebGL Auth Setup!** Set up OAuth redirect URL for Cloudflare Pages. Created custom WebGL template with `_redirects` for SPA routing. Configured Supabase redirect URLs. |
 | 57 | Jan 16, 2026 | Forty-sixth session - **Refactoring Finalized!** Reorganized folders (NewUI -> Scripts/UI, UI/). Scene cleanup. Removed dev comments from UI scripts. Phase 2 refactoring plan marked FINAL. |
 | 56 | Jan 16, 2026 | Forty-fifth session - **Phase 2 Refactoring Complete!** Extracted SetupWizardUIManager. Deleted legacy UI controllers, scripts, and prefabs. Created AudioSettings.cs. Fixed compile errors. Full game tested successfully. |
 | 55 | Jan 16, 2026 | Forty-fourth session - **Phase D Complete!** Implemented How to Play modal with scrollable help content. Moved DefenseViewPlan.md and UI_Toolkit_Integration_Plan.md to Archive. |
 | 54 | Jan 16, 2026 | Forty-third session - **Gameplay Audio & New Game Confirmation!** Wired UIAudioManager (keyboard, grid, hit/miss, buttons, popups). Added confirmation popup when starting new game during active game. Added ResetGameState() for proper cleanup. |
-| 53 | Jan 16, 2026 | Forty-second session - **Guillotine Polish & Audio Sync!** Fixed lever positioning (inner posts). Fixed executioner z-order and vertical position. Removed invalid USS properties. Synced stage transition audio (1.5s delay). Synced game-over animations with audio (blade drop, head fall). |
 
 **Full version history:** See `DLYH_Status_Archive.md`
 
@@ -617,9 +628,9 @@ After each work session, update this document:
 
 ## Next Session Instructions
 
-**Starting Point:** This document (DLYH_Status.md v55)
+**Starting Point:** This document (DLYH_Status.md v58)
 
-**Scene to Use:** NetworkingTest.unity (for Phase E networking work)
+**Scene to Use:** NetworkingScene.unity (for Phase E networking work)
 
 **Current State:**
 - Phase A, B, C, D COMPLETE - Full single-player gameplay working!
@@ -628,10 +639,17 @@ After each work session, update this document:
 **Important:** Game logic is now opponent-agnostic! Use `_opponent` (not `_aiOpponent`), handlers are `HandleOpponent*` (not `HandleAI*`), and `CellOwner` only has `Player` and `Opponent` values.
 
 **Phase E Starting Point:**
-1. Review existing networking code in `DLYH.Networking` and `DLYH.Networking.Services`
-2. Port auth from Dots and Boxes project
-3. Wire Join Code to Supabase
-4. Implement matchmaking with phantom AI fallback
+1. **BUILD FIRST:** Create WebGL build in Unity (select DLYH template in Player Settings → WebGL → Resolution and Presentation)
+2. Deploy build to Cloudflare Pages
+3. Test OAuth flow end-to-end (Google sign-in → redirect → callback handled)
+4. Port auth UI from Dots and Boxes (sign-in buttons)
+5. Wire Join Code to Supabase
+6. Implement matchmaking with phantom AI fallback
+
+**WebGL Template Setup (already done):**
+- Custom template at `Assets/WebGLTemplates/DLYH/`
+- Includes `_redirects` for Cloudflare SPA routing
+- OAuth redirect URL configured: `https://dlyh.pages.dev/auth-callback`
 
 **Existing Networking Foundation (Phase 0.5):**
 - `IOpponent` interface for opponent abstraction
@@ -648,7 +666,7 @@ After each work session, update this document:
 | Defend | YOUR (visible + AI guesses) | YOUR (visible) | AI's guesses | AI's |
 
 **Do NOT:**
-- Delete NetworkingTest.unity scene (needed for Phase E)
+- Delete NetworkingBackup.unity scene (backup in case networking breaks things)
 - Over-polish visuals yet (functional first, polish in Phase F)
 
 ---

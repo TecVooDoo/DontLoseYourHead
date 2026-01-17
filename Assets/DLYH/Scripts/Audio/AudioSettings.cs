@@ -1,6 +1,6 @@
 // AudioSettings.cs
 // Static helper for audio volume settings
-// Replaces functionality from deleted SettingsPanel class
+// Replaces functionality from deleted SettingsPanel class 
 // Developer: TecVooDoo LLC
 
 using UnityEngine;
