@@ -96,7 +96,24 @@
                 </ui:VisualElement>
             </ui:VisualElement>
 
-            <!-- Card 5: Board Setup - Hidden until difficulty selected (Solo/Online only) -->
+            <!-- Card 5: Online Mode Choice - Hidden (Online only, shown after difficulty) -->
+            <ui:VisualElement name="card-online-mode" class="setup-card hidden">
+                <ui:VisualElement name="online-mode-content" class="card-content">
+                    <ui:Label text="How do you want to play?" class="section-label" />
+                    <ui:VisualElement name="online-mode-options" class="mode-cards">
+                        <ui:VisualElement name="mode-find-opponent" class="mode-card">
+                            <ui:Label text="Find Opponent" class="mode-card-title" />
+                            <ui:Label text="Quick match with anyone" class="mode-card-desc" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="mode-private-game" class="mode-card">
+                            <ui:Label text="Private Game" class="mode-card-title" />
+                            <ui:Label text="Get a code to share" class="mode-card-desc" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <!-- Card 6: Board Setup - Hidden until difficulty selected (Solo/Online only) -->
             <ui:VisualElement name="card-board-setup" class="setup-card hidden">
                 <ui:Label text="Board Setup" class="section-label" />
                 <ui:VisualElement name="setup-mode-cards" class="mode-cards">

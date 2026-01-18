@@ -10,6 +10,8 @@ using TecVooDoo.DontLoseYourHead.UI;
 using DLYH.Audio;
 using DLYH.Telemetry;
 using DLYH.Networking;
+using DLYH.Networking.UI;
+using DLYH.Networking.Services;
 using DLYH.AI.Config;
 using DLYH.AI.Strategies;
 using Cysharp.Threading.Tasks;
@@ -53,6 +55,14 @@ namespace DLYH.TableUI
         [SerializeField] private VisualTreeAsset _feedbackModalUxml;
         [SerializeField] private VisualTreeAsset _hamburgerMenuUxml;
 
+        [Header("Networking UI Assets")]
+        [SerializeField] private VisualTreeAsset _matchmakingOverlayUxml;
+        [SerializeField] private VisualTreeAsset _waitingRoomUxml;
+        [SerializeField] private VisualTreeAsset _joinCodeEntryUxml;
+        [SerializeField] private StyleSheet _matchmakingOverlayUss;
+        [SerializeField] private StyleSheet _waitingRoomUss;
+        [SerializeField] private StyleSheet _joinCodeEntryUss;
+
         [Header("Word Lists")]
         [SerializeField] private WordListSO _threeLetterWords;
         [SerializeField] private WordListSO _fourLetterWords;
@@ -93,6 +103,10 @@ namespace DLYH.TableUI
 
         // Services
         private WordValidationService _wordValidationService;
+
+        // Networking UI
+        private NetworkingUIManager _networkingUIManager;
+        private NetworkingUIResult _matchmakingResult; // Stores result from matchmaking (phantom AI name, etc.)
 
         // Game mode tracking
         private GameMode _currentGameMode = GameMode.Solo;
@@ -390,6 +404,9 @@ namespace DLYH.TableUI
             CreateFeedbackModal();
             CreateHamburgerMenu();
 
+            // Initialize networking UI manager
+            InitializeNetworkingUI();
+
             // Show main menu first (hides wizard)
             ShowMainMenu();
 
@@ -466,6 +483,12 @@ namespace DLYH.TableUI
             if (feedbackBtn != null)
             {
                 feedbackBtn.clicked += HandleFeedbackClicked;
+            }
+
+            Button exitBtn = _mainMenuScreen.Q<Button>("btn-exit");
+            if (exitBtn != null)
+            {
+                exitBtn.clicked += HandleExitClicked;
             }
 
             // Set up inline settings
@@ -698,6 +721,7 @@ namespace DLYH.TableUI
             _wizardManager = new SetupWizardUIManager(_setupWizardScreen);
             _wizardManager.OnSetupComplete += HandleSetupComplete;
             _wizardManager.OnQuickSetupRequested += HandleQuickSetup;
+            _wizardManager.OnJoinCodeSubmitted += HandleJoinCodeSubmitted;
 
             // Start hidden
             _setupWizardScreen.style.display = DisplayStyle.None;
@@ -1527,7 +1551,7 @@ namespace DLYH.TableUI
         /// Initializes the AI opponent for solo mode gameplay.
         /// This must be called AFTER CapturePlayerSetupData() has populated _playerSetupData.
         /// </summary>
-        private async UniTask InitializeOpponentAsync(int gridSize, int wordCount, DifficultySetting difficulty, Color playerColor)
+        private async UniTask InitializeOpponentAsync(int gridSize, int wordCount, DifficultySetting difficulty, Color playerColor, string phantomName = null)
         {
             if (_aiConfig == null)
             {
@@ -1554,8 +1578,8 @@ namespace DLYH.TableUI
                 }
             }
 
-            // Create AI opponent
-            _opponent = new LocalAIOpponent(_aiConfig, gameObject, wordListDict);
+            // Create AI opponent with optional phantom name
+            _opponent = new LocalAIOpponent(_aiConfig, gameObject, wordListDict, phantomName);
 
             // Subscribe to AI events
             _opponent.OnLetterGuess += HandleOpponentLetterGuess;
@@ -1576,7 +1600,23 @@ namespace DLYH.TableUI
         /// </summary>
         private void TriggerOpponentTurn()
         {
-            if (_opponent == null || _isGameOver || _isPlayerTurn) return;
+            if (_opponent == null)
+            {
+                Debug.LogError("[UIFlowController] TriggerOpponentTurn: _opponent is NULL!");
+                return;
+            }
+            if (_isGameOver)
+            {
+                Debug.Log("[UIFlowController] TriggerOpponentTurn: Game is over, skipping");
+                return;
+            }
+            if (_isPlayerTurn)
+            {
+                Debug.LogWarning("[UIFlowController] TriggerOpponentTurn: Still player's turn, skipping");
+                return;
+            }
+
+            Debug.Log($"[UIFlowController] TriggerOpponentTurn: Triggering {_opponent.OpponentName}'s turn");
 
             // Build game state for AI decision making
             AIGameState gameState = BuildOpponentGameState();
@@ -2747,6 +2787,8 @@ namespace DLYH.TableUI
 
         private void StartNewGame(GameMode mode)
         {
+            Debug.Log($"[UIFlowController] StartNewGame called with mode: {mode}");
+
             // Clear any existing game state
             ResetGameState();
 
@@ -2757,6 +2799,8 @@ namespace DLYH.TableUI
             _hasActiveGame = true; // Mark that a game is now in progress
             _wizardManager?.SetGameMode(mode);
             ShowSetupWizard();
+
+            Debug.Log("[UIFlowController] StartNewGame completed - setup wizard should be visible");
         }
 
         private void ResetGameState()
@@ -2806,6 +2850,9 @@ namespace DLYH.TableUI
             _playerPreviousStage = 1;
             _opponentPreviousStage = 1;
 
+            // Reset gameplay manager (keyboard states, guessed words, etc.)
+            _gameplayManager?.Reset();
+
             Debug.Log("[UIFlowController] Game state reset for new game");
         }
 
@@ -2826,6 +2873,22 @@ namespace DLYH.TableUI
         {
             DLYH.Audio.UIAudioManager.ButtonClick();
             ShowFeedbackModal("Share Feedback", false, false);
+        }
+
+        private void HandleExitClicked()
+        {
+            DLYH.Audio.UIAudioManager.ButtonClick();
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+            // WebGL: Close the browser tab via JavaScript
+            Application.ExternalEval("window.close();");
+#else
+            // Desktop/Editor: Quit the application
+            Application.Quit();
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#endif
+#endif
         }
 
         /// <summary>
@@ -3023,12 +3086,13 @@ namespace DLYH.TableUI
             buttonRow.Add(cancelBtn);
 
             // Confirm button
-            Button confirmBtn = new Button(() =>
+            Button confirmBtn = new Button();
+            confirmBtn.clicked += () =>
             {
                 System.Action action = _confirmAction;
                 HideConfirmationModal();
                 action?.Invoke();
-            });
+            };
             confirmBtn.text = "Yes";
             confirmBtn.style.paddingLeft = 24;
             confirmBtn.style.paddingRight = 24;
@@ -3341,6 +3405,52 @@ Click the GUESS button on a word row
             HideHamburgerButton();
         }
 
+        private void InitializeNetworkingUI()
+        {
+            // Create networking UI manager with the UI assets
+            _networkingUIManager = new NetworkingUIManager(
+                _matchmakingOverlayUxml,
+                _waitingRoomUxml,
+                _joinCodeEntryUxml,
+                _matchmakingOverlayUss,
+                _waitingRoomUss,
+                _joinCodeEntryUss
+            );
+
+            // Initialize with root element (no networking services yet - will be null-safe)
+            _networkingUIManager.Initialize(_root, null, null);
+
+            // Wire up events
+            _networkingUIManager.OnNetworkingComplete += HandleNetworkingComplete;
+            _networkingUIManager.OnCancelled += HandleNetworkingCancelled;
+
+            Debug.Log("[UIFlowController] Networking UI initialized");
+        }
+
+        private void HandleNetworkingComplete(NetworkingUIResult result)
+        {
+            if (result.Success)
+            {
+                Debug.Log($"[UIFlowController] Networking complete - GameCode: {result.GameCode}, " +
+                          $"IsHost: {result.IsHost}, IsPhantomAI: {result.IsPhantomAI}, " +
+                          $"Opponent: {result.OpponentName}");
+
+                // Start the game with the matched opponent
+                StartGameAfterMatchmaking(result).Forget();
+            }
+            else
+            {
+                Debug.LogWarning($"[UIFlowController] Networking failed: {result.ErrorMessage}");
+                // Stay on setup wizard - user can try again or go back
+            }
+        }
+
+        private void HandleNetworkingCancelled()
+        {
+            Debug.Log("[UIFlowController] Networking cancelled - returning to setup wizard");
+            // User cancelled - stay on setup wizard
+        }
+
         private void ShowHamburgerButton()
         {
             if (_hamburgerButton != null)
@@ -3540,11 +3650,18 @@ Click the GUESS button on a word row
             // Stop trivia rotation when leaving main menu
             StopTriviaRotation();
 
+            // Hide all other screens
             if (_mainMenuScreen != null)
             {
                 _mainMenuScreen.style.display = DisplayStyle.None;
                 _mainMenuScreen.visible = false;
             }
+            if (_gameplayScreen != null)
+            {
+                _gameplayScreen.style.display = DisplayStyle.None;
+            }
+
+            // Show setup wizard
             if (_setupWizardScreen != null)
             {
                 _setupWizardScreen.style.display = DisplayStyle.Flex;
@@ -3572,8 +3689,65 @@ Click the GUESS button on a word row
 
         // === Table Initialization ===
 
+        /// <summary>
+        /// Cleans up existing table/grid visual components to prevent stacking.
+        /// Called before creating new table components for a new game.
+        /// </summary>
+        private void CleanupTableComponents()
+        {
+            // Clean up placement adapter
+            if (_placementAdapter != null)
+            {
+                _placementAdapter.OnWordPlaced -= HandleWordPlacedOnGrid;
+                _placementAdapter.OnPlacementCancelled -= HandlePlacementCancelled;
+                _placementAdapter.Dispose();
+                _placementAdapter = null;
+            }
+
+            // Clean up word suggestion dropdown
+            if (_wordSuggestionDropdown != null)
+            {
+                _wordSuggestionDropdown.OnWordSelected -= HandleWordSuggestionSelected;
+                _wordSuggestionDropdown.Root?.RemoveFromHierarchy();
+                _wordSuggestionDropdown = null;
+            }
+
+            // Clean up word rows container
+            if (_wordRowsContainer != null)
+            {
+                _wordRowsContainer.OnPlacementRequested -= HandlePlacementRequested;
+                _wordRowsContainer.OnWordCleared -= HandleWordCleared;
+                _wordRowsContainer.OnLetterCellClicked -= HandleWordRowCellClicked;
+                _wordRowsContainer.Root?.RemoveFromHierarchy();
+                _wordRowsContainer.Dispose();
+                _wordRowsContainer = null;
+            }
+
+            // Clean up table view (grid)
+            if (_tableView != null)
+            {
+                _tableView.OnCellClicked -= HandleGridCellClicked;
+                _tableView.OnCellHovered -= HandleGridCellHovered;
+                _tableView.Unbind();
+                _tableView.TableRoot?.RemoveFromHierarchy();
+                _tableView = null;
+            }
+
+            // Clean up table models
+            _tableModel = null;
+            _tableLayout = null;
+            _attackTableModel = null;
+            _attackTableLayout = null;
+            _defenseTableModel = null;
+
+            Debug.Log("[UIFlowController] Table components cleaned up for new game");
+        }
+
         private void InitializeTableForPlacement(SetupWizardUIManager.SetupData data)
         {
+            // Clean up existing table/grid components before creating new ones
+            CleanupTableComponents();
+
             // Create layout based on setup data
             _tableLayout = TableLayout.CreateForSetup(data.GridSize, data.WordCount);
 
@@ -4217,7 +4391,87 @@ Click the GUESS button on a word row
                 return;
             }
 
-            // Transition to gameplay phase
+            // Branch based on game mode
+            if (_currentGameMode == GameMode.Online)
+            {
+                // Start matchmaking - will call StartGameAfterMatchmaking when done
+                StartOnlineMatchmaking();
+            }
+            else
+            {
+                // Solo mode or JoinGame - go directly to gameplay
+                TransitionToGameplay();
+            }
+        }
+
+        private void StartOnlineMatchmaking()
+        {
+            if (_networkingUIManager == null)
+            {
+                Debug.LogError("[UIFlowController] NetworkingUIManager not initialized");
+                TransitionToGameplay(); // Fallback to solo AI
+                return;
+            }
+
+            int gridSize = _wizardManager?.GridSize ?? 8;
+            int difficultyIndex = _wizardManager?.Difficulty ?? 1;
+            string difficulty = difficultyIndex switch
+            {
+                0 => "easy",
+                2 => "hard",
+                _ => "normal"
+            };
+
+            // Check which online mode was selected
+            var onlineMode = _wizardManager?.SelectedOnlineMode ?? OnlineMode.FindOpponent;
+
+            if (onlineMode == OnlineMode.PrivateGame)
+            {
+                // Show WaitingRoom with join code for private game
+                Debug.Log($"[UIFlowController] Starting private game - showing waiting room");
+                _networkingUIManager.ShowWaitingRoomAsync(gridSize, difficulty).Forget();
+            }
+            else
+            {
+                // Start quick matchmaking with anyone
+                Debug.Log($"[UIFlowController] Starting matchmaking for {gridSize}x{gridSize} grid, {difficulty} difficulty");
+                _networkingUIManager.StartMatchmakingAsync(gridSize, difficulty).Forget();
+            }
+        }
+
+        /// <summary>
+        /// Called when user submits a join code from the wizard's join code card.
+        /// </summary>
+        private void HandleJoinCodeSubmitted(string code)
+        {
+            Debug.Log($"[UIFlowController] Join code submitted: {code}");
+
+            if (_networkingUIManager == null)
+            {
+                Debug.LogError("[UIFlowController] NetworkingUIManager not initialized");
+                return;
+            }
+
+            // Attempt to join the game with the code
+            _networkingUIManager.JoinWithCodeAsync(code).Forget();
+        }
+
+        private async UniTask StartGameAfterMatchmaking(NetworkingUIResult result)
+        {
+            // Store the result so TransitionToGameplay can use the phantom AI name
+            _matchmakingResult = result;
+
+            if (result.IsPhantomAI)
+            {
+                Debug.Log($"[UIFlowController] Starting game vs phantom AI: {result.OpponentName}");
+            }
+            else
+            {
+                Debug.Log($"[UIFlowController] Starting game vs real opponent: {result.OpponentName}");
+                // TODO: Set up RemotePlayerOpponent with result.GameCode
+            }
+
+            // Proceed to gameplay
             TransitionToGameplay();
         }
 
@@ -4244,10 +4498,24 @@ Click the GUESS button on a word row
             string opponentName = "EXECUTIONER";
             List<WordPlacementData> opponentWordPlacements = new List<WordPlacementData>();
 
-            if (_currentGameMode == GameMode.Solo)
+            bool shouldInitAI = _currentGameMode == GameMode.Solo ||
+                (_currentGameMode == GameMode.Online && (_matchmakingResult == null || _matchmakingResult.IsPhantomAI));
+
+            Debug.Log($"[UIFlowController] TransitionToGameplay - Mode: {_currentGameMode}, " +
+                      $"MatchmakingResult: {(_matchmakingResult != null ? "present" : "null")}, " +
+                      $"IsPhantomAI: {_matchmakingResult?.IsPhantomAI}, " +
+                      $"ShouldInitAI: {shouldInitAI}");
+
+            if (shouldInitAI)
             {
                 // Initialize AI opponent - this generates their grid, words, and placements
-                await InitializeOpponentAsync(playerGridSize, playerWordCount, playerDifficulty, playerColor);
+                // For Online mode with phantom AI, we use the phantom name but still create LocalAIOpponent
+                string phantomName = (_currentGameMode == GameMode.Online && _matchmakingResult != null)
+                    ? _matchmakingResult.OpponentName
+                    : null;
+
+                Debug.Log($"[UIFlowController] Initializing AI opponent with phantom name: {phantomName ?? "null"}");
+                await InitializeOpponentAsync(playerGridSize, playerWordCount, playerDifficulty, playerColor, phantomName);
 
                 if (_opponent != null)
                 {
@@ -4259,6 +4527,13 @@ Click the GUESS button on a word row
                     opponentWordPlacements = _opponent.WordPlacements;
 
                     Debug.Log($"[UIFlowController] AI settings: {opponentGridSize}x{opponentGridSize} grid, {opponentWordCount} words, {opponentWordPlacements.Count} placements");
+
+                    // Debug: log all opponent words
+                    for (int i = 0; i < opponentWordPlacements.Count; i++)
+                    {
+                        var p = opponentWordPlacements[i];
+                        Debug.Log($"[UIFlowController] AI word {i}: '{p.Word}' at ({p.StartCol},{p.StartRow}) dir({p.DirCol},{p.DirRow})");
+                    }
                 }
             }
 

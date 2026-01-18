@@ -5,6 +5,15 @@ using UnityEngine.UIElements;
 namespace DLYH.TableUI
 {
     /// <summary>
+    /// Online mode selection for Play Online.
+    /// </summary>
+    public enum OnlineMode
+    {
+        FindOpponent,   // Quick matchmaking with anyone
+        PrivateGame     // Create private game with join code
+    }
+
+    /// <summary>
     /// Manages the setup wizard UI without being a MonoBehaviour.
     /// Operates directly on the VisualElement tree.
     /// </summary>
@@ -13,6 +22,7 @@ namespace DLYH.TableUI
         // Events
         public event System.Action<SetupData> OnSetupComplete;
         public event System.Action OnQuickSetupRequested;
+        public event System.Action<string> OnJoinCodeSubmitted;
 
         // Data class
         public class SetupData
@@ -23,6 +33,7 @@ namespace DLYH.TableUI
             public int WordCount;
             public int Difficulty;
             public GameMode GameMode;
+            public OnlineMode OnlineMode;
             public bool UseQuickSetup;
         }
 
@@ -43,6 +54,7 @@ namespace DLYH.TableUI
         private VisualElement _cardGridSize;
         private VisualElement _cardWordCount;
         private VisualElement _cardDifficulty;
+        private VisualElement _cardOnlineMode;
         private VisualElement _cardBoardSetup;
         private VisualElement _cardJoinCode;
         private VisualElement _cardsContainer;
@@ -50,6 +62,11 @@ namespace DLYH.TableUI
 
         // Game mode (set from main menu)
         private GameMode _gameMode = GameMode.Solo;
+        private OnlineMode _onlineMode = OnlineMode.FindOpponent;
+
+        // Online mode choice cards
+        private VisualElement _modeFindOpponent;
+        private VisualElement _modePrivateGame;
 
         // Board setup mode cards
         private VisualElement _setupQuickCard;
@@ -80,6 +97,7 @@ namespace DLYH.TableUI
         public int Difficulty => _difficulty;
         public bool UseQuickSetup => _useQuickSetup;
         public GameMode CurrentGameMode => _gameMode;
+        public OnlineMode SelectedOnlineMode => _onlineMode;
 
         // UI arrays
         private Button[] _gridButtons;
@@ -118,6 +136,7 @@ namespace DLYH.TableUI
             SetupGridSizeButtons();
             SetupWordCountButtons();
             SetupDifficultyButtons();
+            SetupOnlineModeCards();
             SetupBoardSetupCards();
             SetupJoinCodeCard();
             SetupActionButtons();
@@ -135,6 +154,7 @@ namespace DLYH.TableUI
             HideElement(_cardGridSize);
             HideElement(_cardWordCount);
             HideElement(_cardDifficulty);
+            HideElement(_cardOnlineMode);
             HideElement(_cardBoardSetup);
             HideElement(_cardJoinCode);
             HideElement(_placementPanel);
@@ -150,9 +170,14 @@ namespace DLYH.TableUI
             _cardGridSize = _root.Q<VisualElement>("card-grid-size");
             _cardWordCount = _root.Q<VisualElement>("card-word-count");
             _cardDifficulty = _root.Q<VisualElement>("card-difficulty");
+            _cardOnlineMode = _root.Q<VisualElement>("card-online-mode");
             _cardBoardSetup = _root.Q<VisualElement>("card-board-setup");
             _cardJoinCode = _root.Q<VisualElement>("card-join-code");
             _placementPanel = _root.Q<VisualElement>("placement-panel");
+
+            // Online mode choice cards
+            _modeFindOpponent = _root.Q<VisualElement>("mode-find-opponent");
+            _modePrivateGame = _root.Q<VisualElement>("mode-private-game");
 
             _setupQuickCard = _root.Q<VisualElement>("setup-quick");
             _setupManualCard = _root.Q<VisualElement>("setup-manual");
@@ -265,6 +290,43 @@ namespace DLYH.TableUI
             }
         }
 
+        private void SetupOnlineModeCards()
+        {
+            if (_modeFindOpponent != null)
+            {
+                _modeFindOpponent.RegisterCallback<ClickEvent>(evt => SelectOnlineMode(OnlineMode.FindOpponent));
+            }
+            if (_modePrivateGame != null)
+            {
+                _modePrivateGame.RegisterCallback<ClickEvent>(evt => SelectOnlineMode(OnlineMode.PrivateGame));
+            }
+        }
+
+        private void SelectOnlineMode(OnlineMode mode)
+        {
+            _onlineMode = mode;
+
+            // Update visual selection state
+            if (_modeFindOpponent != null)
+            {
+                if (mode == OnlineMode.FindOpponent)
+                    _modeFindOpponent.AddToClassList("selected");
+                else
+                    _modeFindOpponent.RemoveFromClassList("selected");
+            }
+            if (_modePrivateGame != null)
+            {
+                if (mode == OnlineMode.PrivateGame)
+                    _modePrivateGame.AddToClassList("selected");
+                else
+                    _modePrivateGame.RemoveFromClassList("selected");
+            }
+
+            // Collapse difficulty card and proceed to board setup
+            CollapseCard(_cardDifficulty, _difficultyContent, _difficultySummary);
+            RevealNextCard(_cardBoardSetup);
+        }
+
         private void SetupBoardSetupCards()
         {
             if (_setupQuickCard != null)
@@ -302,13 +364,14 @@ namespace DLYH.TableUI
         {
             string code = _joinCodeInput?.value?.Trim().ToUpper() ?? "";
 
-            if (string.IsNullOrEmpty(code) || code.Length < 4)
+            if (string.IsNullOrEmpty(code) || code.Length < 6)
             {
-                Debug.LogWarning("[SetupWizard] Invalid join code - must be at least 4 characters");
+                Debug.LogWarning("[SetupWizard] Invalid join code - must be 6 characters");
                 return;
             }
 
-            Debug.Log($"[SetupWizard] Attempting to join game with code: {code}");
+            Debug.Log($"[SetupWizard] Submitting join code: {code}");
+            OnJoinCodeSubmitted?.Invoke(code);
         }
 
         private void SetupActionButtons()
@@ -367,7 +430,7 @@ namespace DLYH.TableUI
                 if (rowIndex == rows.Length - 1)
                 {
                     Button backspaceBtn = new Button();
-                    backspaceBtn.text = "←";
+                    backspaceBtn.text = "<-";
                     backspaceBtn.tooltip = "Backspace";
                     backspaceBtn.AddToClassList("letter-key");
                     backspaceBtn.AddToClassList("backspace-key");
@@ -465,14 +528,15 @@ namespace DLYH.TableUI
 
         /// <summary>
         /// Reveals the appropriate next card after Profile based on game mode.
-        /// For JoinGame mode, shows Difficulty card (skips Grid and Words).
+        /// For JoinGame mode, shows Difficulty card (grid/words determined by host, but difficulty is per-player).
         /// For other modes, shows Grid Size card.
         /// </summary>
         private void RevealNextCardAfterProfile()
         {
             if (_gameMode == GameMode.JoinGame)
             {
-                // Skip Grid and Words for Join Game - go straight to Difficulty
+                // For Join Game, skip Grid and Words - host determines those
+                // But still show Difficulty since each player chooses their own
                 RevealNextCard(_cardDifficulty);
             }
             else
@@ -517,8 +581,15 @@ namespace DLYH.TableUI
                 CollapseCard(_cardDifficulty, _difficultyContent, _difficultySummary);
                 RevealNextCard(_cardJoinCode);
             }
+            else if (_gameMode == GameMode.Online)
+            {
+                // For Online mode, show the online mode choice (Find Opponent vs Private Game)
+                CollapseCard(_cardWordCount, _wordsContent, _wordsSummary);
+                RevealNextCard(_cardOnlineMode);
+            }
             else
             {
+                // For Solo mode, go straight to board setup
                 CollapseCard(_cardWordCount, _wordsContent, _wordsSummary);
                 RevealNextCard(_cardBoardSetup);
             }
@@ -580,6 +651,7 @@ namespace DLYH.TableUI
                 WordCount = _wordCount,
                 Difficulty = _difficulty,
                 GameMode = _gameMode,
+                OnlineMode = _onlineMode,
                 UseQuickSetup = _useQuickSetup
             };
             OnSetupComplete?.Invoke(data);
@@ -612,14 +684,15 @@ namespace DLYH.TableUI
                 };
             }
 
-            // For JoinGame mode, hide Grid, Words, Difficulty, and BoardSetup cards
-            // The host's settings determine everything - joiner only needs profile + game code
+            // For JoinGame mode, hide Grid, Words, OnlineMode, and BoardSetup cards
+            // Host determines grid/words, but joiner still picks their own difficulty
             if (mode == GameMode.JoinGame)
             {
                 HideElement(_cardGridSize);
                 HideElement(_cardWordCount);
-                HideElement(_cardDifficulty);
+                HideElement(_cardOnlineMode);
                 HideElement(_cardBoardSetup);
+                // Difficulty is still shown - each player picks their own
             }
             else
             {
@@ -764,6 +837,7 @@ namespace DLYH.TableUI
             _wordCount = DEFAULT_WORD_COUNT;
             _difficulty = DEFAULT_DIFFICULTY;
             _useQuickSetup = true;
+            _onlineMode = OnlineMode.FindOpponent;
             _selectedColorIndex = 0;
             _playerColor = ColorRules.SelectableColors[0];
 
@@ -771,10 +845,13 @@ namespace DLYH.TableUI
 
             _setupQuickCard?.RemoveFromClassList("selected");
             _setupManualCard?.RemoveFromClassList("selected");
+            _modeFindOpponent?.RemoveFromClassList("selected");
+            _modePrivateGame?.RemoveFromClassList("selected");
 
             HideElement(_cardGridSize);
             HideElement(_cardWordCount);
             HideElement(_cardDifficulty);
+            HideElement(_cardOnlineMode);
             HideElement(_cardBoardSetup);
             HideElement(_cardJoinCode);
             HideElement(_placementPanel);
@@ -812,6 +889,7 @@ namespace DLYH.TableUI
                 WordCount = _wordCount,
                 Difficulty = _difficulty,
                 GameMode = _gameMode,
+                OnlineMode = _onlineMode,
                 UseQuickSetup = _useQuickSetup
             };
         }

@@ -4,7 +4,7 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `C:\Unity\DontLoseYourHead`
-**Document Version:** 58
+**Document Version:** 63
 **Last Updated:** January 17, 2026
 
 **Archive:** `DLYH_Status_Archive.md` - Historical designs, old version history, completed phase details
@@ -19,14 +19,18 @@
 
 **Current Phase:** Phase E - Networking & Auth
 
-**Last Session (Jan 17, 2026):** Forty-seventh session - **WebGL Auth Setup!**
-- Set up OAuth redirect URL for Cloudflare Pages (`dlyh.pages.dev/auth-callback`)
-- Updated AuthService.cs redirect constant to match deployment URL
-- Added redirect URL to Supabase dashboard (URL Configuration)
-- Created custom WebGL template (`Assets/WebGLTemplates/DLYH/`) with `_redirects` file for Cloudflare SPA routing
-- Template ensures OAuth callback route (`/auth-callback`) serves index.html properly
+**Last Session (Jan 17, 2026):** Fifty-second session - **Online Mode Choice & Private Game Flow!**
+- Added online mode choice to setup wizard (Find Opponent vs Private Game)
+- Created `OnlineMode` enum (FindOpponent, PrivateGame)
+- Wired WaitingRoom overlay for Create Private Game flow (shows join code)
+- Wired JoinCodeEntry for Join Game flow from main menu
+- Updated SetupWizardUIManager with `_cardOnlineMode`, `SelectOnlineMode()`
+- Updated UIFlowController to branch on `SelectedOnlineMode`
+- Fixed all networking overlays to fill screen properly (position: absolute)
+- Join Game flow: Profile → Difficulty → JoinCode (skips Grid/Words - host determines those)
+- **Next:** Test online flows in Unity (Find Opponent, Create Private Game, Join Game)
 
-**Previous Session (Jan 16, 2026):** Forty-sixth session - Refactoring Finalized & Folder Cleanup
+**Previous Session (Jan 17, 2026):** Fifty-first session - Networking UI Toolkit Overlays
 
 ---
 
@@ -66,10 +70,14 @@
 - [ ] PVP = auth required
 
 **Matchmaking:**
-- [ ] Wire Join Code to Supabase
-- [ ] 6-second matchmaking attempt
-- [ ] No match found = spawn phantom AI with fake name
-- [ ] Player never knows it's phantom AI
+- [x] Create UI Toolkit networking overlays (MatchmakingOverlay, WaitingRoom, JoinCodeEntry)
+- [x] Create NetworkingUIManager to manage overlays
+- [x] Wire phantom AI fallback (6-second timeout, fake opponent name)
+- [x] Add online mode choice (Find Opponent vs Private Game)
+- [x] Wire WaitingRoom for Create Private Game flow
+- [x] Wire JoinCodeEntry for Join Game flow
+- [ ] Wire Join Code to Supabase backend
+- [ ] Test all online flows end-to-end
 
 **Async Gameplay:**
 - [ ] Games can span days (state persisted in Supabase)
@@ -107,17 +115,20 @@
 ## Active TODO
 
 **Immediate:**
-- [ ] Create WebGL build in Unity (select DLYH template in Player Settings → WebGL → Resolution and Presentation)
-- [ ] Deploy build to Cloudflare Pages (dlyh.pages.dev)
-- [ ] Test OAuth flow end-to-end
+- [ ] Test online flows in Unity Editor:
+  - Play Online → Find Opponent → Matchmaking overlay → Phantom AI fallback
+  - Play Online → Private Game → WaitingRoom with join code
+  - Join Game → Profile → Difficulty → JoinCode entry
+- [ ] Assign UXML/USS assets in Inspector (if not already)
 
 **Phase E:** Networking & Auth - In Progress
 - [x] Set up OAuth redirect URL for Cloudflare Pages
 - [x] Create custom WebGL template with `_redirects` for SPA routing
 - [x] Configure Supabase redirect URLs
+- [x] Create UI Toolkit networking overlays
+- [x] Wire online mode choice to setup wizard
 - [ ] Port auth UI from Dots and Boxes (Google/Facebook sign-in buttons)
 - [ ] Wire Join Code to Supabase
-- [ ] Implement 6-second matchmaking with phantom AI fallback
 - [ ] Setup data exchange between players
 - [ ] Turn synchronization
 - [ ] State sync during gameplay
@@ -186,6 +197,14 @@
 - Hamburger menu navigation
 - Feedback modal
 
+**Networking UI (Phase E In Progress):**
+- Online mode choice (Find Opponent vs Private Game) in setup wizard
+- MatchmakingOverlay - countdown timer, progress bar, opponent found state
+- WaitingRoom - join code display, copy button, waiting status
+- JoinCodeEntry - 6-char input, error messages, joining state
+- NetworkingUIManager - manages all networking overlays
+- Phantom AI fallback with random names (Alex, Jordan, Taylor, etc.)
+
 ---
 
 ## Known Issues
@@ -197,6 +216,7 @@
 **Networking:**
 - NetworkGameManager still uses AuthService (needs update for Phase 1)
 - Full multiplayer gameplay not yet tested (setup exchange, turns, state sync)
+- Networking overlays not yet tested in Unity Editor
 
 **Audio:**
 - Music crossfading/switching too frequently (should only switch at end of track)
@@ -217,6 +237,7 @@
 | `DLYH.UI` | 1 | Audio settings helper (SettingsPanel) |
 | `DLYH.TableUI` | 15+ | UI Toolkit implementation |
 | `DLYH.Networking` | 4 | Opponent abstraction, factory |
+| `DLYH.Networking.UI` | 4 | UI Toolkit networking overlays |
 | `DLYH.Networking.Services` | 8 | Supabase, auth, player, realtime |
 
 ### Key Types by Namespace
@@ -231,12 +252,31 @@
 - TableLayout, TableModel, ColorRules, TableView
 - WordRowView, WordRowsContainer
 - UIFlowController, GameplayScreenManager, GuillotineOverlayManager
+- SetupWizardUIManager, OnlineMode (enum)
 
 **DLYH.AI.Core:**
 - ExecutionerAI, AISetupManager, DifficultyAdapter
 
 **DLYH.Networking:**
 - IOpponent, LocalAIOpponent, RemotePlayerOpponent, OpponentFactory
+
+**DLYH.Networking.UI:**
+- NetworkingUIManager, NetworkingUIResult
+- MatchmakingOverlay.uxml/uss, WaitingRoom.uxml/uss, JoinCodeEntry.uxml/uss
+
+### Online Mode Flows (v63)
+
+**Play Solo:**
+Profile → Grid → Words → Difficulty → Board Setup → Ready → Game vs AI
+
+**Play Online → Find Opponent:**
+Profile → Grid → Words → Difficulty → Online Mode Choice → Board Setup → Ready → Matchmaking (6s) → Phantom AI fallback → Game
+
+**Play Online → Private Game:**
+Profile → Grid → Words → Difficulty → Online Mode Choice → Board Setup → Ready → WaitingRoom (shows join code) → Wait for opponent → Game
+
+**Join Game:**
+Profile → Difficulty → JoinCode entry → (join network) → Game with host's grid/words settings
 
 ### Opponent Abstraction (v46 Refactor)
 
@@ -285,10 +325,11 @@ Assets/DLYH/
 
 | Script | Lines | Purpose |
 |--------|-------|---------|
-| UIFlowController | ~4400 | Screen flow + gameplay + modals |
-| SetupWizardUIManager | ~817 | Setup wizard flow (extracted from UIFlowController) |
+| UIFlowController | ~4500 | Screen flow + gameplay + modals |
+| SetupWizardUIManager | ~820 | Setup wizard flow (extracted from UIFlowController) |
 | GameplayScreenManager | ~650 | Gameplay UI state, tab switching, keyboard |
 | GuillotineOverlayManager | ~450 | Guillotine overlay modal controller |
+| NetworkingUIManager | ~640 | Networking overlay management |
 | ExecutionerAI | ~493 | AI opponent coordination |
 
 ### Packages
@@ -541,6 +582,8 @@ if (_extraTurnQueue.Count > 0) {
 | Board not resetting | No reset logic | Call ResetGameplayState() on new game |
 | Guillotine head stuck | No stored position | Store original position on Initialize |
 | Green cells after clear | Validity not reset | Call SetWordValid(false) in HandleWordCleared |
+| Screen navigation leaves old screen visible | Only showing new screen, not hiding old | Always hide ALL other screens when showing a new one |
+| Unicode icons not rendering in WebGL | WebGL fonts don't support Unicode symbols | Use ASCII fallbacks (=, X, +, <-, OK, !) |
 
 ---
 
@@ -601,25 +644,29 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
-| 58 | Jan 17, 2026 | Forty-seventh session - **WebGL Auth Setup!** Set up OAuth redirect URL for Cloudflare Pages. Created custom WebGL template with `_redirects` for SPA routing. Configured Supabase redirect URLs. |
-| 57 | Jan 16, 2026 | Forty-sixth session - **Refactoring Finalized!** Reorganized folders (NewUI -> Scripts/UI, UI/). Scene cleanup. Removed dev comments from UI scripts. Phase 2 refactoring plan marked FINAL. |
-| 56 | Jan 16, 2026 | Forty-fifth session - **Phase 2 Refactoring Complete!** Extracted SetupWizardUIManager. Deleted legacy UI controllers, scripts, and prefabs. Created AudioSettings.cs. Fixed compile errors. Full game tested successfully. |
-| 55 | Jan 16, 2026 | Forty-fourth session - **Phase D Complete!** Implemented How to Play modal with scrollable help content. Moved DefenseViewPlan.md and UI_Toolkit_Integration_Plan.md to Archive. |
-| 54 | Jan 16, 2026 | Forty-third session - **Gameplay Audio & New Game Confirmation!** Wired UIAudioManager (keyboard, grid, hit/miss, buttons, popups). Added confirmation popup when starting new game during active game. Added ResetGameState() for proper cleanup. |
+| 63 | Jan 17, 2026 | Fifty-second session - **Online Mode Choice & Private Game Flow!** Added online mode choice to setup wizard. Wired WaitingRoom for private games. Wired JoinCodeEntry for Join Game. Fixed overlay positioning. |
+| 62 | Jan 17, 2026 | Fifty-first session - **Networking UI Toolkit Overlays!** Created MatchmakingOverlay, WaitingRoom, JoinCodeEntry UXML/USS. Created NetworkingUIManager. Wired phantom AI fallback. |
+| 61 | Jan 17, 2026 | Fiftieth session - **UI Sizing for 1920x1080!** Fixed Panel Settings (1200x800 → 1920x1080, Match 0.5). Compacted MainMenu layout (titles 48/56px, reduced margins/padding throughout). Reduced gameplay root padding. |
+| 60 | Jan 17, 2026 | Forty-ninth session - **WebGL Build Blockers Fixed!** Added Exit button. Fixed game grid stacking (CleanupTableComponents). Fixed game state reset (_gameplayManager.Reset). Reduced MainMenu font sizes. UI overlap on resize documented as known issue. |
+| 59 | Jan 17, 2026 | Forty-eighth session - **WebGL Build Fixes!** Fixed responsive canvas sizing (scales to browser). Fixed missing icons (Unicode → ASCII). Fixed End Game confirmation bug (gameplay screen not hiding). |
 
 **Full version history:** See `DLYH_Status_Archive.md`
 
 ---
 
-## Known Issues (v57)
+## Known Issues (v63)
+
+**UI/Layout:**
+- UI elements overlap when viewport/browser is resized to smaller sizes (Unity UI Toolkit doesn't support CSS media queries - would need C# viewport detection to fix properly)
 
 **Architecture:**
-- UIFlowController at ~4400 lines (could extract Turn Management and AI Opponent coordination if needed)
+- UIFlowController at ~4500 lines (could extract Turn Management and AI Opponent coordination if needed)
 - Inconsistent namespace convention (TecVooDoo.DontLoseYourHead.* vs DLYH.*)
 
 **Networking:**
 - NetworkGameManager still uses AuthService (needs update for Phase 1)
 - Full multiplayer gameplay not yet tested (setup exchange, turns, state sync)
+- Networking overlays not yet tested in Unity Editor
 
 **Audio:**
 - Music crossfading/switching too frequently (should only switch at end of track)
@@ -628,28 +675,33 @@ After each work session, update this document:
 
 ## Next Session Instructions
 
-**Starting Point:** This document (DLYH_Status.md v58)
+**Starting Point:** This document (DLYH_Status.md v63)
 
 **Scene to Use:** NetworkingScene.unity (for Phase E networking work)
 
 **Current State:**
 - Phase A, B, C, D COMPLETE - Full single-player gameplay working!
-- Phase E next - Networking & Auth
+- Phase E in progress - Online mode flows wired up, need testing
 
 **Important:** Game logic is now opponent-agnostic! Use `_opponent` (not `_aiOpponent`), handlers are `HandleOpponent*` (not `HandleAI*`), and `CellOwner` only has `Player` and `Opponent` values.
 
-**Phase E Starting Point:**
-1. **BUILD FIRST:** Create WebGL build in Unity (select DLYH template in Player Settings → WebGL → Resolution and Presentation)
-2. Deploy build to Cloudflare Pages
-3. Test OAuth flow end-to-end (Google sign-in → redirect → callback handled)
+**Phase E Next Steps:**
+1. **TEST ONLINE FLOWS:** Open Unity, run game, test each flow:
+   - Play Online → Find Opponent → Should show matchmaking overlay → Phantom AI after 6s
+   - Play Online → Private Game → Should show WaitingRoom with join code
+   - Join Game → Profile → Difficulty → JoinCode entry
+2. Fix any issues discovered during testing
+3. Wire Join Code to Supabase backend
 4. Port auth UI from Dots and Boxes (sign-in buttons)
-5. Wire Join Code to Supabase
-6. Implement matchmaking with phantom AI fallback
+5. Implement real matchmaking with Supabase
 
-**WebGL Template Setup (already done):**
-- Custom template at `Assets/WebGLTemplates/DLYH/`
-- Includes `_redirects` for Cloudflare SPA routing
-- OAuth redirect URL configured: `https://dlyh.pages.dev/auth-callback`
+**Online Mode Flows:**
+| Flow | Cards Shown | End State |
+|------|-------------|-----------|
+| Play Solo | Profile → Grid → Words → Difficulty → Board Setup | Game vs AI |
+| Play Online → Find Opponent | Profile → Grid → Words → Difficulty → Online Mode → Board Setup | Matchmaking → Phantom AI |
+| Play Online → Private Game | Profile → Grid → Words → Difficulty → Online Mode → Board Setup | WaitingRoom with code |
+| Join Game | Profile → Difficulty → JoinCode | Join host's game |
 
 **Existing Networking Foundation (Phase 0.5):**
 - `IOpponent` interface for opponent abstraction
