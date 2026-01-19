@@ -1,0 +1,44 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="../USS/MatchmakingOverlay.uss" />
+
+    <!-- Modal Overlay (darkens background) -->
+    <ui:VisualElement name="modal-overlay" class="modal-overlay">
+
+        <!-- Modal Container -->
+        <ui:VisualElement name="modal-container" class="modal-container">
+
+            <!-- Header -->
+            <ui:VisualElement name="modal-header" class="modal-header">
+                <ui:Label name="modal-title" text="Finding Opponent" class="modal-title" />
+            </ui:VisualElement>
+
+            <!-- Content -->
+            <ui:VisualElement name="modal-content" class="modal-content">
+
+                <!-- Searching State -->
+                <ui:VisualElement name="searching-state" class="state-container">
+                    <ui:Label name="searching-status" text="Searching for opponent..." class="status-text" />
+                    <ui:Label name="countdown-timer" text="6" class="countdown-timer" />
+                    <ui:VisualElement name="progress-bar-container" class="progress-bar-container">
+                        <ui:VisualElement name="progress-bar-fill" class="progress-bar-fill" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- Found State (hidden by default) -->
+                <ui:VisualElement name="found-state" class="state-container hidden">
+                    <ui:Label name="found-status" text="Opponent found!" class="status-text found-text" />
+                    <ui:Label name="opponent-name" text="FluffyKitten" class="opponent-name" />
+                    <ui:Label name="starting-text" text="Starting game..." class="starting-text" />
+                </ui:VisualElement>
+
+            </ui:VisualElement>
+
+            <!-- Footer with cancel button -->
+            <ui:VisualElement name="modal-footer" class="modal-footer">
+                <ui:Button name="btn-cancel" text="Cancel" class="modal-button cancel-button" />
+            </ui:VisualElement>
+
+        </ui:VisualElement>
+
+    </ui:VisualElement>
+</ui:UXML>

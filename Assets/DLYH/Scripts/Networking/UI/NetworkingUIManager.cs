@@ -71,11 +71,16 @@ namespace DLYH.Networking.UI
         // Waiting room elements
         private Label _joinCodeLabel;
         private Button _copyCodeBtn;
+        private Button _shareCodeBtn;
         private Label _waitingStatusText;
         private VisualElement _joinedState;
         private Label _joinedNameLabel;
         private Button _waitingCancelBtn;
         private Button _startGameBtn;
+
+        // Current game code for cleanup on cancel
+        private string _currentGameCode;
+        private GameSessionService _gameSessionService;
 
         // Join code entry elements
         private TextField _codeInput;
@@ -121,11 +126,12 @@ namespace DLYH.Networking.UI
         /// <summary>
         /// Initializes the manager with the root element and networking services.
         /// </summary>
-        public void Initialize(VisualElement root, MatchmakingService matchmakingService, PlayerService playerService)
+        public void Initialize(VisualElement root, MatchmakingService matchmakingService, PlayerService playerService, GameSessionService gameSessionService = null)
         {
             _root = root;
             _matchmakingService = matchmakingService;
             _playerService = playerService;
+            _gameSessionService = gameSessionService;
         }
 
         // ============================================================
@@ -189,6 +195,7 @@ namespace DLYH.Networking.UI
         {
             if (_isActive) return;
             _isActive = true;
+            _currentGameCode = null; // Reset
 
             // Create private game and get code
             if (_matchmakingService != null)
@@ -196,6 +203,7 @@ namespace DLYH.Networking.UI
                 MatchmakingResult result = await _matchmakingService.CreatePrivateGameAsync();
                 if (result.Success)
                 {
+                    _currentGameCode = result.GameCode; // Store for cleanup on cancel
                     ShowWaitingRoomOverlay(result.GameCode);
                     // Start polling for opponent
                     PollForOpponentAsync(result.GameCode).Forget();
@@ -215,6 +223,7 @@ namespace DLYH.Networking.UI
             {
                 // No service - show with dummy code
                 string dummyCode = GenerateDummyCode();
+                _currentGameCode = dummyCode; // Store for reference
                 Debug.Log($"[NetworkingUIManager] No matchmaking service - showing dummy code: {dummyCode}");
                 ShowWaitingRoomOverlay(dummyCode);
             }
@@ -232,13 +241,26 @@ namespace DLYH.Networking.UI
         }
 
         /// <summary>
-        /// Cancels waiting for an opponent.
+        /// Cancels waiting for an opponent and deletes the created game.
         /// </summary>
         public void CancelWaiting()
         {
             if (!_isActive) return;
 
             _isActive = false;
+
+            // Delete the game that was created
+            if (!string.IsNullOrEmpty(_currentGameCode) && _gameSessionService != null && _playerService != null)
+            {
+                string playerId = _playerService.CurrentPlayerId;
+                if (!string.IsNullOrEmpty(playerId))
+                {
+                    Debug.Log($"[NetworkingUIManager] Cancelling - deleting game {_currentGameCode}");
+                    _gameSessionService.RemovePlayerFromGame(_currentGameCode, playerId).Forget();
+                }
+            }
+
+            _currentGameCode = null;
             HideCurrentOverlay();
             OnCancelled?.Invoke();
         }
@@ -373,6 +395,7 @@ namespace DLYH.Networking.UI
             // Cache elements
             _joinCodeLabel = _currentOverlay.Q<Label>("join-code");
             _copyCodeBtn = _currentOverlay.Q<Button>("btn-copy");
+            _shareCodeBtn = _currentOverlay.Q<Button>("btn-share");
             _waitingStatusText = _currentOverlay.Q<Label>("status-text");
             _joinedState = _currentOverlay.Q<VisualElement>("joined-state");
             _joinedNameLabel = _currentOverlay.Q<Label>("joined-name");
@@ -384,15 +407,23 @@ namespace DLYH.Networking.UI
             {
                 _copyCodeBtn.clicked += () => CopyCodeToClipboard(gameCode);
             }
+            if (_shareCodeBtn != null)
+            {
+                _shareCodeBtn.clicked += () => ShareGameCode(gameCode);
+            }
             if (_waitingCancelBtn != null)
             {
                 _waitingCancelBtn.clicked += CancelWaiting;
+            }
+            if (_startGameBtn != null)
+            {
+                _startGameBtn.clicked += () => StartGameWithoutOpponent(gameCode);
             }
 
             // Set initial state
             if (_joinCodeLabel != null) _joinCodeLabel.text = gameCode;
             if (_joinedState != null) _joinedState.AddToClassList("hidden");
-            if (_startGameBtn != null) _startGameBtn.AddToClassList("hidden");
+            // Start Game button is now visible by default (user can start without waiting)
         }
 
         private void ShowJoinCodeOverlay()
@@ -607,6 +638,47 @@ namespace DLYH.Networking.UI
             {
                 _copyCodeBtn.text = "Copy Code";
             }
+        }
+
+        private void ShareGameCode(string code)
+        {
+            // Create email sharing link using mailto:
+            // The game URL would be tecvoodoo.com/dlyh/join?code=XXXXXX
+            string gameUrl = $"https://tecvoodoo.com/dlyh/join?code={code}";
+            string subject = "Join my Don't Lose Your Head game!";
+            string body = $"I've started a game of Don't Lose Your Head! Join me using this code:\n\n{code}\n\nOr click this link: {gameUrl}";
+
+            // URL encode the subject and body
+            string encodedSubject = UnityEngine.Networking.UnityWebRequest.EscapeURL(subject);
+            string encodedBody = UnityEngine.Networking.UnityWebRequest.EscapeURL(body);
+
+            string mailtoUrl = $"mailto:?subject={encodedSubject}&body={encodedBody}";
+
+            Debug.Log($"[NetworkingUIManager] Opening email share: {mailtoUrl}");
+            Application.OpenURL(mailtoUrl);
+        }
+
+        private void StartGameWithoutOpponent(string gameCode)
+        {
+            if (!_isActive) return;
+
+            Debug.Log($"[NetworkingUIManager] Starting game {gameCode} without waiting for opponent");
+
+            _isActive = false;
+            _currentGameCode = null; // Don't delete - we're using it
+
+            HideCurrentOverlay();
+
+            // Fire completion event - host starts the game, opponent slot shows "Waiting..."
+            NetworkingUIResult result = new NetworkingUIResult
+            {
+                Success = true,
+                GameCode = gameCode,
+                IsHost = true,
+                IsPhantomAI = false,
+                OpponentName = null // No opponent yet - will show "Waiting..." in game
+            };
+            OnNetworkingComplete?.Invoke(result);
         }
 
         // ============================================================

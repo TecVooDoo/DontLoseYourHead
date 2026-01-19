@@ -4,6 +4,7 @@
 // Developer: TecVooDoo LLC
 
 using System;
+using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using Cysharp.Threading.Tasks;
@@ -337,6 +338,197 @@ namespace DLYH.Networking.Services
 
             Debug.Log($"[GameSessionService] GetPlayerCount for {gameCode}: {count}");
             return count;
+        }
+
+        // ============================================================
+        // GET PLAYER'S GAMES (for "My Active Games" list)
+        // ============================================================
+
+        /// <summary>
+        /// Gets all active games for a player.
+        /// Returns games where the player is a participant and status is not 'completed' or 'abandoned'.
+        /// </summary>
+        /// <param name="playerId">Player's UUID</param>
+        /// <returns>List of active game summaries</returns>
+        public async UniTask<ActiveGameInfo[]> GetPlayerGames(string playerId)
+        {
+            if (string.IsNullOrEmpty(playerId))
+            {
+                return new ActiveGameInfo[0];
+            }
+
+            // First, get all session_players entries for this player
+            var sessionsResponse = await _client.Get(
+                TABLE_SESSION_PLAYERS,
+                $"player_id=eq.{playerId}&select=session_id,player_number"
+            );
+
+            if (!sessionsResponse.Success || string.IsNullOrEmpty(sessionsResponse.Body) || sessionsResponse.Body == "[]")
+            {
+                Debug.Log($"[GameSessionService] No games found for player {playerId}");
+                return new ActiveGameInfo[0];
+            }
+
+            // Parse session IDs
+            var sessionEntries = ParseSessionPlayerEntries(sessionsResponse.Body);
+            if (sessionEntries.Length == 0)
+            {
+                return new ActiveGameInfo[0];
+            }
+
+            // Build list of games with details
+            var games = new List<ActiveGameInfo>();
+
+            foreach (var entry in sessionEntries)
+            {
+                // Get game session details
+                var game = await GetGame(entry.SessionId);
+                if (game == null) continue;
+
+                // Skip completed or abandoned games
+                if (game.Status == "completed" || game.Status == "abandoned") continue;
+
+                // Get opponent info
+                string opponentName = null;
+                var opponentResponse = await _client.Get(
+                    TABLE_SESSION_PLAYERS,
+                    $"session_id=eq.{entry.SessionId}&player_id=neq.{playerId}&select=player_id"
+                );
+
+                if (opponentResponse.Success && !string.IsNullOrEmpty(opponentResponse.Body) && opponentResponse.Body != "[]")
+                {
+                    // There's an opponent - get their player record
+                    string opponentId = ExtractStringField(opponentResponse.Body, "player_id");
+                    if (!string.IsNullOrEmpty(opponentId))
+                    {
+                        var playerResponse = await _client.Get("players", $"id=eq.{opponentId}&select=display_name");
+                        if (playerResponse.Success && !string.IsNullOrEmpty(playerResponse.Body))
+                        {
+                            opponentName = ExtractStringField(playerResponse.Body, "display_name");
+                        }
+                    }
+                }
+
+                // Parse game state to determine whose turn
+                string whoseTurn = "unknown";
+                if (!string.IsNullOrEmpty(game.StateJson))
+                {
+                    string currentTurn = ExtractStringField(game.StateJson, "currentTurn");
+                    if (currentTurn == "player1")
+                    {
+                        whoseTurn = entry.PlayerNumber == 1 ? "your_turn" : "their_turn";
+                    }
+                    else if (currentTurn == "player2")
+                    {
+                        whoseTurn = entry.PlayerNumber == 2 ? "your_turn" : "their_turn";
+                    }
+                    else if (game.Status == "waiting")
+                    {
+                        whoseTurn = "waiting";
+                    }
+                }
+
+                games.Add(new ActiveGameInfo
+                {
+                    GameCode = game.Id,
+                    OpponentName = opponentName,
+                    Status = game.Status,
+                    WhoseTurn = whoseTurn,
+                    PlayerNumber = entry.PlayerNumber
+                });
+            }
+
+            Debug.Log($"[GameSessionService] Found {games.Count} active games for player {playerId}");
+            return games.ToArray();
+        }
+
+        /// <summary>
+        /// Removes a player from a game (for "Remove" button in My Games list).
+        /// If no players remain, deletes the game session.
+        /// </summary>
+        public async UniTask<bool> RemovePlayerFromGame(string gameCode, string playerId)
+        {
+            // Delete the session_players entry
+            var deleteResponse = await _client.Delete(
+                TABLE_SESSION_PLAYERS,
+                $"session_id=eq.{gameCode}&player_id=eq.{playerId}"
+            );
+
+            if (!deleteResponse.Success)
+            {
+                Debug.LogError($"[GameSessionService] Failed to remove player from game {gameCode}: {deleteResponse.Error}");
+                return false;
+            }
+
+            // Check if any players remain
+            int remainingCount = await GetPlayerCount(gameCode);
+
+            if (remainingCount == 0)
+            {
+                // No players left, delete the game session
+                var deleteGameResponse = await _client.Delete(TABLE_GAME_SESSIONS, $"id=eq.{gameCode}");
+                if (deleteGameResponse.Success)
+                {
+                    Debug.Log($"[GameSessionService] Deleted abandoned game {gameCode}");
+                }
+            }
+            else
+            {
+                // Mark game as abandoned if player leaves mid-game
+                await UpdateGameStatus(gameCode, "abandoned");
+            }
+
+            return true;
+        }
+
+        private SessionPlayerEntry[] ParseSessionPlayerEntries(string json)
+        {
+            if (string.IsNullOrEmpty(json) || json == "[]")
+            {
+                return new SessionPlayerEntry[0];
+            }
+
+            // Count entries
+            int count = 0;
+            foreach (char c in json)
+            {
+                if (c == '{') count++;
+            }
+
+            var entries = new SessionPlayerEntry[count];
+            int index = 0;
+            int pos = 0;
+
+            while (index < count && pos < json.Length)
+            {
+                int start = json.IndexOf('{', pos);
+                if (start < 0) break;
+
+                int depth = 0;
+                int end = start;
+                for (int i = start; i < json.Length; i++)
+                {
+                    if (json[i] == '{') depth++;
+                    else if (json[i] == '}') depth--;
+                    if (depth == 0)
+                    {
+                        end = i;
+                        break;
+                    }
+                }
+
+                string entryJson = json.Substring(start, end - start + 1);
+                entries[index] = new SessionPlayerEntry
+                {
+                    SessionId = ExtractStringField(entryJson, "session_id"),
+                    PlayerNumber = ExtractIntField(entryJson, "player_number")
+                };
+
+                index++;
+                pos = end + 1;
+            }
+
+            return entries;
         }
 
         // ============================================================
@@ -728,5 +920,27 @@ namespace DLYH.Networking.Services
             this.row = row;
             this.col = col;
         }
+    }
+
+    /// <summary>
+    /// Summary info for a game in the "My Active Games" list.
+    /// </summary>
+    [Serializable]
+    public class ActiveGameInfo
+    {
+        public string GameCode;      // 6-char game code
+        public string OpponentName;  // null if waiting for opponent
+        public string Status;        // waiting, active, playing
+        public string WhoseTurn;     // "your_turn", "their_turn", "waiting", "unknown"
+        public int PlayerNumber;     // 1 or 2 (which player this user is)
+    }
+
+    /// <summary>
+    /// Helper for parsing session_players entries.
+    /// </summary>
+    internal struct SessionPlayerEntry
+    {
+        public string SessionId;
+        public int PlayerNumber;
     }
 }

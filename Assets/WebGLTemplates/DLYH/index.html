@@ -25,6 +25,7 @@
     </div>
     <script>
       var canvas = document.querySelector("#unity-canvas");
+      var container = document.querySelector("#unity-container");
 
       function unityShowBanner(msg, type) {
         var warningBanner = document.querySelector("#unity-warning");
@@ -43,6 +44,27 @@
           }, 5000);
         }
         updateBannerVisibility();
+      }
+
+      // Responsive canvas sizing for desktop
+      function resizeCanvas() {
+        var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        if (isMobile) return; // Mobile handled separately
+
+        var maxWidth = window.innerWidth;
+        var maxHeight = window.innerHeight - 50; // Leave room for footer
+        var aspectRatio = 16 / 10; // 960/600 = 1.6
+
+        var width = maxWidth;
+        var height = width / aspectRatio;
+
+        if (height > maxHeight) {
+          height = maxHeight;
+          width = height * aspectRatio;
+        }
+
+        canvas.style.width = width + "px";
+        canvas.style.height = height + "px";
       }
 
       var buildUrl = "Build";
@@ -64,11 +86,12 @@
         meta.name = 'viewport';
         meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
         document.getElementsByTagName('head')[0].appendChild(meta);
-        document.querySelector("#unity-container").className = "unity-mobile";
+        container.className = "unity-mobile";
         canvas.className = "unity-mobile";
       } else {
-        canvas.style.width = "960px";
-        canvas.style.height = "600px";
+        // Desktop: responsive sizing
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
       }
 
       document.querySelector("#unity-loading-bar").style.display = "block";

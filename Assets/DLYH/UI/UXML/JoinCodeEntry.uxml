@@ -1,0 +1,43 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="../USS/JoinCodeEntry.uss" />
+
+    <!-- Modal Overlay (darkens background) -->
+    <ui:VisualElement name="modal-overlay" class="modal-overlay">
+
+        <!-- Modal Container -->
+        <ui:VisualElement name="modal-container" class="modal-container">
+
+            <!-- Header -->
+            <ui:VisualElement name="modal-header" class="modal-header">
+                <ui:Label name="modal-title" text="Join Game" class="modal-title" />
+            </ui:VisualElement>
+
+            <!-- Content -->
+            <ui:VisualElement name="modal-content" class="modal-content">
+
+                <!-- Instructions -->
+                <ui:Label name="instructions" text="Enter the 6-character game code:" class="instructions-text" />
+
+                <!-- Code Input -->
+                <ui:TextField name="code-input" max-length="6" class="code-input" />
+
+                <!-- Error Message (hidden by default) -->
+                <ui:Label name="error-message" text="" class="error-message hidden" />
+
+                <!-- Joining State (hidden by default) -->
+                <ui:VisualElement name="joining-state" class="joining-state hidden">
+                    <ui:Label name="joining-text" text="Joining game..." class="joining-text" />
+                </ui:VisualElement>
+
+            </ui:VisualElement>
+
+            <!-- Footer -->
+            <ui:VisualElement name="modal-footer" class="modal-footer">
+                <ui:Button name="btn-cancel" text="Cancel" class="modal-button cancel-button" />
+                <ui:Button name="btn-join" text="Join" class="modal-button join-button" />
+            </ui:VisualElement>
+
+        </ui:VisualElement>
+
+    </ui:VisualElement>
+</ui:UXML>

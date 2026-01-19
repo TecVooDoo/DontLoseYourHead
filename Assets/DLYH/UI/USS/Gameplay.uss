@@ -5,7 +5,7 @@
 .gameplay-root {
     flex-grow: 1;
     background-color: rgb(18, 18, 24);
-    padding: 8px;
+    padding: 4px;
     align-items: center;
 }
 
@@ -531,18 +531,8 @@
     opacity: 0.5;
 }
 
-/* === Responsive Adjustments === */
-
-/* Smaller screens - stack tabs vertically */
-@media (max-width: 500px) {
-    .player-tabs {
-        flex-direction: column;
-    }
-
-    .player-tab {
-        margin: 4px 0;
-    }
-}
+/* NOTE: @media queries do not work in Unity UI Toolkit.
+   Responsive behavior is handled via flex properties and ScrollViews. */
 
 /* === Word Row Adjustments for Gameplay === */
 

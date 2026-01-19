@@ -13,7 +13,7 @@
             <!-- Header -->
             <ui:VisualElement name="overlay-header" class="overlay-header">
                 <ui:Label name="overlay-title" text="Danger Status" class="overlay-title" />
-                <ui:Button name="btn-close-overlay" text="&#10005;" class="close-button" />
+                <ui:Button name="btn-close-overlay" text="X" class="close-button" />
             </ui:VisualElement>
 
             <!-- Guillotines Side by Side with Executioner in Center -->

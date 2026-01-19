@@ -14,14 +14,14 @@
 .menu-content {
     align-items: center;
     justify-content: center;
-    padding: 40px;
+    padding: 12px;
 }
 
 /* === Title Section === */
 
 .title-section {
     align-items: center;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
 }
 
 .title-text {
@@ -31,26 +31,26 @@
 }
 
 .title-line1 {
-    font-size: 56px;
+    font-size: 48px;
     color: rgb(220, 220, 230);
 }
 
 .title-line2 {
-    font-size: 64px;
+    font-size: 56px;
     color: rgb(220, 220, 230);
-    margin-top: -8px;
+    margin-top: -6px;
 }
 
 /* === Trivia Marquee (centered, replaces old tagline) === */
 
 .trivia-marquee {
-    font-size: 24px;
+    font-size: 16px;
     color: rgb(0, 180, 150);
     -unity-font-style: italic;
     -unity-text-align: middle-center;
-    margin-bottom: 32px;
-    min-height: 30px;
-    max-width: 500px;
+    margin-bottom: 12px;
+    min-height: 20px;
+    max-width: 400px;
     white-space: normal;
 }
 
@@ -63,10 +63,10 @@
 
 .menu-button {
     width: 100%;
-    height: 50px;
-    margin: 8px 0;
-    padding: 12px 32px;
-    font-size: 18px;
+    min-height: 36px;
+    margin: 4px 0;
+    padding: 8px 20px;
+    font-size: 15px;
     border-radius: 8px;
     -unity-font-style: bold;
     transition-property: background-color, border-color, scale;
@@ -148,11 +148,119 @@
     background-color: rgb(50, 50, 60);
 }
 
+/* === My Active Games Section === */
+
+.my-games-section {
+    margin-top: 16px;
+    padding: 12px 16px;
+    background-color: rgba(30, 30, 40, 0.6);
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: rgb(50, 50, 65);
+    min-width: 280px;
+    max-width: 320px;
+}
+
+.my-games-title {
+    font-size: 14px;
+    color: rgb(180, 180, 190);
+    -unity-font-style: bold;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom-width: 1px;
+    border-bottom-color: rgb(50, 50, 65);
+}
+
+.my-games-list {
+    flex-direction: column;
+}
+
+.my-game-item {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    margin: 2px 0;
+    background-color: rgb(35, 35, 45);
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: rgb(50, 50, 65);
+    transition-property: border-color, background-color;
+    transition-duration: 0.15s;
+}
+
+.my-game-item:hover {
+    border-color: rgb(0, 140, 120);
+    background-color: rgb(40, 40, 52);
+}
+
+.my-game-info {
+    flex-direction: column;
+    flex-grow: 1;
+    margin-right: 8px;
+}
+
+.my-game-opponent {
+    font-size: 13px;
+    color: rgb(220, 220, 230);
+    -unity-font-style: bold;
+}
+
+.my-game-status {
+    font-size: 11px;
+    color: rgb(120, 120, 140);
+    margin-top: 2px;
+}
+
+.my-game-status.your-turn {
+    color: rgb(0, 200, 160);
+}
+
+.my-game-status.waiting {
+    color: rgb(200, 160, 0);
+}
+
+.my-game-actions {
+    flex-direction: row;
+    align-items: center;
+}
+
+.my-game-btn {
+    padding: 4px 10px;
+    font-size: 11px;
+    border-radius: 4px;
+    margin-left: 4px;
+    min-height: 24px;
+}
+
+.my-game-btn.resume {
+    background-color: rgb(0, 120, 100);
+    border-color: rgb(0, 160, 130);
+    border-width: 1px;
+    color: rgb(255, 255, 255);
+}
+
+.my-game-btn.resume:hover {
+    background-color: rgb(0, 140, 120);
+}
+
+.my-game-btn.remove {
+    background-color: transparent;
+    border-color: rgb(180, 60, 80);
+    border-width: 1px;
+    color: rgb(180, 60, 80);
+    padding: 4px 8px;
+}
+
+.my-game-btn.remove:hover {
+    background-color: rgba(180, 60, 80, 0.2);
+}
+
 /* === Inline Settings Section === */
 
 .settings-section {
-    margin-top: 32px;
-    padding: 16px 24px;
+    margin-top: 16px;
+    padding: 12px 20px;
     background-color: rgba(30, 30, 40, 0.6);
     border-radius: 8px;
     border-width: 1px;
@@ -164,8 +272,8 @@
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    margin: 6px 0;
-    height: 32px;
+    margin: 4px 0;
+    height: 28px;
 }
 
 .settings-icon {
@@ -209,7 +317,7 @@
 
 .checkbox-row {
     justify-content: flex-start;
-    margin-top: 12px;
+    margin-top: 6px;
 }
 
 .settings-toggle {

@@ -1,0 +1,55 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="../USS/WaitingRoom.uss" />
+
+    <!-- Modal Overlay (darkens background) -->
+    <ui:VisualElement name="modal-overlay" class="modal-overlay">
+
+        <!-- Modal Container -->
+        <ui:VisualElement name="modal-container" class="modal-container">
+
+            <!-- Header -->
+            <ui:VisualElement name="modal-header" class="modal-header">
+                <ui:Label name="modal-title" text="Waiting for Opponent" class="modal-title" />
+            </ui:VisualElement>
+
+            <!-- Content -->
+            <ui:VisualElement name="modal-content" class="modal-content">
+
+                <!-- Instructions -->
+                <ui:Label name="instructions" text="Share this code with a friend:" class="instructions-text" />
+
+                <!-- Join Code Display -->
+                <ui:VisualElement name="code-container" class="code-container">
+                    <ui:Label name="join-code" text="ABC123" class="join-code" />
+                </ui:VisualElement>
+
+                <!-- Code Action Buttons (Copy and Share) -->
+                <ui:VisualElement name="code-actions" class="code-actions">
+                    <ui:Button name="btn-copy" text="Copy Code" class="code-action-button" />
+                    <ui:Button name="btn-share" text="Share Code" class="code-action-button share-button" />
+                </ui:VisualElement>
+
+                <!-- Status -->
+                <ui:VisualElement name="status-container" class="status-container">
+                    <ui:Label name="status-text" text="Waiting for player to join..." class="status-text" />
+                    <ui:VisualElement name="spinner" class="spinner" />
+                </ui:VisualElement>
+
+                <!-- Player Joined State (hidden by default) -->
+                <ui:VisualElement name="joined-state" class="joined-state hidden">
+                    <ui:Label name="joined-text" text="Player joined!" class="joined-text" />
+                    <ui:Label name="joined-name" text="Opponent" class="joined-name" />
+                </ui:VisualElement>
+
+            </ui:VisualElement>
+
+            <!-- Footer -->
+            <ui:VisualElement name="modal-footer" class="modal-footer">
+                <ui:Button name="btn-cancel" text="Cancel" class="modal-button cancel-button" />
+                <ui:Button name="btn-start" text="Start Game" class="modal-button start-button" />
+            </ui:VisualElement>
+
+        </ui:VisualElement>
+
+    </ui:VisualElement>
+</ui:UXML>

@@ -23,6 +23,15 @@
                 <ui:Button name="btn-join-game" text="Join Game" class="menu-button secondary" />
                 <ui:Button name="btn-how-to-play" text="How to Play" class="menu-button secondary" />
                 <ui:Button name="btn-feedback" text="Feedback" class="menu-button secondary" />
+                <ui:Button name="btn-exit" text="Exit" class="menu-button secondary" />
+            </ui:VisualElement>
+
+            <!-- My Active Games Section (hidden by default, shown when games exist) -->
+            <ui:VisualElement name="my-games-section" class="my-games-section hidden">
+                <ui:Label name="my-games-title" text="My Active Games" class="my-games-title" />
+                <ui:VisualElement name="my-games-list" class="my-games-list">
+                    <!-- Game items populated dynamically -->
+                </ui:VisualElement>
             </ui:VisualElement>
 
             <!-- Inline Settings Section -->

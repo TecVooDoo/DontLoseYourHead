@@ -57,6 +57,7 @@ namespace DLYH.Networking
         private int _missLimit;
         private bool _isInitialized;
         private bool _isDisposed;
+        private string _customOpponentName; // For phantom AI names
 
         // ============================================================
         // PROPERTIES
@@ -65,7 +66,7 @@ namespace DLYH.Networking
         /// <summary>Default color for The Executioner - Royal Blue RGB(60, 90, 180).</summary>
         public static readonly Color ExecutionerDefaultColor = new Color(0.235f, 0.353f, 0.706f, 1f);
 
-        public string OpponentName => _opponentSetupData?.PlayerName ?? "The Executioner";
+        public string OpponentName => _customOpponentName ?? _opponentSetupData?.PlayerName ?? "The Executioner";
         public Color OpponentColor => _opponentSetupData?.PlayerColor ?? ExecutionerDefaultColor;
         public int GridSize => _opponentSetupData?.GridSize ?? 8;
         public int WordCount => _opponentSetupData?.WordCount ?? 3;
@@ -85,11 +86,20 @@ namespace DLYH.Networking
         /// <param name="config">ExecutionerAI configuration ScriptableObject</param>
         /// <param name="hostGameObject">GameObject to attach ExecutionerAI component to</param>
         /// <param name="wordLists">Dictionary of word lists by length for AI word selection</param>
-        public LocalAIOpponent(ExecutionerConfigSO config, GameObject hostGameObject, Dictionary<int, WordListSO> wordLists)
+        public LocalAIOpponent(ExecutionerConfigSO config, GameObject hostGameObject, Dictionary<int, WordListSO> wordLists, string customName = null)
         {
             _config = config ?? throw new ArgumentNullException(nameof(config));
             _hostGameObject = hostGameObject ?? throw new ArgumentNullException(nameof(hostGameObject));
             _wordLists = wordLists ?? throw new ArgumentNullException(nameof(wordLists));
+            _customOpponentName = customName; // For phantom AI names
+        }
+
+        /// <summary>
+        /// Sets a custom opponent name (used for phantom AI).
+        /// </summary>
+        public void SetCustomOpponentName(string name)
+        {
+            _customOpponentName = name;
         }
 
         // ============================================================

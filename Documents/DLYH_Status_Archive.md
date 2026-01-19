@@ -4,7 +4,7 @@
 
 **Related Document:** `DLYH_Status.md` (active status document)
 
-**Last Updated:** January 16, 2026
+**Last Updated:** January 19, 2026
 
 ---
 
@@ -32,23 +32,28 @@ At the end of each session, move the following to this archive:
 
 ## Table of Contents
 
-1. [Version History (Sessions 1-44)](#version-history-sessions-1-44)
+1. [Version History (Sessions 1-61)](#version-history-sessions-1-61)
 2. [Phase A Design (Complete)](#phase-a-design-complete)
 3. [Phase B Design (Complete)](#phase-b-design-complete)
 4. [Phase C Design (Complete)](#phase-c-design-complete)
 5. [Phase D Design (Complete)](#phase-d-design-complete)
-6. [UX Design: Navigation & Settings (Implemented)](#ux-design-navigation--settings-implemented)
-7. [UX Redesign: Mode Selection (Implemented)](#ux-redesign-mode-selection-implemented)
-8. [Setup Wizard Flow (Superseded)](#setup-wizard-flow-superseded)
-9. [Table Model Spec (Implemented)](#table-model-spec-implemented)
-10. [Data Flow Diagrams](#data-flow-diagrams)
+6. [DAB Reference Architecture](#dab-reference-architecture)
+7. [DLYH Networking Implementation (v65-67)](#dlyh-networking-implementation-v65-67)
+8. [UX Design: Navigation & Settings (Implemented)](#ux-design-navigation--settings-implemented)
+9. [UX Redesign: Mode Selection (Implemented)](#ux-redesign-mode-selection-implemented)
+10. [Setup Wizard Flow (Superseded)](#setup-wizard-flow-superseded)
+11. [Table Model Spec (Implemented)](#table-model-spec-implemented)
+12. [Data Flow Diagrams](#data-flow-diagrams)
 
 ---
 
-## Version History (Sessions 1-44)
+## Version History (Sessions 1-61)
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 62 | Jan 17, 2026 | Fifty-first session - Networking UI Toolkit Overlays. Created MatchmakingOverlay, WaitingRoom, JoinCodeEntry UXML/USS. Wired phantom AI fallback. |
+| 61 | Jan 17, 2026 | Fiftieth session - Phase E started. Networking UI planning. |
+| 56-60 | Jan 16-17, 2026 | Sessions 45-50 - Various Phase E planning and initial work |
 | 55 | Jan 16, 2026 | Forty-fourth session - **Phase D Complete!** Implemented How to Play modal with scrollable help content. Moved DefenseViewPlan.md and UI_Toolkit_Integration_Plan.md to Archive. |
 | 54 | Jan 16, 2026 | Forty-third session - **Gameplay Audio & New Game Confirmation!** Wired UIAudioManager (keyboard, grid, hit/miss, buttons, popups). Added confirmation popup when starting new game during active game. Added ResetGameState() for proper cleanup. |
 | 53 | Jan 16, 2026 | Forty-second session - **Guillotine Polish & Audio Sync!** Fixed lever positioning (inner posts). Fixed executioner z-order and vertical position. Removed invalid USS properties. Synced stage transition audio (1.5s delay). Synced game-over animations with audio (blade drop, head fall). |
@@ -213,6 +218,143 @@ Convert gameplay UI to UI Toolkit with Attack/Defend tab switching, guillotine o
 ### Archived Plan Documents
 - `DefenseViewPlan.md` - Moved to Archive/
 - `UI_Toolkit_Integration_Plan.md` - Moved to Archive/
+
+---
+
+## DAB Reference Architecture
+
+**Purpose:** DAB (Dots and Boxes) has working async multiplayer that DLYH emulates. Archived here after patterns were ported.
+
+**Reference:** `E:\TecVooDoo\Projects\Games\4 Playtesting\Dots and Boxes\Documents\DAB_Status.md`
+
+### DAB Flow: "Invite a Friend" (Private Game)
+
+```
+User clicks "Invite a Friend"
+  |
+  v
+Generate 6-char game code (alphanumeric, excludes confusing chars: 0/O, 1/I/L)
+  |
+  v
+INSERT into game_sessions table:
+  - id: gameCode (primary key)
+  - game_type: 'dots-and-boxes'
+  - state: {gridSize, lines: {}, boxes: {}, color1, color2: null}
+  - status: 'waiting'
+  - created_by: currentPlayerId
+  |
+  v
+Add creator as Player 1 to session_players table
+  |
+  v
+Subscribe to realtime updates (wait for Player 2 to join)
+  |
+  v
+Display shareable link with code
+  |
+  v
+Game persists even if user closes browser - can return later via "My Active Games"
+```
+
+### DAB Database Schema
+
+**game_sessions:**
+| Column | Type | Purpose |
+|--------|------|---------|
+| id | VARCHAR(6) PK | Join code |
+| game_type | VARCHAR(50) | 'dots-and-boxes' or 'dlyh' |
+| status | VARCHAR(20) | waiting, playing, completed, abandoned |
+| created_by | UUID FK | Player who created |
+| state | JSONB | Full game state |
+| created_at | TIMESTAMP | Creation time |
+| updated_at | TIMESTAMP | Last activity |
+
+**session_players:**
+| Column | Type | Purpose |
+|--------|------|---------|
+| session_id | VARCHAR(6) FK | Links to game_sessions |
+| player_id | UUID FK | Links to players table |
+| player_number | INT | 1 or 2 |
+| player_name | TEXT | Display name |
+| player_color | TEXT | Hex color |
+| score | INT | Current score |
+| joined_at | TIMESTAMP | When joined |
+
+### DAB "My Active Games" List
+
+Populated differently based on auth state:
+- **Logged in:** Query `session_players` WHERE player_id = me, JOIN game_sessions
+- **Guest:** Use localStorage (loses data on cache clear)
+
+Display shows:
+- "vs {opponent}" or "vs Waiting..."
+- Game code
+- Status (Your turn / Their turn / Finished)
+- RESUME button
+- X button to remove
+
+### Key DAB Patterns Ported to DLYH
+
+1. **Game created IMMEDIATELY when code requested** - not just UI display
+2. **Code tied to real DB record** - can be looked up, joined, resumed
+3. **Active Games list** - users can return to games in progress
+4. **Realtime subscription** - notified when opponent joins or takes turn
+5. **Async by default** - games can span days, no session dependency
+
+---
+
+## DLYH Networking Implementation (v65-67)
+
+**Status:** Implemented Jan 17-18, 2026
+
+### Services Created
+
+| Service | Status | Notes |
+|---------|--------|-------|
+| `IOpponent` interface | Complete | AI and Remote interchangeable |
+| `LocalAIOpponent` | Complete | Wraps ExecutionerAI |
+| `RemotePlayerOpponent` | Partial | Action detection fragile |
+| `SupabaseClient` | Complete | HTTP client for REST API |
+| `AuthService` | Complete | OAuth, anonymous, session refresh |
+| `PlayerService` | Complete | Creates player records without auth |
+| `GameSessionService` | Complete | CreateGame, GetGame, JoinGame, UpdateGameState |
+| `GameStateSynchronizer` | Partial | Push/pull state, manual JSON parsing |
+| `RealtimeClient` | Complete | WebSocket subscription |
+| `MatchmakingService` | Complete | Queue + phantom AI fallback |
+| `NetworkingUIManager` | Complete | Manages all networking overlays |
+
+### What Was Fixed in v65
+
+1. **UIFlowController now creates networking services:**
+   - `SupabaseClient` (with anon key, no auth required)
+   - `PlayerService` (creates player records)
+   - `GameSessionService` (CRUD for game_sessions)
+   - `MatchmakingService` (orchestrates create/join flows)
+
+2. **Services passed to NetworkingUIManager.Initialize()**
+   - No longer passing null for services
+   - NetworkingUIManager now uses real backend calls
+
+3. **Player records ensured before online play:**
+   - `StartOnlineMatchmakingAsync()` calls `EnsurePlayerRecordAsync()`
+   - `HandleJoinCodeSubmittedAsync()` calls `EnsurePlayerRecordAsync()`
+
+4. **Private Game creates real Supabase record:**
+   - `MatchmakingService.CreatePrivateGameAsync()` -> `GameSessionService.CreateGame()`
+   - Join code is persisted and joinable
+
+5. **Join Game looks up and joins existing games:**
+   - `MatchmakingService.JoinWithCodeAsync()` -> `GetGame()` + validation + `JoinGame()`
+
+### What Was Fixed in v66-67
+
+- WaitingRoom: Share Code button, Start Game visible, Cancel deletes game
+- HandleResumeGame loads state from Supabase
+- DecryptWordPlacements() decodes Base64 word placements
+- CreateDefenseModelFromPlacements() builds grid from Supabase data
+- SetupGameplayWordRowsFromSavedState() for word rows
+- JSON parsing ExtractStringField() handles whitespace
+- Online waiting state: opponent shows "Waiting...", input blocked
 
 ---
 

@@ -309,7 +309,7 @@ GameObject:
   m_Component:
   - component: {fileID: 758470027}
   - component: {fileID: 758470028}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: GuillotineAudioManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -405,6 +405,13 @@ MonoBehaviour:
   _guillotineOverlayUss: {fileID: 7433441132597879392, guid: 07f6edbcdc5243045b1f6761f7546046, type: 3}
   _feedbackModalUxml: {fileID: 9197481963319205126, guid: 206fe0b070fc49345a86179c55a8aacf, type: 3}
   _hamburgerMenuUxml: {fileID: 9197481963319205126, guid: 3a29290c47d15694d8b29e1c4b458482, type: 3}
+  _matchmakingOverlayUxml: {fileID: 0}
+  _waitingRoomUxml: {fileID: 0}
+  _joinCodeEntryUxml: {fileID: 0}
+  _matchmakingOverlayUss: {fileID: 0}
+  _waitingRoomUss: {fileID: 0}
+  _joinCodeEntryUss: {fileID: 0}
+  _supabaseConfig: {fileID: 0}
   _threeLetterWords: {fileID: 11400000, guid: 06114520cd18e54439e47522617dbaa7, type: 2}
   _fourLetterWords: {fileID: 11400000, guid: 83e7ad5863c5046469a403a9dab4ec0c, type: 2}
   _fiveLetterWords: {fileID: 11400000, guid: d210015902afad641bbdd412067539a2, type: 2}
@@ -463,7 +470,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1538429030}
   - component: {fileID: 1538429029}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: UIAudioManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}

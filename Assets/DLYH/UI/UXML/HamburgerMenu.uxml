@@ -2,7 +2,7 @@
     <Style src="../USS/HamburgerMenu.uss" />
 
     <!-- Hamburger Button (always visible in top-left) -->
-    <ui:Button name="hamburger-button" text="&#9776;" class="hamburger-button" />
+    <ui:Button name="hamburger-button" text="=" class="hamburger-button" />
 
     <!-- Menu Overlay (shown when hamburger is clicked) -->
     <ui:VisualElement name="hamburger-overlay" class="hamburger-overlay hidden">

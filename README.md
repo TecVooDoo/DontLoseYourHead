@@ -37,5 +37,5 @@ Players place three hidden words on grids and take turns guessing letters or coo
 
 ---
 
-**Developer:** TecVooDoo LLC  
+**Developer:** TecVooDoo LLC
 **Designer:** Rune (Stephen Brandon)

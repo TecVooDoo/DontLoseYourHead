@@ -190,14 +190,14 @@ namespace DLYH.TableUI
 
             // Setup mode controls
             _placementButton = new Button(() => OnPlacementRequested?.Invoke(_wordIndex));
-            _placementButton.text = "⊕";
+            _placementButton.text = "+";
             _placementButton.tooltip = "Place word on grid";
             _placementButton.AddToClassList(ClassControlButton);
             _placementButton.AddToClassList(ClassPlacementButton);
             _root.Add(_placementButton);
 
             _clearButton = new Button(() => OnClearRequested?.Invoke(_wordIndex));
-            _clearButton.text = "✕";
+            _clearButton.text = "X";
             _clearButton.tooltip = "Clear word";
             _clearButton.AddToClassList(ClassControlButton);
             _clearButton.AddToClassList(ClassClearButton);
@@ -213,7 +213,7 @@ namespace DLYH.TableUI
 
             // Word guess mode controls (hidden by default)
             _backspaceButton = new Button(HandleBackspace);
-            _backspaceButton.text = "⌫";
+            _backspaceButton.text = "<-";
             _backspaceButton.tooltip = "Backspace";
             _backspaceButton.AddToClassList(ClassControlButton);
             _backspaceButton.AddToClassList("word-row-backspace-button");
@@ -221,7 +221,7 @@ namespace DLYH.TableUI
             _root.Add(_backspaceButton);
 
             _acceptButton = new Button(SubmitGuess);
-            _acceptButton.text = "✓";
+            _acceptButton.text = "OK";
             _acceptButton.tooltip = "Submit guess";
             _acceptButton.AddToClassList(ClassControlButton);
             _acceptButton.AddToClassList("word-row-accept-button");
@@ -229,7 +229,7 @@ namespace DLYH.TableUI
             _root.Add(_acceptButton);
 
             _cancelButton = new Button(CancelGuess);
-            _cancelButton.text = "✕";
+            _cancelButton.text = "X";
             _cancelButton.tooltip = "Cancel guess";
             _cancelButton.AddToClassList(ClassControlButton);
             _cancelButton.AddToClassList("word-row-cancel-button");

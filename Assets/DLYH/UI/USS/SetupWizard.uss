@@ -31,8 +31,21 @@
     width: 100%;
 }
 
+.cards-container > .unity-scroll-view__content-viewport {
+    overflow: visible;
+}
+
 .cards-container > .unity-scroll-view__content-container {
     padding: 10px;
+}
+
+/* Hide scrollbars - content should fit without scrolling */
+.cards-container .unity-scroller--vertical {
+    display: none;
+}
+
+.cards-container .unity-scroller--horizontal {
+    display: none;
 }
 
 /* === Setup Card === */
@@ -806,20 +819,5 @@
     background-color: rgb(0, 120, 100);
 }
 
-/* === Responsive Adjustments === */
-
-/* Narrow screens: stack panels vertically */
-@media (max-width: 800px) {
-    .setup-content {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .settings-panel {
-        max-width: none;
-    }
-
-    .placement-panel {
-        max-width: none;
-    }
-}
+/* NOTE: @media queries do not work in Unity UI Toolkit.
+   Responsive behavior is handled via flex properties and ScrollViews. */

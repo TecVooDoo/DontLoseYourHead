@@ -1,0 +1,228 @@
+/* WaitingRoom.uss - Styles for waiting room overlay (host with join code) */
+
+/* === Modal Overlay (semi-transparent backdrop) === */
+
+.modal-overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.8);
+    align-items: center;
+    justify-content: center;
+}
+
+/* === Modal Container (the dialog box) === */
+
+.modal-container {
+    background-color: rgb(28, 28, 36);
+    border-radius: 12px;
+    border-width: 2px;
+    border-color: rgb(60, 60, 75);
+    min-width: 380px;
+    max-width: 450px;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+/* === Modal Header === */
+
+.modal-header {
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    padding: 20px 24px 12px 24px;
+}
+
+.modal-title {
+    font-size: 22px;
+    -unity-font-style: bold;
+    color: rgb(0, 200, 170);
+}
+
+/* === Modal Content === */
+
+.modal-content {
+    padding: 16px 24px 20px 24px;
+    align-items: center;
+}
+
+.instructions-text {
+    font-size: 16px;
+    color: rgb(160, 160, 175);
+    margin-bottom: 16px;
+    -unity-text-align: middle-center;
+}
+
+/* === Join Code Display === */
+
+.code-container {
+    background-color: rgb(20, 20, 26);
+    border-radius: 8px;
+    border-width: 2px;
+    border-color: rgb(0, 160, 140);
+    padding: 16px 32px;
+    margin-bottom: 12px;
+}
+
+.join-code {
+    font-size: 42px;
+    -unity-font-style: bold;
+    color: rgb(255, 220, 100);
+    letter-spacing: 8px;
+    -unity-text-align: middle-center;
+}
+
+/* === Code Action Buttons (Copy and Share) === */
+
+.code-actions {
+    flex-direction: row;
+    justify-content: center;
+    margin-bottom: 24px;
+}
+
+.code-action-button {
+    background-color: rgb(50, 50, 62);
+    border-color: rgb(80, 80, 95);
+    border-width: 1px;
+    border-radius: 6px;
+    padding: 8px 16px;
+    margin: 0 6px;
+    font-size: 14px;
+    color: rgb(180, 180, 195);
+    min-width: 110px;
+}
+
+.code-action-button:hover {
+    background-color: rgb(60, 60, 72);
+    border-color: rgb(100, 100, 115);
+}
+
+.code-action-button:active {
+    background-color: rgb(45, 45, 55);
+}
+
+.share-button {
+    background-color: rgb(60, 100, 140);
+    border-color: rgb(80, 130, 180);
+    color: rgb(220, 230, 240);
+}
+
+.share-button:hover {
+    background-color: rgb(70, 115, 160);
+    border-color: rgb(100, 150, 200);
+}
+
+.share-button:active {
+    background-color: rgb(50, 85, 120);
+}
+
+/* === Status Container === */
+
+.status-container {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    margin-top: 8px;
+}
+
+.status-text {
+    font-size: 15px;
+    color: rgb(140, 140, 160);
+    margin-right: 12px;
+}
+
+/* Simple spinner using border animation (CSS-style) */
+.spinner {
+    width: 20px;
+    height: 20px;
+    border-radius: 10px;
+    border-width: 3px;
+    border-color: rgb(60, 60, 75);
+    border-top-color: rgb(0, 180, 150);
+    /* Note: Unity UI Toolkit doesn't support CSS animations,
+       spinner animation will be done via C# */
+}
+
+/* === Joined State === */
+
+.joined-state {
+    align-items: center;
+    margin-top: 16px;
+}
+
+.joined-text {
+    font-size: 18px;
+    color: rgb(100, 220, 100);
+    margin-bottom: 8px;
+}
+
+.joined-name {
+    font-size: 24px;
+    -unity-font-style: bold;
+    color: rgb(255, 255, 255);
+}
+
+/* === Modal Footer === */
+
+.modal-footer {
+    flex-direction: row;
+    justify-content: center;
+    padding: 16px 24px 20px 24px;
+    border-top-width: 1px;
+    border-top-color: rgb(50, 50, 65);
+}
+
+.modal-button {
+    min-width: 110px;
+    height: 44px;
+    padding: 10px 20px;
+    margin: 0 8px;
+    font-size: 15px;
+    -unity-font-style: bold;
+    border-radius: 6px;
+    transition-property: background-color, border-color;
+    transition-duration: 0.15s;
+}
+
+.cancel-button {
+    background-color: rgb(50, 50, 62);
+    border-color: rgb(70, 70, 85);
+    border-width: 1px;
+    color: rgb(180, 180, 190);
+}
+
+.cancel-button:hover {
+    background-color: rgb(60, 60, 72);
+    border-color: rgb(90, 90, 105);
+}
+
+.cancel-button:active {
+    background-color: rgb(45, 45, 55);
+}
+
+.start-button {
+    background-color: rgb(0, 140, 120);
+    border-color: rgb(0, 180, 150);
+    border-width: 2px;
+    color: rgb(255, 255, 255);
+}
+
+.start-button:hover {
+    background-color: rgb(0, 160, 140);
+}
+
+.start-button:active {
+    background-color: rgb(0, 120, 100);
+}
+
+.start-button:disabled {
+    opacity: 0.5;
+}
+
+/* === Hidden utility class === */
+
+.hidden {
+    display: none;
+}

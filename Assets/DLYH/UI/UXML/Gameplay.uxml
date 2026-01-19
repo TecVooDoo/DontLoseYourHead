@@ -8,7 +8,7 @@
         <!-- Header Bar -->
         <ui:VisualElement name="header-bar" class="header-bar">
             <ui:Button name="btn-hamburger" class="gameplay-hamburger-button">
-                <ui:Label text="&#9776;" class="gameplay-hamburger-icon" />
+                <ui:Label text="=" class="gameplay-hamburger-icon" />
             </ui:Button>
             <ui:Label name="turn-indicator" text="YOUR TURN" class="turn-indicator" />
             <ui:VisualElement class="header-spacer" />
@@ -31,7 +31,7 @@
                 </ui:VisualElement>
                 <ui:VisualElement name="tab-attack-progress" class="tab-progress">
                     <ui:Button name="btn-opponent-miss-counter" class="miss-counter-button">
-                        <ui:Label name="opponent-miss-icon" text="&#9760;" class="miss-icon" />
+                        <ui:Label name="opponent-miss-icon" text="!" class="miss-icon" />
                         <ui:Label name="opponent-miss-count" text="5/18" class="miss-count-text" />
                     </ui:Button>
                     <ui:VisualElement name="opponent-miss-bar" class="miss-bar">
@@ -54,7 +54,7 @@
                 </ui:VisualElement>
                 <ui:VisualElement name="tab-defend-progress" class="tab-progress">
                     <ui:Button name="btn-player-miss-counter" class="miss-counter-button">
-                        <ui:Label name="player-miss-icon" text="&#9760;" class="miss-icon" />
+                        <ui:Label name="player-miss-icon" text="!" class="miss-icon" />
                         <ui:Label name="player-miss-count" text="3/24" class="miss-count-text" />
                     </ui:Button>
                     <ui:VisualElement name="player-miss-bar" class="miss-bar">
@@ -103,7 +103,7 @@
         <ui:VisualElement class="overlay-content">
             <ui:VisualElement class="overlay-header">
                 <ui:Label text="Guessed Words" class="overlay-title" />
-                <ui:Button name="btn-close-guessed" text="&#10005;" class="overlay-close-button" />
+                <ui:Button name="btn-close-guessed" text="X" class="overlay-close-button" />
             </ui:VisualElement>
             <ui:ScrollView name="guessed-words-scroll" class="guessed-words-scroll">
                 <!-- Your Guesses Section -->
