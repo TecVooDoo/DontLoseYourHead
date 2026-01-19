@@ -499,12 +499,14 @@ namespace DLYH.Networking.Services
 
         /// <summary>
         /// Adds a game to the matchmaking queue.
+        /// Note: difficulty removed from schema - table doesn't have that column.
         /// </summary>
         private async UniTask<string> AddToQueueAsync(string gameCode, string playerId, int gridSize, string difficulty)
         {
             try
             {
-                string json = $"{{\"game_id\":\"{gameCode}\",\"game_type\":\"{_config.GameTypeId}\",\"player_id\":\"{playerId}\",\"grid_size\":{gridSize},\"difficulty\":\"{difficulty}\",\"status\":\"waiting\"}}";
+                // Note: difficulty is passed but not sent to DB - matchmaking_queue table doesn't have that column
+                string json = $"{{\"game_id\":\"{gameCode}\",\"game_type\":\"{_config.GameTypeId}\",\"player_id\":\"{playerId}\",\"grid_size\":{gridSize},\"status\":\"waiting\"}}";
 
                 SupabaseResponse response = await _client.Post(TABLE_MATCHMAKING_QUEUE, json);
 

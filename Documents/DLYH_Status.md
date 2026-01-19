@@ -4,8 +4,8 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `C:\Unity\DontLoseYourHead`
-**Document Version:** 63
-**Last Updated:** January 17, 2026
+**Document Version:** 67
+**Last Updated:** January 18, 2026
 
 **Archive:** `DLYH_Status_Archive.md` - Historical designs, old version history, completed phase details
 
@@ -19,18 +19,26 @@
 
 **Current Phase:** Phase E - Networking & Auth
 
-**Last Session (Jan 17, 2026):** Fifty-second session - **Online Mode Choice & Private Game Flow!**
-- Added online mode choice to setup wizard (Find Opponent vs Private Game)
-- Created `OnlineMode` enum (FindOpponent, PrivateGame)
-- Wired WaitingRoom overlay for Create Private Game flow (shows join code)
-- Wired JoinCodeEntry for Join Game flow from main menu
-- Updated SetupWizardUIManager with `_cardOnlineMode`, `SelectOnlineMode()`
-- Updated UIFlowController to branch on `SelectedOnlineMode`
-- Fixed all networking overlays to fill screen properly (position: absolute)
-- Join Game flow: Profile → Difficulty → JoinCode (skips Grid/Words - host determines those)
-- **Next:** Test online flows in Unity (Find Opponent, Create Private Game, Join Game)
+**Last Session (Jan 18, 2026):** Fifty-sixth session - **Resume Game Fixes & Editor Auth Discovery!**
+- **Fixed Resume Game data loading:**
+  - Added `DecryptWordPlacements()` to decode Base64 word placements from Supabase
+  - Added `CreateDefenseModelFromPlacements()` to build defense grid from Supabase data (not local `_placementAdapter`)
+  - Added `SetupGameplayWordRowsFromSavedState()` for word rows from saved data
+  - Fixed JSON parsing `ExtractStringField()` to handle whitespace after colons
+- **Fixed Continue Game button:**
+  - Now shows gameplay screen if `_hasActiveGame` is true
+  - Falls back to main menu if no active game (shouldn't happen)
+- **Fixed matchmaking queue error:**
+  - Added 'difficulty' column to queue entry (was causing 400 Bad Request)
+- **Added confirmation warning:**
+  - When resuming a different game while one is active, shows warning dialog
+- **Discovery: Editor testing without auth creates inconsistent player IDs**
+  - PlayerService creates NEW player record when name changes
+  - Games created under one player ID don't show for another
+  - Need persistent player ID for editor testing
+- **Next Session:** Add persistent player ID for Unity Editor testing, then retest resume flow
 
-**Previous Session (Jan 17, 2026):** Fifty-first session - Networking UI Toolkit Overlays
+**Previous Session (Jan 18, 2026):** Fifty-fifth session - WaitingRoom Flow Fix & Resume Game Implementation
 
 ---
 
@@ -76,7 +84,14 @@
 - [x] Add online mode choice (Find Opponent vs Private Game)
 - [x] Wire WaitingRoom for Create Private Game flow
 - [x] Wire JoinCodeEntry for Join Game flow
-- [ ] Wire Join Code to Supabase backend
+- [x] Create Supabase game record when Private Game selected
+- [x] Wire JoinCodeEntry to lookup and join existing game from Supabase
+- [x] Add "My Active Games" list to main menu
+- [x] WaitingRoom: Add Share Code button, Start Game button, Cancel deletes game
+- [x] Fix game resume (JSON parsing, decryption, model creation from Supabase data)
+- [x] Fix matchmaking queue error (missing difficulty column)
+- [x] Add resume confirmation when different game active
+- [ ] Add persistent player ID for editor testing
 - [ ] Test all online flows end-to-end
 
 **Async Gameplay:**
@@ -114,12 +129,34 @@
 
 ## Active TODO
 
-**Immediate:**
-- [ ] Test online flows in Unity Editor:
-  - Play Online → Find Opponent → Matchmaking overlay → Phantom AI fallback
-  - Play Online → Private Game → WaitingRoom with join code
-  - Join Game → Profile → Difficulty → JoinCode entry
-- [ ] Assign UXML/USS assets in Inspector (if not already)
+**Editor Auth for Testing (v67 - NEW):**
+Without real OAuth, the PlayerService creates new player records when name changes, breaking "My Active Games".
+
+1. [ ] **Add persistent player ID for Unity Editor:**
+   - Store player ID in PlayerPrefs on first creation
+   - Load from PlayerPrefs on subsequent sessions
+   - Only applies in Unity Editor (not builds)
+   - This allows consistent identity for testing resume/active games
+
+**Game Persistence (v65 - FIXED):**
+The networking UI now properly creates game records in Supabase. Join codes are real and joinable.
+
+1. [x] **Wire Private Game to create Supabase record:**
+   - UIFlowController creates SupabaseClient, PlayerService, GameSessionService, MatchmakingService
+   - Services passed to NetworkingUIManager.Initialize()
+   - Player record created via EnsurePlayerRecordAsync() before matchmaking
+   - MatchmakingService.CreatePrivateGameAsync() creates real Supabase game
+
+2. [x] **Wire JoinCodeEntry to join existing game:**
+   - MatchmakingService.JoinWithCodeAsync() looks up game, validates status, joins as player 2
+   - Player record ensured before join attempt
+
+3. [x] **Add "My Active Games" list to Main Menu:**
+   - GameSessionService.GetPlayerGames() queries session_players + game_sessions
+   - Display: opponent name (or "Waiting..."), game code, whose turn, status
+   - Resume button (TODO: load game state from Supabase)
+   - Remove button removes player from game, deletes if no players left
+   - Shows at bottom of main menu between buttons and settings
 
 **Phase E:** Networking & Auth - In Progress
 - [x] Set up OAuth redirect URL for Cloudflare Pages
@@ -127,8 +164,11 @@
 - [x] Configure Supabase redirect URLs
 - [x] Create UI Toolkit networking overlays
 - [x] Wire online mode choice to setup wizard
+- [x] Wire networking services to UI (SupabaseClient, PlayerService, GameSessionService, MatchmakingService)
+- [x] Create player records before online play
+- [x] Add "My Active Games" list to main menu
+- [ ] **Implement game resume (load state, skip to gameplay)**
 - [ ] Port auth UI from Dots and Boxes (Google/Facebook sign-in buttons)
-- [ ] Wire Join Code to Supabase
 - [ ] Setup data exchange between players
 - [ ] Turn synchronization
 - [ ] State sync during gameplay
@@ -207,16 +247,176 @@
 
 ---
 
+## Reference Documents
+
+| Document | Path | Purpose |
+|----------|------|---------|
+| DAB Status | `E:\TecVooDoo\Projects\Games\4 Playtesting\Dots and Boxes\Documents\DAB_Status.md` | Working async multiplayer reference (HTML/JS) |
+| TecVooDoo Web Status | `E:\TecVooDoo\Projects\Other\TecVooDooWebsite\Documents\TecVooDoo_Web_Status.md` | Supabase backend, auth, shared infrastructure |
+| DAB Source | `E:\TecVooDoo\TecVooDooSite\site\games\dots-and-boxes\index.html` | Single-file game implementation (~3100 lines) |
+
+---
+
+## DAB Reference Architecture (Working Async Multiplayer)
+
+Reference: `E:\TecVooDoo\Projects\Games\4 Playtesting\Dots and Boxes\Documents\DAB_Status.md`
+
+DAB (Dots and Boxes) has working async multiplayer that DLYH should emulate. Key patterns:
+
+### DAB Flow: "Invite a Friend" (Private Game)
+
+```
+User clicks "Invite a Friend"
+  |
+  v
+Generate 6-char game code (alphanumeric, excludes confusing chars: 0/O, 1/I/L)
+  |
+  v
+INSERT into game_sessions table:
+  - id: gameCode (primary key)
+  - game_type: 'dots-and-boxes'
+  - state: {gridSize, lines: {}, boxes: {}, color1, color2: null}
+  - status: 'waiting'
+  - created_by: currentPlayerId
+  |
+  v
+Add creator as Player 1 to session_players table
+  |
+  v
+Subscribe to realtime updates (wait for Player 2 to join)
+  |
+  v
+Display shareable link with code
+  |
+  v
+Game persists even if user closes browser - can return later via "My Active Games"
+```
+
+### DAB Database Schema
+
+**game_sessions:**
+| Column | Type | Purpose |
+|--------|------|---------|
+| id | VARCHAR(6) PK | Join code |
+| game_type | VARCHAR(50) | 'dots-and-boxes' or 'dlyh' |
+| status | VARCHAR(20) | waiting, playing, completed, abandoned |
+| created_by | UUID FK | Player who created |
+| state | JSONB | Full game state |
+| created_at | TIMESTAMP | Creation time |
+| updated_at | TIMESTAMP | Last activity |
+
+**session_players:**
+| Column | Type | Purpose |
+|--------|------|---------|
+| session_id | VARCHAR(6) FK | Links to game_sessions |
+| player_id | UUID FK | Links to players table |
+| player_number | INT | 1 or 2 |
+| player_name | TEXT | Display name |
+| player_color | TEXT | Hex color |
+| score | INT | Current score |
+| joined_at | TIMESTAMP | When joined |
+
+### DAB "My Active Games" List
+
+Populated differently based on auth state:
+- **Logged in:** Query `session_players` WHERE player_id = me, JOIN game_sessions
+- **Guest:** Use localStorage (loses data on cache clear)
+
+Display shows:
+- "vs {opponent}" or "vs Waiting..."
+- Game code
+- Status (Your turn / Their turn / Finished)
+- RESUME button
+- X button to remove
+
+### Key DAB Patterns to Port
+
+1. **Game created IMMEDIATELY when code requested** - not just UI display
+2. **Code tied to real DB record** - can be looked up, joined, resumed
+3. **Active Games list** - users can return to games in progress
+4. **Realtime subscription** - notified when opponent joins or takes turn
+5. **Async by default** - games can span days, no session dependency
+
+---
+
+## DLYH Networking Gap Analysis
+
+### What DLYH Has (Services Exist)
+
+| Service | Status | Notes |
+|---------|--------|-------|
+| `IOpponent` interface | Complete | AI and Remote interchangeable |
+| `LocalAIOpponent` | Complete | Wraps ExecutionerAI |
+| `RemotePlayerOpponent` | Partial | Action detection fragile |
+| `SupabaseClient` | Complete | HTTP client for REST API |
+| `AuthService` | Complete | OAuth, anonymous, session refresh |
+| `PlayerService` | Complete | Creates player records without auth |
+| `GameSessionService` | Partial | Has CreateGame, GetGame, JoinGame methods |
+| `GameStateSynchronizer` | Partial | Push/pull state, manual JSON parsing |
+| `RealtimeClient` | Complete | WebSocket subscription |
+| `MatchmakingService` | Partial | Queue + phantom AI fallback |
+| `NetworkingUIManager` | UI Only | Not wired to backend services |
+
+### What's Missing (Critical Gaps)
+
+| Feature | DAB Has | DLYH Has | Gap |
+|---------|---------|----------|-----|
+| Game persisted when code shown | Yes | Yes | MatchmakingService.CreatePrivateGameAsync (v65) |
+| My Active Games list | Yes | Yes | GameSessionService.GetPlayerGames (v65) |
+| Resume game from code | Yes | Partial | UI exists, state loading TODO |
+| Join code lookup | Yes | Yes | MatchmakingService.JoinWithCodeAsync (v65) |
+| Turn-based state machine | Yes | Partial | No server-side validation |
+| Inactivity forfeit | Yes | Constant only | Not enforced |
+
+### Fixed in v65 (Jan 18, 2026)
+
+The following issues were resolved:
+
+1. **UIFlowController now creates networking services:**
+   - `SupabaseClient` (with anon key, no auth required)
+   - `PlayerService` (creates player records)
+   - `GameSessionService` (CRUD for game_sessions)
+   - `MatchmakingService` (orchestrates create/join flows)
+
+2. **Services passed to NetworkingUIManager.Initialize()**
+   - No longer passing null for services
+   - NetworkingUIManager now uses real backend calls
+
+3. **Player records ensured before online play:**
+   - `StartOnlineMatchmakingAsync()` calls `EnsurePlayerRecordAsync()`
+   - `HandleJoinCodeSubmittedAsync()` calls `EnsurePlayerRecordAsync()`
+
+4. **Private Game creates real Supabase record:**
+   - `MatchmakingService.CreatePrivateGameAsync()` → `GameSessionService.CreateGame()`
+   - Join code is persisted and joinable
+
+5. **Join Game looks up and joins existing games:**
+   - `MatchmakingService.JoinWithCodeAsync()` → `GetGame()` + validation + `JoinGame()`
+
+### Still Needed
+
+**1. Add Active Games query and UI:**
+```csharp
+List<GameSession> myGames = await _gameSessionService.GetPlayerGames(playerId);
+// Display in main menu with Resume/Remove buttons
+```
+
+---
+
 ## Known Issues
 
 **Architecture:**
-- UIFlowController at ~4400 lines (could extract Turn Management and AI Opponent coordination if needed)
+- UIFlowController at ~4500 lines (could extract Turn Management and AI Opponent coordination if needed)
 - Inconsistent namespace convention (TecVooDoo.DontLoseYourHead.* vs DLYH.*)
 
 **Networking:**
+- ~~BLOCKER: WaitingRoom shows join code but NO game persisted~~ **FIXED in v65**
+- ~~BLOCKER: JoinCodeEntry not wired to backend~~ **FIXED in v65**
+- ~~No "My Active Games" list~~ **FIXED in v65** (Resume TODO)
+- Resume game loads state but gameplay resume not implemented yet
 - NetworkGameManager still uses AuthService (needs update for Phase 1)
 - Full multiplayer gameplay not yet tested (setup exchange, turns, state sync)
-- Networking overlays not yet tested in Unity Editor
+- Realtime subscription for opponent joining not yet implemented (polling placeholder)
 
 **Audio:**
 - Music crossfading/switching too frequently (should only switch at end of track)
@@ -644,29 +844,33 @@ After each work session, update this document:
 
 | Version | Date | Summary |
 |---------|------|---------|
-| 63 | Jan 17, 2026 | Fifty-second session - **Online Mode Choice & Private Game Flow!** Added online mode choice to setup wizard. Wired WaitingRoom for private games. Wired JoinCodeEntry for Join Game. Fixed overlay positioning. |
-| 62 | Jan 17, 2026 | Fifty-first session - **Networking UI Toolkit Overlays!** Created MatchmakingOverlay, WaitingRoom, JoinCodeEntry UXML/USS. Created NetworkingUIManager. Wired phantom AI fallback. |
-| 61 | Jan 17, 2026 | Fiftieth session - **UI Sizing for 1920x1080!** Fixed Panel Settings (1200x800 → 1920x1080, Match 0.5). Compacted MainMenu layout (titles 48/56px, reduced margins/padding throughout). Reduced gameplay root padding. |
-| 60 | Jan 17, 2026 | Forty-ninth session - **WebGL Build Blockers Fixed!** Added Exit button. Fixed game grid stacking (CleanupTableComponents). Fixed game state reset (_gameplayManager.Reset). Reduced MainMenu font sizes. UI overlap on resize documented as known issue. |
-| 59 | Jan 17, 2026 | Forty-eighth session - **WebGL Build Fixes!** Fixed responsive canvas sizing (scales to browser). Fixed missing icons (Unicode → ASCII). Fixed End Game confirmation bug (gameplay screen not hiding). |
+| 67 | Jan 18, 2026 | Fifty-sixth session - **Resume Game Fixes & Editor Auth Discovery!** Fixed resume game data loading (decrypt placements, create models from Supabase data). Fixed Continue button, matchmaking queue error, added resume confirmation. Discovered editor auth issue - need persistent player ID for testing. |
+| 66 | Jan 18, 2026 | Fifty-fifth session - **WaitingRoom Flow & Resume Game!** Fixed WaitingRoom: Share Code button, Start Game visible, Cancel deletes game. Implemented HandleResumeGame (loads state from Supabase). Found issues: opponent card shows "Executioner", resume parsing fails. |
+| 65 | Jan 18, 2026 | Fifty-fourth session - **Networking Services Wired!** Fixed critical gap: UIFlowController now creates and passes networking services to NetworkingUIManager. Player records created before online play. Join codes now persist to Supabase. |
+| 64 | Jan 17, 2026 | Fifty-third session - Networking Gap Analysis. Compared to DAB architecture. Discovered critical gap: join codes not persisted to Supabase. Documented DAB patterns and required wiring. |
+| 63 | Jan 17, 2026 | Fifty-second session - Online Mode Choice & Private Game Flow. Added online mode choice to setup wizard. Wired WaitingRoom and JoinCodeEntry UI. |
+| 62 | Jan 17, 2026 | Fifty-first session - Networking UI Toolkit Overlays. Created MatchmakingOverlay, WaitingRoom, JoinCodeEntry UXML/USS. Wired phantom AI fallback. |
 
 **Full version history:** See `DLYH_Status_Archive.md`
 
 ---
 
-## Known Issues (v63)
+## Known Issues (v67)
 
 **UI/Layout:**
 - UI elements overlap when viewport/browser is resized to smaller sizes (Unity UI Toolkit doesn't support CSS media queries - would need C# viewport detection to fix properly)
+- **MOBILE BLOCKER:** Bottom buttons inaccessible on mobile (even in fullscreen) - mobile play currently impossible until UI sizing fixed
 
 **Architecture:**
-- UIFlowController at ~4500 lines (could extract Turn Management and AI Opponent coordination if needed)
+- UIFlowController at ~5500 lines (added resume game methods - could extract networking helpers if needed)
 - Inconsistent namespace convention (TecVooDoo.DontLoseYourHead.* vs DLYH.*)
 
 **Networking:**
-- NetworkGameManager still uses AuthService (needs update for Phase 1)
+- **BLOCKER: Editor testing has no persistent identity** - PlayerService creates new player record when name changes, so games don't persist across sessions. Need to store player ID in PlayerPrefs for editor testing.
+- **Opponent card shows "Executioner"** instead of "Waiting..." when starting online game without opponent
+- **Player can move on empty board** - should block input until opponent joins and has data
+- Realtime subscription for opponent joining not yet implemented (polling placeholder exists)
 - Full multiplayer gameplay not yet tested (setup exchange, turns, state sync)
-- Networking overlays not yet tested in Unity Editor
 
 **Audio:**
 - Music crossfading/switching too frequently (should only switch at end of track)
@@ -675,51 +879,99 @@ After each work session, update this document:
 
 ## Next Session Instructions
 
-**Starting Point:** This document (DLYH_Status.md v63)
+**Starting Point:** This document (DLYH_Status.md v67)
 
 **Scene to Use:** NetworkingScene.unity (for Phase E networking work)
 
 **Current State:**
 - Phase A, B, C, D COMPLETE - Full single-player gameplay working!
-- Phase E in progress - Online mode flows wired up, need testing
+- Phase E in progress - Resume game code written but needs persistent player ID to test!
 
 **Important:** Game logic is now opponent-agnostic! Use `_opponent` (not `_aiOpponent`), handlers are `HandleOpponent*` (not `HandleAI*`), and `CellOwner` only has `Player` and `Opponent` values.
 
-**Phase E Next Steps:**
-1. **TEST ONLINE FLOWS:** Open Unity, run game, test each flow:
-   - Play Online → Find Opponent → Should show matchmaking overlay → Phantom AI after 6s
-   - Play Online → Private Game → Should show WaitingRoom with join code
-   - Join Game → Profile → Difficulty → JoinCode entry
-2. Fix any issues discovered during testing
-3. Wire Join Code to Supabase backend
-4. Port auth UI from Dots and Boxes (sign-in buttons)
-5. Implement real matchmaking with Supabase
+---
 
-**Online Mode Flows:**
-| Flow | Cards Shown | End State |
-|------|-------------|-----------|
-| Play Solo | Profile → Grid → Words → Difficulty → Board Setup | Game vs AI |
-| Play Online → Find Opponent | Profile → Grid → Words → Difficulty → Online Mode → Board Setup | Matchmaking → Phantom AI |
-| Play Online → Private Game | Profile → Grid → Words → Difficulty → Online Mode → Board Setup | WaitingRoom with code |
-| Join Game | Profile → Difficulty → JoinCode | Join host's game |
+### Phase E Priority: Fix Editor Testing Auth
 
-**Existing Networking Foundation (Phase 0.5):**
-- `IOpponent` interface for opponent abstraction
-- `LocalAIOpponent` wrapping ExecutionerAI
-- `RemotePlayerOpponent` for network play (stub)
-- `OpponentFactory` for creating opponents
-- Supabase services (Auth, GameSession, Realtime, StateSynchronizer)
-- `PlayerService` for creating player records without auth
+**What's Working (v67):**
+- UIFlowController creates networking services
+- Private Game creates real Supabase game record with join code
+- WaitingRoom has Copy Code, Share Code, Start Game, Cancel buttons
+- Cancel deletes the created game from Supabase
+- "My Active Games" list shows on main menu
+- HandleResumeGame implemented with proper decryption/model creation
+- JSON parsing fixed for whitespace handling
+- Continue button fixed, matchmaking queue fixed, resume confirmation added
 
-**Tab Behavior Summary:**
+**Critical Issue to Fix First:**
+
+**1. Editor Testing Has No Persistent Identity (BLOCKER)**
+- PlayerService creates NEW player record when name changes
+- Games created under player ID "abc123" won't show when player ID becomes "xyz789"
+- This breaks "My Active Games" and resume testing in the editor
+- **Fix:** Store player ID in PlayerPrefs for Unity Editor only
+- Location: `PlayerService.cs` - modify `EnsurePlayerRecordAsync()` to check/store PlayerPrefs
+- After fix, can properly test resume game flow
+
+**After Identity Fix:**
+
+**2. Opponent Card Shows "Executioner" for Online Games**
+- When starting online game via "Start Game" button, opponent card shows "Executioner"
+- Should show "Waiting..." when no opponent has joined
+- Fix location: `TransitionToGameplay()` or `StartGameAfterMatchmaking()` - need to handle null opponent
+
+**3. Player Can Move on Empty Board**
+- After clicking "Start Game" without opponent, game allows moves
+- Should block input until opponent joins with their grid/words
+- Need "waiting for opponent" state that disables guess input
+
+---
+
+### Services That Already Exist (Just Need Wiring)
+
+| Service | Location | Key Methods |
+|---------|----------|-------------|
+| `GameSessionService` | DLYH.Networking.Services | `CreateGame()`, `GetGame()`, `JoinGame()`, `UpdateGameState()` |
+| `PlayerService` | DLYH.Networking.Services | `EnsurePlayerRecordAsync()`, `CurrentPlayerId` |
+| `GameSubscription` | DLYH.Networking.Services | `SubscribeToGame()`, events for opponent join/turn |
+| `MatchmakingService` | DLYH.Networking.Services | `CreatePrivateGameAsync()`, `JoinWithCodeAsync()` |
+
+**Note:** These services have the methods, but `NetworkingUIManager` doesn't call them. It generates random codes locally instead.
+
+---
+
+### Online Mode Flows (Current vs Target)
+
+| Flow | Current State | Target State |
+|------|---------------|--------------|
+| Private Game | Shows code, doesn't save | Creates Supabase record, code is joinable |
+| Join Game | UI exists, not wired | Looks up code, joins game, loads host settings |
+| My Active Games | Doesn't exist | Shows all player's games, can resume |
+| Find Opponent | Shows matchmaking UI | Queue-based matching or phantom AI fallback |
+
+---
+
+### Key Files to Modify
+
+1. **UIFlowController.cs** (~4500 lines) - Where Private Game flow leads to WaitingRoom
+2. **NetworkingUIManager.cs** (~640 lines) - Currently generates local codes, needs to call services
+3. **Main menu UXML** - Add "My Active Games" section at bottom
+
+---
+
+### Tab Behavior Summary (Unchanged)
+
 | Tab | Grid Shows | Words Show | Keyboard Shows | Whose Guesses |
 |-----|------------|------------|----------------|---------------|
 | Attack | Opponent's (fog + your guesses) | Opponent's (hidden) | YOUR guesses | Yours |
 | Defend | YOUR (visible + AI guesses) | YOUR (visible) | AI's guesses | AI's |
 
-**Do NOT:**
+---
+
+### Do NOT:
 - Delete NetworkingBackup.unity scene (backup in case networking breaks things)
 - Over-polish visuals yet (functional first, polish in Phase F)
+- Test online flows until game persistence is wired (codes don't work yet)
 
 ---
 
