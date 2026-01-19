@@ -35,8 +35,10 @@ namespace DLYH.AI.Core
         private int _currentHitsToIncrease;
         private int _currentMissesToDecrease;
 
-        // Tracking for rubber-banding
-        private readonly Queue<bool> _recentPlayerGuesses;
+        // Tracking for rubber-banding - using ring buffer to avoid allocations
+        private readonly bool[] _recentPlayerGuesses;
+        private int _guessWriteIndex;
+        private int _guessCount;
 
         // Tracking for adaptive thresholds
         private int _consecutiveIncreases;
@@ -90,8 +92,10 @@ namespace DLYH.AI.Core
             _currentHitsToIncrease = config.GetHitsToIncreaseForDifficulty(playerDifficulty);
             _currentMissesToDecrease = config.GetMissesToDecreaseForDifficulty(playerDifficulty);
 
-            // Initialize tracking
-            _recentPlayerGuesses = new Queue<bool>(config.RecentGuessesToTrack);
+            // Initialize tracking - pre-allocate ring buffer to avoid per-guess allocations
+            _recentPlayerGuesses = new bool[config.RecentGuessesToTrack];
+            _guessWriteIndex = 0;
+            _guessCount = 0;
             _consecutiveIncreases = 0;
             _consecutiveDecreases = 0;
 
@@ -111,13 +115,12 @@ namespace DLYH.AI.Core
         /// <param name="wasHit">True if the player's guess was a hit, false if miss</param>
         public void RecordPlayerGuess(bool wasHit)
         {
-            // Add to recent guesses queue
-            _recentPlayerGuesses.Enqueue(wasHit);
-
-            // Trim queue to max size
-            while (_recentPlayerGuesses.Count > _config.RecentGuessesToTrack)
+            // Add to ring buffer (no allocation)
+            _recentPlayerGuesses[_guessWriteIndex] = wasHit;
+            _guessWriteIndex = (_guessWriteIndex + 1) % _recentPlayerGuesses.Length;
+            if (_guessCount < _recentPlayerGuesses.Length)
             {
-                _recentPlayerGuesses.Dequeue();
+                _guessCount++;
             }
 
             // Check for consecutive hits/misses and adjust accordingly
@@ -144,7 +147,8 @@ namespace DLYH.AI.Core
             _currentHitsToIncrease = _config.GetHitsToIncreaseForDifficulty(playerDifficulty);
             _currentMissesToDecrease = _config.GetMissesToDecreaseForDifficulty(playerDifficulty);
 
-            _recentPlayerGuesses.Clear();
+            _guessWriteIndex = 0;
+            _guessCount = 0;
             _consecutiveIncreases = 0;
             _consecutiveDecreases = 0;
 
@@ -280,26 +284,27 @@ namespace DLYH.AI.Core
         // ============================================================
 
         /// <summary>
-        /// Counts consecutive matching results from the end of the queue.
+        /// Counts consecutive matching results from the end of the ring buffer.
+        /// No allocation - reads directly from pre-allocated array.
         /// </summary>
         /// <param name="targetValue">The value to count (true for hits, false for misses)</param>
         /// <returns>Number of consecutive matches from the most recent guess</returns>
         private int CountTrailingMatches(bool targetValue)
         {
-            if (_recentPlayerGuesses.Count == 0)
+            if (_guessCount == 0)
             {
                 return 0;
             }
 
             int count = 0;
 
-            // Convert queue to array to iterate from end
-            bool[] guesses = _recentPlayerGuesses.ToArray();
-
-            // Count from the end (most recent)
-            for (int i = guesses.Length - 1; i >= 0; i--)
+            // Read backwards from most recent entry (write index - 1, wrapping)
+            for (int i = 0; i < _guessCount; i++)
             {
-                if (guesses[i] == targetValue)
+                // Calculate index going backwards from most recent
+                int readIndex = (_guessWriteIndex - 1 - i + _recentPlayerGuesses.Length) % _recentPlayerGuesses.Length;
+
+                if (_recentPlayerGuesses[readIndex] == targetValue)
                 {
                     count++;
                 }
@@ -313,29 +318,37 @@ namespace DLYH.AI.Core
         }
 
         /// <summary>
-        /// Clears the recent guesses queue after a skill adjustment.
+        /// Clears the recent guesses ring buffer after a skill adjustment.
         /// </summary>
         private void ClearRecentGuesses()
         {
-            _recentPlayerGuesses.Clear();
+            _guessWriteIndex = 0;
+            _guessCount = 0;
         }
 
         /// <summary>
         /// Gets a string representation of recent guesses for debugging.
+        /// Note: This allocates for debug output only - not called in hot paths.
         /// </summary>
         /// <returns>String like "HHMHM" where H=hit, M=miss</returns>
         private string GetRecentGuessesString()
         {
-            if (_recentPlayerGuesses.Count == 0)
+            if (_guessCount == 0)
             {
                 return "(none)";
             }
 
-            System.Text.StringBuilder sb = new System.Text.StringBuilder(_recentPlayerGuesses.Count);
+            System.Text.StringBuilder sb = new System.Text.StringBuilder(_guessCount);
 
-            foreach (bool wasHit in _recentPlayerGuesses)
+            // Read in chronological order (oldest to newest)
+            int startIndex = _guessCount < _recentPlayerGuesses.Length
+                ? 0
+                : _guessWriteIndex;
+
+            for (int i = 0; i < _guessCount; i++)
             {
-                sb.Append(wasHit ? 'H' : 'M');
+                int readIndex = (startIndex + i) % _recentPlayerGuesses.Length;
+                sb.Append(_recentPlayerGuesses[readIndex] ? 'H' : 'M');
             }
 
             return sb.ToString();

@@ -14,6 +14,8 @@ using DLYH.Networking.UI;
 using DLYH.Networking.Services;
 using DLYH.AI.Config;
 using DLYH.AI.Strategies;
+using DLYH.Core.Utilities;
+using DLYH.UI.Managers;
 using Cysharp.Threading.Tasks;
 
 namespace DLYH.TableUI
@@ -128,10 +130,6 @@ namespace DLYH.TableUI
         // Continue game button
         private Button _continueGameButton;
 
-        // My Active Games UI elements
-        private VisualElement _myGamesSection;
-        private VisualElement _myGamesList;
-
         // Settings constants (match SettingsPanel.cs)
         private const string PREFS_SFX_VOLUME = "DLYH_SFXVolume";
         private const string PREFS_MUSIC_VOLUME = "DLYH_MusicVolume";
@@ -188,15 +186,10 @@ namespace DLYH.TableUI
         private bool _feedbackIsPostGame = false;
         private bool _feedbackPlayerWon = false;
 
-        // Confirmation modal state
-        private VisualElement _confirmModalContainer;
-        private Label _confirmTitle;
-        private Label _confirmMessage;
-        private System.Action _confirmAction;
-
-        // Help modal state
-        private VisualElement _helpModalContainer;
-        private ScrollView _helpScrollView;
+        // Modal managers (extracted to DLYH.UI.Managers)
+        private ConfirmationModalManager _confirmationModal;
+        private HelpModalManager _helpModal;
+        private ActiveGamesManager _activeGamesManager;
 
         // Gameplay guess manager
         private GameplayGuessManager _guessManager;
@@ -412,6 +405,12 @@ namespace DLYH.TableUI
             if (_gameplayUss != null) _root.styleSheets.Add(_gameplayUss);
             if (_guillotineOverlayUss != null) _root.styleSheets.Add(_guillotineOverlayUss);
 
+            // Initialize modal managers
+            _confirmationModal = new ConfirmationModalManager();
+            _confirmationModal.Initialize(_root);
+            _helpModal = new HelpModalManager();
+            _helpModal.Initialize(_root);
+
             // Create screens - wizard first so menu is on top
             CreateSetupWizardScreen();
             CreateGameplayScreen();
@@ -561,136 +560,20 @@ namespace DLYH.TableUI
 
         private void SetupMyActiveGames()
         {
-            // Cache the My Games UI elements
-            _myGamesSection = _mainMenuScreen.Q<VisualElement>("my-games-section");
-            _myGamesList = _mainMenuScreen.Q<VisualElement>("my-games-list");
-
-            // Initially hidden - will be shown when games are loaded
-            if (_myGamesSection != null)
-            {
-                _myGamesSection.AddToClassList("hidden");
-            }
+            // Initialize ActiveGamesManager (handles My Games UI, hidden games persistence)
+            _activeGamesManager = new ActiveGamesManager();
+            _activeGamesManager.Initialize(_mainMenuScreen, _gameSessionService, _playerService);
+            _activeGamesManager.OnResumeRequested = HandleResumeGameFromActiveGames;
         }
 
-        private async UniTask LoadMyActiveGamesAsync()
-        {
-            if (_gameSessionService == null || _playerService == null)
-            {
-                Debug.Log("[UIFlowController] Networking services not available - skipping My Active Games");
-                HideMyActiveGames();
-                return;
-            }
+        // NOTE: LoadMyActiveGamesAsync, ShowMyActiveGames, HideMyActiveGames, CreateMyGameItem
+        // moved to ActiveGamesManager (Session 4 extraction)
 
-            // Need a player record to query games
-            if (!_playerService.HasPlayerRecord)
-            {
-                Debug.Log("[UIFlowController] No player record - skipping My Active Games");
-                HideMyActiveGames();
-                return;
-            }
-
-            string playerId = _playerService.CurrentPlayerId;
-            Debug.Log($"[UIFlowController] Loading active games for player {playerId}");
-
-            try
-            {
-                ActiveGameInfo[] games = await _gameSessionService.GetPlayerGames(playerId);
-
-                if (games == null || games.Length == 0)
-                {
-                    HideMyActiveGames();
-                    return;
-                }
-
-                // Show and populate the list
-                ShowMyActiveGames(games);
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"[UIFlowController] Error loading active games: {ex.Message}");
-                HideMyActiveGames();
-            }
-        }
-
-        private void ShowMyActiveGames(ActiveGameInfo[] games)
-        {
-            if (_myGamesSection == null || _myGamesList == null) return;
-
-            // Clear existing items
-            _myGamesList.Clear();
-
-            // Add game items
-            foreach (var game in games)
-            {
-                var item = CreateMyGameItem(game);
-                _myGamesList.Add(item);
-            }
-
-            // Show the section
-            _myGamesSection.RemoveFromClassList("hidden");
-            Debug.Log($"[UIFlowController] Showing {games.Length} active games");
-        }
-
-        private void HideMyActiveGames()
-        {
-            if (_myGamesSection != null)
-            {
-                _myGamesSection.AddToClassList("hidden");
-            }
-        }
-
-        private VisualElement CreateMyGameItem(ActiveGameInfo game)
-        {
-            var item = new VisualElement();
-            item.AddToClassList("my-game-item");
-
-            // Info section (opponent + status)
-            var info = new VisualElement();
-            info.AddToClassList("my-game-info");
-
-            var opponentLabel = new Label(game.OpponentName != null ? $"vs {game.OpponentName}" : "vs Waiting...");
-            opponentLabel.AddToClassList("my-game-opponent");
-            info.Add(opponentLabel);
-
-            // Status text
-            string statusText = game.WhoseTurn switch
-            {
-                "your_turn" => $"Code: {game.GameCode} | Your turn",
-                "their_turn" => $"Code: {game.GameCode} | Their turn",
-                "waiting" => $"Code: {game.GameCode} | Waiting",
-                _ => $"Code: {game.GameCode}"
-            };
-
-            var statusLabel = new Label(statusText);
-            statusLabel.AddToClassList("my-game-status");
-            if (game.WhoseTurn == "your_turn") statusLabel.AddToClassList("your-turn");
-            if (game.WhoseTurn == "waiting") statusLabel.AddToClassList("waiting");
-            info.Add(statusLabel);
-
-            item.Add(info);
-
-            // Actions section
-            var actions = new VisualElement();
-            actions.AddToClassList("my-game-actions");
-
-            var resumeBtn = new Button(() => HandleResumeGame(game.GameCode));
-            resumeBtn.text = "Resume";
-            resumeBtn.AddToClassList("my-game-btn");
-            resumeBtn.AddToClassList("resume");
-            actions.Add(resumeBtn);
-
-            var removeBtn = new Button(() => HandleRemoveGame(game.GameCode));
-            removeBtn.text = "X";
-            removeBtn.AddToClassList("my-game-btn");
-            removeBtn.AddToClassList("remove");
-            actions.Add(removeBtn);
-
-            item.Add(actions);
-
-            return item;
-        }
-
-        private void HandleResumeGame(string gameCode)
+        /// <summary>
+        /// Callback handler for when user clicks Resume on an active game.
+        /// Called by ActiveGamesManager.OnResumeRequested.
+        /// </summary>
+        private void HandleResumeGameFromActiveGames(string gameCode)
         {
             Debug.Log($"[UIFlowController] Resume game: {gameCode}");
             UIAudioManager.ButtonClick();
@@ -711,7 +594,7 @@ namespace DLYH.TableUI
                     ? "Resuming this game will end your current solo game. Continue?"
                     : "Resuming this game will leave your current online game. Continue?";
 
-                ShowConfirmationModal(
+                _confirmationModal.Show(
                     "End Current Game?",
                     warningMessage,
                     () => ResumeGameAfterConfirmation(gameCode)
@@ -755,7 +638,7 @@ namespace DLYH.TableUI
             // Determine which player we are
             string myPlayerId = _playerService?.CurrentPlayerId;
             int myPlayerNumber = 0;
-            foreach (var player in gameWithPlayers.Players ?? new SessionPlayer[0])
+            foreach (var player in gameWithPlayers.Players ?? Array.Empty<SessionPlayer>())
             {
                 if (player.PlayerId == myPlayerId)
                 {
@@ -775,7 +658,7 @@ namespace DLYH.TableUI
             // Parse the game state JSON
             Debug.Log($"[UIFlowController] Raw StateJson: {gameWithPlayers.Session.StateJson}");
 
-            DLYHGameState gameState = ParseGameStateJson(gameWithPlayers.Session.StateJson);
+            DLYHGameState gameState = GameStateManager.ParseGameStateJson(gameWithPlayers.Session.StateJson);
             if (gameState == null)
             {
                 Debug.LogError($"[UIFlowController] Failed to parse game state for {gameCode}");
@@ -789,10 +672,10 @@ namespace DLYH.TableUI
             DLYHPlayerData myData = myPlayerNumber == 1 ? gameState.player1 : gameState.player2;
             DLYHPlayerData opponentData = myPlayerNumber == 1 ? gameState.player2 : gameState.player1;
 
-            if (myData == null || myData.setupData == null)
+            if (myData == null || myData.gridSize == 0)
             {
                 Debug.LogError($"[UIFlowController] My player data not found in game {gameCode}. " +
-                              $"myData null: {myData == null}, setupData null: {myData?.setupData == null}");
+                              $"myData null: {myData == null}, gridSize: {myData?.gridSize ?? 0}");
                 return;
             }
 
@@ -812,214 +695,8 @@ namespace DLYH.TableUI
             TransitionToGameplayFromSavedState(gameCode, myPlayerNumber, myData, opponentData, gameState);
         }
 
-        private DLYHGameState ParseGameStateJson(string stateJson)
-        {
-            if (string.IsNullOrEmpty(stateJson))
-            {
-                return null;
-            }
-
-            try
-            {
-                // Simple manual parsing since Unity's JsonUtility doesn't handle nested objects well
-                var state = new DLYHGameState();
-
-                state.version = ExtractIntField(stateJson, "version");
-                state.status = ExtractStringField(stateJson, "status");
-                state.currentTurn = ExtractStringField(stateJson, "currentTurn");
-                state.turnNumber = ExtractIntField(stateJson, "turnNumber");
-                state.winner = ExtractStringField(stateJson, "winner");
-
-                // Parse player1 and player2 objects
-                state.player1 = ParsePlayerData(stateJson, "player1");
-                state.player2 = ParsePlayerData(stateJson, "player2");
-
-                return state;
-            }
-            catch (System.Exception ex)
-            {
-                Debug.LogError($"[UIFlowController] Error parsing game state: {ex.Message}");
-                return null;
-            }
-        }
-
-        private DLYHPlayerData ParsePlayerData(string json, string playerKey)
-        {
-            // Find the player object in the JSON
-            string pattern = $"\"{playerKey}\":";
-            int start = json.IndexOf(pattern);
-            if (start < 0) return null;
-
-            start += pattern.Length;
-
-            // Skip whitespace
-            while (start < json.Length && char.IsWhiteSpace(json[start])) start++;
-
-            // Check for null
-            if (json.Substring(start, 4) == "null") return null;
-
-            // Find matching braces
-            if (json[start] != '{') return null;
-
-            int depth = 0;
-            int end = start;
-            for (int i = start; i < json.Length; i++)
-            {
-                if (json[i] == '{') depth++;
-                else if (json[i] == '}') depth--;
-                if (depth == 0)
-                {
-                    end = i;
-                    break;
-                }
-            }
-
-            string playerJson = json.Substring(start, end - start + 1);
-
-            var data = new DLYHPlayerData();
-            data.name = ExtractStringField(playerJson, "name");
-            data.color = ExtractStringField(playerJson, "color");
-            data.ready = ExtractBoolField(playerJson, "ready");
-            data.setupComplete = ExtractBoolField(playerJson, "setupComplete");
-
-            // Parse setupData
-            data.setupData = ParseSetupData(playerJson);
-
-            // Parse gameplayState
-            data.gameplayState = ParseGameplayState(playerJson);
-
-            return data;
-        }
-
-        private DLYHSetupData ParseSetupData(string playerJson)
-        {
-            string pattern = "\"setupData\":";
-            int start = playerJson.IndexOf(pattern);
-            if (start < 0) return null;
-
-            start += pattern.Length;
-            while (start < playerJson.Length && char.IsWhiteSpace(playerJson[start])) start++;
-            if (start >= playerJson.Length || playerJson[start] == 'n') return null; // null
-
-            if (playerJson[start] != '{') return null;
-
-            int depth = 0;
-            int end = start;
-            for (int i = start; i < playerJson.Length; i++)
-            {
-                if (playerJson[i] == '{') depth++;
-                else if (playerJson[i] == '}') depth--;
-                if (depth == 0)
-                {
-                    end = i;
-                    break;
-                }
-            }
-
-            string setupJson = playerJson.Substring(start, end - start + 1);
-
-            var setup = new DLYHSetupData();
-            setup.gridSize = ExtractIntField(setupJson, "gridSize");
-            setup.wordCount = ExtractIntField(setupJson, "wordCount");
-            setup.difficulty = ExtractStringField(setupJson, "difficulty");
-            setup.wordPlacementsEncrypted = ExtractStringField(setupJson, "wordPlacementsEncrypted");
-
-            return setup;
-        }
-
-        private DLYHGameplayState ParseGameplayState(string playerJson)
-        {
-            string pattern = "\"gameplayState\":";
-            int start = playerJson.IndexOf(pattern);
-            if (start < 0) return null;
-
-            start += pattern.Length;
-            while (start < playerJson.Length && char.IsWhiteSpace(playerJson[start])) start++;
-            if (start >= playerJson.Length || playerJson[start] == 'n') return null; // null
-
-            if (playerJson[start] != '{') return null;
-
-            int depth = 0;
-            int end = start;
-            for (int i = start; i < playerJson.Length; i++)
-            {
-                if (playerJson[i] == '{') depth++;
-                else if (playerJson[i] == '}') depth--;
-                if (depth == 0)
-                {
-                    end = i;
-                    break;
-                }
-            }
-
-            string gameplayJson = playerJson.Substring(start, end - start + 1);
-
-            var gameplay = new DLYHGameplayState();
-            gameplay.misses = ExtractIntField(gameplayJson, "misses");
-            gameplay.missLimit = ExtractIntField(gameplayJson, "missLimit");
-
-            return gameplay;
-        }
-
-        private string ExtractStringField(string json, string fieldName)
-        {
-            string pattern = $"\"{fieldName}\":";
-            int start = json.IndexOf(pattern);
-            if (start < 0) return null;
-
-            start += pattern.Length;
-
-            // Skip whitespace
-            while (start < json.Length && char.IsWhiteSpace(json[start])) start++;
-
-            // Check for null
-            if (start + 4 <= json.Length && json.Substring(start, 4) == "null") return null;
-
-            // Expect opening quote
-            if (start >= json.Length || json[start] != '"') return null;
-            start++; // skip the opening quote
-
-            int end = json.IndexOf("\"", start);
-            if (end < 0) return null;
-
-            return json.Substring(start, end - start);
-        }
-
-        private int ExtractIntField(string json, string fieldName)
-        {
-            string pattern = $"\"{fieldName}\":";
-            int start = json.IndexOf(pattern);
-            if (start < 0) return 0;
-
-            start += pattern.Length;
-
-            // Skip whitespace
-            while (start < json.Length && char.IsWhiteSpace(json[start])) start++;
-
-            int end = start;
-            while (end < json.Length && (char.IsDigit(json[end]) || json[end] == '-'))
-            {
-                end++;
-            }
-
-            if (end == start) return 0;
-            return int.Parse(json.Substring(start, end - start));
-        }
-
-        private bool ExtractBoolField(string json, string fieldName)
-        {
-            string pattern = $"\"{fieldName}\":";
-            int start = json.IndexOf(pattern);
-            if (start < 0) return false;
-
-            start += pattern.Length;
-
-            // Skip whitespace
-            while (start < json.Length && char.IsWhiteSpace(json[start])) start++;
-
-            if (start + 4 > json.Length) return false;
-            return json.Substring(start, 4) == "true";
-        }
+        // NOTE: ParseGameStateJson, ParsePlayerData, ParseGameplayState moved to GameStateManager
+        // NOTE: ExtractStringField, ExtractIntField, ExtractBoolField moved to JsonParsingUtility
 
         /// <summary>
         /// Saves the local player's setup data to Supabase for online games.
@@ -1041,30 +718,27 @@ namespace DLYH.TableUI
                 return;
             }
 
-            // Build player data from local setup
+            // Build player data from local setup (flat structure - no nested setupData)
             DLYHPlayerData playerData = new DLYHPlayerData
             {
                 name = _playerSetupData.PlayerName,
                 color = ColorToHex(_playerSetupData.PlayerColor),
+                gridSize = _playerSetupData.GridSize,
+                wordCount = _playerSetupData.WordCount,
+                difficulty = _playerSetupData.DifficultyLevel.ToString(),
                 ready = true,
                 setupComplete = true,
                 lastActivityAt = DateTime.UtcNow.ToString("o"),
-                setupData = new DLYHSetupData
-                {
-                    gridSize = _playerSetupData.GridSize,
-                    wordCount = _playerSetupData.WordCount,
-                    difficulty = _playerSetupData.DifficultyLevel.ToString(),
-                    wordPlacementsEncrypted = EncryptWordPlacements(_playerSetupData.PlacedWords)
-                },
+                wordPlacementsEncrypted = GameStateManager.EncryptWordPlacements(_playerSetupData.PlacedWords),
                 gameplayState = new DLYHGameplayState
                 {
                     misses = 0,
-                    missLimit = CalculateMissLimit(_playerSetupData.GridSize, _playerSetupData.WordCount, _playerSetupData.DifficultyLevel)
+                    missLimit = GameStateManager.CalculateMissLimit(_playerSetupData.GridSize, _playerSetupData.WordCount, _playerSetupData.DifficultyLevel)
                 }
             };
 
             // Parse existing state (or create new one)
-            DLYHGameState state = ParseGameStateJson(game.StateJson) ?? new DLYHGameState
+            DLYHGameState state = GameStateManager.ParseGameStateJson(game.StateJson) ?? new DLYHGameState
             {
                 version = 1,
                 status = "waiting",
@@ -1095,85 +769,7 @@ namespace DLYH.TableUI
             }
         }
 
-        /// <summary>
-        /// Encrypts word placements for storage (hides words from opponent until game end).
-        /// </summary>
-        private string EncryptWordPlacements(List<WordPlacementData> placements)
-        {
-            if (placements == null || placements.Count == 0)
-            {
-                return "";
-            }
-
-            System.Text.StringBuilder sb = new System.Text.StringBuilder();
-            foreach (WordPlacementData p in placements)
-            {
-                // DirCol=1 means horizontal, DirRow=1 means vertical
-                string direction = p.DirCol == 1 ? "H" : "V";
-                sb.AppendFormat("{0}:{1},{2},{3};",
-                    p.Word,
-                    p.StartRow,
-                    p.StartCol,
-                    direction
-                );
-            }
-
-            return Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(sb.ToString()));
-        }
-
-        /// <summary>
-        /// Decrypts word placements from storage format back to WordPlacementData list.
-        /// </summary>
-        private List<WordPlacementData> DecryptWordPlacements(string encrypted)
-        {
-            var placements = new List<WordPlacementData>();
-
-            if (string.IsNullOrEmpty(encrypted))
-            {
-                return placements;
-            }
-
-            try
-            {
-                string decoded = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(encrypted));
-
-                // Format: "WORD:row,col,H;" or "WORD:row,col,V;"
-                string[] entries = decoded.Split(new[] { ';' }, System.StringSplitOptions.RemoveEmptyEntries);
-
-                foreach (string entry in entries)
-                {
-                    string[] parts = entry.Split(':');
-                    if (parts.Length != 2) continue;
-
-                    string word = parts[0];
-                    string[] posDir = parts[1].Split(',');
-                    if (posDir.Length != 3) continue;
-
-                    if (int.TryParse(posDir[0], out int row) &&
-                        int.TryParse(posDir[1], out int col))
-                    {
-                        bool horizontal = posDir[2] == "H";
-
-                        placements.Add(new WordPlacementData
-                        {
-                            Word = word,
-                            StartRow = row,
-                            StartCol = col,
-                            DirRow = horizontal ? 0 : 1,
-                            DirCol = horizontal ? 1 : 0
-                        });
-                    }
-                }
-
-                Debug.Log($"[UIFlowController] Decrypted {placements.Count} word placements");
-            }
-            catch (System.Exception ex)
-            {
-                Debug.LogError($"[UIFlowController] Error decrypting word placements: {ex.Message}");
-            }
-
-            return placements;
-        }
+        // NOTE: EncryptWordPlacements, DecryptWordPlacements moved to GameStateManager
 
         /// <summary>
         /// Converts a Color to hex string (#RRGGBB format).
@@ -1186,38 +782,7 @@ namespace DLYH.TableUI
             return $"#{r:X2}{g:X2}{b:X2}";
         }
 
-        /// <summary>
-        /// Calculates the miss limit based on grid size, word count, and difficulty.
-        /// Formula: 15 + GridBonus + WordModifier + DifficultyModifier
-        /// </summary>
-        private int CalculateMissLimit(int gridSize, int wordCount, DifficultySetting difficulty)
-        {
-            // Grid bonus: 6x6=+3, 7x7=+4, 8x8=+6, 9x9=+8, 10x10=+10, 11x11=+12, 12x12=+13
-            int gridBonus = gridSize switch
-            {
-                6 => 3,
-                7 => 4,
-                8 => 6,
-                9 => 8,
-                10 => 10,
-                11 => 12,
-                12 => 13,
-                _ => 0
-            };
-
-            // Word modifier: 3 words=+0, 4 words=-2
-            int wordModifier = wordCount == 4 ? -2 : 0;
-
-            // Difficulty modifier: Easy=+4, Normal=+0, Hard=-4
-            int difficultyModifier = difficulty switch
-            {
-                DifficultySetting.Easy => 4,
-                DifficultySetting.Hard => -4,
-                _ => 0
-            };
-
-            return 15 + gridBonus + wordModifier + difficultyModifier;
-        }
+        // NOTE: CalculateMissLimit moved to GameStateManager
 
         private void TransitionToGameplayFromSavedState(string gameCode, int myPlayerNumber,
             DLYHPlayerData myData, DLYHPlayerData opponentData, DLYHGameState gameState)
@@ -1234,15 +799,15 @@ namespace DLYH.TableUI
                 ? (ParseColorFromHex(opponentData.color) ?? new Color(0.6f, 0.1f, 0.1f))
                 : new Color(0.4f, 0.4f, 0.4f); // Gray for waiting opponent
 
-            // Get difficulty setting
-            DifficultySetting myDifficulty = GetDifficultySettingFromString(myData.setupData?.difficulty ?? "Normal");
+            // Get difficulty setting (flat structure - no nested setupData)
+            DifficultySetting myDifficulty = GetDifficultySettingFromString(myData.difficulty ?? "Normal");
 
             // Calculate miss limits
-            int myGridSize = myData.setupData?.gridSize ?? 8;
-            int myWordCount = myData.setupData?.wordCount ?? 5;
+            int myGridSize = myData.gridSize > 0 ? myData.gridSize : 8;
+            int myWordCount = myData.wordCount > 0 ? myData.wordCount : 5;
 
-            int opponentGridSize = opponentData?.setupData?.gridSize ?? myGridSize;
-            int opponentWordCount = opponentData?.setupData?.wordCount ?? myWordCount;
+            int opponentGridSize = opponentData != null && opponentData.gridSize > 0 ? opponentData.gridSize : myGridSize;
+            int opponentWordCount = opponentData != null && opponentData.wordCount > 0 ? opponentData.wordCount : myWordCount;
 
             int myMissLimit = DifficultyCalculator.CalculateMissLimitForPlayer(myDifficulty, opponentGridSize, opponentWordCount);
             DifficultySetting inverseDifficulty = GetInverseDifficulty(myDifficulty);
@@ -1282,10 +847,10 @@ namespace DLYH.TableUI
             _isPlayerTurn = isMyTurn;
             _isGameOver = false;
 
-            // Decrypt word placements from Supabase data
-            List<WordPlacementData> myPlacements = DecryptWordPlacements(myData.setupData?.wordPlacementsEncrypted);
-            List<WordPlacementData> opponentPlacements = opponentData?.setupData?.wordPlacementsEncrypted != null
-                ? DecryptWordPlacements(opponentData.setupData.wordPlacementsEncrypted)
+            // Decrypt word placements from Supabase data (flat structure - no nested setupData)
+            List<WordPlacementData> myPlacements = GameStateManager.DecryptWordPlacements(myData.wordPlacementsEncrypted);
+            List<WordPlacementData> opponentPlacements = !string.IsNullOrEmpty(opponentData?.wordPlacementsEncrypted)
+                ? GameStateManager.DecryptWordPlacements(opponentData.wordPlacementsEncrypted)
                 : new List<WordPlacementData>();
 
             Debug.Log($"[UIFlowController] Resume: My placements: {myPlacements.Count}, Opponent placements: {opponentPlacements.Count}");
@@ -1362,30 +927,8 @@ namespace DLYH.TableUI
             };
         }
 
-        private void HandleRemoveGame(string gameCode)
-        {
-            Debug.Log($"[UIFlowController] Remove game: {gameCode}");
-            UIAudioManager.ButtonClick();
-
-            HandleRemoveGameAsync(gameCode).Forget();
-        }
-
-        private async UniTask HandleRemoveGameAsync(string gameCode)
-        {
-            if (_gameSessionService == null || _playerService == null)
-            {
-                return;
-            }
-
-            string playerId = _playerService.CurrentPlayerId;
-            bool success = await _gameSessionService.RemovePlayerFromGame(gameCode, playerId);
-
-            if (success)
-            {
-                // Reload the list
-                await LoadMyActiveGamesAsync();
-            }
-        }
+        // NOTE: HandleRemoveGame, HandleRemoveGameAsync, LoadHiddenGames, SaveHiddenGames,
+        // AddToHiddenGames, RemoveFromHiddenGames, IsGameHidden moved to ActiveGamesManager
 
         private void OnSfxVolumeChanged(ChangeEvent<float> evt)
         {
@@ -1689,8 +1232,8 @@ namespace DLYH.TableUI
                 return;
             }
 
-            // Take snapshot of word completion state BEFORE the guess
-            bool[] preGuessSnapshot = _attackWordRows?.GetRevealedSnapshot();
+            // Capture pre-guess state (zero allocation - uses internal cache)
+            _attackWordRows?.CapturePreGuessSnapshot();
 
             GuessResult result = _guessManager.ProcessPlayerLetterGuess(letter);
 
@@ -1705,7 +1248,7 @@ namespace DLYH.TableUI
                     RefreshKeyboardLetterStates(); // Ensure keyboard colors are correct
 
                     // Check for newly completed words and queue extra turns
-                    QueueExtraTurnsForCompletedWords(preGuessSnapshot, true);
+                    QueueExtraTurnsForCompletedWords(null, true);
 
                     CheckForPlayerWin();
                     ProcessPlayerTurnEnd();
@@ -2198,14 +1741,16 @@ namespace DLYH.TableUI
 
         /// <summary>
         /// Checks for newly completed words after a guess and queues extra turns.
+        /// Uses internal pre-guess snapshot captured by CapturePreGuessSnapshot().
         /// </summary>
-        /// <param name="preGuessSnapshot">Snapshot of word completion state from before the guess</param>
+        /// <param name="preGuessSnapshot">Snapshot from before guess (pass null to use internal cache)</param>
         /// <param name="isPlayer">True if player, false if opponent</param>
         private void QueueExtraTurnsForCompletedWords(bool[] preGuessSnapshot, bool isPlayer)
         {
             WordRowsContainer wordRows = isPlayer ? _attackWordRows : _defenseWordRows;
-            if (wordRows == null || preGuessSnapshot == null) return;
+            if (wordRows == null) return;
 
+            // Pass null to use internal pre-guess snapshot (zero allocation)
             List<int> newlyCompleted = wordRows.GetNewlyCompletedWords(preGuessSnapshot);
 
             foreach (int wordIndex in newlyCompleted)
@@ -2647,8 +2192,8 @@ namespace DLYH.TableUI
 
             Debug.Log($"[UIFlowController] Opponent guesses letter: {letter}");
 
-            // Take snapshot of word completion state BEFORE the guess
-            bool[] preGuessSnapshot = _defenseWordRows?.GetRevealedSnapshot();
+            // Capture pre-guess state (zero allocation - uses internal cache)
+            _defenseWordRows?.CapturePreGuessSnapshot();
 
             // Process the guess against player's words
             bool wasHit = ProcessOpponentLetterGuess(letter);
@@ -2702,7 +2247,7 @@ namespace DLYH.TableUI
                 RefreshOpponentKeyboardStates();
 
                 // Check for newly completed words and queue extra turns
-                QueueExtraTurnsForCompletedWords(preGuessSnapshot, false);
+                QueueExtraTurnsForCompletedWords(null, false);
             }
             else
             {
@@ -3677,7 +3222,7 @@ namespace DLYH.TableUI
             // Check if there's an active game in progress
             if (_hasActiveGame)
             {
-                ShowConfirmationModal(
+                _confirmationModal.Show(
                     "End Current Game?",
                     "Starting a new game will end your current game. Are you sure you want to continue?",
                     () => StartNewGame(mode)
@@ -3780,7 +3325,7 @@ namespace DLYH.TableUI
         private void HandleHowToPlayClicked()
         {
             DLYH.Audio.UIAudioManager.ButtonClick();
-            ShowHelpModal();
+            _helpModal.Show();
         }
 
         private void HandleFeedbackClicked()
@@ -3934,294 +3479,8 @@ namespace DLYH.TableUI
             HideFeedbackModal();
         }
 
-        // === Confirmation Modal ===
-
-        private void CreateConfirmationModal()
-        {
-            _confirmModalContainer = new VisualElement();
-            _confirmModalContainer.name = "confirm-modal-container";
-            _confirmModalContainer.style.position = Position.Absolute;
-            _confirmModalContainer.style.left = 0;
-            _confirmModalContainer.style.right = 0;
-            _confirmModalContainer.style.top = 0;
-            _confirmModalContainer.style.bottom = 0;
-            _confirmModalContainer.style.alignItems = Align.Center;
-            _confirmModalContainer.style.justifyContent = Justify.Center;
-            _confirmModalContainer.style.backgroundColor = new Color(0, 0, 0, 0.7f);
-
-            // Modal panel
-            VisualElement panel = new VisualElement();
-            panel.name = "confirm-panel";
-            panel.style.backgroundColor = new Color(0.15f, 0.14f, 0.16f, 1f);
-            panel.style.borderTopLeftRadius = 16;
-            panel.style.borderTopRightRadius = 16;
-            panel.style.borderBottomLeftRadius = 16;
-            panel.style.borderBottomRightRadius = 16;
-            panel.style.paddingTop = 24;
-            panel.style.paddingBottom = 24;
-            panel.style.paddingLeft = 32;
-            panel.style.paddingRight = 32;
-            panel.style.minWidth = 300;
-            panel.style.maxWidth = 400;
-
-            // Title
-            _confirmTitle = new Label("Confirm");
-            _confirmTitle.name = "confirm-title";
-            _confirmTitle.style.fontSize = 24;
-            _confirmTitle.style.unityFontStyleAndWeight = FontStyle.Bold;
-            _confirmTitle.style.color = Color.white;
-            _confirmTitle.style.marginBottom = 16;
-            _confirmTitle.style.unityTextAlign = TextAnchor.MiddleCenter;
-            panel.Add(_confirmTitle);
-
-            // Message
-            _confirmMessage = new Label("Are you sure?");
-            _confirmMessage.name = "confirm-message";
-            _confirmMessage.style.fontSize = 16;
-            _confirmMessage.style.color = new Color(0.8f, 0.8f, 0.8f, 1f);
-            _confirmMessage.style.marginBottom = 24;
-            _confirmMessage.style.whiteSpace = WhiteSpace.Normal;
-            _confirmMessage.style.unityTextAlign = TextAnchor.MiddleCenter;
-            panel.Add(_confirmMessage);
-
-            // Button container
-            VisualElement buttonRow = new VisualElement();
-            buttonRow.style.flexDirection = FlexDirection.Row;
-            buttonRow.style.justifyContent = Justify.Center;
-
-            // Cancel button
-            Button cancelBtn = new Button(() => HideConfirmationModal());
-            cancelBtn.text = "Cancel";
-            cancelBtn.style.marginRight = 16;
-            cancelBtn.style.paddingLeft = 24;
-            cancelBtn.style.paddingRight = 24;
-            cancelBtn.style.paddingTop = 12;
-            cancelBtn.style.paddingBottom = 12;
-            buttonRow.Add(cancelBtn);
-
-            // Confirm button
-            Button confirmBtn = new Button();
-            confirmBtn.clicked += () =>
-            {
-                System.Action action = _confirmAction;
-                HideConfirmationModal();
-                action?.Invoke();
-            };
-            confirmBtn.text = "Yes";
-            confirmBtn.style.paddingLeft = 24;
-            confirmBtn.style.paddingRight = 24;
-            confirmBtn.style.paddingTop = 12;
-            confirmBtn.style.paddingBottom = 12;
-            confirmBtn.style.backgroundColor = new Color(0.6f, 0.2f, 0.2f, 1f);
-            buttonRow.Add(confirmBtn);
-
-            panel.Add(buttonRow);
-            _confirmModalContainer.Add(panel);
-
-            // Click outside to close
-            _confirmModalContainer.RegisterCallback<ClickEvent>(evt =>
-            {
-                if (evt.target == _confirmModalContainer)
-                {
-                    HideConfirmationModal();
-                }
-            });
-
-            _root.Add(_confirmModalContainer);
-            _confirmModalContainer.AddToClassList("hidden");
-        }
-
-        private void ShowConfirmationModal(string title, string message, System.Action onConfirm)
-        {
-            if (_confirmModalContainer == null)
-            {
-                CreateConfirmationModal();
-            }
-
-            DLYH.Audio.UIAudioManager.PopupOpen();
-
-            _confirmTitle.text = title;
-            _confirmMessage.text = message;
-            _confirmAction = onConfirm;
-            _confirmModalContainer.RemoveFromClassList("hidden");
-        }
-
-        private void HideConfirmationModal()
-        {
-            DLYH.Audio.UIAudioManager.PopupClose();
-
-            if (_confirmModalContainer != null)
-            {
-                _confirmModalContainer.AddToClassList("hidden");
-            }
-            _confirmAction = null;
-        }
-
-        // === Help Modal ===
-
-        private void CreateHelpModal()
-        {
-            _helpModalContainer = new VisualElement();
-            _helpModalContainer.name = "help-modal-container";
-            _helpModalContainer.style.position = Position.Absolute;
-            _helpModalContainer.style.left = 0;
-            _helpModalContainer.style.right = 0;
-            _helpModalContainer.style.top = 0;
-            _helpModalContainer.style.bottom = 0;
-            _helpModalContainer.style.alignItems = Align.Center;
-            _helpModalContainer.style.justifyContent = Justify.Center;
-            _helpModalContainer.style.backgroundColor = new Color(0f, 0f, 0f, 0.7f);
-            _helpModalContainer.pickingMode = PickingMode.Position;
-
-            // Panel
-            VisualElement panel = new VisualElement();
-            panel.name = "help-modal-panel";
-            panel.style.backgroundColor = new Color(0.15f, 0.15f, 0.2f, 1f);
-            panel.style.borderTopLeftRadius = 12;
-            panel.style.borderTopRightRadius = 12;
-            panel.style.borderBottomLeftRadius = 12;
-            panel.style.borderBottomRightRadius = 12;
-            panel.style.paddingLeft = 24;
-            panel.style.paddingRight = 24;
-            panel.style.paddingTop = 20;
-            panel.style.paddingBottom = 20;
-            panel.style.minWidth = 340;
-            panel.style.maxWidth = 500;
-            panel.style.maxHeight = new StyleLength(new Length(80, LengthUnit.Percent));
-            panel.pickingMode = PickingMode.Position;
-            _helpModalContainer.Add(panel);
-
-            // Header row with title and close button
-            VisualElement headerRow = new VisualElement();
-            headerRow.style.flexDirection = FlexDirection.Row;
-            headerRow.style.justifyContent = Justify.SpaceBetween;
-            headerRow.style.alignItems = Align.Center;
-            headerRow.style.marginBottom = 16;
-            panel.Add(headerRow);
-
-            // Title
-            Label title = new Label("How to Play");
-            title.style.fontSize = 22;
-            title.style.unityFontStyleAndWeight = FontStyle.Bold;
-            title.style.color = Color.white;
-            headerRow.Add(title);
-
-            // Close button (X)
-            Button closeBtn = new Button(() => HideHelpModal());
-            closeBtn.text = "X";
-            closeBtn.style.fontSize = 18;
-            closeBtn.style.unityFontStyleAndWeight = FontStyle.Bold;
-            closeBtn.style.width = 32;
-            closeBtn.style.height = 32;
-            closeBtn.style.paddingLeft = 0;
-            closeBtn.style.paddingRight = 0;
-            closeBtn.style.paddingTop = 0;
-            closeBtn.style.paddingBottom = 0;
-            closeBtn.style.backgroundColor = new Color(0.4f, 0.2f, 0.2f, 1f);
-            closeBtn.style.borderTopLeftRadius = 4;
-            closeBtn.style.borderTopRightRadius = 4;
-            closeBtn.style.borderBottomLeftRadius = 4;
-            closeBtn.style.borderBottomRightRadius = 4;
-            headerRow.Add(closeBtn);
-
-            // Scrollable content area
-            _helpScrollView = new ScrollView(ScrollViewMode.Vertical);
-            _helpScrollView.style.flexGrow = 1;
-            _helpScrollView.style.maxHeight = new StyleLength(new Length(100, LengthUnit.Percent));
-            panel.Add(_helpScrollView);
-
-            // Help content (adapted from HelpOverlay.cs HELP_CONTENT)
-            string helpContent = @"<b>Your Goal:</b>
-Discover all of your opponent's words AND their grid positions before they find yours!
-
-<b>Grid Colors:</b>
-<color=#4CAF50>GREEN</color> = Hit - Letter is known
-<color=#FFC107>YELLOW</color> = Hit - Letter unknown (discovered by coordinate)
-<color=#F44336>RED</color> = Miss - Empty cell
-
-<b>Three Ways to Guess:</b>
-
-<b>1. Letter Guess</b>
-Click a letter in the keyboard (A-Z buttons)
-- If the opponent has that letter, it reveals in their words
-- Yellow cells upgrade to green when letter is discovered
-- Miss if opponent has no words with that letter
-
-<b>2. Coordinate Guess</b>
-Click a cell on the opponent's grid
-- Green if letter is already known
-- Yellow if you hit a letter but don't know which one
-- Red if empty (counts as a miss)
-
-<b>3. Word Guess</b>
-Click the GUESS button on a word row
-- Type the full word you think it is
-- Correct guess reveals the word!
-- <color=#F44336>WRONG guess = 2 misses!</color>
-
-<b>Extra Turns:</b>
-<color=#4CAF50>Complete a word = EXTRA TURN!</color>
-- When your guess completes a word (all letters revealed), you get another turn
-- This works for letter guesses AND correct word guesses
-- Multiple words completed at once = multiple extra turns
-
-<b>Win Conditions:</b>
-- Reveal ALL opponent's letters AND grid positions
-- OR opponent reaches their miss limit
-
-<b>Tips:</b>
-- Use letter guesses to discover common letters (E, T, A, O)
-- Coordinate guesses near hits often find more letters
-- Completing words gives extra turns - be strategic!
-- Only guess words when you're confident!";
-
-            Label contentLabel = new Label(helpContent);
-            contentLabel.style.fontSize = 18;
-            contentLabel.style.color = new Color(0.9f, 0.9f, 0.9f, 1f);
-            contentLabel.style.whiteSpace = WhiteSpace.Normal;
-            contentLabel.enableRichText = true;
-            _helpScrollView.Add(contentLabel);
-
-            // Click outside to close
-            _helpModalContainer.RegisterCallback<ClickEvent>(evt =>
-            {
-                if (evt.target == _helpModalContainer)
-                {
-                    HideHelpModal();
-                }
-            });
-
-            _root.Add(_helpModalContainer);
-            _helpModalContainer.AddToClassList("hidden");
-        }
-
-        private void ShowHelpModal()
-        {
-            if (_helpModalContainer == null)
-            {
-                CreateHelpModal();
-            }
-
-            DLYH.Audio.UIAudioManager.PopupOpen();
-
-            // Reset scroll position to top
-            if (_helpScrollView != null)
-            {
-                _helpScrollView.scrollOffset = Vector2.zero;
-            }
-
-            _helpModalContainer.RemoveFromClassList("hidden");
-        }
-
-        private void HideHelpModal()
-        {
-            DLYH.Audio.UIAudioManager.PopupClose();
-
-            if (_helpModalContainer != null)
-            {
-                _helpModalContainer.AddToClassList("hidden");
-            }
-        }
+        // NOTE: Confirmation modal moved to ConfirmationModalManager
+        // NOTE: Help modal moved to HelpModalManager
 
         // === Hamburger Menu ===
 
@@ -4371,6 +3630,12 @@ Click the GUESS button on a word row
                 Debug.Log($"[UIFlowController] Networking complete - GameCode: {result.GameCode}, " +
                           $"IsHost: {result.IsHost}, IsPhantomAI: {result.IsPhantomAI}, " +
                           $"Opponent: {result.OpponentName}");
+
+                // If rejoining a hidden game (via code entry), unhide it so it shows in My Active Games
+                if (!string.IsNullOrEmpty(result.GameCode))
+                {
+                    _activeGamesManager?.RemoveFromHiddenGames(result.GameCode);
+                }
 
                 // Start the game with the matched opponent
                 StartGameAfterMatchmaking(result).Forget();
@@ -4554,7 +3819,7 @@ Click the GUESS button on a word row
             SyncMainMenuSettings();
 
             // Load My Active Games list (async, non-blocking)
-            LoadMyActiveGamesAsync().Forget();
+            _activeGamesManager?.LoadMyActiveGamesAsync().Forget();
 
             // Start trivia rotation with fade cycling
             StartTriviaRotation();

@@ -4,10 +4,12 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `C:\Unity\DontLoseYourHead`
-**Document Version:** 68
+**Document Version:** 73
 **Last Updated:** January 19, 2026
 
 **Archive:** `DLYH_Status_Archive.md` - Historical designs, old version history, completed phase details, DAB reference patterns
+
+**Completed Refactoring:** `Documents/Refactor/DLYH_RefactoringPlan_Phase3_01192026.md` - Phase 3 complete (Sessions 1-4 + Memory Audit)
 
 ---
 
@@ -23,13 +25,32 @@
 
 ---
 
-## Last Session (Jan 18, 2026)
+## Last Session (Jan 19, 2026)
 
-Session 56 - **Resume Game Fixes & Editor Auth Discovery!**
-- Fixed resume game data loading (decrypt placements, create models from Supabase data)
-- Fixed Continue button, matchmaking queue error, added resume confirmation
-- Fixed online waiting state (opponent shows "Waiting...", input blocked until opponent joins)
-- Discovered editor auth issue - need persistent player ID for testing
+Session 61 - **Phase 3 Refactoring Complete + Professional Memory Audit**
+
+**Session 5 - TurnCoordinator (Skipped):**
+- Analysis showed extraction would just move coupling, not reduce it
+- Turn handling coordinates 9+ dependencies - that IS the coordinator's job
+- Decision: Leave as cohesive coordination, not problematic coupling
+
+**Session 6 - Professional Memory Audit:**
+- Audited entire codebase for memory hotpaths and allocation patterns
+- Implemented 4 critical memory optimizations:
+  1. Array.Empty<T>() - 21 instances across 4 files (zero-cost empty arrays)
+  2. Ring buffer in DifficultyAdapter - eliminated per-guess Queue.ToArray()
+  3. Pooled list in GameplayGuessManager - eliminated per-letter-guess allocation
+  4. Cached snapshots in WordRowsContainer - eliminated per-guess array allocations
+- Result: Zero allocations per guess in gameplay loop
+
+**Phase 3 Final Results:**
+- UIFlowController: 6,079 -> 5,298 lines (-13%)
+- New files: JsonParsingUtility, GameStateManager, ConfirmationModalManager, HelpModalManager, ActiveGamesManager
+- Memory: All per-guess allocations eliminated
+
+**Previous Session:** Session 60 - ActiveGamesManager Extraction
+
+**Next:** Resume Phase E networking work (Editor identity fix, online gameplay)
 
 ---
 
@@ -91,8 +112,8 @@ Without real OAuth, PlayerService creates new player records when name changes, 
 - **MOBILE BLOCKER:** Bottom buttons inaccessible on mobile - mobile play impossible until fixed
 
 **Architecture:**
-- UIFlowController at ~5500 lines (could extract networking helpers if needed)
-- Inconsistent namespace convention (TecVooDoo.DontLoseYourHead.* vs DLYH.*)
+- UIFlowController at ~5,298 lines - **Phase 3 COMPLETE** (see `Documents/Refactor/DLYH_RefactoringPlan_Phase3_01192026.md`)
+- Inconsistent namespace convention (TecVooDoo.DontLoseYourHead.* vs DLYH.*) - deferred to Phase F
 
 **Networking:**
 - **BLOCKER:** Editor testing has no persistent identity (PlayerService creates new player on name change)
@@ -161,12 +182,17 @@ Without real OAuth, PlayerService creates new player records when name changes, 
 
 | Script | Lines | Purpose |
 |--------|-------|---------|
-| UIFlowController | ~5500 | Screen flow + gameplay + modals + networking |
+| UIFlowController | ~5298 | Screen flow + gameplay orchestration |
 | SetupWizardUIManager | ~820 | Setup wizard flow |
 | GameplayScreenManager | ~650 | Gameplay UI state, tab switching, keyboard |
 | GuillotineOverlayManager | ~450 | Guillotine overlay modal controller |
 | NetworkingUIManager | ~640 | Networking overlay management |
 | ExecutionerAI | ~493 | AI opponent coordination |
+| GameStateManager | ~400 | Game state parsing/serialization |
+| ActiveGamesManager | ~360 | My Active Games list management |
+| ConfirmationModalManager | ~200 | Confirmation dialog management |
+| HelpModalManager | ~230 | How to Play modal management |
+| JsonParsingUtility | ~100 | Unified JSON field extraction |
 
 ### Namespaces
 
@@ -178,6 +204,8 @@ Without real OAuth, PlayerService creates new player records when name changes, 
 | `DLYH.AI.Strategies` | AI guess strategies |
 | `DLYH.Audio` | Audio managers |
 | `DLYH.TableUI` | UI Toolkit implementation |
+| `DLYH.UI.Managers` | Extracted UI managers (Phase 3) |
+| `DLYH.Core.Utilities` | Shared utilities (JsonParsingUtility) |
 | `DLYH.Networking` | Opponent abstraction |
 | `DLYH.Networking.UI` | Networking overlays |
 | `DLYH.Networking.Services` | Supabase, auth, player, realtime |
@@ -189,9 +217,12 @@ Assets/DLYH/
   Scripts/
     AI/           - ExecutionerAI, strategies, config
     Audio/        - UIAudioManager, MusicManager, GuillotineAudioManager
-    Core/         - WordListSO, DifficultyCalculator, GameState
+    Core/
+      Utilities/  - JsonParsingUtility (Phase 3)
     Networking/   - IOpponent, services
-    UI/           - TableModel, TableView, UIFlowController, etc.
+    UI/
+      Managers/   - GameStateManager, ActiveGamesManager, modals (Phase 3)
+      ...         - TableModel, TableView, UIFlowController, etc.
   UI/             - UI Toolkit assets (UXML, USS)
   Scenes/
     NetworkingScene.unity  - Primary active scene

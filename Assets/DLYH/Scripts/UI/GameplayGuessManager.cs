@@ -84,6 +84,9 @@ namespace DLYH.TableUI
 
         private bool _isInitialized;
 
+        // Pooled list to avoid per-guess allocations
+        private readonly List<Vector2Int> _hitPositionsPool = new List<Vector2Int>(16);
+
         #endregion
 
         #region Initialization
@@ -188,25 +191,26 @@ namespace DLYH.TableUI
             // Mark as guessed
             guessState.GuessedLetters.Add(letter);
 
-            // Search for the letter in target's placed words
-            List<Vector2Int> hitPositions = new List<Vector2Int>();
-            foreach (var kvp in targetLetters)
+            // Search for the letter in target's placed words - reuse pooled list to avoid allocation
+            _hitPositionsPool.Clear();
+            foreach (KeyValuePair<Vector2Int, char> kvp in targetLetters)
             {
                 if (kvp.Value == letter)
                 {
-                    hitPositions.Add(kvp.Key);
+                    _hitPositionsPool.Add(kvp.Key);
                 }
             }
 
-            if (hitPositions.Count > 0)
+            if (_hitPositionsPool.Count > 0)
             {
                 // HIT
                 guessState.HitLetters.Add(letter);
-                Debug.Log($"[GameplayGuessManager] HIT! Letter '{letter}' found at {hitPositions.Count} position(s)");
+                Debug.Log($"[GameplayGuessManager] HIT! Letter '{letter}' found at {_hitPositionsPool.Count} position(s)");
 
                 if (isPlayerGuessing)
                 {
-                    OnLetterHit?.Invoke(letter, hitPositions);
+                    // Note: Handler must use positions immediately - list is reused
+                    OnLetterHit?.Invoke(letter, _hitPositionsPool);
                 }
 
                 return GuessResult.Hit;

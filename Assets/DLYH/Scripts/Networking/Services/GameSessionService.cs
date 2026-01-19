@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using Cysharp.Threading.Tasks;
+using DLYH.Core.Utilities;
 
 namespace DLYH.Networking.Services
 {
@@ -204,7 +205,7 @@ namespace DLYH.Networking.Services
             var result = new GameSessionWithPlayers
             {
                 Session = game,
-                Players = new SessionPlayer[0]
+                Players = Array.Empty<SessionPlayer>()
             };
 
             if (playersResponse.Success && !string.IsNullOrEmpty(playersResponse.Body))
@@ -277,15 +278,41 @@ namespace DLYH.Networking.Services
         // ============================================================
 
         /// <summary>
-        /// Adds a player to a game session.
+        /// Adds a player to a game session with their per-game setup data.
+        /// Setup data (name, color, grid, words, difficulty) is immutable once stored.
+        /// Uses SessionPlayer as the single source of truth for session_players table data.
         /// </summary>
         /// <param name="gameCode">Game code to join</param>
-        /// <param name="playerId">Player's ID (auth user ID, can be null for anonymous)</param>
+        /// <param name="playerId">Player's ID (from players table)</param>
         /// <param name="playerNumber">1 or 2</param>
-        /// <returns>True if successful</returns>
-        public async UniTask<bool> JoinGame(string gameCode, string playerId, int playerNumber)
+        /// <param name="sessionPlayer">Optional SessionPlayer with setup data (name, color, grid, words, difficulty)</param>
+        /// <returns>True if successful, false if game full or error</returns>
+        public async UniTask<bool> JoinGame(string gameCode, string playerId, int playerNumber, SessionPlayer sessionPlayer = null)
         {
-            var sb = new StringBuilder();
+            // First check if this player is already in the game (rejoining after X button)
+            bool alreadyInGame = await IsPlayerInGame(gameCode, playerId);
+            if (alreadyInGame)
+            {
+                Debug.Log($"[GameSessionService] Player {playerId} is rejoining game {gameCode}");
+                return true; // Player already has a session_players entry, just resume
+            }
+
+            // Validate player count - reject 3rd player
+            int currentCount = await GetPlayerCount(gameCode);
+            if (currentCount >= 2)
+            {
+                Debug.LogWarning($"[GameSessionService] Cannot join game {gameCode}: already has {currentCount} players");
+                return false;
+            }
+
+            // Validate playerNumber matches available slot
+            if (playerNumber < 1 || playerNumber > 2)
+            {
+                Debug.LogError($"[GameSessionService] Invalid player number: {playerNumber}");
+                return false;
+            }
+
+            StringBuilder sb = new StringBuilder();
             sb.Append("{");
             sb.AppendFormat("\"session_id\":\"{0}\",", gameCode);
 
@@ -295,9 +322,35 @@ namespace DLYH.Networking.Services
             }
 
             sb.AppendFormat("\"player_number\":{0}", playerNumber);
+
+            // Add per-game setup data from SessionPlayer if provided
+            if (sessionPlayer != null)
+            {
+                if (!string.IsNullOrEmpty(sessionPlayer.PlayerName))
+                {
+                    sb.AppendFormat(",\"player_name\":\"{0}\"", EscapeJson(sessionPlayer.PlayerName));
+                }
+                if (!string.IsNullOrEmpty(sessionPlayer.PlayerColor))
+                {
+                    sb.AppendFormat(",\"player_color\":\"{0}\"", EscapeJson(sessionPlayer.PlayerColor));
+                }
+                if (sessionPlayer.GridSize > 0)
+                {
+                    sb.AppendFormat(",\"grid_size\":{0}", sessionPlayer.GridSize);
+                }
+                if (sessionPlayer.WordCount > 0)
+                {
+                    sb.AppendFormat(",\"word_count\":{0}", sessionPlayer.WordCount);
+                }
+                if (!string.IsNullOrEmpty(sessionPlayer.Difficulty))
+                {
+                    sb.AppendFormat(",\"difficulty\":\"{0}\"", EscapeJson(sessionPlayer.Difficulty));
+                }
+            }
+
             sb.Append("}");
 
-            var response = await _client.Post(TABLE_SESSION_PLAYERS, sb.ToString());
+            SupabaseResponse response = await _client.Post(TABLE_SESSION_PLAYERS, sb.ToString());
 
             if (!response.Success)
             {
@@ -305,8 +358,40 @@ namespace DLYH.Networking.Services
                 return false;
             }
 
-            Debug.Log($"[GameSessionService] Player {playerNumber} joined game {gameCode}");
+            Debug.Log($"[GameSessionService] Player {playerNumber} joined game {gameCode}" +
+                      (sessionPlayer != null ? $" as {sessionPlayer.PlayerName}" : ""));
             return true;
+        }
+
+        /// <summary>
+        /// Checks if a specific player is already in a game's session_players.
+        /// Used to detect rejoining vs new join.
+        /// </summary>
+        /// <param name="gameCode">Game code to check</param>
+        /// <param name="playerId">Player ID to look for</param>
+        /// <returns>True if player already has a session_players entry for this game</returns>
+        public async UniTask<bool> IsPlayerInGame(string gameCode, string playerId)
+        {
+            if (string.IsNullOrEmpty(gameCode) || string.IsNullOrEmpty(playerId))
+            {
+                return false;
+            }
+
+            SupabaseResponse response = await _client.Get(
+                TABLE_SESSION_PLAYERS,
+                $"session_id=eq.{gameCode}&player_id=eq.{playerId}&select=player_number"
+            );
+
+            if (!response.Success)
+            {
+                Debug.LogWarning($"[GameSessionService] IsPlayerInGame check failed: {response.Error}");
+                return false;
+            }
+
+            // If we got a non-empty array, player is in the game
+            bool isInGame = !string.IsNullOrEmpty(response.Body) && response.Body != "[]";
+            Debug.Log($"[GameSessionService] IsPlayerInGame({gameCode}, {playerId}): {isInGame}");
+            return isInGame;
         }
 
         /// <summary>
@@ -354,7 +439,7 @@ namespace DLYH.Networking.Services
         {
             if (string.IsNullOrEmpty(playerId))
             {
-                return new ActiveGameInfo[0];
+                return Array.Empty<ActiveGameInfo>();
             }
 
             // First, get all session_players entries for this player
@@ -366,14 +451,14 @@ namespace DLYH.Networking.Services
             if (!sessionsResponse.Success || string.IsNullOrEmpty(sessionsResponse.Body) || sessionsResponse.Body == "[]")
             {
                 Debug.Log($"[GameSessionService] No games found for player {playerId}");
-                return new ActiveGameInfo[0];
+                return Array.Empty<ActiveGameInfo>();
             }
 
             // Parse session IDs
             var sessionEntries = ParseSessionPlayerEntries(sessionsResponse.Body);
             if (sessionEntries.Length == 0)
             {
-                return new ActiveGameInfo[0];
+                return Array.Empty<ActiveGameInfo>();
             }
 
             // Build list of games with details
@@ -398,13 +483,13 @@ namespace DLYH.Networking.Services
                 if (opponentResponse.Success && !string.IsNullOrEmpty(opponentResponse.Body) && opponentResponse.Body != "[]")
                 {
                     // There's an opponent - get their player record
-                    string opponentId = ExtractStringField(opponentResponse.Body, "player_id");
+                    string opponentId = JsonParsingUtility.ExtractStringField(opponentResponse.Body, "player_id");
                     if (!string.IsNullOrEmpty(opponentId))
                     {
                         var playerResponse = await _client.Get("players", $"id=eq.{opponentId}&select=display_name");
                         if (playerResponse.Success && !string.IsNullOrEmpty(playerResponse.Body))
                         {
-                            opponentName = ExtractStringField(playerResponse.Body, "display_name");
+                            opponentName = JsonParsingUtility.ExtractStringField(playerResponse.Body, "display_name");
                         }
                     }
                 }
@@ -413,7 +498,7 @@ namespace DLYH.Networking.Services
                 string whoseTurn = "unknown";
                 if (!string.IsNullOrEmpty(game.StateJson))
                 {
-                    string currentTurn = ExtractStringField(game.StateJson, "currentTurn");
+                    string currentTurn = JsonParsingUtility.ExtractStringField(game.StateJson, "currentTurn");
                     if (currentTurn == "player1")
                     {
                         whoseTurn = entry.PlayerNumber == 1 ? "your_turn" : "their_turn";
@@ -485,7 +570,7 @@ namespace DLYH.Networking.Services
         {
             if (string.IsNullOrEmpty(json) || json == "[]")
             {
-                return new SessionPlayerEntry[0];
+                return Array.Empty<SessionPlayerEntry>();
             }
 
             // Count entries
@@ -520,8 +605,8 @@ namespace DLYH.Networking.Services
                 string entryJson = json.Substring(start, end - start + 1);
                 entries[index] = new SessionPlayerEntry
                 {
-                    SessionId = ExtractStringField(entryJson, "session_id"),
-                    PlayerNumber = ExtractIntField(entryJson, "player_number")
+                    SessionId = JsonParsingUtility.ExtractStringField(entryJson, "session_id"),
+                    PlayerNumber = JsonParsingUtility.ExtractIntField(entryJson, "player_number")
                 };
 
                 index++;
@@ -565,45 +650,35 @@ namespace DLYH.Networking.Services
 
         private string SerializePlayerData(DLYHPlayerData player)
         {
-            var sb = new StringBuilder();
+            // Flat structure - all player data in one object (no nested setupData)
+            StringBuilder sb = new StringBuilder();
             sb.Append("{");
+
+            // Identity
             sb.AppendFormat("\"name\":\"{0}\",", EscapeJson(player.name ?? ""));
             sb.AppendFormat("\"color\":\"{0}\",", player.color ?? "#FFFFFF");
+
+            // Setup config
+            sb.AppendFormat("\"gridSize\":{0},", player.gridSize);
+            sb.AppendFormat("\"wordCount\":{0},", player.wordCount);
+            sb.AppendFormat("\"difficulty\":\"{0}\",", player.difficulty ?? "Normal");
+
+            // Dynamic state
             sb.AppendFormat("\"ready\":{0},", player.ready ? "true" : "false");
             sb.AppendFormat("\"setupComplete\":{0},", player.setupComplete ? "true" : "false");
             sb.AppendFormat("\"lastActivityAt\":\"{0}\"", player.lastActivityAt ?? DateTime.UtcNow.ToString("o"));
 
-            // Setup data (if present)
-            if (player.setupData != null)
+            // Word placements (encrypted, secret until game ends)
+            if (!string.IsNullOrEmpty(player.wordPlacementsEncrypted))
             {
-                sb.Append(",\"setupData\":");
-                sb.Append(SerializeSetupData(player.setupData));
+                sb.AppendFormat(",\"wordPlacementsEncrypted\":\"{0}\"", player.wordPlacementsEncrypted);
             }
 
-            // Gameplay state (if present)
+            // Gameplay state (what opponent has discovered)
             if (player.gameplayState != null)
             {
                 sb.Append(",\"gameplayState\":");
                 sb.Append(SerializeGameplayState(player.gameplayState));
-            }
-
-            sb.Append("}");
-            return sb.ToString();
-        }
-
-        private string SerializeSetupData(DLYHSetupData setup)
-        {
-            var sb = new StringBuilder();
-            sb.Append("{");
-            sb.AppendFormat("\"gridSize\":{0},", setup.gridSize);
-            sb.AppendFormat("\"wordCount\":{0},", setup.wordCount);
-            sb.AppendFormat("\"difficulty\":\"{0}\"", setup.difficulty ?? "Normal");
-
-            // Word placements are sensitive - only include hash or encrypted version
-            // Full data is stored but only revealed at game end
-            if (setup.wordPlacementsEncrypted != null)
-            {
-                sb.AppendFormat(",\"wordPlacementsEncrypted\":\"{0}\"", setup.wordPlacementsEncrypted);
             }
 
             sb.Append("}");
@@ -691,10 +766,10 @@ namespace DLYH.Networking.Services
 
             // Simple field extraction (not a full JSON parser)
             var session = new GameSession();
-            session.Id = ExtractStringField(json, "id");
-            session.GameType = ExtractStringField(json, "game_type");
-            session.Status = ExtractStringField(json, "status");
-            session.CreatedBy = ExtractStringField(json, "created_by");
+            session.Id = JsonParsingUtility.ExtractStringField(json, "id");
+            session.GameType = JsonParsingUtility.ExtractStringField(json, "game_type");
+            session.Status = JsonParsingUtility.ExtractStringField(json, "status");
+            session.CreatedBy = JsonParsingUtility.ExtractStringField(json, "created_by");
 
             // State is complex - store as raw JSON for now
             int stateStart = json.IndexOf("\"state\":");
@@ -724,7 +799,7 @@ namespace DLYH.Networking.Services
         {
             if (string.IsNullOrEmpty(json) || json == "[]")
             {
-                return new SessionPlayer[0];
+                return Array.Empty<SessionPlayer>();
             }
 
             // Count players by counting '{' characters
@@ -759,9 +834,9 @@ namespace DLYH.Networking.Services
                 string playerJson = json.Substring(start, end - start + 1);
                 players[index] = new SessionPlayer
                 {
-                    SessionId = ExtractStringField(playerJson, "session_id"),
-                    PlayerId = ExtractStringField(playerJson, "player_id"),
-                    PlayerNumber = ExtractIntField(playerJson, "player_number")
+                    SessionId = JsonParsingUtility.ExtractStringField(playerJson, "session_id"),
+                    PlayerId = JsonParsingUtility.ExtractStringField(playerJson, "player_id"),
+                    PlayerNumber = JsonParsingUtility.ExtractIntField(playerJson, "player_number")
                 };
 
                 index++;
@@ -769,36 +844,6 @@ namespace DLYH.Networking.Services
             }
 
             return players;
-        }
-
-        private string ExtractStringField(string json, string fieldName)
-        {
-            string pattern = $"\"{fieldName}\":\"";
-            int start = json.IndexOf(pattern);
-            if (start < 0) return null;
-
-            start += pattern.Length;
-            int end = json.IndexOf("\"", start);
-            if (end < 0) return null;
-
-            return json.Substring(start, end - start);
-        }
-
-        private int ExtractIntField(string json, string fieldName)
-        {
-            string pattern = $"\"{fieldName}\":";
-            int start = json.IndexOf(pattern);
-            if (start < 0) return 0;
-
-            start += pattern.Length;
-            int end = start;
-            while (end < json.Length && (char.IsDigit(json[end]) || json[end] == '-'))
-            {
-                end++;
-            }
-
-            if (end == start) return 0;
-            return int.Parse(json.Substring(start, end - start));
         }
 
         private string EscapeJson(string str)
@@ -826,7 +871,7 @@ namespace DLYH.Networking.Services
     }
 
     /// <summary>
-    /// Represents a session_players row.
+    /// Represents a session_players row with per-game setup data.
     /// </summary>
     [Serializable]
     public class SessionPlayer
@@ -834,7 +879,15 @@ namespace DLYH.Networking.Services
         public string SessionId;
         public string PlayerId;
         public int PlayerNumber;    // 1 or 2
+
+        // Per-game setup data (immutable once game starts)
+        public string PlayerName;   // Nickname for this game
+        public string PlayerColor;  // Color chosen for this game (hex)
+        public int GridSize;        // Grid size (6-12)
+        public int WordCount;       // 3 or 4
+        public string Difficulty;   // easy, normal, hard
     }
+
 
     /// <summary>
     /// Game session with associated players.
@@ -848,9 +901,27 @@ namespace DLYH.Networking.Services
     // ============================================================
     // DLYH GAME STATE STRUCTURES
     // ============================================================
+    //
+    // DATA ARCHITECTURE:
+    //
+    // session_players table:
+    //   - player_name, player_color, grid_size, word_count, difficulty
+    //   - Used for "My Active Games" list queries
+    //   - Immutable once set during JoinGame
+    //
+    // game_sessions.state JSONB (DLYHGameState):
+    //   - Self-contained game state for gameplay/resume
+    //   - DLYHPlayerData contains ALL player data (flat structure):
+    //     * name, color, gridSize, wordCount, difficulty
+    //     * ready, setupComplete, lastActivityAt, wordPlacementsEncrypted
+    //     * gameplayState (misses, knownLetters, guessedCoordinates, solvedWordRows)
+    //
+    // Setup data is in both places: session_players for queries, JSONB for gameplay.
+    // ============================================================
 
     /// <summary>
     /// Full DLYH game state stored in game_sessions.state JSONB.
+    /// Contains only dynamic gameplay state, NOT setup data (which is in session_players).
     /// </summary>
     [Serializable]
     public class DLYHGameState
@@ -867,30 +938,30 @@ namespace DLYH.Networking.Services
     }
 
     /// <summary>
-    /// Player data within game state.
+    /// Player data within game state JSONB.
+    ///
+    /// Setup data (name, color, gridSize, wordCount, difficulty) is ALSO stored in session_players
+    /// table for querying. The JSONB copy allows game state to be self-contained for resume/sync.
+    /// session_players is authoritative for list queries; JSONB is authoritative during gameplay.
     /// </summary>
     [Serializable]
     public class DLYHPlayerData
     {
+        // Identity (also in session_players)
         public string name;
         public string color;
-        public bool ready;
-        public bool setupComplete;
-        public string lastActivityAt;
-        public DLYHSetupData setupData;
-        public DLYHGameplayState gameplayState;
-    }
 
-    /// <summary>
-    /// Player's setup configuration.
-    /// </summary>
-    [Serializable]
-    public class DLYHSetupData
-    {
+        // Setup config (also in session_players)
         public int gridSize;
         public int wordCount;
         public string difficulty;
-        public string wordPlacementsEncrypted;  // Encrypted word placements (revealed at game end)
+
+        // Dynamic state (only in JSONB)
+        public bool ready;                      // Player has confirmed ready to play
+        public bool setupComplete;              // Player has completed word placement
+        public string lastActivityAt;           // Timestamp of last action (for abandonment tracking)
+        public string wordPlacementsEncrypted;  // Base64 encrypted word placements (secret until game end)
+        public DLYHGameplayState gameplayState; // What opponent has discovered about this player's grid
     }
 
     /// <summary>

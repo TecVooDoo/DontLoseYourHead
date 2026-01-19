@@ -10,6 +10,7 @@ using System.Text;
 using UnityEngine;
 using Cysharp.Threading.Tasks;
 using TecVooDoo.DontLoseYourHead.UI;
+using DLYH.Core.Utilities;
 
 namespace DLYH.Networking.Services
 {
@@ -33,8 +34,8 @@ namespace DLYH.Networking.Services
         /// <summary>Fired when sync error occurs</summary>
         public event Action<string> OnSyncError;
 
-        /// <summary>Fired when opponent completes setup</summary>
-        public event Action<DLYHSetupData> OnOpponentSetupComplete;
+        /// <summary>Fired when opponent completes setup (provides opponent's DLYHPlayerData)</summary>
+        public event Action<DLYHPlayerData> OnOpponentSetupComplete;
 
         /// <summary>Fired when both players are ready and game starts</summary>
         public event Action OnGameStarted;
@@ -182,20 +183,17 @@ namespace DLYH.Networking.Services
                 return false;
             }
 
-            var playerData = new DLYHPlayerData
+            DLYHPlayerData playerData = new DLYHPlayerData
             {
                 name = playerName,
                 color = playerColor,
+                gridSize = gridSize,
+                wordCount = wordCount,
+                difficulty = difficulty,
                 ready = false,
                 setupComplete = true,
                 lastActivityAt = DateTime.UtcNow.ToString("o"),
-                setupData = new DLYHSetupData
-                {
-                    gridSize = gridSize,
-                    wordCount = wordCount,
-                    difficulty = difficulty,
-                    wordPlacementsEncrypted = encryptedPlacements
-                },
+                wordPlacementsEncrypted = encryptedPlacements,
                 gameplayState = null
             };
 
@@ -253,10 +251,10 @@ namespace DLYH.Networking.Services
                     player1.gameplayState = new DLYHGameplayState
                     {
                         misses = 0,
-                        missLimit = CalculateMissLimit(player2.setupData), // Based on opponent's grid
-                        knownLetters = new string[0],
-                        guessedCoordinates = new CoordinatePair[0],
-                        solvedWordRows = new int[0]
+                        missLimit = CalculateMissLimit(player2), // Based on opponent's grid
+                        knownLetters = Array.Empty<string>(),
+                        guessedCoordinates = Array.Empty<CoordinatePair>(),
+                        solvedWordRows = Array.Empty<int>()
                     };
                 }
                 if (player2.gameplayState == null)
@@ -264,10 +262,10 @@ namespace DLYH.Networking.Services
                     player2.gameplayState = new DLYHGameplayState
                     {
                         misses = 0,
-                        missLimit = CalculateMissLimit(player1.setupData),
-                        knownLetters = new string[0],
-                        guessedCoordinates = new CoordinatePair[0],
-                        solvedWordRows = new int[0]
+                        missLimit = CalculateMissLimit(player1),
+                        knownLetters = Array.Empty<string>(),
+                        guessedCoordinates = Array.Empty<CoordinatePair>(),
+                        solvedWordRows = Array.Empty<int>()
                     };
                 }
 
@@ -288,8 +286,8 @@ namespace DLYH.Networking.Services
         /// </summary>
         /// <param name="timeoutSeconds">Max time to wait (default 300 = 5 minutes)</param>
         /// <param name="pollIntervalMs">Polling interval in ms (default 2000)</param>
-        /// <returns>Opponent's setup data, or null on timeout</returns>
-        public async UniTask<DLYHSetupData> WaitForOpponentSetupAsync(
+        /// <returns>Opponent's player data, or null on timeout</returns>
+        public async UniTask<DLYHPlayerData> WaitForOpponentSetupAsync(
             float timeoutSeconds = 300f,
             int pollIntervalMs = 2000)
         {
@@ -303,19 +301,19 @@ namespace DLYH.Networking.Services
                 elapsedTime += pollIntervalMs / 1000f;
 
                 // Fetch current state
-                var state = await FetchCurrentStateAsync();
+                DLYHGameState state = await FetchCurrentStateAsync();
                 if (state == null)
                 {
                     continue;
                 }
 
                 // Check opponent's setup status
-                var opponentData = _isPlayer1 ? state.player2 : state.player1;
-                if (opponentData != null && opponentData.setupComplete && opponentData.setupData != null)
+                DLYHPlayerData opponentData = _isPlayer1 ? state.player2 : state.player1;
+                if (opponentData != null && opponentData.setupComplete)
                 {
                     Debug.Log($"[GameStateSynchronizer] Opponent setup complete: {opponentData.name}");
-                    OnOpponentSetupComplete?.Invoke(opponentData.setupData);
-                    return opponentData.setupData;
+                    OnOpponentSetupComplete?.Invoke(opponentData);
+                    return opponentData;
                 }
             }
 
@@ -337,13 +335,14 @@ namespace DLYH.Networking.Services
 
         /// <summary>
         /// Gets opponent's setup data if available.
+        /// Returns the full DLYHPlayerData which contains setup fields directly.
         /// </summary>
-        public DLYHSetupData GetOpponentSetupData()
+        public DLYHPlayerData GetOpponentSetupData()
         {
             if (_lastKnownState == null) return null;
 
-            var opponentData = _isPlayer1 ? _lastKnownState.player2 : _lastKnownState.player1;
-            return opponentData?.setupData;
+            DLYHPlayerData opponentData = _isPlayer1 ? _lastKnownState.player2 : _lastKnownState.player1;
+            return opponentData;
         }
 
         /// <summary>
@@ -500,17 +499,17 @@ namespace DLYH.Networking.Services
             try
             {
                 var state = new DLYHGameState();
-                state.version = ExtractIntField(json, "version");
-                state.status = ExtractStringField(json, "status");
-                state.currentTurn = ExtractStringField(json, "currentTurn");
-                state.turnNumber = ExtractIntField(json, "turnNumber");
-                state.createdAt = ExtractStringField(json, "createdAt");
-                state.updatedAt = ExtractStringField(json, "updatedAt");
-                state.winner = ExtractStringField(json, "winner");
+                state.version = JsonParsingUtility.ExtractIntField(json, "version");
+                state.status = JsonParsingUtility.ExtractStringField(json, "status");
+                state.currentTurn = JsonParsingUtility.ExtractStringField(json, "currentTurn");
+                state.turnNumber = JsonParsingUtility.ExtractIntField(json, "turnNumber");
+                state.createdAt = JsonParsingUtility.ExtractStringField(json, "createdAt");
+                state.updatedAt = JsonParsingUtility.ExtractStringField(json, "updatedAt");
+                state.winner = JsonParsingUtility.ExtractStringField(json, "winner");
 
                 // Parse player data
-                string player1Json = ExtractObjectField(json, "player1");
-                string player2Json = ExtractObjectField(json, "player2");
+                string player1Json = JsonParsingUtility.ExtractObjectField(json, "player1");
+                string player2Json = JsonParsingUtility.ExtractObjectField(json, "player2");
 
                 state.player1 = ParsePlayerData(player1Json);
                 state.player2 = ParsePlayerData(player2Json);
@@ -531,26 +530,24 @@ namespace DLYH.Networking.Services
                 return null;
             }
 
-            var data = new DLYHPlayerData();
-            data.name = ExtractStringField(json, "name");
-            data.color = ExtractStringField(json, "color");
-            data.ready = ExtractBoolField(json, "ready");
-            data.setupComplete = ExtractBoolField(json, "setupComplete");
-            data.lastActivityAt = ExtractStringField(json, "lastActivityAt");
+            DLYHPlayerData data = new DLYHPlayerData();
 
-            string setupJson = ExtractObjectField(json, "setupData");
-            if (!string.IsNullOrEmpty(setupJson) && setupJson != "null")
-            {
-                data.setupData = new DLYHSetupData
-                {
-                    gridSize = ExtractIntField(setupJson, "gridSize"),
-                    wordCount = ExtractIntField(setupJson, "wordCount"),
-                    difficulty = ExtractStringField(setupJson, "difficulty"),
-                    wordPlacementsEncrypted = ExtractStringField(setupJson, "wordPlacementsEncrypted")
-                };
-            }
+            // Identity
+            data.name = JsonParsingUtility.ExtractStringField(json, "name");
+            data.color = JsonParsingUtility.ExtractStringField(json, "color");
 
-            string gameplayJson = ExtractObjectField(json, "gameplayState");
+            // Setup config (flat structure, no nested setupData)
+            data.gridSize = JsonParsingUtility.ExtractIntField(json, "gridSize");
+            data.wordCount = JsonParsingUtility.ExtractIntField(json, "wordCount");
+            data.difficulty = JsonParsingUtility.ExtractStringField(json, "difficulty");
+
+            // Dynamic state
+            data.ready = JsonParsingUtility.ExtractBoolField(json, "ready");
+            data.setupComplete = JsonParsingUtility.ExtractBoolField(json, "setupComplete");
+            data.lastActivityAt = JsonParsingUtility.ExtractStringField(json, "lastActivityAt");
+            data.wordPlacementsEncrypted = JsonParsingUtility.ExtractStringField(json, "wordPlacementsEncrypted");
+
+            string gameplayJson = JsonParsingUtility.ExtractObjectField(json, "gameplayState");
             if (!string.IsNullOrEmpty(gameplayJson) && gameplayJson != "null")
             {
                 data.gameplayState = ParseGameplayState(gameplayJson);
@@ -562,25 +559,39 @@ namespace DLYH.Networking.Services
         private DLYHGameplayState ParseGameplayState(string json)
         {
             var state = new DLYHGameplayState();
-            state.misses = ExtractIntField(json, "misses");
-            state.missLimit = ExtractIntField(json, "missLimit");
-            state.knownLetters = ExtractStringArray(json, "knownLetters");
-            state.guessedCoordinates = ExtractCoordinateArray(json, "guessedCoordinates");
-            state.solvedWordRows = ExtractIntArray(json, "solvedWordRows");
+            state.misses = JsonParsingUtility.ExtractIntField(json, "misses");
+            state.missLimit = JsonParsingUtility.ExtractIntField(json, "missLimit");
+            state.knownLetters = JsonParsingUtility.ExtractStringArray(json, "knownLetters");
+            state.guessedCoordinates = ConvertToCoordinatePairs(
+                JsonParsingUtility.ExtractCoordinateArray(json, "guessedCoordinates"));
+            state.solvedWordRows = JsonParsingUtility.ExtractIntArray(json, "solvedWordRows");
             return state;
+        }
+
+        /// <summary>
+        /// Converts tuple array from JsonParsingUtility to CoordinatePair array.
+        /// </summary>
+        private CoordinatePair[] ConvertToCoordinatePairs((int row, int col)[] tuples)
+        {
+            CoordinatePair[] result = new CoordinatePair[tuples.Length];
+            for (int i = 0; i < tuples.Length; i++)
+            {
+                result[i] = new CoordinatePair(tuples[i].row, tuples[i].col);
+            }
+            return result;
         }
 
         // ============================================================
         // HELPER METHODS
         // ============================================================
 
-        private int CalculateMissLimit(DLYHSetupData setupData)
+        private int CalculateMissLimit(DLYHPlayerData playerData)
         {
-            if (setupData == null) return 6;
+            if (playerData == null) return 6;
 
             // Match the formula from GameplayStateTracker
-            int gridSize = setupData.gridSize;
-            int wordCount = setupData.wordCount;
+            int gridSize = playerData.gridSize;
+            int wordCount = playerData.wordCount;
 
             // Base formula: smaller grid = fewer misses allowed
             int baseMisses = gridSize switch
@@ -629,171 +640,6 @@ namespace DLYH.Networking.Services
                 result[i++] = val;
             }
             return result;
-        }
-
-        // ============================================================
-        // JSON FIELD EXTRACTION
-        // ============================================================
-
-        private string ExtractStringField(string json, string key)
-        {
-            string pattern = $"\"{key}\":\"";
-            int start = json.IndexOf(pattern);
-            if (start < 0) return null;
-            start += pattern.Length;
-            int end = json.IndexOf("\"", start);
-            if (end < 0) return null;
-            return json.Substring(start, end - start);
-        }
-
-        private int ExtractIntField(string json, string key)
-        {
-            string pattern = $"\"{key}\":";
-            int start = json.IndexOf(pattern);
-            if (start < 0) return 0;
-            start += pattern.Length;
-            int end = start;
-            while (end < json.Length && (char.IsDigit(json[end]) || json[end] == '-'))
-            {
-                end++;
-            }
-            if (end == start) return 0;
-            return int.Parse(json.Substring(start, end - start));
-        }
-
-        private bool ExtractBoolField(string json, string key)
-        {
-            string pattern = $"\"{key}\":";
-            int start = json.IndexOf(pattern);
-            if (start < 0) return false;
-            start += pattern.Length;
-            return json.Substring(start, 4) == "true";
-        }
-
-        private string ExtractObjectField(string json, string key)
-        {
-            string pattern = $"\"{key}\":";
-            int start = json.IndexOf(pattern);
-            if (start < 0) return null;
-            start += pattern.Length;
-
-            // Skip whitespace
-            while (start < json.Length && char.IsWhiteSpace(json[start])) start++;
-
-            if (start >= json.Length) return null;
-
-            if (json[start] == 'n') return "null"; // null value
-
-            if (json[start] != '{') return null;
-
-            int depth = 0;
-            int end = start;
-            while (end < json.Length)
-            {
-                if (json[end] == '{') depth++;
-                else if (json[end] == '}') depth--;
-                if (depth == 0) break;
-                end++;
-            }
-            return json.Substring(start, end - start + 1);
-        }
-
-        private string[] ExtractStringArray(string json, string key)
-        {
-            string pattern = $"\"{key}\":[";
-            int start = json.IndexOf(pattern);
-            if (start < 0) return new string[0];
-            start += pattern.Length;
-
-            int end = json.IndexOf("]", start);
-            if (end < 0) return new string[0];
-
-            string content = json.Substring(start, end - start);
-            if (string.IsNullOrWhiteSpace(content)) return new string[0];
-
-            var result = new List<string>();
-            int pos = 0;
-            while (pos < content.Length)
-            {
-                int quoteStart = content.IndexOf("\"", pos);
-                if (quoteStart < 0) break;
-                int quoteEnd = content.IndexOf("\"", quoteStart + 1);
-                if (quoteEnd < 0) break;
-                result.Add(content.Substring(quoteStart + 1, quoteEnd - quoteStart - 1));
-                pos = quoteEnd + 1;
-            }
-            return result.ToArray();
-        }
-
-        private int[] ExtractIntArray(string json, string key)
-        {
-            string pattern = $"\"{key}\":[";
-            int start = json.IndexOf(pattern);
-            if (start < 0) return new int[0];
-            start += pattern.Length;
-
-            int end = json.IndexOf("]", start);
-            if (end < 0) return new int[0];
-
-            string content = json.Substring(start, end - start);
-            if (string.IsNullOrWhiteSpace(content)) return new int[0];
-
-            var result = new List<int>();
-            var parts = content.Split(',');
-            foreach (var part in parts)
-            {
-                if (int.TryParse(part.Trim(), out int val))
-                {
-                    result.Add(val);
-                }
-            }
-            return result.ToArray();
-        }
-
-        private CoordinatePair[] ExtractCoordinateArray(string json, string key)
-        {
-            string pattern = $"\"{key}\":[";
-            int start = json.IndexOf(pattern);
-            if (start < 0) return new CoordinatePair[0];
-            start += pattern.Length;
-
-            // Find matching ]
-            int depth = 1;
-            int end = start;
-            while (end < json.Length && depth > 0)
-            {
-                if (json[end] == '[') depth++;
-                else if (json[end] == ']') depth--;
-                end++;
-            }
-            end--;
-
-            string content = json.Substring(start, end - start);
-            if (string.IsNullOrWhiteSpace(content)) return new CoordinatePair[0];
-
-            var result = new List<CoordinatePair>();
-
-            // Parse [[row,col],[row,col],...]
-            int pos = 0;
-            while (pos < content.Length)
-            {
-                int innerStart = content.IndexOf("[", pos);
-                if (innerStart < 0) break;
-                int innerEnd = content.IndexOf("]", innerStart);
-                if (innerEnd < 0) break;
-
-                string pair = content.Substring(innerStart + 1, innerEnd - innerStart - 1);
-                var parts = pair.Split(',');
-                if (parts.Length == 2 &&
-                    int.TryParse(parts[0].Trim(), out int row) &&
-                    int.TryParse(parts[1].Trim(), out int col))
-                {
-                    result.Add(new CoordinatePair(row, col));
-                }
-                pos = innerEnd + 1;
-            }
-
-            return result.ToArray();
         }
 
         // ============================================================

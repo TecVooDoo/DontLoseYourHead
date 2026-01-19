@@ -9,6 +9,7 @@
 using System;
 using UnityEngine;
 using Cysharp.Threading.Tasks;
+using DLYH.Core.Utilities;
 
 namespace DLYH.Networking.Services
 {
@@ -73,19 +74,25 @@ namespace DLYH.Networking.Services
         /// <summary>
         /// Ensures we have a player record in the players table.
         /// Creates a new record if needed, or returns existing cached ID.
+        ///
+        /// The player ID is the user's IDENTITY - it persists across all games and sessions.
+        /// Per-game data (nickname, color, grid size, etc.) is stored in session_players,
+        /// not here. This allows the same player to have different setups in different games.
+        ///
+        /// The displayName parameter is only used when creating a NEW player record
+        /// as a default/fallback. It does NOT affect existing player identity.
         /// </summary>
-        /// <param name="displayName">Player's display name</param>
+        /// <param name="displayName">Default name for new player record (not per-game nickname)</param>
         /// <returns>Player ID (UUID) or null on failure</returns>
-        public async UniTask<string> EnsurePlayerRecordAsync(string displayName)
+        public async UniTask<string> EnsurePlayerRecordAsync(string displayName = "Player")
         {
             if (string.IsNullOrEmpty(displayName))
             {
                 displayName = "Player";
             }
 
-            // If we have a cached player ID with the SAME name, verify it still exists
-            // Different names = different players (important for testing multiple players on same machine)
-            if (!string.IsNullOrEmpty(_currentPlayerId) && _currentPlayerName == displayName)
+            // If we have a cached player ID, verify it still exists in the database
+            if (!string.IsNullOrEmpty(_currentPlayerId))
             {
                 bool exists = await VerifyPlayerExistsAsync(_currentPlayerId);
                 if (exists)
@@ -95,21 +102,14 @@ namespace DLYH.Networking.Services
                 }
                 else
                 {
-                    // Cached ID is stale, clear it
+                    // Cached ID is stale (record deleted from DB), clear it
                     Debug.Log("[PlayerService] Cached player ID is stale, creating new record");
                     _currentPlayerId = null;
                     _currentPlayerName = null;
                 }
             }
-            else if (!string.IsNullOrEmpty(_currentPlayerId) && _currentPlayerName != displayName)
-            {
-                // Different name requested - create a new player record
-                Debug.Log($"[PlayerService] Different player name requested ({displayName} vs {_currentPlayerName}), creating new record");
-                _currentPlayerId = null;
-                _currentPlayerName = null;
-            }
 
-            // Create new player record
+            // Create new player record with default name
             string playerId = await CreatePlayerRecordAsync(displayName);
             if (!string.IsNullOrEmpty(playerId))
             {
@@ -146,7 +146,7 @@ namespace DLYH.Networking.Services
 
             // Extract id from response
             // Response format: [{"id":"uuid-here","display_name":"..."}]
-            string playerId = ExtractIdFromResponse(response.Body);
+            string playerId = JsonParsingUtility.ExtractStringField(response.Body, "id");
 
             if (string.IsNullOrEmpty(playerId))
             {
@@ -273,31 +273,6 @@ namespace DLYH.Networking.Services
         // JSON HELPERS
         // ============================================================
 
-        private string ExtractIdFromResponse(string json)
-        {
-            // Response format: [{"id":"uuid-here",...}] or {"id":"uuid-here",...}
-            if (string.IsNullOrEmpty(json))
-            {
-                return null;
-            }
-
-            string pattern = "\"id\":\"";
-            int start = json.IndexOf(pattern);
-            if (start < 0)
-            {
-                return null;
-            }
-
-            start += pattern.Length;
-            int end = json.IndexOf("\"", start);
-            if (end < 0)
-            {
-                return null;
-            }
-
-            return json.Substring(start, end - start);
-        }
-
         private PlayerRecord ParsePlayerRecord(string json)
         {
             if (string.IsNullOrEmpty(json) || json == "[]")
@@ -317,47 +292,12 @@ namespace DLYH.Networking.Services
             }
 
             PlayerRecord record = new PlayerRecord();
-            record.Id = ExtractStringField(json, "id");
-            record.DisplayName = ExtractStringField(json, "display_name");
-            record.AuthId = ExtractStringField(json, "auth_id");
-
-            string isAiStr = ExtractStringField(json, "is_ai");
-            record.IsAI = isAiStr == "true";
+            record.Id = JsonParsingUtility.ExtractStringField(json, "id");
+            record.DisplayName = JsonParsingUtility.ExtractStringField(json, "display_name");
+            record.AuthId = JsonParsingUtility.ExtractStringField(json, "auth_id");
+            record.IsAI = JsonParsingUtility.ExtractBoolField(json, "is_ai");
 
             return record;
-        }
-
-        private string ExtractStringField(string json, string fieldName)
-        {
-            string pattern = $"\"{fieldName}\":\"";
-            int start = json.IndexOf(pattern);
-            if (start < 0)
-            {
-                // Try boolean/null format
-                pattern = $"\"{fieldName}\":";
-                start = json.IndexOf(pattern);
-                if (start >= 0)
-                {
-                    start += pattern.Length;
-                    int end = json.IndexOfAny(new[] { ',', '}' }, start);
-                    if (end > start)
-                    {
-                        string value = json.Substring(start, end - start).Trim();
-                        if (value == "null") return null;
-                        return value;
-                    }
-                }
-                return null;
-            }
-
-            start += pattern.Length;
-            int endQuote = json.IndexOf("\"", start);
-            if (endQuote < 0)
-            {
-                return null;
-            }
-
-            return json.Substring(start, endQuote - start);
         }
 
         private string EscapeJson(string str)

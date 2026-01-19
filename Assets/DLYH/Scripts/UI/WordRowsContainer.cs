@@ -19,6 +19,11 @@ namespace DLYH.TableUI
         private Color _playerColor;
         private int _wordGuessRowIndex = -1; // Which row is currently in word guess mode
 
+        // Pre-allocated arrays to avoid per-guess allocations (max 4 words in game)
+        private bool[] _preGuessSnapshot;
+        private bool[] _postGuessSnapshot;
+        private readonly System.Collections.Generic.List<int> _newlyCompletedCache = new System.Collections.Generic.List<int>(4);
+
         // USS class names
         private static readonly string ClassContainer = "word-rows-content";
 
@@ -92,6 +97,8 @@ namespace DLYH.TableUI
             _wordCount = wordCount;
             _wordLengths = wordLengths ?? TableLayout.GetStandardWordLengths(wordCount);
             _playerColor = ColorRules.SelectableColors[0];
+            _preGuessSnapshot = new bool[wordCount];
+            _postGuessSnapshot = new bool[wordCount];
 
             BuildUI();
         }
@@ -554,47 +561,61 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
+        /// Captures the pre-guess snapshot of which word rows are fully revealed.
+        /// Call this before processing a guess, then call GetNewlyCompletedWords() after.
+        /// No allocation - uses pre-allocated internal array.
+        /// </summary>
+        public void CapturePreGuessSnapshot()
+        {
+            for (int i = 0; i < _wordCount; i++)
+            {
+                _preGuessSnapshot[i] = _wordRows[i].IsFullyRevealed();
+            }
+        }
+
+        /// <summary>
         /// Gets a snapshot of which word rows are currently fully revealed.
         /// Used to detect newly completed words after a guess.
+        /// Note: Returns cached array - caller should use immediately or copy if storing.
         /// </summary>
         /// <returns>Array of booleans indicating which words are fully revealed</returns>
         public bool[] GetRevealedSnapshot()
         {
-            bool[] snapshot = new bool[_wordCount];
             for (int i = 0; i < _wordCount; i++)
             {
-                snapshot[i] = _wordRows[i].IsFullyRevealed();
+                _postGuessSnapshot[i] = _wordRows[i].IsFullyRevealed();
             }
-            return snapshot;
+            return _postGuessSnapshot;
         }
 
         /// <summary>
         /// Compares current state to a previous snapshot and returns indices of newly completed words.
+        /// Note: Returns cached list - caller should use immediately or copy if storing.
         /// </summary>
-        /// <param name="previousSnapshot">Snapshot from before the guess</param>
+        /// <param name="previousSnapshot">Snapshot from before the guess (pass null to use internal pre-guess snapshot)</param>
         /// <returns>List of word indices that are now complete but weren't before</returns>
-        public System.Collections.Generic.List<int> GetNewlyCompletedWords(bool[] previousSnapshot)
+        public System.Collections.Generic.List<int> GetNewlyCompletedWords(bool[] previousSnapshot = null)
         {
-            System.Collections.Generic.List<int> newlyCompleted = new System.Collections.Generic.List<int>();
+            _newlyCompletedCache.Clear();
 
-            if (previousSnapshot == null || previousSnapshot.Length != _wordCount)
+            bool[] snapshot = previousSnapshot ?? _preGuessSnapshot;
+            if (snapshot == null || snapshot.Length != _wordCount)
             {
-                // No valid snapshot - return empty list
-                return newlyCompleted;
+                return _newlyCompletedCache;
             }
 
             for (int i = 0; i < _wordCount; i++)
             {
-                bool wasComplete = previousSnapshot[i];
+                bool wasComplete = snapshot[i];
                 bool isComplete = _wordRows[i].IsFullyRevealed();
 
                 if (!wasComplete && isComplete)
                 {
-                    newlyCompleted.Add(i);
+                    _newlyCompletedCache.Add(i);
                 }
             }
 
-            return newlyCompleted;
+            return _newlyCompletedCache;
         }
 
         /// <summary>
