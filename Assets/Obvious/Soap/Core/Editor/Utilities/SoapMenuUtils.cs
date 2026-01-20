@@ -5,14 +5,14 @@ namespace Obvious.Soap.Editor
 {
     public static class SoapMenuUtils
     {
-        [MenuItem("Tools/Obvious Game/\ud83e\uddfc Soap/Delete Player Pref %#d", priority = 0)]
+        [MenuItem("Tools/Obvious/\ud83e\uddfc Soap/Delete Player Pref %#d", priority = 0)]
         public static void DeletePlayerPrefs()
         {
             PlayerPrefs.DeleteAll();
             Debug.Log($"<color={SoapEditorUtils.SoapColorHtml}>--Player Prefs deleted--</color>");
         }
 
-        [MenuItem("Tools/Obvious Game/\ud83e\uddfc Soap/ToggleFastPlayMode %l", priority = 1)]
+        [MenuItem("Tools/Obvious/\ud83e\uddfc Soap/ToggleFastPlayMode %l", priority = 1)]
         public static void ToggleFastPlayMode()
         {
             EditorSettings.enterPlayModeOptionsEnabled = !EditorSettings.enterPlayModeOptionsEnabled;

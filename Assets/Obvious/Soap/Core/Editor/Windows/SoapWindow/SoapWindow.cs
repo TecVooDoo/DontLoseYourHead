@@ -17,9 +17,9 @@ namespace Obvious.Soap.Editor
         private Action _onCategoryButtonClicked;
         private CategoryButton _currentCategoryButton;
         private SoapWindowSettings _soapWindowSettings;
+        private string _version;
 
-        private string HeaderTitle => $" SOAP - Version {Version}";
-        private const string Version = "3.7.0";
+        private string HeaderTitle => " SOAP - Version " + _version;
         private const string DocURL = "https://obvious-game.gitbook.io/soap";
         private const string SceneDocURL = "https://obvious-game.gitbook.io/soap/scene-documentation/";
         private const string DiscordURL = "https://discord.gg/CVhCNDbxF5";
@@ -35,7 +35,7 @@ namespace Obvious.Soap.Editor
             "10_ScriptableSingletons"
         };
 
-        [MenuItem("Window/Obvious Game/\ud83e\uddfc Soap/Soap Window", priority = 0)]
+        [MenuItem("Window/Obvious/\ud83e\uddfc Soap/Soap Window", priority = 0)]
         public static void Open()
         {
             var window = GetWindow(typeof(SoapWindow), true, "Soap Window");
@@ -51,6 +51,7 @@ namespace Obvious.Soap.Editor
             _skin = Resources.Load<GUISkin>("GUISkins/SoapWizardGUISkin");
             _soapWindowSettings = new SoapWindowSettings(this);
             _bgStyle = new GUIStyle(GUIStyle.none);
+            _version = SoapPackageInfo.TryGetVersion(out var v) ? v : string.Empty;
         }
 
         private void LoadAssets()
@@ -142,7 +143,7 @@ namespace Obvious.Soap.Editor
             GUILayout.EndHorizontal();
             GUILayout.FlexibleSpace();
             var copyrightStyle = _skin.customStyles.ToList().Find(x => x.name == "copyright");
-            GUILayout.Label("© 2025 Obvious Game", copyrightStyle);
+            GUILayout.Label("© 2026 Obvious Game", copyrightStyle);
             iconStyle.padding = new RectOffset(0, 1, 35, 1);
             GUILayout.Box(_icons[9], iconStyle, GUILayout.Width(25), GUILayout.Height(60));
             GUILayout.EndHorizontal();
@@ -212,12 +213,6 @@ namespace Obvious.Soap.Editor
             return guid != null ? AssetDatabase.GUIDToAssetPath(guid) : null;
         }
 
-        private string GetSoapUserGuidePath()
-        {
-            var guid = AssetDatabase.FindAssets("Soap User Guide").FirstOrDefault();
-            return guid != null ? AssetDatabase.GUIDToAssetPath(guid) : null;
-        }
-
         private void DrawRightPanel()
         {
             if (_onCategoryButtonClicked == null)
@@ -240,8 +235,6 @@ namespace Obvious.Soap.Editor
                 "- Read the user guide. You can learn about why to use Soap and its features.",
                 "User Guide", _icons[7], () =>
                 {
-                    // var parentFolder = Path.GetDirectoryName(GetSoapUserGuidePath());
-                    // var docPath = parentFolder + @"\Soap User Guide.pdf";
                     Application.OpenURL(DocURL);
                 });
 
@@ -284,8 +277,6 @@ namespace Obvious.Soap.Editor
             guiContent = new GUIContent("Open Documentation", _icons[3]);
             if (GUILayout.Button(guiContent, GUILayout.MaxHeight(50), GUILayout.ExpandWidth(true)))
             {
-                //var parentFolder = Path.GetDirectoryName(GetSoapUserGuidePath());
-                //var docPath = parentFolder + $@"\Example Scenes\{sceneName}.pdf";
                 var docPath = SceneDocURL + sceneName;
                 Application.OpenURL(docPath);
             }

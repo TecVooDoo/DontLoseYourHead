@@ -187,5 +187,20 @@ mergeInto(LibraryManager.library, {
         } catch (e) {
             console.error('[AuthBridge] Failed to remove auth session: ' + e);
         }
+    },
+
+    // Clear URL hash fragment (called from C# after processing OAuth callback)
+    // Uses history.replaceState to avoid page reload
+    ClearUrlHash: function() {
+        if (window.location.hash) {
+            if (window.history && window.history.replaceState) {
+                window.history.replaceState(null, '', window.location.pathname + window.location.search);
+                console.log('[AuthBridge] URL hash cleared via replaceState');
+            } else {
+                // Fallback for older browsers (will cause a scroll to top)
+                window.location.hash = '';
+                console.log('[AuthBridge] URL hash cleared via direct assignment');
+            }
+        }
     }
 });

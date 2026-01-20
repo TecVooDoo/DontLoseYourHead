@@ -1,3 +1,8 @@
+## [3.7.1] - 2026-01-19
+- Fixed occasional null ref compatibility with Odin and ReadOnly Assets
+- Fixed ScriptableEvents not displaying all listeners in the inspector
+- Modified MenuItem name from 'Obvious Game' to 'Obvious' for consistency
+
 ## [3.7.0] - 2026-01-13
 - Fixed Soap Asset Creator for Unity 6 compatibility
 - Modified Reset On mode naming for better clarity

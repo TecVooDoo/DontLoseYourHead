@@ -8,7 +8,7 @@ using UnityEngine;
 namespace DLYH.UI
 {
     /// <summary>
-    /// Static helper class for audio volume settings.
+    /// Static helper class for audio volume settings. 
     /// Provides centralized access to saved volume preferences.
     /// </summary>
     public static class SettingsPanel

@@ -58,8 +58,9 @@
 
         </ui:VisualElement>
 
-        <!-- Footer (version only) -->
+        <!-- Footer -->
         <ui:VisualElement name="footer" class="footer">
+            <ui:Label name="auth-status-label" text="" class="auth-status-label" />
             <ui:Label name="version-label" text="v0.1" class="version-label" />
         </ui:VisualElement>
 

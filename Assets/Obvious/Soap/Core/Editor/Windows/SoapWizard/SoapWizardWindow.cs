@@ -63,14 +63,14 @@ namespace Obvious.Soap.Editor
             Favorites
         }
 
-        [MenuItem("Window/Obvious Game/\ud83e\uddfc Soap/Soap Wizard")]
+        [MenuItem("Window/Obvious/\ud83e\uddfc Soap/Soap Wizard")]
         public new static void Show()
         {
             var window = GetWindow<SoapWizardWindow>(typeof(SceneView));
             window.titleContent = new GUIContent("Soap Wizard", Resources.Load<Texture>("Icons/icon_soapLogo"));
         }
 
-        [MenuItem("Tools/Obvious Game/\ud83e\uddfc Soap/Soap Wizard %#w")]
+        [MenuItem("Tools/Obvious/\ud83e\uddfc Soap/Soap Wizard %#w")]
         private static void OpenSoapWizard() => Show();
 
         private void OnEnable()

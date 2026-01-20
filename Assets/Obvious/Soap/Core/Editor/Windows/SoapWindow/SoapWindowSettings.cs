@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
@@ -8,9 +7,6 @@ namespace Obvious.Soap.Editor
 {
     public class SoapWindowSettings
     {
-        private FloatVariable _floatVariable;
-        private readonly SerializedObject _exampleClassSerializedObject;
-        private readonly SerializedProperty _currentHealthProperty;
         private readonly Texture[] _icons;
         private Vector2 _scrollPosition = Vector2.zero;
         private SoapSettings _settings;
@@ -31,9 +27,6 @@ namespace Obvious.Soap.Editor
 
         public SoapWindowSettings(EditorWindow editorWindow)
         {
-            var exampleClass = ScriptableObject.CreateInstance<ExampleClass>();
-            _exampleClassSerializedObject = new SerializedObject(exampleClass);
-            _currentHealthProperty = _exampleClassSerializedObject.FindProperty("CurrentHealth");
             _icons = new Texture[1];
             _icons[0] = EditorGUIUtility.IconContent("cs Script Icon").image;
             _editorWindow = editorWindow;
@@ -50,11 +43,7 @@ namespace Obvious.Soap.Editor
             _scrollPosition = EditorGUILayout.BeginScrollView(_scrollPosition);
             DrawVariableDisplayMode();
             GUILayout.Space(10);
-            if (_exampleClassSerializedObject != null) //can take a frame to initialize
-            {
-                DrawNamingModeOnCreation();
-            }
-
+            DrawNamingModeOnCreation();
             GUILayout.Space(10);
             DrawAllowRaisingEventsInEditor();
             DrawTags();
@@ -222,11 +211,5 @@ namespace Obvious.Soap.Editor
                 EditorGUI.indentLevel--;
             }
         }
-    }
-
-    [Serializable]
-    public class ExampleClass : ScriptableObject
-    {
-        public FloatVariable CurrentHealth;
     }
 }

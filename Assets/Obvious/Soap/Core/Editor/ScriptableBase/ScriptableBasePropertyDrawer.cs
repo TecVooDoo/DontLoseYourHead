@@ -33,7 +33,8 @@ namespace Obvious.Soap.Editor
 
             if (!IsReadOnly.HasValue)
             {
-                IsReadOnly = fieldInfo.DeclaringType.IsSubclassOf(typeof(ReadOnlyBase));
+                IsReadOnly = fieldInfo?.DeclaringType != null &&
+                             fieldInfo.DeclaringType.IsSubclassOf(typeof(ReadOnlyBase));
             }
 
             DrawIfNotNull(position, property, label, targetObject);
@@ -119,7 +120,7 @@ namespace Obvious.Soap.Editor
 
             return null;
         }
-        
+
 
         protected void DrawIfNotNull(Rect position, SerializedProperty property, GUIContent label,
             Object targetObject)

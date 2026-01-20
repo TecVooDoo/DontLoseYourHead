@@ -5,6 +5,7 @@
 // Developer: TecVooDoo LLC
 
 using System;
+using System.Runtime.InteropServices;
 using UnityEngine;
 using Cysharp.Threading.Tasks;
 
@@ -104,6 +105,11 @@ namespace DLYH.Networking.Services
         private AuthSession _currentSession;
         private AuthState _currentState = AuthState.SignedOut;
         private bool _isOAuthPending;
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+        [DllImport("__Internal")]
+        private static extern void ClearUrlHash();
+#endif
 
         // ============================================================
         // PROPERTIES
@@ -383,6 +389,10 @@ namespace DLYH.Networking.Services
 
                 _currentSession = session;
                 SaveSession();
+
+                // Clear URL hash to prevent tokens from being visible/leaked
+                ClearUrlHashIfWebGL();
+
                 SetAuthState(AuthState.SignedIn);
                 OnSignedIn?.Invoke(session);
                 Debug.Log($"[AuthService] OAuth sign-in successful: {session.Email ?? session.UserId}");
@@ -734,6 +744,25 @@ namespace DLYH.Networking.Services
                 .Replace("\n", "\\n")
                 .Replace("\r", "\\r")
                 .Replace("\t", "\\t");
+        }
+
+        /// <summary>
+        /// Clears the URL hash fragment on WebGL to prevent token leakage.
+        /// Uses history.replaceState to remove hash without page reload.
+        /// </summary>
+        private void ClearUrlHashIfWebGL()
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            try
+            {
+                ClearUrlHash();
+                Debug.Log("[AuthService] Cleared URL hash after OAuth callback");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[AuthService] Failed to clear URL hash: {ex.Message}");
+            }
+#endif
         }
     }
 }

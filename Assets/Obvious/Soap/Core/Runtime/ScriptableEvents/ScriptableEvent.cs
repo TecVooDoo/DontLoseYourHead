@@ -20,6 +20,7 @@ namespace Obvious.Soap
 
         private readonly List<EventListenerGeneric<T>> _eventListeners = new List<EventListenerGeneric<T>>();
         private readonly List<Object> _listenersObjects = new List<Object>();
+        protected readonly List<Object> _cachedAllListeners = new List<Object>();
         protected Action<T> _onRaised = null;
         
 #if ODIN_INSPECTOR
@@ -88,8 +89,17 @@ namespace Obvious.Soap
                 _eventListeners.Remove(listener);
         }
 
-        public IReadOnlyList<Object> EditorListeners => _listenersObjects.AsReadOnly();
-
+        public IReadOnlyList<Object> EditorListeners
+        {
+            get
+            {
+                _cachedAllListeners.Clear();
+                _cachedAllListeners.AddRange(_eventListeners);
+                _cachedAllListeners.AddRange(_listenersObjects);
+                return _cachedAllListeners.AsReadOnly();
+            }
+        }
+        
         protected virtual void Debug()
         {
             if (_onRaised == null)

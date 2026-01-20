@@ -1,0 +1,399 @@
+<b><color=#2EA3FF>MCP-FOR-UNITY</color></b>: Auto-discovered 18 tools and 14 resources (32 total handlers)
+UnityEngine.Debug:Log (object)
+MCPForUnity.Editor.Helpers.McpLog:Info (string,bool) (at E:/Unity/unity-mcp-main/MCPForUnity/Editor/Helpers/McpLog.cs:40)
+MCPForUnity.Editor.Tools.CommandRegistry:AutoDiscoverCommands () (at E:/Unity/unity-mcp-main/MCPForUnity/Editor/Tools/CommandRegistry.cs:101)
+MCPForUnity.Editor.Tools.CommandRegistry:Initialize () (at E:/Unity/unity-mcp-main/MCPForUnity/Editor/Tools/CommandRegistry.cs:50)
+MCPForUnity.Editor.Services.Transport.TransportCommandDispatcher:EnsureInitialised () (at E:/Unity/unity-mcp-main/MCPForUnity/Editor/Services/Transport/TransportCommandDispatcher.cs:200)
+MCPForUnity.Editor.Services.Transport.TransportCommandDispatcher:.cctor () (at E:/Unity/unity-mcp-main/MCPForUnity/Editor/Services/Transport/TransportCommandDispatcher.cs:73)
+UnityEditor.EditorAssemblies:ProcessInitializeOnLoadAttributes (System.Type[])
+
+Unknown pseudo class "last-child" in StyleSheet SetupWizard
+UnityEngine.UIElements.StyleSheet:OnEnable ()
+
+<b><color=#2EA3FF>MCP-FOR-UNITY</color></b>: StdioBridgeHost started on port 6400. (OS=WindowsEditor, server=9.0.7)
+UnityEngine.Debug:Log (object)
+MCPForUnity.Editor.Helpers.McpLog:Info (string,bool) (at E:/Unity/unity-mcp-main/MCPForUnity/Editor/Helpers/McpLog.cs:40)
+MCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost:Start () (at E:/Unity/unity-mcp-main/MCPForUnity/Editor/Services/Transport/Transports/StdioBridgeHost.cs:370)
+MCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost:StartAutoConnect () (at E:/Unity/unity-mcp-main/MCPForUnity/Editor/Services/Transport/Transports/StdioBridgeHost.cs:90)
+MCPForUnity.Editor.Services.Transport.Transports.StdioTransportClient:StartAsync () (at E:/Unity/unity-mcp-main/MCPForUnity/Editor/Services/Transport/Transports/StdioTransportClient.cs:22)
+MCPForUnity.Editor.Services.Transport.TransportManager/<StartAsync>d__14:MoveNext () (at E:/Unity/unity-mcp-main/MCPForUnity/Editor/Services/Transport/TransportManager.cs:62)
+System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1<bool>:Start<MCPForUnity.Editor.Services.Transport.TransportManager/<StartAsync>d__14> (MCPForUnity.Editor.Services.Transport.TransportManager/<StartAsync>d__14&)
+MCPForUnity.Editor.Services.Transport.TransportManager:StartAsync (MCPForUnity.Editor.Services.Transport.TransportMode)
+MCPForUnity.Editor.Services.StdioBridgeReloadHandler:TryStartBridgeImmediate () (at E:/Unity/unity-mcp-main/MCPForUnity/Editor/Services/StdioBridgeReloadHandler.cs:90)
+MCPForUnity.Editor.Services.StdioBridgeReloadHandler:OnAfterAssemblyReload () (at E:/Unity/unity-mcp-main/MCPForUnity/Editor/Services/StdioBridgeReloadHandler.cs:85)
+UnityEditor.AssemblyReloadEvents:OnAfterAssemblyReload ()
+
+[MusicManager] Initialized playlist with 3 tracks
+UnityEngine.Debug:Log (object)
+DLYH.Audio.MusicManager:InitializePlaylist () (at Assets/DLYH/Scripts/Audio/MusicManager.cs:209)
+DLYH.Audio.MusicManager:Awake () (at Assets/DLYH/Scripts/Audio/MusicManager.cs:125)
+
+[MusicManager] Now playing: An Ocean of Stars - Mastered
+UnityEngine.Debug:Log (object)
+DLYH.Audio.MusicManager:PlayCurrentTrack () (at Assets/DLYH/Scripts/Audio/MusicManager.cs:341)
+DLYH.Audio.MusicManager:PlayMusic () (at Assets/DLYH/Scripts/Audio/MusicManager.cs:288)
+DLYH.Audio.MusicManager:Start () (at Assets/DLYH/Scripts/Audio/MusicManager.cs:131)
+
+[MusicManager] Music started
+UnityEngine.Debug:Log (object)
+DLYH.Audio.MusicManager:PlayMusic () (at Assets/DLYH/Scripts/Audio/MusicManager.cs:290)
+DLYH.Audio.MusicManager:Start () (at Assets/DLYH/Scripts/Audio/MusicManager.cs:131)
+
+[ActiveGamesManager] Loaded 2 hidden games
+UnityEngine.Debug:Log (object)
+DLYH.UI.Managers.ActiveGamesManager:LoadHiddenGames () (at Assets/DLYH/Scripts/UI/Managers/ActiveGamesManager.cs:319)
+DLYH.UI.Managers.ActiveGamesManager:Initialize (UnityEngine.UIElements.VisualElement,DLYH.Networking.Services.GameSessionService,DLYH.Networking.Services.PlayerService) (at Assets/DLYH/Scripts/UI/Managers/ActiveGamesManager.cs:83)
+DLYH.TableUI.UIFlowController:SetupMyActiveGames () (at Assets/DLYH/Scripts/UI/UIFlowController.cs:570)
+DLYH.TableUI.UIFlowController:CreateMainMenuScreen () (at Assets/DLYH/Scripts/UI/UIFlowController.cs:513)
+DLYH.TableUI.UIFlowController:Initialize () (at Assets/DLYH/Scripts/UI/UIFlowController.cs:418)
+DLYH.TableUI.UIFlowController:Start () (at Assets/DLYH/Scripts/UI/UIFlowController.cs:242)
+
+[PlayerService] Restored player from prefs: 34f8358c-fa7d-4b5f-804f-500581e1fbb8
+UnityEngine.Debug:Log (object)
+DLYH.Networking.Services.PlayerService:RestoreFromPrefs () (at Assets/DLYH/Scripts/Networking/Services/PlayerService.cs:311)
+DLYH.Networking.Services.PlayerService:.ctor (DLYH.Networking.Services.SupabaseClient) (at Assets/DLYH/Scripts/Networking/Services/PlayerService.cs:67)
+DLYH.TableUI.UIFlowController:InitializeNetworkingUI () (at Assets/DLYH/Scripts/UI/UIFlowController.cs:3629)
+DLYH.TableUI.UIFlowController:Initialize () (at Assets/DLYH/Scripts/UI/UIFlowController.cs:423)
+DLYH.TableUI.UIFlowController:Start () (at Assets/DLYH/Scripts/UI/UIFlowController.cs:242)
+
+[UIFlowController] Networking services initialized
+UnityEngine.Debug:Log (object)
+DLYH.TableUI.UIFlowController:InitializeNetworkingUI () (at Assets/DLYH/Scripts/UI/UIFlowController.cs:3638)
+DLYH.TableUI.UIFlowController:Initialize () (at Assets/DLYH/Scripts/UI/UIFlowController.cs:423)
+DLYH.TableUI.UIFlowController:Start () (at Assets/DLYH/Scripts/UI/UIFlowController.cs:242)
+
+[UIFlowController] Networking UI initialized
+UnityEngine.Debug:Log (object)
+DLYH.TableUI.UIFlowController:InitializeNetworkingUI () (at Assets/DLYH/Scripts/UI/UIFlowController.cs:3665)
+DLYH.TableUI.UIFlowController:Initialize () (at Assets/DLYH/Scripts/UI/UIFlowController.cs:423)
+DLYH.TableUI.UIFlowController:Start () (at Assets/DLYH/Scripts/UI/UIFlowController.cs:242)
+
+[ActiveGamesManager] Loading active games for player 34f8358c-fa7d-4b5f-804f-500581e1fbb8
+UnityEngine.Debug:Log (object)
+DLYH.UI.Managers.ActiveGamesManager/<LoadMyActiveGamesAsync>d__12:MoveNext () (at Assets/DLYH/Scripts/UI/Managers/ActiveGamesManager.cs:138)
+DLYH.UI.Managers.ActiveGamesManager:LoadMyActiveGamesAsync ()
+DLYH.TableUI.UIFlowController:ShowMainMenu () (at Assets/DLYH/Scripts/UI/UIFlowController.cs:3864)
+DLYH.TableUI.UIFlowController:Initialize () (at Assets/DLYH/Scripts/UI/UIFlowController.cs:426)
+DLYH.TableUI.UIFlowController:Start () (at Assets/DLYH/Scripts/UI/UIFlowController.cs:242)
+
+[SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/session_players?player_id=eq.34f8358c-fa7d-4b5f-804f-500581e1fbb8&select=session_id,player_number -> 200
+UnityEngine.Debug:Log (object)
+DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:242)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.Internal.PooledDelegate`1<UnityEngine.AsyncOperation>:Run (UnityEngine.AsyncOperation) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/Internal/PooledDelegate.cs:46)
+UnityEngine.AsyncOperation:InvokeCompletionEvent ()
+
+[SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/game_sessions?id=eq.NGD9YE -> 200
+UnityEngine.Debug:Log (object)
+DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:242)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.Internal.PooledDelegate`1<UnityEngine.AsyncOperation>:Run (UnityEngine.AsyncOperation) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/Internal/PooledDelegate.cs:46)
+UnityEngine.AsyncOperation:InvokeCompletionEvent ()
+
+[SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/session_players?session_id=eq.NGD9YE&player_id=neq.34f8358c-fa7d-4b5f-804f-500581e1fbb8&select=player_id,player_name -> 200
+UnityEngine.Debug:Log (object)
+DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:242)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.Internal.PooledDelegate`1<UnityEngine.AsyncOperation>:Run (UnityEngine.AsyncOperation) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/Internal/PooledDelegate.cs:46)
+UnityEngine.AsyncOperation:InvokeCompletionEvent ()
+
+[SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/game_sessions?id=eq.WER4EU -> 200
+UnityEngine.Debug:Log (object)
+DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:242)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.Internal.PooledDelegate`1<UnityEngine.AsyncOperation>:Run (UnityEngine.AsyncOperation) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/Internal/PooledDelegate.cs:46)
+UnityEngine.AsyncOperation:InvokeCompletionEvent ()
+
+[SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/session_players?session_id=eq.WER4EU&player_id=neq.34f8358c-fa7d-4b5f-804f-500581e1fbb8&select=player_id,player_name -> 200
+UnityEngine.Debug:Log (object)
+DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:242)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.Internal.PooledDelegate`1<UnityEngine.AsyncOperation>:Run (UnityEngine.AsyncOperation) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/Internal/PooledDelegate.cs:46)
+UnityEngine.AsyncOperation:InvokeCompletionEvent ()
+
+[GameSessionService] Found 2 active games for player 34f8358c-fa7d-4b5f-804f-500581e1fbb8
+UnityEngine.Debug:Log (object)
+DLYH.Networking.Services.GameSessionService/<GetPlayerGames>d__17:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/GameSessionService.cs:535)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.GameSessionService/<GetPlayerGames>d__17, DLYH.Networking.Services.ActiveGameInfo[]>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation (object) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1<DLYH.Networking.Services.SupabaseResponse>:TrySetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<Get>d__8, DLYH.Networking.Services.SupabaseResponse>:SetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:328)
+DLYH.Networking.Services.SupabaseClient/<Get>d__8:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:87)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<Get>d__8, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation (object) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1<DLYH.Networking.Services.SupabaseResponse>:TrySetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:SetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:328)
+DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:273)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.Internal.PooledDelegate`1<UnityEngine.AsyncOperation>:Run (UnityEngine.AsyncOperation) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/Internal/PooledDelegate.cs:46)
+UnityEngine.AsyncOperation:InvokeCompletionEvent ()
+
+[UIFlowController] StartNewGame called with mode: JoinGame
+UnityEngine.Debug:Log (object)
+DLYH.TableUI.UIFlowController:StartNewGame (DLYH.TableUI.GameMode) (at Assets/DLYH/Scripts/UI/UIFlowController.cs:3277)
+DLYH.TableUI.UIFlowController:HandleGameModeSelected (DLYH.TableUI.GameMode) (at Assets/DLYH/Scripts/UI/UIFlowController.cs:3272)
+DLYH.TableUI.UIFlowController:<CreateMainMenuScreen>b__116_2 () (at Assets/DLYH/Scripts/UI/UIFlowController.cs:492)
+UnityEngine.EventSystems.EventSystem:Update () (at ./Library/PackageCache/com.unity.ugui@4ee0fac0c6e4/Runtime/UGUI/EventSystem/EventSystem.cs:514)
+
+[UIFlowController] Game state reset for new game
+UnityEngine.Debug:Log (object)
+DLYH.TableUI.UIFlowController:ResetGameState () (at Assets/DLYH/Scripts/UI/UIFlowController.cs:3344)
+DLYH.TableUI.UIFlowController:StartNewGame (DLYH.TableUI.GameMode) (at Assets/DLYH/Scripts/UI/UIFlowController.cs:3280)
+DLYH.TableUI.UIFlowController:HandleGameModeSelected (DLYH.TableUI.GameMode) (at Assets/DLYH/Scripts/UI/UIFlowController.cs:3272)
+DLYH.TableUI.UIFlowController:<CreateMainMenuScreen>b__116_2 () (at Assets/DLYH/Scripts/UI/UIFlowController.cs:492)
+UnityEngine.EventSystems.EventSystem:Update () (at ./Library/PackageCache/com.unity.ugui@4ee0fac0c6e4/Runtime/UGUI/EventSystem/EventSystem.cs:514)
+
+[UIFlowController] StartNewGame completed - setup wizard should be visible
+UnityEngine.Debug:Log (object)
+DLYH.TableUI.UIFlowController:StartNewGame (DLYH.TableUI.GameMode) (at Assets/DLYH/Scripts/UI/UIFlowController.cs:3290)
+DLYH.TableUI.UIFlowController:HandleGameModeSelected (DLYH.TableUI.GameMode) (at Assets/DLYH/Scripts/UI/UIFlowController.cs:3272)
+DLYH.TableUI.UIFlowController:<CreateMainMenuScreen>b__116_2 () (at Assets/DLYH/Scripts/UI/UIFlowController.cs:492)
+UnityEngine.EventSystems.EventSystem:Update () (at ./Library/PackageCache/com.unity.ugui@4ee0fac0c6e4/Runtime/UGUI/EventSystem/EventSystem.cs:514)
+
+[SetupWizard] Submitting join code: WER4EU
+UnityEngine.Debug:Log (object)
+DLYH.TableUI.SetupWizardUIManager:HandleJoinCodeSubmit () (at Assets/DLYH/Scripts/UI/SetupWizardUIManager.cs:373)
+UnityEngine.EventSystems.EventSystem:Update () (at ./Library/PackageCache/com.unity.ugui@4ee0fac0c6e4/Runtime/UGUI/EventSystem/EventSystem.cs:514)
+
+[UIFlowController] Join code submitted: WER4EU
+UnityEngine.Debug:Log (object)
+DLYH.TableUI.UIFlowController:HandleJoinCodeSubmitted (string) (at Assets/DLYH/Scripts/UI/UIFlowController.cs:4717)
+DLYH.TableUI.SetupWizardUIManager:HandleJoinCodeSubmit () (at Assets/DLYH/Scripts/UI/SetupWizardUIManager.cs:374)
+UnityEngine.EventSystems.EventSystem:Update () (at ./Library/PackageCache/com.unity.ugui@4ee0fac0c6e4/Runtime/UGUI/EventSystem/EventSystem.cs:514)
+
+[SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/players?id=eq.34f8358c-fa7d-4b5f-804f-500581e1fbb8&select=id -> 200
+UnityEngine.Debug:Log (object)
+DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:242)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.Internal.PooledDelegate`1<UnityEngine.AsyncOperation>:Run (UnityEngine.AsyncOperation) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/Internal/PooledDelegate.cs:46)
+UnityEngine.AsyncOperation:InvokeCompletionEvent ()
+
+[PlayerService] Using existing player record: 34f8358c-fa7d-4b5f-804f-500581e1fbb8
+UnityEngine.Debug:Log (object)
+DLYH.Networking.Services.PlayerService/<EnsurePlayerRecordAsync>d__14:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/PlayerService.cs:100)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.PlayerService/<EnsurePlayerRecordAsync>d__14, string>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation (object) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1<bool>:TrySetResult (bool) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.PlayerService/<VerifyPlayerExistsAsync>d__16, bool>:SetResult (bool) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:328)
+DLYH.Networking.Services.PlayerService/<VerifyPlayerExistsAsync>d__16:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/PlayerService.cs:178)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.PlayerService/<VerifyPlayerExistsAsync>d__16, bool>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation (object) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1<DLYH.Networking.Services.SupabaseResponse>:TrySetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<Get>d__8, DLYH.Networking.Services.SupabaseResponse>:SetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:328)
+DLYH.Networking.Services.SupabaseClient/<Get>d__8:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:87)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<Get>d__8, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation (object) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1<DLYH.Networking.Services.SupabaseResponse>:TrySetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:SetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:328)
+DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:273)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.Internal.PooledDelegate`1<UnityEngine.AsyncOperation>:Run (UnityEngine.AsyncOperation) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/Internal/PooledDelegate.cs:46)
+UnityEngine.AsyncOperation:InvokeCompletionEvent ()
+
+[UIFlowController] Player record ready for join: 34f8358c-fa7d-4b5f-804f-500581e1fbb8
+UnityEngine.Debug:Log (object)
+DLYH.TableUI.UIFlowController/<HandleJoinCodeSubmittedAsync>d__266:MoveNext () (at Assets/DLYH/Scripts/UI/UIFlowController.cs:4739)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`1<DLYH.TableUI.UIFlowController/<HandleJoinCodeSubmittedAsync>d__266>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:189)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation (object) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1<string>:TrySetResult (string) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.PlayerService/<EnsurePlayerRecordAsync>d__14, string>:SetResult (string) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:328)
+DLYH.Networking.Services.PlayerService/<EnsurePlayerRecordAsync>d__14:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/PlayerService.cs:123)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.PlayerService/<EnsurePlayerRecordAsync>d__14, string>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation (object) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1<bool>:TrySetResult (bool) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.PlayerService/<VerifyPlayerExistsAsync>d__16, bool>:SetResult (bool) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:328)
+DLYH.Networking.Services.PlayerService/<VerifyPlayerExistsAsync>d__16:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/PlayerService.cs:178)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.PlayerService/<VerifyPlayerExistsAsync>d__16, bool>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation (object) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1<DLYH.Networking.Services.SupabaseResponse>:TrySetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<Get>d__8, DLYH.Networking.Services.SupabaseResponse>:SetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:328)
+DLYH.Networking.Services.SupabaseClient/<Get>d__8:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:87)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<Get>d__8, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation (object) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1<DLYH.Networking.Services.SupabaseResponse>:TrySetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:SetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:328)
+DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:273)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.Internal.PooledDelegate`1<UnityEngine.AsyncOperation>:Run (UnityEngine.AsyncOperation) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/Internal/PooledDelegate.cs:46)
+UnityEngine.AsyncOperation:InvokeCompletionEvent ()
+
+[SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/game_sessions?id=eq.WER4EU -> 200
+UnityEngine.Debug:Log (object)
+DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:242)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.Internal.PooledDelegate`1<UnityEngine.AsyncOperation>:Run (UnityEngine.AsyncOperation) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/Internal/PooledDelegate.cs:46)
+UnityEngine.AsyncOperation:InvokeCompletionEvent ()
+
+[SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/session_players?session_id=eq.WER4EU&select=player_number -> 200
+UnityEngine.Debug:Log (object)
+DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:242)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.Internal.PooledDelegate`1<UnityEngine.AsyncOperation>:Run (UnityEngine.AsyncOperation) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/Internal/PooledDelegate.cs:46)
+UnityEngine.AsyncOperation:InvokeCompletionEvent ()
+
+[GameSessionService] GetPlayerCount for WER4EU: 1
+UnityEngine.Debug:Log (object)
+DLYH.Networking.Services.GameSessionService/<GetPlayerCount>d__16:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/GameSessionService.cs:426)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.GameSessionService/<GetPlayerCount>d__16, int>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation (object) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1<DLYH.Networking.Services.SupabaseResponse>:TrySetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<Get>d__8, DLYH.Networking.Services.SupabaseResponse>:SetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:328)
+DLYH.Networking.Services.SupabaseClient/<Get>d__8:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:87)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<Get>d__8, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation (object) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1<DLYH.Networking.Services.SupabaseResponse>:TrySetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:SetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:328)
+DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:273)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.Internal.PooledDelegate`1<UnityEngine.AsyncOperation>:Run (UnityEngine.AsyncOperation) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/Internal/PooledDelegate.cs:46)
+UnityEngine.AsyncOperation:InvokeCompletionEvent ()
+
+[SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/session_players?session_id=eq.WER4EU&player_id=eq.34f8358c-fa7d-4b5f-804f-500581e1fbb8&select=player_number -> 200
+UnityEngine.Debug:Log (object)
+DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:242)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.Internal.PooledDelegate`1<UnityEngine.AsyncOperation>:Run (UnityEngine.AsyncOperation) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/Internal/PooledDelegate.cs:46)
+UnityEngine.AsyncOperation:InvokeCompletionEvent ()
+
+[GameSessionService] IsPlayerInGame(WER4EU, 34f8358c-fa7d-4b5f-804f-500581e1fbb8): True
+UnityEngine.Debug:Log (object)
+DLYH.Networking.Services.GameSessionService/<IsPlayerInGame>d__15:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/GameSessionService.cs:395)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.GameSessionService/<IsPlayerInGame>d__15, bool>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation (object) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1<DLYH.Networking.Services.SupabaseResponse>:TrySetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<Get>d__8, DLYH.Networking.Services.SupabaseResponse>:SetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:328)
+DLYH.Networking.Services.SupabaseClient/<Get>d__8:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:87)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<Get>d__8, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation (object) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1<DLYH.Networking.Services.SupabaseResponse>:TrySetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:SetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:328)
+DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:273)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.Internal.PooledDelegate`1<UnityEngine.AsyncOperation>:Run (UnityEngine.AsyncOperation) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/Internal/PooledDelegate.cs:46)
+UnityEngine.AsyncOperation:InvokeCompletionEvent ()
+
+[GameSessionService] Player 34f8358c-fa7d-4b5f-804f-500581e1fbb8 is rejoining game WER4EU
+UnityEngine.Debug:Log (object)
+DLYH.Networking.Services.GameSessionService/<JoinGame>d__14:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/GameSessionService.cs:296)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.GameSessionService/<JoinGame>d__14, bool>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation (object) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1<bool>:TrySetResult (bool) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.GameSessionService/<IsPlayerInGame>d__15, bool>:SetResult (bool) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:328)
+DLYH.Networking.Services.GameSessionService/<IsPlayerInGame>d__15:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/GameSessionService.cs:397)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.GameSessionService/<IsPlayerInGame>d__15, bool>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation (object) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1<DLYH.Networking.Services.SupabaseResponse>:TrySetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<Get>d__8, DLYH.Networking.Services.SupabaseResponse>:SetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:328)
+DLYH.Networking.Services.SupabaseClient/<Get>d__8:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:87)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<Get>d__8, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation (object) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1<DLYH.Networking.Services.SupabaseResponse>:TrySetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:SetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:328)
+DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:273)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.Internal.PooledDelegate`1<UnityEngine.AsyncOperation>:Run (UnityEngine.AsyncOperation) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/Internal/PooledDelegate.cs:46)
+UnityEngine.AsyncOperation:InvokeCompletionEvent ()
+
+[MatchmakingService] Joined game: WER4EU
+UnityEngine.Debug:Log (object)
+DLYH.Networking.Services.MatchmakingService/<JoinWithCodeAsync>d__25:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/MatchmakingService.cs:458)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.MatchmakingService/<JoinWithCodeAsync>d__25, DLYH.Networking.Services.MatchmakingResult>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation (object) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1<bool>:TrySetResult (bool) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.GameSessionService/<JoinGame>d__14, bool>:SetResult (bool) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:328)
+DLYH.Networking.Services.GameSessionService/<JoinGame>d__14:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/GameSessionService.cs:366)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.GameSessionService/<JoinGame>d__14, bool>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation (object) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1<bool>:TrySetResult (bool) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.GameSessionService/<IsPlayerInGame>d__15, bool>:SetResult (bool) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:328)
+DLYH.Networking.Services.GameSessionService/<IsPlayerInGame>d__15:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/GameSessionService.cs:397)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.GameSessionService/<IsPlayerInGame>d__15, bool>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation (object) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1<DLYH.Networking.Services.SupabaseResponse>:TrySetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<Get>d__8, DLYH.Networking.Services.SupabaseResponse>:SetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:328)
+DLYH.Networking.Services.SupabaseClient/<Get>d__8:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:87)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<Get>d__8, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation (object) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1<DLYH.Networking.Services.SupabaseResponse>:TrySetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:SetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:328)
+DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:273)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.Internal.PooledDelegate`1<UnityEngine.AsyncOperation>:Run (UnityEngine.AsyncOperation) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/Internal/PooledDelegate.cs:46)
+UnityEngine.AsyncOperation:InvokeCompletionEvent ()
+
+[ActiveGamesManager] Loading active games for player 34f8358c-fa7d-4b5f-804f-500581e1fbb8
+UnityEngine.Debug:Log (object)
+DLYH.UI.Managers.ActiveGamesManager/<LoadMyActiveGamesAsync>d__12:MoveNext () (at Assets/DLYH/Scripts/UI/Managers/ActiveGamesManager.cs:138)
+DLYH.UI.Managers.ActiveGamesManager:LoadMyActiveGamesAsync ()
+DLYH.TableUI.UIFlowController:ShowMainMenu () (at Assets/DLYH/Scripts/UI/UIFlowController.cs:3864)
+DLYH.TableUI.UIFlowController:<CreateHamburgerMenu>b__221_0 () (at Assets/DLYH/Scripts/UI/UIFlowController.cs:3567)
+UnityEngine.EventSystems.EventSystem:Update () (at ./Library/PackageCache/com.unity.ugui@4ee0fac0c6e4/Runtime/UGUI/EventSystem/EventSystem.cs:514)
+
+[SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/session_players?player_id=eq.34f8358c-fa7d-4b5f-804f-500581e1fbb8&select=session_id,player_number -> 200
+UnityEngine.Debug:Log (object)
+DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:242)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.Internal.PooledDelegate`1<UnityEngine.AsyncOperation>:Run (UnityEngine.AsyncOperation) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/Internal/PooledDelegate.cs:46)
+UnityEngine.AsyncOperation:InvokeCompletionEvent ()
+
+[SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/game_sessions?id=eq.NGD9YE -> 200
+UnityEngine.Debug:Log (object)
+DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:242)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.Internal.PooledDelegate`1<UnityEngine.AsyncOperation>:Run (UnityEngine.AsyncOperation) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/Internal/PooledDelegate.cs:46)
+UnityEngine.AsyncOperation:InvokeCompletionEvent ()
+
+[SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/session_players?session_id=eq.NGD9YE&player_id=neq.34f8358c-fa7d-4b5f-804f-500581e1fbb8&select=player_id,player_name -> 200
+UnityEngine.Debug:Log (object)
+DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:242)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.Internal.PooledDelegate`1<UnityEngine.AsyncOperation>:Run (UnityEngine.AsyncOperation) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/Internal/PooledDelegate.cs:46)
+UnityEngine.AsyncOperation:InvokeCompletionEvent ()
+
+[SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/game_sessions?id=eq.WER4EU -> 200
+UnityEngine.Debug:Log (object)
+DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:242)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.Internal.PooledDelegate`1<UnityEngine.AsyncOperation>:Run (UnityEngine.AsyncOperation) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/Internal/PooledDelegate.cs:46)
+UnityEngine.AsyncOperation:InvokeCompletionEvent ()
+
+[SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/session_players?session_id=eq.WER4EU&player_id=neq.34f8358c-fa7d-4b5f-804f-500581e1fbb8&select=player_id,player_name -> 200
+UnityEngine.Debug:Log (object)
+DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:242)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.Internal.PooledDelegate`1<UnityEngine.AsyncOperation>:Run (UnityEngine.AsyncOperation) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/Internal/PooledDelegate.cs:46)
+UnityEngine.AsyncOperation:InvokeCompletionEvent ()
+
+[GameSessionService] Found 2 active games for player 34f8358c-fa7d-4b5f-804f-500581e1fbb8
+UnityEngine.Debug:Log (object)
+DLYH.Networking.Services.GameSessionService/<GetPlayerGames>d__17:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/GameSessionService.cs:535)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.GameSessionService/<GetPlayerGames>d__17, DLYH.Networking.Services.ActiveGameInfo[]>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation (object) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1<DLYH.Networking.Services.SupabaseResponse>:TrySetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<Get>d__8, DLYH.Networking.Services.SupabaseResponse>:SetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:328)
+DLYH.Networking.Services.SupabaseClient/<Get>d__8:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:87)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<Get>d__8, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation (object) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1<DLYH.Networking.Services.SupabaseResponse>:TrySetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:SetResult (DLYH.Networking.Services.SupabaseResponse) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:328)
+DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15:MoveNext () (at Assets/DLYH/Scripts/Networking/Services/SupabaseClient.cs:273)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2<DLYH.Networking.Services.SupabaseClient/<SendRequest>d__15, DLYH.Networking.Services.SupabaseResponse>:Run () (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.Internal.PooledDelegate`1<UnityEngine.AsyncOperation>:Run (UnityEngine.AsyncOperation) (at E:/Unity/DefaultUnityPackages/com.cysharp.unitask/Runtime/Internal/PooledDelegate.cs:46)
+UnityEngine.AsyncOperation:InvokeCompletionEvent ()
+
+[MusicManager] Crossfading to: The Monster Within - Mastered
+UnityEngine.Debug:Log (object)
+DLYH.Audio.MusicManager/<CrossfadeCoroutine>d__45:MoveNext () (at Assets/DLYH/Scripts/Audio/MusicManager.cs:438)
+UnityEngine.MonoBehaviour:StartCoroutine (System.Collections.IEnumerator)
+DLYH.Audio.MusicManager:StartCrossfade (UnityEngine.AudioClip) (at Assets/DLYH/Scripts/Audio/MusicManager.cs:423)
+DLYH.Audio.MusicManager:PlayNextTrack () (at Assets/DLYH/Scripts/Audio/MusicManager.cs:382)
+DLYH.Audio.MusicManager:Update () (at Assets/DLYH/Scripts/Audio/MusicManager.cs:144)
+
+[MusicManager] Crossfading to: A tavern, a bard, a quest
+UnityEngine.Debug:Log (object)
+DLYH.Audio.MusicManager/<CrossfadeCoroutine>d__45:MoveNext () (at Assets/DLYH/Scripts/Audio/MusicManager.cs:438)
+UnityEngine.MonoBehaviour:StartCoroutine (System.Collections.IEnumerator)
+DLYH.Audio.MusicManager:StartCrossfade (UnityEngine.AudioClip) (at Assets/DLYH/Scripts/Audio/MusicManager.cs:423)
+DLYH.Audio.MusicManager:PlayNextTrack () (at Assets/DLYH/Scripts/Audio/MusicManager.cs:382)
+DLYH.Audio.MusicManager:Update () (at Assets/DLYH/Scripts/Audio/MusicManager.cs:144)
+

@@ -143,6 +143,7 @@ namespace DLYH.TableUI
         private Label _sfxValueLabel;
         private Label _musicValueLabel;
         private Label _triviaLabel;
+        private Label _authStatusLabel;
 
         // Guillotine and beheading trivia facts (matches MainMenuController.cs)
         private static readonly string[] TRIVIA_FACTS = new string[]
@@ -520,6 +521,10 @@ namespace DLYH.TableUI
             {
                 versionLabel.text = $"v{Application.version}";
             }
+
+            // Auth status label
+            _authStatusLabel = _mainMenuScreen.Q<Label>("auth-status-label");
+            UpdateAuthStatusDisplay();
         }
 
         private void SetupInlineSettings()
@@ -564,6 +569,40 @@ namespace DLYH.TableUI
             _activeGamesManager = new ActiveGamesManager();
             _activeGamesManager.Initialize(_mainMenuScreen, _gameSessionService, _playerService);
             _activeGamesManager.OnResumeRequested = HandleResumeGameFromActiveGames;
+        }
+
+        /// <summary>
+        /// Updates the auth status display in the main menu footer.
+        /// Shows "Playing as Guest" or player name if available.
+        /// </summary>
+        private void UpdateAuthStatusDisplay()
+        {
+            if (_authStatusLabel == null)
+            {
+                return;
+            }
+
+            // Check if we have a player record
+            if (_playerService != null && _playerService.HasPlayerRecord)
+            {
+                string playerName = _playerService.CurrentPlayerName;
+                // Treat default "Player" name as Guest (not authenticated)
+                if (!string.IsNullOrEmpty(playerName) && playerName != "Player")
+                {
+                    _authStatusLabel.text = $"Playing as {playerName}";
+                    _authStatusLabel.AddToClassList("signed-in");
+                }
+                else
+                {
+                    _authStatusLabel.text = "Playing as Guest";
+                    _authStatusLabel.RemoveFromClassList("signed-in");
+                }
+            }
+            else
+            {
+                _authStatusLabel.text = "Playing as Guest";
+                _authStatusLabel.RemoveFromClassList("signed-in");
+            }
         }
 
         // NOTE: LoadMyActiveGamesAsync, ShowMyActiveGames, HideMyActiveGames, CreateMyGameItem
@@ -3597,6 +3636,9 @@ namespace DLYH.TableUI
                 );
 
                 Debug.Log("[UIFlowController] Networking services initialized");
+
+                // Update ActiveGamesManager with the new services so My Active Games works
+                _activeGamesManager?.UpdateServices(_gameSessionService, _playerService);
             }
             else
             {
@@ -3820,6 +3862,9 @@ namespace DLYH.TableUI
 
             // Load My Active Games list (async, non-blocking)
             _activeGamesManager?.LoadMyActiveGamesAsync().Forget();
+
+            // Update auth status display
+            UpdateAuthStatusDisplay();
 
             // Start trivia rotation with fade cycling
             StartTriviaRotation();

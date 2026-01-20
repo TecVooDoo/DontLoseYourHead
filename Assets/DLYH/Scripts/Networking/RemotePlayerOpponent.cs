@@ -230,14 +230,14 @@ namespace DLYH.Networking
 
                 if (opponentData != null && opponentData.setupComplete)
                 {
-                    // Extract opponent setup
+                    // Extract opponent setup (flat structure - no nested setupData)
                     _opponentSetupData = new PlayerSetupData
                     {
                         PlayerName = opponentData.name,
                         PlayerColor = HexToColor(opponentData.color),
-                        GridSize = opponentData.setupData?.gridSize ?? 8,
-                        WordCount = opponentData.setupData?.wordCount ?? 3,
-                        DifficultyLevel = ParseDifficulty(opponentData.setupData?.difficulty),
+                        GridSize = opponentData.gridSize > 0 ? opponentData.gridSize : 8,
+                        WordCount = opponentData.wordCount > 0 ? opponentData.wordCount : 3,
+                        DifficultyLevel = ParseDifficulty(opponentData.difficulty),
                         PlacedWords = new List<WordPlacementData>() // Encrypted, revealed at game end
                     };
 

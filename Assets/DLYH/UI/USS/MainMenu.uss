@@ -349,7 +349,21 @@
 .footer {
     position: absolute;
     bottom: 16px;
+    left: 20px;
     right: 20px;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-end;
+}
+
+.auth-status-label {
+    font-size: 12px;
+    color: rgb(100, 100, 120);
+    -unity-font-style: italic;
+}
+
+.auth-status-label.signed-in {
+    color: rgb(0, 160, 130);
 }
 
 .version-label {
