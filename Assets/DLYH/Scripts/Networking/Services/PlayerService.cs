@@ -178,6 +178,49 @@ namespace DLYH.Networking.Services
         }
 
         // ============================================================
+        // PHANTOM AI PLAYER
+        // ============================================================
+
+        /// <summary>
+        /// Ensures the phantom AI (Executioner) player record exists in the database.
+        /// The phantom AI uses a reserved UUID so all phantom AI games use the same player record.
+        /// This is called during matchmaking timeout to create a real session_players entry.
+        /// </summary>
+        /// <returns>True if the phantom AI player exists or was created successfully</returns>
+        public async UniTask<bool> EnsurePhantomAIPlayerExistsAsync()
+        {
+            // Check if the phantom AI player already exists
+            bool exists = await VerifyPlayerExistsAsync(EXECUTIONER_PLAYER_ID);
+            if (exists)
+            {
+                Debug.Log("[PlayerService] Phantom AI player already exists");
+                return true;
+            }
+
+            // Create the phantom AI player with the reserved UUID
+            // Note: Supabase normally auto-generates UUIDs, but we can insert with a specific ID
+            string json = $"{{\"id\":\"{EXECUTIONER_PLAYER_ID}\",\"display_name\":\"The Executioner\",\"is_ai\":true}}";
+
+            SupabaseResponse response = await _client.Post(TABLE_PLAYERS, json);
+
+            if (!response.Success)
+            {
+                // If error is duplicate key, the record already exists (race condition) - that's fine
+                if (response.Error != null && response.Error.Contains("duplicate"))
+                {
+                    Debug.Log("[PlayerService] Phantom AI player created by another process");
+                    return true;
+                }
+
+                Debug.LogError($"[PlayerService] Failed to create phantom AI player: {response.Error}");
+                return false;
+            }
+
+            Debug.Log("[PlayerService] Created phantom AI player record");
+            return true;
+        }
+
+        // ============================================================
         // UPDATE PLAYER NAME
         // ============================================================
 

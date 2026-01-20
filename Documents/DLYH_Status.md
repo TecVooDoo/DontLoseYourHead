@@ -4,12 +4,14 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `C:\Unity\DontLoseYourHead`
-**Document Version:** 73
+**Document Version:** 75
 **Last Updated:** January 19, 2026
 
 **Archive:** `DLYH_Status_Archive.md` - Historical designs, old version history, completed phase details, DAB reference patterns
 
 **Completed Refactoring:** `Documents/Refactor/DLYH_RefactoringPlan_Phase3_01192026.md` - Phase 3 complete (Sessions 1-4 + Memory Audit)
+
+**Active Plan:** `Documents/DLYH_NetworkingPlan_Phase_E.md` - Networking implementation (7 sessions planned)
 
 ---
 
@@ -27,66 +29,85 @@
 
 ## Last Session (Jan 19, 2026)
 
-Session 61 - **Phase 3 Refactoring Complete + Professional Memory Audit**
+Session 63 - **Phase E Session 1 & 2 - Foundation & Phantom AI**
 
-**Session 5 - TurnCoordinator (Skipped):**
-- Analysis showed extraction would just move coupling, not reduce it
-- Turn handling coordinates 9+ dependencies - that IS the coordinator's job
-- Decision: Leave as cohesive coordination, not problematic coupling
+**Session 1 Complete - Foundation & Editor Identity:**
+- Verified PlayerService persists player_id correctly in PlayerPrefs
+- Fixed networking services initialization (null reference on startup)
+- Added comprehensive logging to track player record flow
+- Auth state display deferred (no visual change needed yet)
 
-**Session 6 - Professional Memory Audit:**
-- Audited entire codebase for memory hotpaths and allocation patterns
-- Implemented 4 critical memory optimizations:
-  1. Array.Empty<T>() - 21 instances across 4 files (zero-cost empty arrays)
-  2. Ring buffer in DifficultyAdapter - eliminated per-guess Queue.ToArray()
-  3. Pooled list in GameplayGuessManager - eliminated per-letter-guess allocation
-  4. Cached snapshots in WordRowsContainer - eliminated per-guess array allocations
-- Result: Zero allocations per guess in gameplay loop
+**Session 2 Partial - Phantom AI as Session Player:**
+- Added `EnsurePhantomAIPlayerExistsAsync()` to PlayerService - creates/retrieves phantom AI player record
+- Updated MatchmakingService to insert phantom AI into `session_players` table on timeout
+- Fixed `matchmaking_queue` schema mismatch (removed `game_type`, `grid_size` columns that don't exist)
+- Updated game session status to "active" after phantom AI joins
+- Modified `GetPlayerGames()` to prefer `session_players.player_name` over `players.display_name`
 
-**Phase 3 Final Results:**
-- UIFlowController: 6,079 -> 5,298 lines (-13%)
-- New files: JsonParsingUtility, GameStateManager, ConfirmationModalManager, HelpModalManager, ActiveGamesManager
-- Memory: All per-guess allocations eliminated
+**Bugs Fixed This Session:**
+1. **Networking services null on startup** - Services weren't initializing because `_supabaseConfig.IsValid` check was failing
+2. **Join Game doesn't start** - `NetworkingUIManager.JoinWithCodeAsync()` wasn't setting `_isActive=true`, causing `HandleJoinResult` to early-return
+3. **Matchmaking queue insert failed** - Was trying to insert `game_type` and `grid_size` columns that don't exist in schema
 
-**Previous Session:** Session 60 - ActiveGamesManager Extraction
+**Code Changes:**
+- `PlayerService.cs` - Added `EnsurePhantomAIPlayerExistsAsync()` method
+- `MatchmakingService.cs` - Insert phantom AI to session_players, update game to active, fixed queue insert
+- `GameSessionService.cs` - Updated `GetPlayerGames()` query to prefer session_players.player_name
+- `NetworkingUIManager.cs` - Fixed `JoinWithCodeAsync()` to set `_isActive=true`
+- `ActiveGamesManager.cs` - Added debug logging for game filtering
 
-**Next:** Resume Phase E networking work (Editor identity fix, online gameplay)
+**Known Issue Still Being Investigated:**
+- "My Active Games" list not showing games - debug logging added to diagnose
+- Likely cause: games are in hidden list (user previously X'd them out)
+- Check PlayerPrefs key `DLYH_HiddenGames` if all games filtered
+
+**Previous Session:** Session 62 - Phase E Networking Plan Created
+
+**Next Session Testing Required:**
+1. Test Join Game flow - enter code, verify game starts
+2. Test Play Online -> phantom AI fallback -> verify game appears in My Active Games
+3. Check console logs for `[ActiveGamesManager] Game XXXXXX vs OpponentName: hidden=true/false`
+4. If all games hidden, clear PlayerPrefs `DLYH_HiddenGames` key
 
 ---
 
 ## Active TODO
 
-### Immediate: Editor Testing Identity (BLOCKER)
+**Full Plan:** See `Documents/DLYH_NetworkingPlan_Phase_E.md` for detailed tasks and implementation notes.
 
-Without real OAuth, PlayerService creates new player records when name changes, breaking "My Active Games".
+### Phase E Sessions Overview
 
-- [ ] **Add persistent player ID for Unity Editor**
-  - Location: `PlayerService.cs` - modify `EnsurePlayerRecordAsync()`
-  - Store player ID in PlayerPrefs on first creation
-  - Load from PlayerPrefs on subsequent sessions
-  - Only applies in Unity Editor (not builds)
+| Session | Focus | Status |
+|---------|-------|--------|
+| 1 | Foundation & Editor Identity | COMPLETE |
+| 2 | Phantom AI as Session Player | IN PROGRESS |
+| 3 | Opponent Join Detection | PENDING |
+| 4 | Turn Synchronization | PENDING |
+| 5 | Activity Tracking & Auto-Win | PENDING |
+| 6 | Rematch UI Integration | PENDING |
+| 7 | Code Quality & Polish | PENDING |
 
-### After Identity Fix
+### Current: Session 2 - Phantom AI as Session Player (Testing Needed)
 
-- [ ] **Test online game flow end-to-end**
-  - Create private game -> show waiting -> opponent joins -> gameplay starts
-  - Verify resume game works across editor sessions
+**Completed:**
+- [x] Add `EnsurePhantomAIPlayerExistsAsync()` to PlayerService
+- [x] Update MatchmakingService to insert phantom AI into `session_players`
+- [x] Update game status to "active" after phantom AI joins
+- [x] Update `GetPlayerGames()` to prefer `session_players.player_name`
+- [x] Fix matchmaking_queue schema (remove non-existent columns)
+- [x] Fix Join Game flow (`_isActive` not being set)
 
-### Phase E Remaining
+**Testing Required:**
+- [ ] Test Join Game: enter existing game code, verify game starts
+- [ ] Test Play Online: wait for timeout, verify phantom AI game starts
+- [ ] Verify phantom AI games appear in "My Active Games" list
+- [ ] If games not showing, check console for `hidden=true` and clear `DLYH_HiddenGames` PlayerPrefs
 
-**Auth:**
-- [ ] Port auth UI from Dots and Boxes (Google/Facebook sign-in buttons)
-- [ ] Persist name, color, preferences when signed in
+### Session 3 Preview - Opponent Join Detection
 
-**Multiplayer Flow:**
-- [ ] Setup data exchange between players
-- [ ] Turn synchronization
-- [ ] State sync during gameplay
-- [ ] Opponent disconnect/abandonment handling
-- [ ] Rematch option after game end
-
-**Async Gameplay:**
-- [ ] 5-day inactivity = auto-win for last player who moved
+- [ ] Implement polling in WaitingRoom (currently stub)
+- [ ] Detect when real player joins private game
+- [ ] Auto-transition to gameplay when opponent joins
 
 ### Phase F: Cleanup & Polish
 
@@ -115,10 +136,14 @@ Without real OAuth, PlayerService creates new player records when name changes, 
 - UIFlowController at ~5,298 lines - **Phase 3 COMPLETE** (see `Documents/Refactor/DLYH_RefactoringPlan_Phase3_01192026.md`)
 - Inconsistent namespace convention (TecVooDoo.DontLoseYourHead.* vs DLYH.*) - deferred to Phase F
 
-**Networking:**
-- **BLOCKER:** Editor testing has no persistent identity (PlayerService creates new player on name change)
-- Realtime subscription for opponent joining not yet implemented (polling placeholder exists)
-- Full multiplayer gameplay not yet tested (setup exchange, turns, state sync)
+**Networking:** (See `DLYH_NetworkingPlan_Phase_E.md` for full gap analysis)
+- ~~Editor identity persistence needs verification~~ VERIFIED - PlayerPrefs works correctly
+- Opponent join detection is stub only (doesn't actually poll) - Session 3
+- ~~Phantom AI not inserted into session_players~~ FIXED - Now creates player record and session_players row
+- 5-day auto-win not implemented (needs Supabase edge function) - Session 5
+- RematchService not wired to UI - Session 6
+- Word placement encryption is just Base64 (not secure) - Session 7
+- WebGL realtime incomplete (WebSocket bridge missing) - Session 4
 
 **Audio:**
 - Music crossfading/switching too frequently (should only switch at end of track)
@@ -356,6 +381,8 @@ YourDifficultyModifier: Easy=+4, Normal=+0, Hard=-4
 
 | Document | Path | Purpose |
 |----------|------|---------|
+| Networking Plan | `Documents/DLYH_NetworkingPlan_Phase_E.md` | Phase E implementation plan (7 sessions) |
+| Phase 3 Refactor | `Documents/Refactor/DLYH_RefactoringPlan_Phase3_01192026.md` | Completed architecture refactor |
 | DAB Status | `E:\TecVooDoo\Projects\Games\4 Playtesting\Dots and Boxes\Documents\DAB_Status.md` | Working async multiplayer reference |
 | TecVooDoo Web Status | `E:\TecVooDoo\Projects\Other\TecVooDooWebsite\Documents\TecVooDoo_Web_Status.md` | Supabase backend, auth |
 | DLYH Archive | `DLYH_Status_Archive.md` | Historical designs, DAB patterns, old versions |
@@ -366,12 +393,12 @@ YourDifficultyModifier: Easy=+4, Normal=+0, Hard=-4
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 75 | Jan 19, 2026 | Session 63 - Phase E Sessions 1 & 2: Phantom AI session_players, Join Game fix |
+| 74 | Jan 19, 2026 | Created DLYH_NetworkingPlan_Phase_E.md - 7 session implementation plan |
+| 73 | Jan 19, 2026 | Session 62 - Professional network architecture evaluation, gap analysis |
 | 68 | Jan 19, 2026 | Reorganized status doc - removed redundancy, consolidated TODO/Known Issues |
 | 67 | Jan 18, 2026 | Resume game fixes, editor auth discovery, online waiting state fixes |
 | 66 | Jan 18, 2026 | WaitingRoom flow & resume game implementation |
-| 65 | Jan 18, 2026 | Networking services wired to UI |
-| 64 | Jan 17, 2026 | Networking gap analysis vs DAB |
-| 63 | Jan 17, 2026 | Online mode choice & private game flow |
 
 **Full version history:** See `DLYH_Status_Archive.md`
 

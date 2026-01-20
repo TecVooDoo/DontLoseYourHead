@@ -151,11 +151,15 @@ namespace DLYH.UI.Managers
                 List<ActiveGameInfo> visibleGames = new List<ActiveGameInfo>();
                 foreach (ActiveGameInfo game in games)
                 {
-                    if (!IsGameHidden(game.GameCode))
+                    bool isHidden = IsGameHidden(game.GameCode);
+                    Debug.Log($"[ActiveGamesManager] Game {game.GameCode} vs {game.OpponentName}: hidden={isHidden}");
+                    if (!isHidden)
                     {
                         visibleGames.Add(game);
                     }
                 }
+
+                Debug.Log($"[ActiveGamesManager] Found {games.Length} games, {visibleGames.Count} visible after filtering");
 
                 if (visibleGames.Count == 0)
                 {

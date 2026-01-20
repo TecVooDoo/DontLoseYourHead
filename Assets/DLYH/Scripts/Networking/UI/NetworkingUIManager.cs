@@ -282,6 +282,7 @@ namespace DLYH.Networking.UI
 
         /// <summary>
         /// Attempts to join a game with the entered code.
+        /// Can be called directly (without showing overlay) or from the join code overlay.
         /// </summary>
         public async UniTask JoinWithCodeAsync(string code)
         {
@@ -290,6 +291,9 @@ namespace DLYH.Networking.UI
                 ShowJoinError("Invalid code - must be 6 characters");
                 return;
             }
+
+            // Ensure _isActive is set - this method can be called directly without ShowJoinCodeEntry
+            _isActive = true;
 
             ShowJoiningState();
 

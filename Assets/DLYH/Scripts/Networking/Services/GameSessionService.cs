@@ -312,6 +312,8 @@ namespace DLYH.Networking.Services
                 return false;
             }
 
+            // session_players schema: session_id, player_id, player_number, color, score, joined_at,
+            //                        player_name, grid_size, word_count, difficulty (DLYH-specific)
             StringBuilder sb = new StringBuilder();
             sb.Append("{");
             sb.AppendFormat("\"session_id\":\"{0}\",", gameCode);
@@ -332,7 +334,7 @@ namespace DLYH.Networking.Services
                 }
                 if (!string.IsNullOrEmpty(sessionPlayer.PlayerColor))
                 {
-                    sb.AppendFormat(",\"player_color\":\"{0}\"", EscapeJson(sessionPlayer.PlayerColor));
+                    sb.AppendFormat(",\"color\":\"{0}\"", EscapeJson(sessionPlayer.PlayerColor));
                 }
                 if (sessionPlayer.GridSize > 0)
                 {
@@ -473,23 +475,30 @@ namespace DLYH.Networking.Services
                 // Skip completed or abandoned games
                 if (game.Status == "completed" || game.Status == "abandoned") continue;
 
-                // Get opponent info
+                // Get opponent info - check player_name in session_players first (for phantom AI random names),
+                // then fall back to display_name from players table
                 string opponentName = null;
                 var opponentResponse = await _client.Get(
                     TABLE_SESSION_PLAYERS,
-                    $"session_id=eq.{entry.SessionId}&player_id=neq.{playerId}&select=player_id"
+                    $"session_id=eq.{entry.SessionId}&player_id=neq.{playerId}&select=player_id,player_name"
                 );
 
                 if (opponentResponse.Success && !string.IsNullOrEmpty(opponentResponse.Body) && opponentResponse.Body != "[]")
                 {
-                    // There's an opponent - get their player record
-                    string opponentId = JsonParsingUtility.ExtractStringField(opponentResponse.Body, "player_id");
-                    if (!string.IsNullOrEmpty(opponentId))
+                    // First try player_name (per-game nickname, used for phantom AI)
+                    opponentName = JsonParsingUtility.ExtractStringField(opponentResponse.Body, "player_name");
+
+                    // Fall back to display_name from players table
+                    if (string.IsNullOrEmpty(opponentName))
                     {
-                        var playerResponse = await _client.Get("players", $"id=eq.{opponentId}&select=display_name");
-                        if (playerResponse.Success && !string.IsNullOrEmpty(playerResponse.Body))
+                        string opponentId = JsonParsingUtility.ExtractStringField(opponentResponse.Body, "player_id");
+                        if (!string.IsNullOrEmpty(opponentId))
                         {
-                            opponentName = JsonParsingUtility.ExtractStringField(playerResponse.Body, "display_name");
+                            var playerResponse = await _client.Get("players", $"id=eq.{opponentId}&select=display_name");
+                            if (playerResponse.Success && !string.IsNullOrEmpty(playerResponse.Body))
+                            {
+                                opponentName = JsonParsingUtility.ExtractStringField(playerResponse.Body, "display_name");
+                            }
                         }
                     }
                 }
@@ -904,19 +913,23 @@ namespace DLYH.Networking.Services
     //
     // DATA ARCHITECTURE:
     //
-    // session_players table:
-    //   - player_name, player_color, grid_size, word_count, difficulty
-    //   - Used for "My Active Games" list queries
-    //   - Immutable once set during JoinGame
+    // session_players table (shared across all games - DLYH, DAB, etc.):
+    //   - session_id, player_id, player_number, color, score, joined_at
+    //   - player_name, grid_size, word_count, difficulty (DLYH-specific, nullable)
+    //
+    // players table:
+    //   - id, display_name, email, auth_id, is_ai, ai_config, created_at, updated_at
+    //   - Player identity and AI configuration
     //
     // game_sessions.state JSONB (DLYHGameState):
     //   - Self-contained game state for gameplay/resume
-    //   - DLYHPlayerData contains ALL player data (flat structure):
-    //     * name, color, gridSize, wordCount, difficulty
+    //   - Contains gameplay data:
     //     * ready, setupComplete, lastActivityAt, wordPlacementsEncrypted
     //     * gameplayState (misses, knownLetters, guessedCoordinates, solvedWordRows)
     //
-    // Setup data is in both places: session_players for queries, JSONB for gameplay.
+    // To get opponent name for "My Active Games":
+    //   1. Check player_name in session_players (for phantom AI random names)
+    //   2. Fall back to display_name from players table
     // ============================================================
 
     /// <summary>
@@ -940,9 +953,9 @@ namespace DLYH.Networking.Services
     /// <summary>
     /// Player data within game state JSONB.
     ///
-    /// Setup data (name, color, gridSize, wordCount, difficulty) is ALSO stored in session_players
-    /// table for querying. The JSONB copy allows game state to be self-contained for resume/sync.
-    /// session_players is authoritative for list queries; JSONB is authoritative during gameplay.
+    /// All DLYH-specific setup data (name, gridSize, wordCount, difficulty) is stored here.
+    /// The session_players table only has the minimal join relationship (player_id, player_number, color).
+    /// Player display_name comes from the players table.
     /// </summary>
     [Serializable]
     public class DLYHPlayerData

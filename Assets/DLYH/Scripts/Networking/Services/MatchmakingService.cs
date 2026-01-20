@@ -210,13 +210,55 @@ namespace DLYH.Networking.Services
                     }
                 }
 
-                // Step 4: Timeout - spawn phantom AI
+                // Step 4: Timeout - spawn phantom AI as a real session_players entry
                 await RemoveFromQueueAsync(_currentQueueEntryId);
                 _isMatchmaking = false;
 
                 OnMatchmakingStatusChanged?.Invoke("Opponent found!");
 
                 string phantomName = GetRandomPhantomName();
+
+                // Ensure the phantom AI player record exists in the players table
+                bool phantomPlayerExists = await _playerService.EnsurePhantomAIPlayerExistsAsync();
+                if (!phantomPlayerExists)
+                {
+                    Debug.LogWarning("[MatchmakingService] Failed to create phantom AI player, continuing anyway");
+                }
+
+                // Insert phantom AI into session_players as player 2
+                // This makes the game appear in "My Active Games" with the phantom as opponent
+                var phantomSessionPlayer = new SessionPlayer
+                {
+                    PlayerName = phantomName,
+                    PlayerColor = "#808080", // Gray color for phantom AI
+                    GridSize = gridSize,     // Match the host's grid size preference
+                    WordCount = 4,           // Default word count for AI
+                    Difficulty = "normal"    // Default difficulty
+                };
+
+                bool joinedAsPhantom = await _sessionService.JoinGame(
+                    newGame.Id,
+                    PlayerService.EXECUTIONER_PLAYER_ID,
+                    2, // Player 2
+                    phantomSessionPlayer
+                );
+
+                if (joinedAsPhantom)
+                {
+                    Debug.Log($"[MatchmakingService] Phantom AI '{phantomName}' joined game {newGame.Id} as player 2");
+                }
+                else
+                {
+                    Debug.LogWarning($"[MatchmakingService] Failed to insert phantom AI into session_players");
+                }
+
+                // Update game status from "waiting" to "active"
+                bool statusUpdated = await _sessionService.UpdateGameStatus(newGame.Id, "active");
+                if (statusUpdated)
+                {
+                    Debug.Log($"[MatchmakingService] Game {newGame.Id} status updated to 'active'");
+                }
+
                 MatchmakingResult phantomResult = new MatchmakingResult
                 {
                     Success = true,
@@ -448,8 +490,8 @@ namespace DLYH.Networking.Services
                 string playerId = _playerService.CurrentPlayerId;
 
                 // Query matchmaking queue for compatible games
-                // Prefer same grid size and difficulty, but accept any
-                string query = $"game_type=eq.{_config.GameTypeId}&status=eq.waiting&player_id=neq.{playerId}&order=created_at.asc&limit=1";
+                // Find any entry not from this player (no status column - presence in queue means waiting)
+                string query = $"player_id=neq.{playerId}&order=created_at.asc&limit=1";
 
                 SupabaseResponse response = await _client.Get(TABLE_MATCHMAKING_QUEUE, query);
 
@@ -458,8 +500,8 @@ namespace DLYH.Networking.Services
                     return null; // No waiting games
                 }
 
-                // Parse queue entry
-                string gameCode = ExtractJsonValue(response.Body, "game_id");
+                // Parse queue entry (using session_id to match Supabase schema)
+                string gameCode = ExtractJsonValue(response.Body, "session_id");
                 string queueEntryId = ExtractJsonValue(response.Body, "id");
 
                 if (string.IsNullOrEmpty(gameCode))
@@ -499,14 +541,15 @@ namespace DLYH.Networking.Services
 
         /// <summary>
         /// Adds a game to the matchmaking queue.
-        /// Note: difficulty removed from schema - table doesn't have that column.
+        /// Schema: id, player_id, grid_size, session_id, created_at (no status column)
         /// </summary>
         private async UniTask<string> AddToQueueAsync(string gameCode, string playerId, int gridSize, string difficulty)
         {
             try
             {
-                // Note: difficulty is passed but not sent to DB - matchmaking_queue table doesn't have that column
-                string json = $"{{\"game_id\":\"{gameCode}\",\"game_type\":\"{_config.GameTypeId}\",\"player_id\":\"{playerId}\",\"grid_size\":{gridSize},\"status\":\"waiting\"}}";
+                // matchmaking_queue schema: id, player_id, grid_size, session_id, created_at
+                // Presence in queue means waiting - no status column needed
+                string json = $"{{\"session_id\":\"{gameCode}\",\"player_id\":\"{playerId}\",\"grid_size\":{gridSize}}}";
 
                 SupabaseResponse response = await _client.Post(TABLE_MATCHMAKING_QUEUE, json);
 
