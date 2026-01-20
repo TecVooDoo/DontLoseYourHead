@@ -4,8 +4,8 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `C:\Unity\DontLoseYourHead`
-**Document Version:** 75
-**Last Updated:** January 19, 2026
+**Document Version:** 76
+**Last Updated:** January 20, 2026
 
 **Archive:** `DLYH_Status_Archive.md` - Historical designs, old version history, completed phase details, DAB reference patterns
 
@@ -27,47 +27,42 @@
 
 ---
 
-## Last Session (Jan 19, 2026)
+## Last Session (Jan 20, 2026)
 
-Session 63 - **Phase E Session 1 & 2 - Foundation & Phantom AI**
+Session 64 - **Art Asset Integration - Guillotine Overlay**
 
-**Session 1 Complete - Foundation & Editor Identity:**
-- Verified PlayerService persists player_id correctly in PlayerPrefs
-- Fixed networking services initialization (null reference on startup)
-- Added comprehensive logging to track player record flow
-- Auth state display deferred (no visual change needed yet)
-
-**Session 2 Partial - Phantom AI as Session Player:**
-- Added `EnsurePhantomAIPlayerExistsAsync()` to PlayerService - creates/retrieves phantom AI player record
-- Updated MatchmakingService to insert phantom AI into `session_players` table on timeout
-- Fixed `matchmaking_queue` schema mismatch (removed `game_type`, `grid_size` columns that don't exist)
-- Updated game session status to "active" after phantom AI joins
-- Modified `GetPlayerGames()` to prefer `session_players.player_name` over `players.display_name`
-
-**Bugs Fixed This Session:**
-1. **Networking services null on startup** - Services weren't initializing because `_supabaseConfig.IsValid` check was failing
-2. **Join Game doesn't start** - `NetworkingUIManager.JoinWithCodeAsync()` wasn't setting `_isActive=true`, causing `HandleJoinResult` to early-return
-3. **Matchmaking queue insert failed** - Was trying to insert `game_type` and `grid_size` columns that don't exist in schema
+**Art Assets Integrated:**
+- Replaced CSS placeholder elements with actual art assets for guillotine overlay
+- Two complete guillotine sets: Number1 (player) and Number2 (opponent)
+- Assets include: frame, blade, head, basket, lever, and rope (4 lengths)
 
 **Code Changes:**
-- `PlayerService.cs` - Added `EnsurePhantomAIPlayerExistsAsync()` method
-- `MatchmakingService.cs` - Insert phantom AI to session_players, update game to active, fixed queue insert
-- `GameSessionService.cs` - Updated `GetPlayerGames()` query to prefer session_players.player_name
-- `NetworkingUIManager.cs` - Fixed `JoinWithCodeAsync()` to set `_isActive=true`
-- `ActiveGamesManager.cs` - Added debug logging for game filtering
+- `GuillotineOverlay.uss` - Major styling overhaul for art asset integration
+  - Added background-image properties for guillotine, blade, head, basket, lever
+  - Hidden CSS-drawn elements (posts, beam, lunette, stage track, lever pivot/handle)
+  - Added rope element with stage-based height animation (stage-1 through stage-5, dropped)
+  - Created guillotine-frame foreground element for proper z-order (rope/blade behind frame)
+  - Added #opponent-* overrides for Number2 asset set
+  - Final lever position: top: 140px, right/left: -38px
+  - Final rope top position: 46px
+- `GuillotineOverlay.uxml` - Added rope and guillotine-frame elements
+  - Element order for z-order: rope -> blade-group -> guillotine-frame -> head/basket
+- `GuillotineOverlayManager.cs` - Added rope handling
+  - Added _playerRope, _opponentRope element references
+  - Added UpdateRopeLength() method for stage-based animation
+  - Commented out head backgroundColor setting (will be re-enabled for hair-colored heads)
 
-**Known Issue Still Being Investigated:**
-- "My Active Games" list not showing games - debug logging added to diagnose
-- Likely cause: games are in hidden list (user previously X'd them out)
-- Check PlayerPrefs key `DLYH_HiddenGames` if all games filtered
+**Z-Order Solution:**
+- Rope and blade needed to render BEHIND the wooden guillotine frame
+- Created separate guillotine-frame foreground element that renders after rope/blade
+- Element ordering in UXML controls z-order (later elements render on top)
 
-**Previous Session:** Session 62 - Phase E Networking Plan Created
+**Future Note (Polish Phase):**
+- Head selection will be added to setup (6 heads to choose from)
+- Hair will be colored based on player color (not skin)
+- Head backgroundColor code commented out, ready to re-enable
 
-**Next Session Testing Required:**
-1. Test Join Game flow - enter code, verify game starts
-2. Test Play Online -> phantom AI fallback -> verify game appears in My Active Games
-3. Check console logs for `[ActiveGamesManager] Game XXXXXX vs OpponentName: hidden=true/false`
-4. If all games hidden, clear PlayerPrefs `DLYH_HiddenGames` key
+**Previous Session:** Session 63 - Phase E Sessions 1 & 2: Phantom AI session_players, Join Game fix
 
 ---
 
@@ -393,12 +388,12 @@ YourDifficultyModifier: Easy=+4, Normal=+0, Hard=-4
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 76 | Jan 20, 2026 | Session 64 - Art asset integration for guillotine overlay (Number1/Number2 sets) |
 | 75 | Jan 19, 2026 | Session 63 - Phase E Sessions 1 & 2: Phantom AI session_players, Join Game fix |
 | 74 | Jan 19, 2026 | Created DLYH_NetworkingPlan_Phase_E.md - 7 session implementation plan |
 | 73 | Jan 19, 2026 | Session 62 - Professional network architecture evaluation, gap analysis |
 | 68 | Jan 19, 2026 | Reorganized status doc - removed redundancy, consolidated TODO/Known Issues |
 | 67 | Jan 18, 2026 | Resume game fixes, editor auth discovery, online waiting state fixes |
-| 66 | Jan 18, 2026 | WaitingRoom flow & resume game implementation |
 
 **Full version history:** See `DLYH_Status_Archive.md`
 

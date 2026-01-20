@@ -36,11 +36,11 @@
     border-width: 2px;
     border-color: rgb(60, 50, 50);
     padding: 24px;
-    min-width: 420px;
-    max-width: 85%;
-    width: 520px;
-    min-height: 520px;
-    max-height: 80%;
+    min-width: 480px;
+    max-width: 90%;
+    width: 580px;
+    min-height: 580px;
+    max-height: 85%;
 }
 
 /* === Header === */
@@ -99,8 +99,8 @@
     border-width: 1px;
     border-color: rgb(50, 45, 50);
     align-items: center;
-    min-width: 160px;
-    max-width: 220px;
+    min-width: 180px;
+    max-width: 240px;
 }
 
 .guillotine-header {
@@ -126,22 +126,31 @@
 /* === Guillotine Visual === */
 
 .guillotine-visual {
-    width: 120px;
-    height: 280px;
+    width: 150px;
+    height: 320px;
     position: relative;
-    background-color: rgb(20, 18, 22);
+    background-color: transparent;
     border-radius: 8px;
     margin-bottom: 12px;
+    /* Background removed - using foreground frame element instead for z-order */
 }
 
-/* Frame Posts */
-.guillotine-post {
+/* Guillotine frame foreground - renders on top of rope/blade */
+.guillotine-frame {
     position: absolute;
-    width: 8px;
-    height: 250px;
-    bottom: 20px;
-    background-color: rgb(80, 55, 35);
-    border-radius: 2px;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url("project://database/Assets/DLYH/DLYHGraphicAssets/Guillotines/Number1/Guillotine-1.png");
+    background-size: contain;
+    background-position: center bottom;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+/* Frame Posts - hidden, using background image now */
+.guillotine-post {
+    display: none;
 }
 
 .post-left {
@@ -152,36 +161,20 @@
     right: 18px;
 }
 
-/* Top Beam */
+/* Top Beam - hidden, using background image now */
 .guillotine-beam {
-    position: absolute;
-    top: 8px;
-    left: 16px;
-    right: 16px;
-    height: 10px;
-    background-color: rgb(90, 60, 40);
-    border-radius: 2px;
+    display: none;
 }
 
 /* === Stage Track (5 segments) === */
+/* Hidden - would overlap guillotine image */
 
 .stage-track {
-    position: absolute;
-    left: 28px;
-    right: 28px;
-    top: 24px;
-    bottom: 70px;
-    flex-direction: column-reverse;
-    justify-content: space-between;
+    display: none;
 }
 
 .stage-segment {
-    flex-grow: 1;
-    margin: 2px 0;
-    background-color: rgb(40, 35, 45);
-    border-radius: 2px;
-    border-width: 1px;
-    border-color: rgb(50, 45, 55);
+    display: none;
 }
 
 /* Stage segment colors when active (lit up) */
@@ -209,14 +202,46 @@
     background-color: rgb(180, 50, 50);
 }
 
+/* === Rope === */
+/* Connects top beam pulley to blade, stretches as blade descends */
+
+.rope {
+    position: absolute;
+    top: 46px;
+    left: 50%;
+    margin-left: -3px;
+    width: 6px;
+    background-image: url("project://database/Assets/DLYH/DLYHGraphicAssets/Guillotines/Number1/Rope-4.png");
+    background-size: 100% 100%;
+    -unity-background-scale-mode: stretch-to-fill;
+    transition-property: height;
+    transition-duration: 0.4s;
+    transition-timing-function: ease-out;
+}
+
+/* Rope height matches blade position - shorter when blade is up, longer when down */
+/* Heights calculated: blade top% minus rope top (~14%) */
+.rope.stage-1 { height: 44%; }
+.rope.stage-2 { height: 32%; }
+.rope.stage-3 { height: 20%; }
+.rope.stage-4 { height: 8%; }
+.rope.stage-5 { height: 0%; }
+
+/* Rope extends fully when blade drops */
+.rope.dropped {
+    height: 50%;
+    transition-duration: 0.15s;
+    transition-timing-function: ease-in;
+}
+
 /* === Blade Group === */
 /* Blade moves in 5 discrete positions based on stage */
 
 .blade-group {
     position: absolute;
-    left: 24px;
-    right: 24px;
-    height: 50px;
+    left: 30px;
+    right: 30px;
+    height: 40px;
     flex-direction: column;
     transition-property: top;
     transition-duration: 0.4s;
@@ -224,100 +249,81 @@
 }
 
 /* Blade positions for each stage (percentage from top) */
-/* Stage 1: blade at bottom near lunette (~52%), Stage 5: blade at top (~6%) */
+/* Stage 1: blade at bottom near lunette, Stage 5: blade at top */
 /* Blade starts resting just above the neck holder and rises UP with danger */
-.blade-group.stage-1 { top: 52%; }
-.blade-group.stage-2 { top: 42%; }
-.blade-group.stage-3 { top: 30%; }
-.blade-group.stage-4 { top: 18%; }
-.blade-group.stage-5 { top: 6%; }
+/* Adjusted for new image dimensions */
+.blade-group.stage-1 { top: 58%; }
+.blade-group.stage-2 { top: 46%; }
+.blade-group.stage-3 { top: 34%; }
+.blade-group.stage-4 { top: 22%; }
+.blade-group.stage-5 { top: 10%; }
 
-/* Wood holder on top of blade */
+/* Wood holder on top of blade - hidden, part of blade image */
 .blade-holder {
-    width: 100%;
-    height: 12px;
-    background-color: rgb(90, 60, 40);
-    border-radius: 2px;
-    flex-shrink: 0;
+    display: none;
 }
 
-/* Metal blade */
+/* Metal blade - now using image */
 .blade {
     width: 100%;
-    flex-grow: 1;
-    background-color: rgb(170, 180, 190);
-    border-radius: 0 0 3px 3px;
-    border-left-width: 1px;
-    border-right-width: 1px;
-    border-bottom-width: 2px;
-    border-left-color: rgb(160, 170, 180);
-    border-right-color: rgb(120, 130, 140);
-    border-bottom-color: rgb(220, 230, 240);
+    height: 50px;
+    background-image: url("project://database/Assets/DLYH/DLYHGraphicAssets/Guillotines/Number1/Guillotine-1-blade.png");
+    background-size: contain;
+    -unity-background-scale-mode: scale-to-fit;
+    background-color: transparent;
+    border-width: 0;
 }
 
 /* === Lunette (neck holder) === */
+/* Hidden - part of guillotine image now */
 
 .lunette {
-    position: absolute;
-    bottom: 24px;
-    left: 26px;
-    right: 26px;
-    height: 44px;
-    background-color: rgb(70, 50, 35);
-    border-radius: 20px;
-    border-width: 2px;
-    border-color: rgb(55, 40, 28);
-    align-items: center;
-    justify-content: center;
+    display: none;
 }
 
 .lunette-divider {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 50%;
-    margin-top: -1px;
-    height: 2px;
-    background-color: rgb(45, 32, 22);
+    display: none;
 }
 
 /* === Head === */
 
 .head {
     position: absolute;
-    bottom: 28px;
+    bottom: 45px;
     left: 50%;
-    margin-left: -18px;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background-color: rgb(220, 180, 140);
+    margin-left: -30px;
+    width: 60px;
+    height: 60px;
+    border-radius: 0;
+    background-color: transparent;
+    background-image: url("project://database/Assets/DLYH/DLYHGraphicAssets/Guillotines/Number1/Head-1-neutral.png");
+    background-size: contain;
+    -unity-background-scale-mode: scale-to-fit;
     align-items: center;
     justify-content: center;
-    border-width: 2px;
-    border-color: rgb(180, 140, 100);
+    border-width: 0;
 }
 
 .head-face {
-    font-size: 12px;
-    color: rgb(60, 40, 30);
-    -unity-text-align: middle-center;
+    /* Hidden - using image now */
+    display: none;
 }
 
 /* === Basket === */
 
 .basket {
     position: absolute;
-    bottom: 4px;
+    bottom: -10px;
     left: 50%;
-    margin-left: -20px;
-    width: 40px;
-    height: 20px;
-    background-color: rgb(90, 65, 45);
-    border-radius: 0 0 10px 10px;
-    border-width: 2px;
-    border-color: rgb(70, 50, 35);
-    border-top-width: 0;
+    margin-left: -35px;
+    width: 70px;
+    height: 45px;
+    background-color: transparent;
+    background-image: url("project://database/Assets/DLYH/DLYHGraphicAssets/Guillotines/Number1/Basket.png");
+    background-size: contain;
+    -unity-background-scale-mode: scale-to-fit;
+    border-radius: 0;
+    border-width: 0;
 }
 
 /* === Stage Label === */
@@ -420,29 +426,23 @@
 .lever-assembly {
     position: absolute;
     top: 140px;
-    width: 55px;
-    height: 60px;
+    width: 70px;
+    height: 30px;
 }
 
 /* Right lever - pivot at right post, arm extends right (toward executioner) */
 .lever-assembly.lever-right {
-    right: -35px;
+    right: -38px;
 }
 
 /* Left lever - pivot at left post, arm extends left (toward executioner) */
 .lever-assembly.lever-left {
-    left: -35px;
+    left: -38px;
 }
 
 .lever-pivot {
-    position: absolute;
-    top: 0;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background-color: rgb(60, 45, 35);
-    border-width: 2px;
-    border-color: rgb(80, 60, 45);
+    /* Hidden - part of lever image now */
+    display: none;
 }
 
 /* Right lever pivot on left side */
@@ -457,11 +457,14 @@
 
 .lever-arm {
     position: absolute;
-    top: 5px;
-    width: 40px;
-    height: 6px;
-    background-color: rgb(90, 65, 45);
-    border-radius: 3px;
+    top: 0px;
+    width: 60px;
+    height: 20px;
+    background-color: transparent;
+    background-image: url("project://database/Assets/DLYH/DLYHGraphicAssets/Guillotines/Number1/Guillotine-1-lever.png");
+    background-size: contain;
+    -unity-background-scale-mode: scale-to-fit;
+    border-radius: 0;
     transition-property: rotate;
     transition-duration: 0.4s;
     transition-timing-function: ease-out;
@@ -498,14 +501,8 @@
 .lever-assembly.lever-left .lever-arm.dropped { rotate: -75deg; }
 
 .lever-handle {
-    position: absolute;
-    top: -5px;
-    width: 12px;
-    height: 12px;
-    background-color: rgb(120, 85, 55);
-    border-radius: 50%;
-    border-width: 1px;
-    border-color: rgb(100, 70, 45);
+    /* Hidden - part of lever image now */
+    display: none;
 }
 
 /* Handle at end of right lever */
@@ -637,7 +634,7 @@
 
 /* Head in basket (after execution) */
 .head.in-basket {
-    bottom: 6px;
+    bottom: 0px;
     transition-property: bottom;
     transition-duration: 0.4s;
     transition-timing-function: ease-in;
@@ -645,9 +642,27 @@
 
 /* Blade at execution position (drops from top to lunette) */
 .blade-group.dropped {
-    top: 58%;
+    top: 64%;
     transition-duration: 0.15s;
     transition-timing-function: ease-in;
+}
+
+/* === Opponent Side Overrides (Number2 assets) === */
+
+#opponent-guillotine-frame {
+    background-image: url("project://database/Assets/DLYH/DLYHGraphicAssets/Guillotines/Number2/Guillotine-2.png");
+}
+
+#opponent-blade {
+    background-image: url("project://database/Assets/DLYH/DLYHGraphicAssets/Guillotines/Number2/Guillotine-2--blade.png");
+}
+
+#opponent-head {
+    background-image: url("project://database/Assets/DLYH/DLYHGraphicAssets/Guillotines/Number2/Head-2-neutral.png");
+}
+
+#opponent-lever-assembly .lever-arm {
+    background-image: url("project://database/Assets/DLYH/DLYHGraphicAssets/Guillotines/Number2/Guillotine-2-lever.png");
 }
 
 /* === Responsive === */

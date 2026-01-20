@@ -72,6 +72,7 @@ namespace DLYH.TableUI
         private VisualElement _playerColorBadge;
         private Label _playerNameLabel;
         private VisualElement _playerBladeGroup;
+        private VisualElement _playerRope;
         private VisualElement _playerHead;
         private Label _playerHeadFace;
         private Label _playerMissLabel;
@@ -86,6 +87,7 @@ namespace DLYH.TableUI
         private VisualElement _opponentColorBadge;
         private Label _opponentNameLabel;
         private VisualElement _opponentBladeGroup;
+        private VisualElement _opponentRope;
         private VisualElement _opponentHead;
         private Label _opponentHeadFace;
         private Label _opponentMissLabel;
@@ -149,6 +151,7 @@ namespace DLYH.TableUI
             _playerColorBadge = _overlayRoot.Q<VisualElement>("player-color-badge");
             _playerNameLabel = _overlayRoot.Q<Label>("player-guillotine-name");
             _playerBladeGroup = _overlayRoot.Q<VisualElement>("player-blade-group");
+            _playerRope = _overlayRoot.Q<VisualElement>("player-rope");
             _playerHead = _overlayRoot.Q<VisualElement>("player-head");
             _playerHeadFace = _overlayRoot.Q<Label>("player-head-face");
             _playerMissLabel = _overlayRoot.Q<Label>("player-miss-label");
@@ -176,6 +179,7 @@ namespace DLYH.TableUI
             _opponentColorBadge = _overlayRoot.Q<VisualElement>("opponent-color-badge");
             _opponentNameLabel = _overlayRoot.Q<Label>("opponent-guillotine-name");
             _opponentBladeGroup = _overlayRoot.Q<VisualElement>("opponent-blade-group");
+            _opponentRope = _overlayRoot.Q<VisualElement>("opponent-rope");
             _opponentHead = _overlayRoot.Q<VisualElement>("opponent-head");
             _opponentHeadFace = _overlayRoot.Q<Label>("opponent-head-face");
             _opponentMissLabel = _overlayRoot.Q<Label>("opponent-miss-label");
@@ -299,10 +303,12 @@ namespace DLYH.TableUI
             {
                 _playerColorBadge.style.backgroundColor = _playerData.Color;
             }
-            if (_playerHead != null)
-            {
-                _playerHead.style.backgroundColor = _playerData.Color;
-            }
+            // Head background color disabled - using art assets now
+            // TODO: Re-enable when hair-colored head variants are available
+            // if (_playerHead != null)
+            // {
+            //     _playerHead.style.backgroundColor = _playerData.Color;
+            // }
 
             // Calculate stage and percentage
             float percent = GetDangerPercent(_playerData);
@@ -337,6 +343,9 @@ namespace DLYH.TableUI
             // Blade position (uses stage class) - may use initial stage for delayed animation
             UpdateBladePosition(_playerBladeGroup, bladeStage);
 
+            // Rope length (matches blade position)
+            UpdateRopeLength(_playerRope, bladeStage);
+
             // Lever position (uses stage class) - may use initial stage for delayed animation
             UpdateLeverPosition(_playerLeverArm, bladeStage);
 
@@ -367,10 +376,12 @@ namespace DLYH.TableUI
             {
                 _opponentColorBadge.style.backgroundColor = _opponentData.Color;
             }
-            if (_opponentHead != null)
-            {
-                _opponentHead.style.backgroundColor = _opponentData.Color;
-            }
+            // Head background color disabled - using art assets now
+            // TODO: Re-enable when hair-colored head variants are available
+            // if (_opponentHead != null)
+            // {
+            //     _opponentHead.style.backgroundColor = _opponentData.Color;
+            // }
 
             // Calculate stage and percentage
             float percent = GetDangerPercent(_opponentData);
@@ -404,6 +415,9 @@ namespace DLYH.TableUI
 
             // Blade position (uses stage class) - may use initial stage for delayed animation
             UpdateBladePosition(_opponentBladeGroup, bladeStage);
+
+            // Rope length (matches blade position)
+            UpdateRopeLength(_opponentRope, bladeStage);
 
             // Lever position (uses stage class) - may use initial stage for delayed animation
             UpdateLeverPosition(_opponentLeverArm, bladeStage);
@@ -490,6 +504,20 @@ namespace DLYH.TableUI
 
             // Add current stage class
             bladeGroup.AddToClassList($"stage-{stage}");
+        }
+
+        private void UpdateRopeLength(VisualElement rope, int stage)
+        {
+            if (rope == null) return;
+
+            // Remove all stage classes
+            for (int i = 1; i <= TOTAL_STAGES; i++)
+            {
+                rope.RemoveFromClassList($"stage-{i}");
+            }
+
+            // Add current stage class
+            rope.AddToClassList($"stage-{stage}");
         }
 
         private void UpdateLeverPosition(VisualElement leverArm, int stage)
@@ -655,11 +683,13 @@ namespace DLYH.TableUI
             if (playerLost)
             {
                 _playerBladeGroup?.AddToClassList("dropped");
+                _playerRope?.AddToClassList("dropped");
                 _playerLeverArm?.AddToClassList("dropped");
             }
             else
             {
                 _opponentBladeGroup?.AddToClassList("dropped");
+                _opponentRope?.AddToClassList("dropped");
                 _opponentLeverArm?.AddToClassList("dropped");
             }
         }
@@ -691,8 +721,10 @@ namespace DLYH.TableUI
             _opponentPanel?.RemoveFromClassList("loser");
 
             _playerBladeGroup?.RemoveFromClassList("dropped");
+            _playerRope?.RemoveFromClassList("dropped");
             _playerHead?.RemoveFromClassList("in-basket");
             _opponentBladeGroup?.RemoveFromClassList("dropped");
+            _opponentRope?.RemoveFromClassList("dropped");
             _opponentHead?.RemoveFromClassList("in-basket");
 
             // Reset lever dropped state
@@ -712,6 +744,22 @@ namespace DLYH.TableUI
                 for (int i = 1; i <= TOTAL_STAGES; i++)
                 {
                     _opponentBladeGroup.RemoveFromClassList($"stage-{i}");
+                }
+            }
+
+            // Remove all stage classes from ropes
+            if (_playerRope != null)
+            {
+                for (int i = 1; i <= TOTAL_STAGES; i++)
+                {
+                    _playerRope.RemoveFromClassList($"stage-{i}");
+                }
+            }
+            if (_opponentRope != null)
+            {
+                for (int i = 1; i <= TOTAL_STAGES; i++)
+                {
+                    _opponentRope.RemoveFromClassList($"stage-{i}");
                 }
             }
 

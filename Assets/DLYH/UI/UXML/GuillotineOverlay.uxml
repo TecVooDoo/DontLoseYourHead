@@ -42,11 +42,17 @@
                             <ui:VisualElement class="stage-segment segment-5" />
                         </ui:VisualElement>
 
+                        <!-- Rope (connects top beam to blade) -->
+                        <ui:VisualElement name="player-rope" class="rope" />
+
                         <!-- Blade group (moves in 5 discrete positions) -->
                         <ui:VisualElement name="player-blade-group" class="blade-group">
                             <ui:VisualElement name="player-blade-holder" class="blade-holder" />
                             <ui:VisualElement name="player-blade" class="blade" />
                         </ui:VisualElement>
+
+                        <!-- Guillotine frame foreground (renders on top of rope/blade) -->
+                        <ui:VisualElement name="player-guillotine-frame" class="guillotine-frame" />
 
                         <!-- Lunette (neck holder) -->
                         <ui:VisualElement name="player-lunette" class="lunette">
@@ -108,11 +114,17 @@
                             <ui:VisualElement class="stage-segment segment-5" />
                         </ui:VisualElement>
 
+                        <!-- Rope (connects top beam to blade) -->
+                        <ui:VisualElement name="opponent-rope" class="rope" />
+
                         <!-- Blade group (moves in 5 discrete positions) -->
                         <ui:VisualElement name="opponent-blade-group" class="blade-group">
                             <ui:VisualElement name="opponent-blade-holder" class="blade-holder" />
                             <ui:VisualElement name="opponent-blade" class="blade" />
                         </ui:VisualElement>
+
+                        <!-- Guillotine frame foreground (renders on top of rope/blade) -->
+                        <ui:VisualElement name="opponent-guillotine-frame" class="guillotine-frame" />
 
                         <!-- Lunette (neck holder) -->
                         <ui:VisualElement name="opponent-lunette" class="lunette">
