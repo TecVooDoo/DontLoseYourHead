@@ -2,7 +2,7 @@
 
 **Version:** 1.0
 **Date Created:** January 19, 2026
-**Last Updated:** January 19, 2026
+**Last Updated:** January 20, 2026
 **Status:** IN PROGRESS
 **Purpose:** Complete multiplayer networking implementation with Supabase backend
 **Reference:** Dots and Boxes (DAB) networking patterns
@@ -27,13 +27,14 @@ This plan covers the complete implementation of online multiplayer for DLYH, inc
 
 | Session | Task | Status | Date |
 |---------|------|--------|------|
-| 1 | Foundation & Editor Identity | PENDING | - |
-| 2 | Phantom AI as Session Player | PENDING | - |
-| 3 | Opponent Join Detection | PENDING | - |
-| 4 | Turn Synchronization | PENDING | - |
-| 5 | Activity Tracking & Auto-Win | PENDING | - |
-| 6 | Rematch UI Integration | PENDING | - |
-| 7 | Code Quality & Polish | PENDING | - |
+| 1 | Foundation & Editor Identity | COMPLETE | Jan 19, 2026 |
+| 2 | Phantom AI as Session Player | COMPLETE | Jan 20, 2026 |
+| 3 | Game State Persistence (NEW) | COMPLETE | Jan 20, 2026 |
+| 4 | Opponent Join Detection | PENDING | - |
+| 5 | Turn Synchronization | PENDING | - |
+| 6 | Activity Tracking & Auto-Win | PENDING | - |
+| 7 | Rematch UI Integration | PENDING | - |
+| 8 | Code Quality & Polish | PENDING | - |
 
 ---
 
@@ -188,7 +189,134 @@ await _sessionService.UpdateGameStatus(newGame.Id, "active");
 
 ---
 
-## Session 3: Opponent Join Detection
+## Session 3: Game State Persistence (NEW)
+
+**Goal:** Save game progress to Supabase so games can be resumed with all guesses/reveals intact.
+
+### Critical Requirement
+
+Games that span multiple sessions (days) MUST save progress. Without this, resuming a game resets to the initial state, making the "My Active Games" feature useless for ongoing games.
+
+### What Needs to Be Saved (per player)
+
+| Field | Purpose |
+|-------|---------|
+| `currentTurn` | Whose turn it is ("player1" or "player2") |
+| `misses` | Current miss count |
+| `revealedCells` | Array of {row, col, letter, isHit} for cells revealed by guessing |
+| `foundWords` | Array of word indices that are fully revealed |
+| `guessedLetters` | Array of letters guessed via keyboard (for keyboard highlighting) |
+
+### Tasks
+
+| # | Task | File(s) | Est. Time |
+|---|------|---------|-----------|
+| 3.1 | Expand `DLYHGameplayState` class to include revealedCells, foundWords, guessedLetters | GameStateManager.cs | 30 min |
+| 3.2 | After each guess, update local gameplay state | UIFlowController.cs | 1 hr |
+| 3.3 | Save updated state to Supabase after each turn | UIFlowController.cs | 1 hr |
+| 3.4 | On resume, reconstruct attack grid from revealedCells | UIFlowController.cs | 1 hr |
+| 3.5 | On resume, reconstruct defense grid from opponent's revealedCells | UIFlowController.cs | 1 hr |
+| 3.6 | On resume, restore keyboard highlighting from guessedLetters | UIFlowController.cs | 30 min |
+| 3.7 | Test: Play several turns, exit, resume - all state restored | Manual test | 30 min |
+
+### Implementation Notes
+
+**3.1 Expanded DLYHGameplayState:**
+```csharp
+public class DLYHGameplayState
+{
+    public int misses;
+    public int missLimit;
+    public List<RevealedCell> revealedCells;    // NEW
+    public List<int> foundWords;                 // NEW - indices of completed words
+    public List<char> guessedLetters;           // NEW - for keyboard state
+}
+
+public class RevealedCell
+{
+    public int row;
+    public int col;
+    public char letter;
+    public bool isHit;
+}
+```
+
+**3.3 When to Save:**
+- After player completes a turn (hit or miss)
+- After opponent completes a turn (for multiplayer)
+- Before exiting to main menu (safety save)
+
+**3.4-3.5 Reconstructing Grid State:**
+```csharp
+// In TransitionToGameplayFromSavedState:
+foreach (var cell in myData.gameplayState.revealedCells)
+{
+    // These are cells OPPONENT revealed on MY grid (defense)
+    _defenseTableModel.SetCellState(cell.row, cell.col,
+        cell.isHit ? TableCellState.Hit : TableCellState.Miss);
+}
+
+foreach (var cell in opponentData.gameplayState.revealedCells)
+{
+    // These are cells I revealed on OPPONENT's grid (attack)
+    _attackTableModel.SetCellState(cell.row, cell.col,
+        cell.isHit ? TableCellState.Hit : TableCellState.Miss);
+    _attackTableModel.SetCellChar(cell.row, cell.col, cell.letter);
+}
+```
+
+### Verification Checklist
+
+- [x] Start phantom AI game, make 3-4 guesses (mix of hits and misses)
+- [x] Exit to main menu
+- [x] Resume game from My Active Games
+- [x] Attack grid shows previously revealed cells correctly
+- [x] Defense grid shows where opponent guessed
+- [x] Miss counts are correct
+- [x] Keyboard shows previously guessed letters
+- [x] Found words are marked as complete
+- [x] Whose turn is correct
+
+### Implementation Summary (Completed Jan 20, 2026)
+
+**Data Structures Added:**
+
+1. **RevealedCellData** (GameSessionService.cs) - Serializable struct for Supabase storage:
+   ```csharp
+   public struct RevealedCellData { int row, col; string letter; bool isHit; }
+   ```
+
+2. **RevealedCellInfo** (GameplayStateTracker.cs) - Local tracking struct:
+   ```csharp
+   public struct RevealedCellInfo { char Letter; bool IsHit; }
+   ```
+
+3. **DLYHGameplayState** expanded to include `revealedCells` array
+
+**Files Modified:**
+
+| File | Changes |
+|------|---------|
+| GameSessionService.cs | Added RevealedCellData struct, added revealedCells to DLYHGameplayState |
+| GameplayStateTracker.cs | Added RevealedCellInfo struct, PlayerRevealedCells/OpponentRevealedCells dictionaries |
+| JsonParsingUtility.cs | Added ExtractRevealedCellsArray() method for JSON parsing |
+| GameStateManager.cs | Updated ParseGameplayState() to parse revealedCells array |
+| GameStateSynchronizer.cs | Added DictionaryToRevealedCellArray(), updated BuildGameplayState/ApplyRemoteStateToTracker |
+| UIFlowController.cs | Added tracking dictionaries, SaveGameStateToSupabaseAsync(), RestoreGameplayStateFromSaved() |
+| GameplayGuessManager.cs | Added SetInitialMissCounts() for resume without triggering game over |
+| GuillotineOverlayManager.cs | Added SetBladeStageImmediately() for visual state on resume |
+
+**Key Implementation Details:**
+
+- State saved to Supabase after each turn ends (EndPlayerTurn/EndOpponentTurn)
+- Revealed cells tracked as Dictionary<Vector2Int, (char, bool)> during gameplay
+- On resume: grids reconstructed from revealedCells, keyboard from knownLetters, guillotine from miss counts
+- Miss counts set without triggering game over checks via SetInitialMissCounts()
+- Guillotine blade position set immediately without animation via SetBladeStageImmediately()
+
+---
+
+## Session 4: Opponent Join Detection
 
 **Goal:** Private games detect when opponent joins and transition to gameplay.
 
@@ -196,11 +324,11 @@ await _sessionService.UpdateGameStatus(newGame.Id, "active");
 
 | # | Task | File(s) | Est. Time |
 |---|------|---------|-----------|
-| 3.1 | Implement actual opponent join polling in WaitingRoom | NetworkingUIManager.cs | 1 hr |
-| 3.2 | On opponent join, update UI to show opponent name | NetworkingUIManager.cs | 30 min |
-| 3.3 | Transition to gameplay when both players ready | NetworkingUIManager.cs | 1 hr |
-| 3.4 | Handle host starting game before opponent joins (waiting state) | UIFlowController.cs | 1 hr |
-| 3.5 | Test: Create private game -> Share code -> Join -> Both see each other | Manual test | 30 min |
+| 4.1 | Implement actual opponent join polling in WaitingRoom | NetworkingUIManager.cs | 1 hr |
+| 4.2 | On opponent join, update UI to show opponent name | NetworkingUIManager.cs | 30 min |
+| 4.3 | Transition to gameplay when both players ready | NetworkingUIManager.cs | 1 hr |
+| 4.4 | Handle host starting game before opponent joins (waiting state) | UIFlowController.cs | 1 hr |
+| 4.5 | Test: Create private game -> Share code -> Join -> Both see each other | Manual test | 30 min |
 
 ### Verification Checklist
 
@@ -213,7 +341,7 @@ await _sessionService.UpdateGameStatus(newGame.Id, "active");
 
 ### Implementation Notes
 
-**3.1 Opponent Join Polling:**
+**4.1 Opponent Join Polling:**
 Replace stub in `PollForOpponentAsync()` (line 609-619):
 ```csharp
 private async UniTask PollForOpponentAsync(string gameCode)
@@ -238,7 +366,7 @@ private async UniTask PollForOpponentAsync(string gameCode)
 
 ---
 
-## Session 4: Turn Synchronization
+## Session 5: Turn Synchronization
 
 **Goal:** Turns sync correctly between two real players via Supabase.
 
@@ -246,12 +374,12 @@ private async UniTask PollForOpponentAsync(string gameCode)
 
 | # | Task | File(s) | Est. Time |
 |---|------|---------|-----------|
-| 4.1 | Verify GameStateSynchronizer pushes state after each turn | GameStateSynchronizer.cs | 30 min |
-| 4.2 | Verify RemotePlayerOpponent detects opponent actions from state diff | RemotePlayerOpponent.cs | 1 hr |
-| 4.3 | Test turn detection: letter guess, coordinate guess, word guess | Manual test | 1 hr |
-| 4.4 | Handle turn number conflicts (prevent race conditions) | GameStateSynchronizer.cs | 1 hr |
-| 4.5 | Add "Waiting for opponent..." indicator during opponent turn | GameplayScreenManager.cs | 30 min |
-| 4.6 | Test full 2-player game from start to finish | Manual test | 1 hr |
+| 5.1 | Verify GameStateSynchronizer pushes state after each turn | GameStateSynchronizer.cs | 30 min |
+| 5.2 | Verify RemotePlayerOpponent detects opponent actions from state diff | RemotePlayerOpponent.cs | 1 hr |
+| 5.3 | Test turn detection: letter guess, coordinate guess, word guess | Manual test | 1 hr |
+| 5.4 | Handle turn number conflicts (prevent race conditions) | GameStateSynchronizer.cs | 1 hr |
+| 5.5 | Add "Waiting for opponent..." indicator during opponent turn | GameplayScreenManager.cs | 30 min |
+| 5.6 | Test full 2-player game from start to finish | Manual test | 1 hr |
 
 ### Verification Checklist
 
@@ -264,7 +392,7 @@ private async UniTask PollForOpponentAsync(string gameCode)
 
 ### Implementation Notes
 
-**4.4 Turn Number Conflicts:**
+**5.4 Turn Number Conflicts:**
 Current implementation uses monotonic `turnNumber` in state. Need to verify:
 - Server rejects updates with stale turn numbers
 - Client retries with fresh state on conflict
@@ -288,7 +416,7 @@ $$ LANGUAGE plpgsql;
 
 ---
 
-## Session 5: Activity Tracking & Auto-Win
+## Session 6: Activity Tracking & Auto-Win
 
 **Goal:** Implement 5-day inactivity rule via Supabase.
 
@@ -296,12 +424,12 @@ $$ LANGUAGE plpgsql;
 
 | # | Task | File(s) | Est. Time |
 |---|------|---------|-----------|
-| 5.1 | Update `lastActivityAt` timestamp on each turn | GameStateSynchronizer.cs | 30 min |
-| 5.2 | Create Supabase edge function to check inactive games | Supabase Dashboard | 1 hr |
-| 5.3 | Edge function marks winner and sets status="completed" | Supabase Dashboard | 30 min |
-| 5.4 | Schedule edge function to run daily (pg_cron or external) | Supabase Dashboard | 30 min |
-| 5.5 | Unity detects auto-win on game load, shows appropriate message | UIFlowController.cs | 1 hr |
-| 5.6 | Test: Create game, don't move for 5+ days (simulate), verify auto-win | Manual test | 30 min |
+| 6.1 | Update `lastActivityAt` timestamp on each turn | GameStateSynchronizer.cs | 30 min |
+| 6.2 | Create Supabase edge function to check inactive games | Supabase Dashboard | 1 hr |
+| 6.3 | Edge function marks winner and sets status="completed" | Supabase Dashboard | 30 min |
+| 6.4 | Schedule edge function to run daily (pg_cron or external) | Supabase Dashboard | 30 min |
+| 6.5 | Unity detects auto-win on game load, shows appropriate message | UIFlowController.cs | 1 hr |
+| 6.6 | Test: Create game, don't move for 5+ days (simulate), verify auto-win | Manual test | 30 min |
 
 ### Verification Checklist
 
@@ -313,7 +441,7 @@ $$ LANGUAGE plpgsql;
 
 ### Implementation Notes
 
-**5.2 Supabase Edge Function:**
+**6.2 Supabase Edge Function:**
 ```typescript
 // supabase/functions/check-inactive-games/index.ts
 import { createClient } from '@supabase/supabase-js'
@@ -364,7 +492,7 @@ Deno.serve(async (req) => {
 
 ---
 
-## Session 6: Rematch UI Integration
+## Session 7: Rematch UI Integration
 
 **Goal:** Wire RematchService to End Screen UI.
 
@@ -372,13 +500,13 @@ Deno.serve(async (req) => {
 
 | # | Task | File(s) | Est. Time |
 |---|------|---------|-----------|
-| 6.1 | Add "Rematch" button to game end screen | GameEndOverlay.uxml | 30 min |
-| 6.2 | Wire button to RematchService.RequestRematchAsync() | UIFlowController.cs | 1 hr |
-| 6.3 | Show "Waiting for opponent..." when rematch requested | UIFlowController.cs | 30 min |
-| 6.4 | Show "Opponent wants rematch!" when opponent requests | UIFlowController.cs | 30 min |
-| 6.5 | Handle accept/decline rematch | UIFlowController.cs | 1 hr |
-| 6.6 | On rematch accepted, start new game with swapped first turn | UIFlowController.cs | 1 hr |
-| 6.7 | Test full rematch flow | Manual test | 30 min |
+| 7.1 | Add "Rematch" button to game end screen | GameEndOverlay.uxml | 30 min |
+| 7.2 | Wire button to RematchService.RequestRematchAsync() | UIFlowController.cs | 1 hr |
+| 7.3 | Show "Waiting for opponent..." when rematch requested | UIFlowController.cs | 30 min |
+| 7.4 | Show "Opponent wants rematch!" when opponent requests | UIFlowController.cs | 30 min |
+| 7.5 | Handle accept/decline rematch | UIFlowController.cs | 1 hr |
+| 7.6 | On rematch accepted, start new game with swapped first turn | UIFlowController.cs | 1 hr |
+| 7.7 | Test full rematch flow | Manual test | 30 min |
 
 ### Verification Checklist
 
@@ -403,7 +531,7 @@ Just need to wire these to UI.
 
 ---
 
-## Session 7: Code Quality & Polish
+## Session 8: Code Quality & Polish
 
 **Goal:** Address technical debt and recommendations from architecture review.
 
@@ -411,13 +539,13 @@ Just need to wire these to UI.
 
 | # | Task | File(s) | Est. Time | Priority |
 |---|------|---------|-----------|----------|
-| 7.1 | Replace manual JSON parsing with JsonUtility | Multiple | 2 hrs | HIGH |
-| 7.2 | Add exponential backoff to polling loops | Multiple | 1 hr | MEDIUM |
-| 7.3 | Implement real encryption for word placements | GameStateManager.cs | 2 hrs | MEDIUM |
-| 7.4 | Add input validation/sanitization for player names | PlayerService.cs | 30 min | MEDIUM |
-| 7.5 | Extract hardcoded URLs/timeouts to SupabaseConfig | Multiple | 1 hr | LOW |
-| 7.6 | Document state consistency model | DLYH_Status.md | 30 min | LOW |
-| 7.7 | WebGL WebSocket bridge (or accept polling fallback) | RealtimeClient.cs | 2 hrs | MEDIUM |
+| 8.1 | Replace manual JSON parsing with JsonUtility | Multiple | 2 hrs | HIGH |
+| 8.2 | Add exponential backoff to polling loops | Multiple | 1 hr | MEDIUM |
+| 8.3 | Implement real encryption for word placements | GameStateManager.cs | 2 hrs | MEDIUM |
+| 8.4 | Add input validation/sanitization for player names | PlayerService.cs | 30 min | MEDIUM |
+| 8.5 | Extract hardcoded URLs/timeouts to SupabaseConfig | Multiple | 1 hr | LOW |
+| 8.6 | Document state consistency model | DLYH_Status.md | 30 min | LOW |
+| 8.7 | WebGL WebSocket bridge (or accept polling fallback) | RealtimeClient.cs | 2 hrs | MEDIUM |
 
 ### Verification Checklist
 
@@ -431,7 +559,7 @@ Just need to wire these to UI.
 
 ### Implementation Notes
 
-**7.1 JSON Parsing:**
+**8.1 JSON Parsing:**
 Options:
 1. Unity's `JsonUtility` - Built-in, but limited (no dictionaries, strict typing)
 2. `Newtonsoft.Json` - Full-featured, add via Package Manager
@@ -439,7 +567,7 @@ Options:
 
 Recommendation: Keep `JsonParsingUtility` for simple extractions, use Newtonsoft for complex serialization.
 
-**7.3 Word Placement Encryption:**
+**8.3 Word Placement Encryption:**
 Current Base64 is just encoding. Need real encryption:
 ```csharp
 // Use AES-256 with key derived from game code + player salt

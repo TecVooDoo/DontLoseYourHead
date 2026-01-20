@@ -4,7 +4,7 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `C:\Unity\DontLoseYourHead`
-**Document Version:** 76
+**Document Version:** 77
 **Last Updated:** January 20, 2026
 
 **Archive:** `DLYH_Status_Archive.md` - Historical designs, old version history, completed phase details, DAB reference patterns
@@ -29,40 +29,33 @@
 
 ## Last Session (Jan 20, 2026)
 
-Session 64 - **Art Asset Integration - Guillotine Overlay**
+Session 65 - **Phase E Session 3: Game State Persistence**
 
-**Art Assets Integrated:**
-- Replaced CSS placeholder elements with actual art assets for guillotine overlay
-- Two complete guillotine sets: Number1 (player) and Number2 (opponent)
-- Assets include: frame, blade, head, basket, lever, and rope (4 lengths)
+**Goal:** Save game progress to Supabase so games can be resumed with all guesses/reveals intact.
 
-**Code Changes:**
-- `GuillotineOverlay.uss` - Major styling overhaul for art asset integration
-  - Added background-image properties for guillotine, blade, head, basket, lever
-  - Hidden CSS-drawn elements (posts, beam, lunette, stage track, lever pivot/handle)
-  - Added rope element with stage-based height animation (stage-1 through stage-5, dropped)
-  - Created guillotine-frame foreground element for proper z-order (rope/blade behind frame)
-  - Added #opponent-* overrides for Number2 asset set
-  - Final lever position: top: 140px, right/left: -38px
-  - Final rope top position: 46px
-- `GuillotineOverlay.uxml` - Added rope and guillotine-frame elements
-  - Element order for z-order: rope -> blade-group -> guillotine-frame -> head/basket
-- `GuillotineOverlayManager.cs` - Added rope handling
-  - Added _playerRope, _opponentRope element references
-  - Added UpdateRopeLength() method for stage-based animation
-  - Commented out head backgroundColor setting (will be re-enabled for hair-colored heads)
+**Data Structures Added:**
+- `RevealedCellData` struct (GameSessionService.cs) - Serializable for Supabase storage
+- `RevealedCellInfo` struct (GameplayStateTracker.cs) - Local tracking during gameplay
+- `DLYHGameplayState.revealedCells` array field for persistence
 
-**Z-Order Solution:**
-- Rope and blade needed to render BEHIND the wooden guillotine frame
-- Created separate guillotine-frame foreground element that renders after rope/blade
-- Element ordering in UXML controls z-order (later elements render on top)
+**Files Modified:**
+- `GameSessionService.cs` - Added RevealedCellData struct, revealedCells to DLYHGameplayState
+- `GameplayStateTracker.cs` - Added RevealedCellInfo, PlayerRevealedCells/OpponentRevealedCells dictionaries
+- `JsonParsingUtility.cs` - Added ExtractRevealedCellsArray() method
+- `GameStateManager.cs` - Updated ParseGameplayState() to parse revealedCells
+- `GameStateSynchronizer.cs` - Added DictionaryToRevealedCellArray(), updated BuildGameplayState/ApplyRemoteStateToTracker
+- `UIFlowController.cs` - Added tracking dictionaries, SaveGameStateToSupabaseAsync(), RestoreGameplayStateFromSaved()
+- `GameplayGuessManager.cs` - Added SetInitialMissCounts() for resume without game over checks
+- `GuillotineOverlayManager.cs` - Added SetBladeStageImmediately() for visual state on resume
 
-**Future Note (Polish Phase):**
-- Head selection will be added to setup (6 heads to choose from)
-- Hair will be colored based on player color (not skin)
-- Head backgroundColor code commented out, ready to re-enable
+**Key Implementation:**
+- State saved to Supabase after each turn ends (EndPlayerTurn/EndOpponentTurn)
+- Revealed cells tracked as Dictionary<Vector2Int, (char, bool)> during gameplay
+- On resume: grids reconstructed from revealedCells, keyboard from knownLetters, guillotine from miss counts
+- Miss counts set without triggering game over checks via SetInitialMissCounts()
+- Guillotine blade position set immediately without animation via SetBladeStageImmediately()
 
-**Previous Session:** Session 63 - Phase E Sessions 1 & 2: Phantom AI session_players, Join Game fix
+**Previous Session:** Session 64 - Art Asset Integration - Guillotine Overlay
 
 ---
 
@@ -75,34 +68,21 @@ Session 64 - **Art Asset Integration - Guillotine Overlay**
 | Session | Focus | Status |
 |---------|-------|--------|
 | 1 | Foundation & Editor Identity | COMPLETE |
-| 2 | Phantom AI as Session Player | IN PROGRESS |
-| 3 | Opponent Join Detection | PENDING |
-| 4 | Turn Synchronization | PENDING |
-| 5 | Activity Tracking & Auto-Win | PENDING |
-| 6 | Rematch UI Integration | PENDING |
-| 7 | Code Quality & Polish | PENDING |
+| 2 | Phantom AI as Session Player | COMPLETE |
+| 3 | Game State Persistence | COMPLETE |
+| 4 | Opponent Join Detection | PENDING |
+| 5 | Turn Synchronization | PENDING |
+| 6 | Activity Tracking & Auto-Win | PENDING |
+| 7 | Rematch UI Integration | PENDING |
+| 8 | Code Quality & Polish | PENDING |
 
-### Current: Session 2 - Phantom AI as Session Player (Testing Needed)
+### Current: Session 4 - Opponent Join Detection
 
-**Completed:**
-- [x] Add `EnsurePhantomAIPlayerExistsAsync()` to PlayerService
-- [x] Update MatchmakingService to insert phantom AI into `session_players`
-- [x] Update game status to "active" after phantom AI joins
-- [x] Update `GetPlayerGames()` to prefer `session_players.player_name`
-- [x] Fix matchmaking_queue schema (remove non-existent columns)
-- [x] Fix Join Game flow (`_isActive` not being set)
-
-**Testing Required:**
-- [ ] Test Join Game: enter existing game code, verify game starts
-- [ ] Test Play Online: wait for timeout, verify phantom AI game starts
-- [ ] Verify phantom AI games appear in "My Active Games" list
-- [ ] If games not showing, check console for `hidden=true` and clear `DLYH_HiddenGames` PlayerPrefs
-
-### Session 3 Preview - Opponent Join Detection
-
-- [ ] Implement polling in WaitingRoom (currently stub)
+- [ ] Implement actual opponent join polling in WaitingRoom (currently stub)
 - [ ] Detect when real player joins private game
-- [ ] Auto-transition to gameplay when opponent joins
+- [ ] Update UI to show opponent name when joined
+- [ ] Auto-transition to gameplay when both players ready
+- [ ] Handle host starting game before opponent joins (waiting state)
 
 ### Phase F: Cleanup & Polish
 
@@ -388,12 +368,12 @@ YourDifficultyModifier: Easy=+4, Normal=+0, Hard=-4
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 77 | Jan 20, 2026 | Session 65 - Phase E Session 3: Game State Persistence (revealedCells, resume state) |
 | 76 | Jan 20, 2026 | Session 64 - Art asset integration for guillotine overlay (Number1/Number2 sets) |
 | 75 | Jan 19, 2026 | Session 63 - Phase E Sessions 1 & 2: Phantom AI session_players, Join Game fix |
 | 74 | Jan 19, 2026 | Created DLYH_NetworkingPlan_Phase_E.md - 7 session implementation plan |
 | 73 | Jan 19, 2026 | Session 62 - Professional network architecture evaluation, gap analysis |
 | 68 | Jan 19, 2026 | Reorganized status doc - removed redundancy, consolidated TODO/Known Issues |
-| 67 | Jan 18, 2026 | Resume game fixes, editor auth discovery, online waiting state fixes |
 
 **Full version history:** See `DLYH_Status_Archive.md`
 

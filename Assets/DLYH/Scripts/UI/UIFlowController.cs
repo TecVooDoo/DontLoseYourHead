@@ -202,6 +202,16 @@ namespace DLYH.TableUI
         private Queue<int> _playerExtraTurnQueue = new Queue<int>(); // Word indices for player extra turns
         private Queue<int> _opponentExtraTurnQueue = new Queue<int>(); // Word indices for opponent extra turns
 
+        // Game state tracking for persistence (Session 3)
+        // Tracks what player revealed on opponent's grid (for saving to Supabase)
+        private Dictionary<Vector2Int, (char letter, bool isHit)> _playerRevealedCells = new Dictionary<Vector2Int, (char, bool)>();
+        // Tracks what opponent revealed on player's grid (for saving to Supabase)
+        private Dictionary<Vector2Int, (char letter, bool isHit)> _opponentRevealedCells = new Dictionary<Vector2Int, (char, bool)>();
+        // Tracks letters guessed via keyboard by player
+        private HashSet<char> _playerGuessedLetters = new HashSet<char>();
+        // Tracks solved word indices for player
+        private HashSet<int> _playerSolvedWords = new HashSet<int>();
+
         // AI Opponent
         [SerializeField] private ExecutionerConfigSO _aiConfig;
         [SerializeField] private List<WordListSO> _wordLists;
@@ -641,6 +651,9 @@ namespace DLYH.TableUI
                 return;
             }
 
+            // Always reset state before resuming, even if no "active" game
+            // This clears any residual state from previous games (solo, online, etc.)
+            ResetGameState();
             HandleResumeGameAsync(gameCode).Forget();
         }
 
@@ -811,6 +824,182 @@ namespace DLYH.TableUI
         // NOTE: EncryptWordPlacements, DecryptWordPlacements moved to GameStateManager
 
         /// <summary>
+        /// Saves the phantom AI's setup data to Supabase so the game can be resumed.
+        /// Called after initializing a phantom AI opponent for online games.
+        /// </summary>
+        private async UniTask SavePhantomAISetupToSupabaseAsync(string gameCode, string aiName, Color aiColor,
+            int gridSize, int wordCount, List<WordPlacementData> wordPlacements)
+        {
+            if (_gameSessionService == null)
+            {
+                Debug.LogWarning("[UIFlowController] Cannot save phantom AI setup - service not available");
+                return;
+            }
+
+            // Get current game state
+            GameSession game = await _gameSessionService.GetGame(gameCode);
+            if (game == null)
+            {
+                Debug.LogError($"[UIFlowController] Cannot save phantom AI setup - game {gameCode} not found");
+                return;
+            }
+
+            // Parse existing state
+            DLYHGameState state = GameStateManager.ParseGameStateJson(game.StateJson);
+            if (state == null)
+            {
+                Debug.LogError($"[UIFlowController] Cannot save phantom AI setup - failed to parse state for {gameCode}");
+                return;
+            }
+
+            // Build phantom AI player data (player 2)
+            DLYHPlayerData aiData = new DLYHPlayerData
+            {
+                name = aiName,
+                color = ColorToHex(aiColor),
+                gridSize = gridSize,
+                wordCount = wordCount,
+                difficulty = "Normal", // AI uses normal difficulty
+                ready = true,
+                setupComplete = true,
+                lastActivityAt = DateTime.UtcNow.ToString("o"),
+                wordPlacementsEncrypted = GameStateManager.EncryptWordPlacements(wordPlacements),
+                gameplayState = new DLYHGameplayState
+                {
+                    misses = 0,
+                    missLimit = GameStateManager.CalculateMissLimit(gridSize, wordCount, DifficultySetting.Normal)
+                }
+            };
+
+            // Set as player 2
+            state.player2 = aiData;
+
+            // Update game state in Supabase
+            bool success = await _gameSessionService.UpdateGameState(gameCode, state);
+            if (success)
+            {
+                Debug.Log($"[UIFlowController] Saved phantom AI setup to Supabase for game {gameCode}");
+            }
+            else
+            {
+                Debug.LogError($"[UIFlowController] Failed to save phantom AI setup for game {gameCode}");
+            }
+        }
+
+        /// <summary>
+        /// Saves the current gameplay state to Supabase for game persistence.
+        /// Called after each turn to allow resuming games later.
+        /// </summary>
+        private async UniTask SaveGameStateToSupabaseAsync()
+        {
+            if (_gameSessionService == null || string.IsNullOrEmpty(_currentGameCode))
+            {
+                Debug.LogWarning("[UIFlowController] Cannot save game state - service or game code not available");
+                return;
+            }
+
+            try
+            {
+                // Get current game state
+                GameSession game = await _gameSessionService.GetGame(_currentGameCode);
+                if (game == null)
+                {
+                    Debug.LogError($"[UIFlowController] Cannot save game state - game {_currentGameCode} not found");
+                    return;
+                }
+
+                // Parse existing state
+                DLYHGameState state = GameStateManager.ParseGameStateJson(game.StateJson);
+                if (state == null)
+                {
+                    Debug.LogError($"[UIFlowController] Cannot save game state - failed to parse state for {_currentGameCode}");
+                    return;
+                }
+
+                // Determine which player we are
+                bool isPlayer1 = (_matchmakingResult?.IsHost ?? true);
+
+                // Update gameplay state for player 1 (the local player's attacks on opponent)
+                DLYHPlayerData myData = isPlayer1 ? state.player1 : state.player2;
+                if (myData != null)
+                {
+                    // Initialize gameplay state if null
+                    if (myData.gameplayState == null)
+                    {
+                        myData.gameplayState = new DLYHGameplayState();
+                    }
+
+                    // Update miss count from guess manager
+                    myData.gameplayState.misses = _guessManager?.GetPlayerMissCount() ?? 0;
+                    myData.gameplayState.missLimit = _guessManager?.GetPlayerMissLimit() ?? 0;
+
+                    // Convert tracked data to arrays for serialization
+                    myData.gameplayState.knownLetters = _playerGuessedLetters
+                        .Select(c => c.ToString())
+                        .ToArray();
+
+                    myData.gameplayState.solvedWordRows = _playerSolvedWords.ToArray();
+
+                    // Convert revealed cells dictionary to array
+                    myData.gameplayState.revealedCells = _playerRevealedCells
+                        .Select(kvp => new RevealedCellData(
+                            kvp.Key.y,  // row
+                            kvp.Key.x,  // col
+                            kvp.Value.letter == '\0' ? "" : kvp.Value.letter.ToString(),
+                            kvp.Value.isHit))
+                        .ToArray();
+
+                    myData.lastActivityAt = DateTime.UtcNow.ToString("o");
+                }
+
+                // Update gameplay state for opponent (opponent's attacks on player's grid)
+                DLYHPlayerData opponentData = isPlayer1 ? state.player2 : state.player1;
+                if (opponentData != null)
+                {
+                    // Initialize gameplay state if null
+                    if (opponentData.gameplayState == null)
+                    {
+                        opponentData.gameplayState = new DLYHGameplayState();
+                    }
+
+                    // Update opponent's miss count
+                    opponentData.gameplayState.misses = _guessManager?.GetOpponentMissCount() ?? 0;
+                    opponentData.gameplayState.missLimit = _guessManager?.GetOpponentMissLimit() ?? 0;
+
+                    // Convert opponent revealed cells to array
+                    opponentData.gameplayState.revealedCells = _opponentRevealedCells
+                        .Select(kvp => new RevealedCellData(
+                            kvp.Key.y,  // row
+                            kvp.Key.x,  // col
+                            kvp.Value.letter == '\0' ? "" : kvp.Value.letter.ToString(),
+                            kvp.Value.isHit))
+                        .ToArray();
+                }
+
+                // Update turn info
+                state.currentTurn = _isPlayerTurn ? (isPlayer1 ? "player1" : "player2") : (isPlayer1 ? "player2" : "player1");
+                state.turnNumber = (state.turnNumber ?? 0) + 1;
+                state.status = "playing";
+                state.updatedAt = DateTime.UtcNow.ToString("o");
+
+                // Save to Supabase
+                bool success = await _gameSessionService.UpdateGameState(_currentGameCode, state);
+                if (success)
+                {
+                    Debug.Log($"[UIFlowController] Saved game state to Supabase - turn {state.turnNumber}, player revealed {_playerRevealedCells.Count} cells");
+                }
+                else
+                {
+                    Debug.LogError($"[UIFlowController] Failed to save game state for {_currentGameCode}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[UIFlowController] Error saving game state: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// Converts a Color to hex string (#RRGGBB format).
         /// </summary>
         private string ColorToHex(Color color)
@@ -841,12 +1030,18 @@ namespace DLYH.TableUI
             // Get difficulty setting (flat structure - no nested setupData)
             DifficultySetting myDifficulty = GetDifficultySettingFromString(myData.difficulty ?? "Normal");
 
+            // Debug: log raw data from Supabase
+            Debug.Log($"[UIFlowController] Resume raw data - myData: gridSize={myData.gridSize}, wordCount={myData.wordCount}, name={myData.name}");
+            Debug.Log($"[UIFlowController] Resume raw data - opponentData: {(opponentData != null ? $"gridSize={opponentData.gridSize}, wordCount={opponentData.wordCount}, name={opponentData.name}" : "null")}");
+
             // Calculate miss limits
             int myGridSize = myData.gridSize > 0 ? myData.gridSize : 8;
             int myWordCount = myData.wordCount > 0 ? myData.wordCount : 5;
 
             int opponentGridSize = opponentData != null && opponentData.gridSize > 0 ? opponentData.gridSize : myGridSize;
             int opponentWordCount = opponentData != null && opponentData.wordCount > 0 ? opponentData.wordCount : myWordCount;
+
+            Debug.Log($"[UIFlowController] Resume computed sizes - myGrid={myGridSize}x{myGridSize}, opponentGrid={opponentGridSize}x{opponentGridSize}");
 
             int myMissLimit = DifficultyCalculator.CalculateMissLimitForPlayer(myDifficulty, opponentGridSize, opponentWordCount);
             DifficultySetting inverseDifficulty = GetInverseDifficulty(myDifficulty);
@@ -894,6 +1089,21 @@ namespace DLYH.TableUI
 
             Debug.Log($"[UIFlowController] Resume: My placements: {myPlacements.Count}, Opponent placements: {opponentPlacements.Count}");
 
+            // Validate grid size matches placement coordinates
+            int requiredMyGridSize = GetRequiredGridSizeForPlacements(myPlacements);
+            int requiredOpponentGridSize = GetRequiredGridSizeForPlacements(opponentPlacements);
+
+            if (requiredMyGridSize > myGridSize)
+            {
+                Debug.LogWarning($"[UIFlowController] Grid size mismatch! myGridSize={myGridSize} but placements require at least {requiredMyGridSize}. Using placement-based size.");
+                myGridSize = requiredMyGridSize;
+            }
+            if (requiredOpponentGridSize > opponentGridSize)
+            {
+                Debug.LogWarning($"[UIFlowController] Grid size mismatch! opponentGridSize={opponentGridSize} but placements require at least {requiredOpponentGridSize}. Using placement-based size.");
+                opponentGridSize = requiredOpponentGridSize;
+            }
+
             // Create models from decrypted data (not from local _placementAdapter!)
             CreateAttackModel(opponentGridSize, opponentPlacements, opponentColor);
             CreateDefenseModelFromPlacements(myGridSize, myPlacements, myColor);
@@ -917,10 +1127,25 @@ namespace DLYH.TableUI
             _playerExtraTurnQueue.Clear();
             _opponentExtraTurnQueue.Clear();
 
-            // Reset guillotine
-            _playerPreviousStage = 1;
-            _opponentPreviousStage = 1;
+            // Restore game state from saved gameplay data (Session 3)
+            RestoreGameplayStateFromSaved(myData, opponentData, myColor, opponentColor);
+
+            // Update guillotine based on restored miss counts
+            int playerMissCount = myData.gameplayState?.misses ?? 0;
+            int opponentMissCount = opponentData?.gameplayState?.misses ?? 0;
+            _playerPreviousStage = GetStageFromMissCount(playerMissCount, myMissLimit);
+            _opponentPreviousStage = GetStageFromMissCount(opponentMissCount, opponentMissLimit);
+
+            // Set guillotine overlay to correct stage without animation
             _guillotineOverlayManager?.ResetGameOverState();
+            if (_playerPreviousStage > 1)
+            {
+                _guillotineOverlayManager?.SetBladeStageImmediately(true, _playerPreviousStage);
+            }
+            if (_opponentPreviousStage > 1)
+            {
+                _guillotineOverlayManager?.SetBladeStageImmediately(false, _opponentPreviousStage);
+            }
 
             // Store current game code for networking
             _currentGameCode = gameCode;
@@ -931,7 +1156,183 @@ namespace DLYH.TableUI
             // Show gameplay screen
             ShowGameplayScreen();
 
-            Debug.Log($"[UIFlowController] Resumed game {gameCode} - Turn: {(isMyTurn ? "mine" : "opponent")}, Status: {gameState.status}");
+            Debug.Log($"[UIFlowController] Resumed game {gameCode} - Turn: {(isMyTurn ? "mine" : "opponent")}, Status: {gameState.status}, PlayerMisses: {playerMissCount}, OpponentMisses: {opponentMissCount}");
+        }
+
+        /// <summary>
+        /// Calculates the minimum grid size required to contain the given word placements.
+        /// Returns the minimum gridSize where all placement coordinates fit within 0 to gridSize-1.
+        /// </summary>
+        private int GetRequiredGridSizeForPlacements(List<WordPlacementData> placements)
+        {
+            if (placements == null || placements.Count == 0)
+            {
+                return 0;
+            }
+
+            int maxRow = 0;
+            int maxCol = 0;
+
+            foreach (WordPlacementData placement in placements)
+            {
+                for (int i = 0; i < placement.Word.Length; i++)
+                {
+                    int row = placement.StartRow + (i * placement.DirRow);
+                    int col = placement.StartCol + (i * placement.DirCol);
+
+                    if (row > maxRow) maxRow = row;
+                    if (col > maxCol) maxCol = col;
+                }
+            }
+
+            // Grid size must be at least max+1 (since coordinates are 0-indexed)
+            return System.Math.Max(maxRow, maxCol) + 1;
+        }
+
+        /// <summary>
+        /// Restores gameplay state from saved data - reconstructs revealed cells, keyboard states,
+        /// word row reveals, and miss counts from the saved gameplayState.
+        /// </summary>
+        private void RestoreGameplayStateFromSaved(DLYHPlayerData myData, DLYHPlayerData opponentData,
+            Color myColor, Color opponentColor)
+        {
+            // Clear tracking dictionaries before restoring
+            _playerRevealedCells.Clear();
+            _opponentRevealedCells.Clear();
+            _playerGuessedLetters.Clear();
+            _playerSolvedWords.Clear();
+
+            // Restore player's revealed cells (my attacks on opponent's grid)
+            if (myData?.gameplayState?.revealedCells != null)
+            {
+                Debug.Log($"[UIFlowController] Restoring {myData.gameplayState.revealedCells.Length} player revealed cells");
+
+                foreach (RevealedCellData cell in myData.gameplayState.revealedCells)
+                {
+                    Vector2Int pos = new Vector2Int(cell.col, cell.row);
+                    char letter = string.IsNullOrEmpty(cell.letter) ? '\0' : cell.letter[0];
+
+                    // Track in local dictionary
+                    _playerRevealedCells[pos] = (letter, cell.isHit);
+
+                    // Update the attack grid visual
+                    if (cell.isHit)
+                    {
+                        // Hit - show the cell with player color
+                        RevealGridCellFully(cell.col, cell.row, letter);
+                    }
+                    else
+                    {
+                        // Miss - show the cell as miss
+                        MarkGridCellMiss(cell.col, cell.row);
+                    }
+                }
+            }
+
+            // Restore player's guessed letters (keyboard)
+            if (myData?.gameplayState?.knownLetters != null)
+            {
+                Debug.Log($"[UIFlowController] Restoring {myData.gameplayState.knownLetters.Length} guessed letters");
+
+                foreach (string letterStr in myData.gameplayState.knownLetters)
+                {
+                    if (!string.IsNullOrEmpty(letterStr))
+                    {
+                        char letter = char.ToUpper(letterStr[0]);
+                        _playerGuessedLetters.Add(letter);
+
+                        // Determine keyboard state based on whether letter is a hit
+                        bool isHit = _guessManager?.IsPlayerLetterHit(letter) ?? false;
+                        if (isHit)
+                        {
+                            bool allCoordsKnown = _guessManager?.AreAllLetterCoordinatesKnown(letter) ?? false;
+                            if (allCoordsKnown)
+                            {
+                                _gameplayManager?.SetKeyboardLetterState(letter, LetterKeyState.Hit);
+                            }
+                            else
+                            {
+                                _gameplayManager?.SetKeyboardLetterState(letter, LetterKeyState.Found);
+                            }
+
+                            // Reveal letter in attack word rows
+                            if (allCoordsKnown)
+                            {
+                                _attackWordRows?.RevealLetterInAllWords(letter, myColor);
+                            }
+                            else
+                            {
+                                _attackWordRows?.RevealLetterAsFoundInAllWords(letter);
+                            }
+                        }
+                        else
+                        {
+                            _gameplayManager?.SetKeyboardLetterState(letter, LetterKeyState.Miss);
+                        }
+                    }
+                }
+            }
+
+            // Restore solved word indices
+            if (myData?.gameplayState?.solvedWordRows != null)
+            {
+                foreach (int wordIndex in myData.gameplayState.solvedWordRows)
+                {
+                    _playerSolvedWords.Add(wordIndex);
+                    _attackWordRows?.HideGuessButton(wordIndex);
+                }
+            }
+
+            // Restore opponent's revealed cells (their attacks on my grid)
+            if (opponentData?.gameplayState?.revealedCells != null)
+            {
+                Debug.Log($"[UIFlowController] Restoring {opponentData.gameplayState.revealedCells.Length} opponent revealed cells");
+
+                foreach (RevealedCellData cell in opponentData.gameplayState.revealedCells)
+                {
+                    Vector2Int pos = new Vector2Int(cell.col, cell.row);
+                    char letter = string.IsNullOrEmpty(cell.letter) ? '\0' : cell.letter[0];
+
+                    // Track in local dictionary
+                    _opponentRevealedCells[pos] = (letter, cell.isHit);
+
+                    // Update the defense grid visual
+                    if (cell.isHit)
+                    {
+                        // Opponent hit - show the cell revealed on defense grid
+                        MarkDefenseGridCellHit(cell.col, cell.row);
+
+                        // Reveal the letter in defense word rows
+                        if (letter != '\0')
+                        {
+                            _defenseWordRows?.RevealLetterInAllWords(letter, opponentColor);
+                        }
+                    }
+                    else
+                    {
+                        // Opponent miss - show the cell as miss on defense grid
+                        MarkDefenseGridCellMiss(cell.col, cell.row);
+                    }
+                }
+            }
+
+            // Restore miss counts in guess manager
+            if (_guessManager != null)
+            {
+                int playerMisses = myData?.gameplayState?.misses ?? 0;
+                int opponentMisses = opponentData?.gameplayState?.misses ?? 0;
+
+                // Set the initial miss counts (doesn't trigger game over checks)
+                _guessManager.SetInitialMissCounts(playerMisses, opponentMisses);
+
+                // Update the miss count display in the UI
+                _gameplayManager?.SetPlayerMissCount(playerMisses, _guessManager.GetPlayerMissLimit());
+                _gameplayManager?.SetOpponentMissCount(opponentMisses, _guessManager.GetOpponentMissLimit());
+
+                Debug.Log($"[UIFlowController] Restored miss counts - Player: {playerMisses}, Opponent: {opponentMisses}");
+            }
+
+            Debug.Log("[UIFlowController] Gameplay state restoration complete");
         }
 
         private Color? ParseColorFromHex(string hex)
@@ -1276,6 +1677,12 @@ namespace DLYH.TableUI
 
             GuessResult result = _guessManager.ProcessPlayerLetterGuess(letter);
 
+            // Track guessed letters for game state persistence (both hits and misses)
+            if (result == GuessResult.Hit || result == GuessResult.Miss)
+            {
+                _playerGuessedLetters.Add(char.ToUpper(letter));
+            }
+
             switch (result)
             {
                 case GuessResult.Hit:
@@ -1535,6 +1942,9 @@ namespace DLYH.TableUI
         {
             Debug.Log($"[UIFlowController] Word {wordIndex} solved!");
 
+            // Track solved word for game state persistence
+            _playerSolvedWords.Add(wordIndex);
+
             // Hide the guess button for this word
             _attackWordRows?.HideGuessButton(wordIndex);
 
@@ -1674,7 +2084,8 @@ namespace DLYH.TableUI
         {
             // Animation timing constants (matching GuillotineDisplay.cs)
             const float PAUSE_BEFORE_EXECUTION = 2f;
-            const float FINAL_RAISE_DURATION = 4f;
+            const float FINAL_RAISE_ANIMATION = 0.5f;    // Time for blade to animate from stage-4 to stage-5
+            const float PAUSE_AT_TOP = 2f;               // Dramatic pause at peak before drop
             const float PAUSE_BEFORE_HOOK_UNLOCK = 0.3f;
             const float PAUSE_AFTER_HOOK_UNLOCK = 0.4f;
             const float BLADE_DROP_DURATION = 0.15f;
@@ -1713,20 +2124,24 @@ namespace DLYH.TableUI
                 IsLocalPlayer = false
             };
 
-            // Show guillotine overlay in game over state (this applies dropped/in-basket classes)
+            // Show guillotine overlay in game over state (blade starts at stage-4 for loser)
             _guillotineOverlayManager?.ShowGameOver(playerData, opponentData, playerWon);
 
             // Play execution audio sequence
-            // Part 1: Final raise
+            // Part 1: Final raise - animate blade from stage-4 to stage-5 (peak position)
             DLYH.Audio.GuillotineAudioManager.FinalRaise();
-            yield return new WaitForSeconds(FINAL_RAISE_DURATION);
+            _guillotineOverlayManager?.TriggerFinalRaise(!playerWon);
+            yield return new WaitForSeconds(FINAL_RAISE_ANIMATION);
 
-            // Part 2: Hook unlock
+            // Part 2: Dramatic pause at peak (blade fully raised, tension building)
+            yield return new WaitForSeconds(PAUSE_AT_TOP);
+
+            // Part 3: Hook unlock
             yield return new WaitForSeconds(PAUSE_BEFORE_HOOK_UNLOCK);
             DLYH.Audio.GuillotineAudioManager.HookUnlock();
             yield return new WaitForSeconds(PAUSE_AFTER_HOOK_UNLOCK);
 
-            // Part 3: Blade drop (chop) - sync animation with audio
+            // Part 4: Blade drop (chop) - sync animation with audio
             DLYH.Audio.GuillotineAudioManager.FinalChop();
             _guillotineOverlayManager?.TriggerBladeDrop(!playerWon);
             yield return new WaitForSeconds(BLADE_DROP_DURATION);
@@ -1769,6 +2184,12 @@ namespace DLYH.TableUI
 
             // Immediately block player input
             _isPlayerTurn = false;
+
+            // Save game state to Supabase (fire and forget for performance)
+            if (!string.IsNullOrEmpty(_currentGameCode) && _currentGameMode != GameMode.Solo)
+            {
+                SaveGameStateToSupabaseAsync().Forget();
+            }
 
             // Start turn switch with delay for UI feedback
             if (_turnDelayCoroutine != null)
@@ -1902,6 +2323,12 @@ namespace DLYH.TableUI
             {
                 StopCoroutine(_opponentTurnTimeoutCoroutine);
                 _opponentTurnTimeoutCoroutine = null;
+            }
+
+            // Save game state to Supabase after opponent's turn (fire and forget)
+            if (!string.IsNullOrEmpty(_currentGameCode) && _currentGameMode != GameMode.Solo)
+            {
+                SaveGameStateToSupabaseAsync().Forget();
             }
 
             // Start turn switch with delay
@@ -2323,6 +2750,18 @@ namespace DLYH.TableUI
 
             // Process the guess against player's grid
             bool wasHit = ProcessOpponentCoordinateGuess(col, row);
+
+            // Track opponent's revealed cell for game state persistence
+            Vector2Int position = new Vector2Int(col, row);
+            if (wasHit)
+            {
+                char? letterAtPos = _guessManager?.GetPlayerLetterAtPosition(col, row);
+                _opponentRevealedCells[position] = (letterAtPos ?? '\0', true);
+            }
+            else
+            {
+                _opponentRevealedCells[position] = ('\0', false);
+            }
 
             // Update UI
             string resultText = wasHit ? "HIT" : "MISS";
@@ -2912,6 +3351,9 @@ namespace DLYH.TableUI
         {
             Debug.Log($"[UIFlowController] Coordinate hit at ({position.x}, {position.y}) - letter '{letter}'");
 
+            // Track revealed cell for game state persistence (hit = true)
+            _playerRevealedCells[position] = (letter, true);
+
             // Check if this letter has already been guessed
             bool letterAlreadyKnown = _guessManager?.HasPlayerGuessedLetter(letter) ?? false;
             Debug.Log($"[UIFlowController] Letter '{letter}' already known? {letterAlreadyKnown}");
@@ -2997,6 +3439,10 @@ namespace DLYH.TableUI
         private void HandleCoordinateMiss(Vector2Int position)
         {
             Debug.Log($"[UIFlowController] Coordinate miss at ({position.x}, {position.y})");
+
+            // Track revealed cell for game state persistence (miss = empty letter, isHit = false)
+            _playerRevealedCells[position] = ('\0', false);
+
             MarkGridCellMiss(position.x, position.y);
         }
 
@@ -3103,6 +3549,8 @@ namespace DLYH.TableUI
         /// </summary>
         private void CreateDefenseModelFromPlacements(int gridSize, List<WordPlacementData> placements, Color playerColor)
         {
+            Debug.Log($"[UIFlowController] CreateDefenseModelFromPlacements: gridSize={gridSize}, placements={placements?.Count ?? 0}");
+
             // Create a layout for this grid size
             _tableLayout = TableLayout.CreateForGameplay(gridSize, placements.Count);
 
@@ -3111,13 +3559,23 @@ namespace DLYH.TableUI
             _defenseTableModel.Initialize(_tableLayout);
 
             // Build a dictionary of placed letters from the placements
-            var placedLetters = new Dictionary<Vector2Int, char>();
+            Dictionary<Vector2Int, char> placedLetters = new Dictionary<Vector2Int, char>();
             foreach (WordPlacementData placement in placements)
             {
+                Debug.Log($"[UIFlowController] Defense placement: word={placement.Word}, start=({placement.StartRow},{placement.StartCol}), dir=({placement.DirRow},{placement.DirCol})");
+
                 for (int i = 0; i < placement.Word.Length; i++)
                 {
                     int col = placement.StartCol + (i * placement.DirCol);
                     int row = placement.StartRow + (i * placement.DirRow);
+
+                    // Bounds check
+                    if (row < 0 || row >= gridSize || col < 0 || col >= gridSize)
+                    {
+                        Debug.LogWarning($"[UIFlowController] Defense placement out of bounds: ({row},{col}) for gridSize={gridSize}, word={placement.Word}[{i}]='{placement.Word[i]}'");
+                        continue;
+                    }
+
                     char letter = placement.Word[i];
                     Vector2Int pos = new Vector2Int(col, row);
                     placedLetters[pos] = letter;
@@ -3298,6 +3756,7 @@ namespace DLYH.TableUI
             _isPlayerTurn = true;
             _isGamePausedForStageTransition = false;
             _waitingForOpponent = false;
+            _currentGameCode = null; // Clear game code to prevent resume conflicts
 
             // Clear extra turn queues
             _playerExtraTurnQueue.Clear();
@@ -3340,6 +3799,12 @@ namespace DLYH.TableUI
 
             // Reset gameplay manager (keyboard states, guessed words, etc.)
             _gameplayManager?.Reset();
+
+            // Clear game state persistence tracking
+            _playerRevealedCells.Clear();
+            _opponentRevealedCells.Clear();
+            _playerGuessedLetters.Clear();
+            _playerSolvedWords.Clear();
 
             Debug.Log("[UIFlowController] Game state reset for new game");
         }
@@ -4647,10 +5112,30 @@ namespace DLYH.TableUI
                 // Start matchmaking - will call StartGameAfterMatchmaking when done
                 StartOnlineMatchmaking();
             }
+            else if (_currentGameMode == GameMode.JoinGame)
+            {
+                // Show join code entry - joiner needs to enter the host's code
+                ShowJoinCodeEntryForJoinGame();
+            }
             else
             {
-                // Solo mode or JoinGame - go directly to gameplay
+                // Solo mode - go directly to gameplay
                 TransitionToGameplay();
+            }
+        }
+
+        /// <summary>
+        /// Shows the join code entry UI for JoinGame mode.
+        /// Called after the player has completed their setup (words placed).
+        /// </summary>
+        private void ShowJoinCodeEntryForJoinGame()
+        {
+            Debug.Log("[UIFlowController] Showing join code entry for JoinGame mode");
+
+            // Show the join code card from the wizard
+            if (_wizardManager != null)
+            {
+                _wizardManager.ShowJoinCodeCard();
             }
         }
 
@@ -4778,8 +5263,11 @@ namespace DLYH.TableUI
             // Capture player's word placements BEFORE transitioning
             CapturePlayerSetupData(playerName, playerColor, playerGridSize, playerWordCount, playerDifficulty);
 
-            // For real online games (not phantom AI), save player setup to Supabase
-            if (_currentGameMode == GameMode.Online && _matchmakingResult != null && !_matchmakingResult.IsPhantomAI)
+            // For all online games (including phantom AI) and JoinGame mode, save player setup to Supabase
+            // Phantom AI games are stored in session_players and can be resumed, so they need state saved too
+            bool isOnlineGame = _currentGameMode == GameMode.Online && _matchmakingResult != null;
+            bool isJoinGame = _currentGameMode == GameMode.JoinGame && _matchmakingResult != null;
+            if (isOnlineGame || isJoinGame)
             {
                 await SavePlayerSetupToSupabaseAsync(_matchmakingResult.GameCode, _matchmakingResult.IsHost);
             }
@@ -4827,7 +5315,23 @@ namespace DLYH.TableUI
                         var p = opponentWordPlacements[i];
                         Debug.Log($"[UIFlowController] AI word {i}: '{p.Word}' at ({p.StartCol},{p.StartRow}) dir({p.DirCol},{p.DirRow})");
                     }
+
+                    // For phantom AI games, save the AI's setup to Supabase so the game can be resumed
+                    if (_currentGameMode == GameMode.Online && _matchmakingResult != null && _matchmakingResult.IsPhantomAI)
+                    {
+                        await SavePhantomAISetupToSupabaseAsync(_matchmakingResult.GameCode, opponentName, opponentColor,
+                            opponentGridSize, opponentWordCount, opponentWordPlacements);
+                    }
                 }
+            }
+            else if (_currentGameMode == GameMode.JoinGame && _matchmakingResult != null)
+            {
+                // JoinGame mode - joiner has joined the host's game
+                // The host's data will come from Supabase
+                opponentName = "Host"; // Will be updated when we load host's data
+                _waitingForOpponent = false; // Joiner doesn't wait - host was already there
+                Debug.Log($"[UIFlowController] JoinGame mode - joined game {_matchmakingResult.GameCode}");
+                // TODO: Load host's setup data from Supabase to get their grid, words, etc.
             }
             else if (_currentGameMode == GameMode.Online && _matchmakingResult != null && !_matchmakingResult.IsPhantomAI)
             {
@@ -5008,14 +5512,26 @@ namespace DLYH.TableUI
             _attackTableModel = new TableModel();
             _attackTableModel.Initialize(_attackTableLayout);
 
+            Debug.Log($"[UIFlowController] CreateAttackModel: gridSize={opponentGridSize}, placements={opponentPlacements.Count}, " +
+                      $"tableSize={_attackTableModel.Rows}x{_attackTableModel.Cols}");
+
             // Place opponent's letters in fog (hidden from player)
             foreach (WordPlacementData wordData in opponentPlacements)
             {
+                Debug.Log($"[UIFlowController] Placing word '{wordData.Word}' at ({wordData.StartCol},{wordData.StartRow}) dir({wordData.DirCol},{wordData.DirRow})");
+
                 for (int i = 0; i < wordData.Word.Length; i++)
                 {
                     int col = wordData.StartCol + (i * wordData.DirCol);
                     int row = wordData.StartRow + (i * wordData.DirRow);
                     char letter = wordData.Word[i];
+
+                    // Bounds check before conversion
+                    if (row < 0 || row >= opponentGridSize || col < 0 || col >= opponentGridSize)
+                    {
+                        Debug.LogWarning($"[UIFlowController] Skipping out-of-bounds letter '{letter}' at grid ({col},{row}) - grid is {opponentGridSize}x{opponentGridSize}");
+                        continue;
+                    }
 
                     (int tableRow, int tableCol) = _attackTableLayout.GridToTable(row, col);
 
@@ -5049,28 +5565,45 @@ namespace DLYH.TableUI
         /// </summary>
         private void SetupGameplayTableViews(int opponentGridSize)
         {
-            // The existing _tableView was for player setup - we need to repurpose or replace it
-            // For now, we'll reuse _tableView for the attack grid and create _attackTableView
-
-            // Clear the setup table view content and bind to attack model
-            if (_tableView != null && _attackTableModel != null)
+            if (_attackTableModel == null)
             {
-                _tableView.SetSetupMode(false); // Switch to gameplay mode colors
-
-                // Rebind to attack model (this regenerates cells based on the model's dimensions)
-                _tableView.Bind(_attackTableModel);
-
-                // Reparent the TableView's visual content to the gameplay screen's grid area
-                VisualElement gameplayTableContainer = _gameplayScreen?.Q<VisualElement>("table-container");
-                if (gameplayTableContainer != null && _tableView.TableRoot != null)
-                {
-                    _tableView.TableRoot.RemoveFromHierarchy();
-                    gameplayTableContainer.Add(_tableView.TableRoot);
-                    Debug.Log("[UIFlowController] Reparented TableView to gameplay grid area (now showing attack grid)");
-                }
-
-                _gameplayManager?.SetTableView(_tableView);
+                Debug.LogError("[UIFlowController] SetupGameplayTableViews: _attackTableModel is null");
+                return;
             }
+
+            // Get the gameplay table container
+            VisualElement gameplayTableContainer = _gameplayScreen?.Q<VisualElement>("table-container");
+            if (gameplayTableContainer == null)
+            {
+                Debug.LogError("[UIFlowController] SetupGameplayTableViews: gameplay table-container not found");
+                return;
+            }
+
+            // Create TableView if it doesn't exist (e.g., when resuming a game without going through setup)
+            if (_tableView == null)
+            {
+                Debug.Log("[UIFlowController] Creating new TableView for resumed game");
+                _tableView = new TableView(gameplayTableContainer);
+
+                // Wire up cell click handlers for gameplay
+                _tableView.OnCellClicked += HandleGridCellClicked;
+                _tableView.OnCellHovered += HandleGridCellHovered;
+            }
+
+            _tableView.SetSetupMode(false); // Switch to gameplay mode colors
+
+            // Rebind to attack model (this regenerates cells based on the model's dimensions)
+            _tableView.Bind(_attackTableModel);
+
+            // Reparent the TableView's visual content to the gameplay screen's grid area
+            if (_tableView.TableRoot != null && _tableView.TableRoot.parent != gameplayTableContainer)
+            {
+                _tableView.TableRoot.RemoveFromHierarchy();
+                gameplayTableContainer.Add(_tableView.TableRoot);
+                Debug.Log("[UIFlowController] Reparented TableView to gameplay grid area (now showing attack grid)");
+            }
+
+            _gameplayManager?.SetTableView(_tableView);
 
             // Set table models for tab switching
             if (_attackTableModel != null && _defenseTableModel != null)
@@ -5240,21 +5773,26 @@ namespace DLYH.TableUI
             attackWordRows.OnWordGuessCancelled += HandleInlineWordGuessCancelled;
             attackWordRows.OnWordGuessStarted += HandleInlineWordGuessStarted;
 
-            // Get player's word data from placements (NOT from _wordRowsContainer)
-            int[] playerWordLengths = new int[myPlacements.Count];
-            string[] playerWords = new string[myPlacements.Count];
-            for (int i = 0; i < myPlacements.Count; i++)
+            // Sort placements by word length (shortest first) to match standard word row order
+            // Word rows always display: slot 0 = 3 letters, slot 1 = 4 letters, etc.
+            List<WordPlacementData> sortedPlacements = new List<WordPlacementData>(myPlacements);
+            sortedPlacements.Sort((a, b) => a.Word.Length.CompareTo(b.Word.Length));
+
+            // Get player's word data from sorted placements
+            int[] playerWordLengths = new int[sortedPlacements.Count];
+            string[] playerWords = new string[sortedPlacements.Count];
+            for (int i = 0; i < sortedPlacements.Count; i++)
             {
-                playerWordLengths[i] = myPlacements[i].Word.Length;
-                playerWords[i] = myPlacements[i].Word;
+                playerWordLengths[i] = sortedPlacements[i].Word.Length;
+                playerWords[i] = sortedPlacements[i].Word;
             }
 
             // Create defense word rows (player's words - fully visible)
-            _defenseWordRows = new WordRowsContainer(myPlacements.Count, playerWordLengths);
+            _defenseWordRows = new WordRowsContainer(sortedPlacements.Count, playerWordLengths);
             _defenseWordRows.SetPlayerColor(playerColor);
             _defenseWordRows.SetGameplayMode(false); // NOT gameplay mode - shows full letters
             _defenseWordRows.HideAllButtons(); // No interaction on defense view
-            for (int i = 0; i < myPlacements.Count; i++)
+            for (int i = 0; i < sortedPlacements.Count; i++)
             {
                 _defenseWordRows.SetWord(i, playerWords[i]);
             }
@@ -5265,7 +5803,7 @@ namespace DLYH.TableUI
             // Store reference for letter reveal updates
             _attackWordRows = attackWordRows;
 
-            Debug.Log($"[UIFlowController] Set up gameplay word rows from saved state: {opponentWordCount} attack words, {myPlacements.Count} defense words");
+            Debug.Log($"[UIFlowController] Set up gameplay word rows from saved state: {opponentWordCount} attack words, {sortedPlacements.Count} defense words");
         }
 
         /// <summary>

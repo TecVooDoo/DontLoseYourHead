@@ -530,6 +530,27 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
+        /// Sets the initial miss counts for a resumed game.
+        /// Does NOT trigger game over checks - use only when restoring state.
+        /// </summary>
+        /// <param name="playerMisses">Player's miss count to restore</param>
+        /// <param name="opponentMisses">Opponent's miss count to restore</param>
+        public void SetInitialMissCounts(int playerMisses, int opponentMisses)
+        {
+            if (_playerGuessState != null)
+            {
+                _playerGuessState.MissCount = playerMisses;
+                Debug.Log($"[GameplayGuessManager] Restored player misses: {playerMisses}/{_playerGuessState.MissLimit}");
+            }
+
+            if (_opponentGuessState != null)
+            {
+                _opponentGuessState.MissCount = opponentMisses;
+                Debug.Log($"[GameplayGuessManager] Restored opponent misses: {opponentMisses}/{_opponentGuessState.MissLimit}");
+            }
+        }
+
+        /// <summary>
         /// Gets all letters the opponent has guessed (for AI state building).
         /// </summary>
         public HashSet<char> GetOpponentGuessedLetters() =>

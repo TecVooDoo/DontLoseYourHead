@@ -506,6 +506,32 @@ namespace DLYH.TableUI
             bladeGroup.AddToClassList($"stage-{stage}");
         }
 
+        /// <summary>
+        /// Sets the blade to a specific stage immediately without animation.
+        /// Used when restoring game state from a resumed game.
+        /// </summary>
+        /// <param name="isPlayer">True for player's blade, false for opponent's blade</param>
+        /// <param name="stage">Stage to set (1-5)</param>
+        public void SetBladeStageImmediately(bool isPlayer, int stage)
+        {
+            stage = Mathf.Clamp(stage, 1, TOTAL_STAGES);
+
+            if (isPlayer)
+            {
+                UpdateBladePosition(_playerBladeGroup, stage);
+                UpdateRopeLength(_playerRope, stage);
+                UpdateLeverPosition(_playerLeverArm, stage);
+            }
+            else
+            {
+                UpdateBladePosition(_opponentBladeGroup, stage);
+                UpdateRopeLength(_opponentRope, stage);
+                UpdateLeverPosition(_opponentLeverArm, stage);
+            }
+
+            Debug.Log($"[GuillotineOverlayManager] Set {(isPlayer ? "player" : "opponent")} blade to stage {stage} immediately");
+        }
+
         private void UpdateRopeLength(VisualElement rope, int stage)
         {
             if (rope == null) return;
@@ -631,13 +657,19 @@ namespace DLYH.TableUI
         /// <summary>
         /// Shows the overlay in game over state with winner/loser styling.
         /// Does NOT trigger blade drop or head fall animations - call those separately to sync with audio.
+        /// The loser's blade starts at stage-4 position to allow for a visible "final raise" animation.
         /// </summary>
         public void ShowGameOver(GuillotineData playerData, GuillotineData opponentData, bool playerWon)
         {
             _playerData = playerData;
             _opponentData = opponentData;
 
-            Show(playerData, opponentData);
+            // Start the loser's blade at stage-4 position for visible "final raise" animation
+            // Winner's blade shows at their actual stage
+            int playerInitialStage = playerWon ? -1 : 4;
+            int opponentInitialStage = playerWon ? 4 : -1;
+
+            Show(playerData, opponentData, playerInitialStage, opponentInitialStage);
 
             // Update title
             if (_titleLabel != null)
@@ -671,6 +703,28 @@ namespace DLYH.TableUI
             {
                 if (_playerHeadFace != null) _playerHeadFace.text = FACE_HORROR;
                 if (_opponentHeadFace != null) _opponentHeadFace.text = FACE_EVIL;
+            }
+        }
+
+        /// <summary>
+        /// Triggers the final raise animation for the loser's blade.
+        /// This animates the blade from stage-4 to stage-5 (the highest position)
+        /// before the dramatic pause and drop.
+        /// Call this when the final raise audio plays.
+        /// </summary>
+        public void TriggerFinalRaise(bool playerLost)
+        {
+            if (playerLost)
+            {
+                UpdateBladePosition(_playerBladeGroup, 5);
+                UpdateRopeLength(_playerRope, 5);
+                UpdateLeverPosition(_playerLeverArm, 5);
+            }
+            else
+            {
+                UpdateBladePosition(_opponentBladeGroup, 5);
+                UpdateRopeLength(_opponentRope, 5);
+                UpdateLeverPosition(_opponentLeverArm, 5);
             }
         }
 

@@ -979,15 +979,38 @@ namespace DLYH.Networking.Services
 
     /// <summary>
     /// Player's gameplay state (what opponent knows about their grid).
+    /// This tracks what the OPPONENT has discovered about THIS player's grid.
     /// </summary>
     [Serializable]
     public class DLYHGameplayState
     {
         public int misses;
         public int missLimit;
-        public string[] knownLetters;
-        public CoordinatePair[] guessedCoordinates;
-        public int[] solvedWordRows;
+        public string[] knownLetters;           // Letters guessed via keyboard
+        public CoordinatePair[] guessedCoordinates;  // All coordinates that have been guessed
+        public int[] solvedWordRows;            // Word indices that have been fully solved
+        public RevealedCellData[] revealedCells;    // Full cell data for grid reconstruction
+    }
+
+    /// <summary>
+    /// Data for a single revealed cell on the grid.
+    /// Stores everything needed to reconstruct the cell's visual state on resume.
+    /// </summary>
+    [Serializable]
+    public struct RevealedCellData
+    {
+        public int row;
+        public int col;
+        public string letter;   // The letter at this position (empty string for miss)
+        public bool isHit;      // True if letter was found, false if miss
+
+        public RevealedCellData(int row, int col, string letter, bool isHit)
+        {
+            this.row = row;
+            this.col = col;
+            this.letter = letter;
+            this.isHit = isHit;
+        }
     }
 
     /// <summary>

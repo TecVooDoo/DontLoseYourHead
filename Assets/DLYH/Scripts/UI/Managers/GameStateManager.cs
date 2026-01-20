@@ -157,6 +157,31 @@ namespace DLYH.UI.Managers
             gameplay.misses = JsonParsingUtility.ExtractIntField(gameplayJson, "misses");
             gameplay.missLimit = JsonParsingUtility.ExtractIntField(gameplayJson, "missLimit");
 
+            // Parse arrays
+            gameplay.knownLetters = JsonParsingUtility.ExtractStringArray(gameplayJson, "knownLetters");
+            gameplay.solvedWordRows = JsonParsingUtility.ExtractIntArray(gameplayJson, "solvedWordRows");
+
+            // Parse coordinate pairs
+            (int row, int col)[] coordTuples = JsonParsingUtility.ExtractCoordinateArray(gameplayJson, "guessedCoordinates");
+            gameplay.guessedCoordinates = new CoordinatePair[coordTuples.Length];
+            for (int i = 0; i < coordTuples.Length; i++)
+            {
+                gameplay.guessedCoordinates[i] = new CoordinatePair(coordTuples[i].row, coordTuples[i].col);
+            }
+
+            // Parse revealed cells
+            (int row, int col, string letter, bool isHit)[] cellTuples =
+                JsonParsingUtility.ExtractRevealedCellsArray(gameplayJson, "revealedCells");
+            gameplay.revealedCells = new RevealedCellData[cellTuples.Length];
+            for (int i = 0; i < cellTuples.Length; i++)
+            {
+                gameplay.revealedCells[i] = new RevealedCellData(
+                    cellTuples[i].row,
+                    cellTuples[i].col,
+                    cellTuples[i].letter,
+                    cellTuples[i].isHit);
+            }
+
             return gameplay;
         }
 
@@ -166,7 +191,8 @@ namespace DLYH.UI.Managers
 
         /// <summary>
         /// Encrypts word placements for storage (hides words from opponent until game end).
-        /// Format: Base64 encoded string of "WORD:row,col,H;" entries
+        /// Format: Base64 encoded string of "WORD:row,col,dirRow,dirCol;" entries
+        /// Supports all 8 directions (horizontal, vertical, and diagonals).
         /// </summary>
         /// <param name="placements">The word placements to encrypt</param>
         /// <returns>Base64 encoded string or empty string if no placements</returns>
@@ -180,13 +206,13 @@ namespace DLYH.UI.Managers
             System.Text.StringBuilder sb = new System.Text.StringBuilder();
             foreach (WordPlacementData p in placements)
             {
-                // DirCol=1 means horizontal, DirRow=1 means vertical
-                string direction = p.DirCol == 1 ? "H" : "V";
-                sb.AppendFormat("{0}:{1},{2},{3};",
+                // Store full direction (DirRow, DirCol) to support all 8 directions
+                sb.AppendFormat("{0}:{1},{2},{3},{4};",
                     p.Word,
                     p.StartRow,
                     p.StartCol,
-                    direction
+                    p.DirRow,
+                    p.DirCol
                 );
             }
 
@@ -195,6 +221,7 @@ namespace DLYH.UI.Managers
 
         /// <summary>
         /// Decrypts word placements from storage format back to WordPlacementData list.
+        /// Supports both old format (H/V direction) and new format (dirRow,dirCol).
         /// </summary>
         /// <param name="encrypted">Base64 encoded placement string</param>
         /// <returns>List of WordPlacementData (empty list on failure or empty input)</returns>
@@ -211,7 +238,8 @@ namespace DLYH.UI.Managers
             {
                 string decoded = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(encrypted));
 
-                // Format: "WORD:row,col,H;" or "WORD:row,col,V;"
+                // New format: "WORD:row,col,dirRow,dirCol;"
+                // Old format: "WORD:row,col,H;" or "WORD:row,col,V;"
                 string[] entries = decoded.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
 
                 foreach (string entry in entries)
@@ -221,21 +249,42 @@ namespace DLYH.UI.Managers
 
                     string word = parts[0];
                     string[] posDir = parts[1].Split(',');
-                    if (posDir.Length != 3) continue;
 
-                    if (int.TryParse(posDir[0], out int row) &&
-                        int.TryParse(posDir[1], out int col))
+                    if (posDir.Length == 4)
                     {
-                        bool horizontal = posDir[2] == "H";
-
-                        placements.Add(new WordPlacementData
+                        // New format: row,col,dirRow,dirCol
+                        if (int.TryParse(posDir[0], out int row) &&
+                            int.TryParse(posDir[1], out int col) &&
+                            int.TryParse(posDir[2], out int dirRow) &&
+                            int.TryParse(posDir[3], out int dirCol))
                         {
-                            Word = word,
-                            StartRow = row,
-                            StartCol = col,
-                            DirRow = horizontal ? 0 : 1,
-                            DirCol = horizontal ? 1 : 0
-                        });
+                            placements.Add(new WordPlacementData
+                            {
+                                Word = word,
+                                StartRow = row,
+                                StartCol = col,
+                                DirRow = dirRow,
+                                DirCol = dirCol
+                            });
+                        }
+                    }
+                    else if (posDir.Length == 3)
+                    {
+                        // Old format: row,col,H/V (backwards compatibility)
+                        if (int.TryParse(posDir[0], out int row) &&
+                            int.TryParse(posDir[1], out int col))
+                        {
+                            bool horizontal = posDir[2] == "H";
+
+                            placements.Add(new WordPlacementData
+                            {
+                                Word = word,
+                                StartRow = row,
+                                StartCol = col,
+                                DirRow = horizontal ? 0 : 1,
+                                DirCol = horizontal ? 1 : 0
+                            });
+                        }
                     }
                 }
 

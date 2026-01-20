@@ -271,5 +271,68 @@ namespace DLYH.Core.Utilities
 
             return result.ToArray();
         }
+
+        /// <summary>
+        /// Extracts a revealed cells array field from JSON.
+        /// Expected format: [{"row":0,"col":1,"letter":"A","isHit":true},...]
+        /// </summary>
+        /// <param name="json">JSON string to parse</param>
+        /// <param name="fieldName">Field name to extract</param>
+        /// <returns>Array of revealed cell data or empty array if not found</returns>
+        public static (int row, int col, string letter, bool isHit)[] ExtractRevealedCellsArray(string json, string fieldName)
+        {
+            if (string.IsNullOrEmpty(json)) return Array.Empty<(int, int, string, bool)>();
+
+            string pattern = $"\"{fieldName}\":[";
+            int start = json.IndexOf(pattern);
+            if (start < 0) return Array.Empty<(int, int, string, bool)>();
+            start += pattern.Length;
+
+            // Find matching ]
+            int depth = 1;
+            int end = start;
+            while (end < json.Length && depth > 0)
+            {
+                if (json[end] == '[') depth++;
+                else if (json[end] == ']') depth--;
+                end++;
+            }
+            end--;
+
+            string content = json.Substring(start, end - start);
+            if (string.IsNullOrWhiteSpace(content)) return Array.Empty<(int, int, string, bool)>();
+
+            List<(int row, int col, string letter, bool isHit)> result = new List<(int, int, string, bool)>();
+
+            // Parse array of objects [{...},{...},...]
+            int pos = 0;
+            while (pos < content.Length)
+            {
+                int objStart = content.IndexOf("{", pos);
+                if (objStart < 0) break;
+
+                // Find matching }
+                int objDepth = 1;
+                int objEnd = objStart + 1;
+                while (objEnd < content.Length && objDepth > 0)
+                {
+                    if (content[objEnd] == '{') objDepth++;
+                    else if (content[objEnd] == '}') objDepth--;
+                    objEnd++;
+                }
+
+                string objJson = content.Substring(objStart, objEnd - objStart);
+
+                int row = ExtractIntField(objJson, "row");
+                int col = ExtractIntField(objJson, "col");
+                string letter = ExtractStringField(objJson, "letter") ?? "";
+                bool isHit = ExtractBoolField(objJson, "isHit");
+
+                result.Add((row, col, letter, isHit));
+                pos = objEnd;
+            }
+
+            return result.ToArray();
+        }
     }
 }

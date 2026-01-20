@@ -417,6 +417,7 @@ namespace DLYH.Networking.Services
                 state.knownLetters = HashSetToStringArray(tracker.PlayerKnownLetters);
                 state.guessedCoordinates = HashSetToCoordinateArray(tracker.PlayerGuessedCoordinates);
                 state.solvedWordRows = HashSetToIntArray(tracker.PlayerSolvedWordRows);
+                state.revealedCells = DictionaryToRevealedCellArray(tracker.PlayerRevealedCells);
             }
             else
             {
@@ -425,6 +426,7 @@ namespace DLYH.Networking.Services
                 state.knownLetters = HashSetToStringArray(tracker.OpponentKnownLetters);
                 state.guessedCoordinates = HashSetToCoordinateArray(tracker.OpponentGuessedCoordinates);
                 state.solvedWordRows = HashSetToIntArray(tracker.OpponentSolvedWordRows);
+                state.revealedCells = DictionaryToRevealedCellArray(tracker.OpponentRevealedCells);
             }
 
             return state;
@@ -474,6 +476,17 @@ namespace DLYH.Networking.Services
                     foreach (var row in remoteState.solvedWordRows)
                     {
                         tracker.OpponentSolvedWordRows.Add(row);
+                    }
+                }
+
+                // Add revealed cells
+                if (remoteState.revealedCells != null)
+                {
+                    foreach (var cell in remoteState.revealedCells)
+                    {
+                        Vector2Int pos = new Vector2Int(cell.col, cell.row);
+                        char letter = string.IsNullOrEmpty(cell.letter) ? '\0' : cell.letter[0];
+                        tracker.RecordOpponentRevealedCell(pos, letter, cell.isHit);
                     }
                 }
 
@@ -638,6 +651,21 @@ namespace DLYH.Networking.Services
             foreach (var val in set)
             {
                 result[i++] = val;
+            }
+            return result;
+        }
+
+        private RevealedCellData[] DictionaryToRevealedCellArray(Dictionary<Vector2Int, RevealedCellInfo> dict)
+        {
+            var result = new RevealedCellData[dict.Count];
+            int i = 0;
+            foreach (var kvp in dict)
+            {
+                result[i++] = new RevealedCellData(
+                    kvp.Key.y,  // row (Vector2Int.y)
+                    kvp.Key.x,  // col (Vector2Int.x)
+                    kvp.Value.Letter == '\0' ? "" : kvp.Value.Letter.ToString(),
+                    kvp.Value.IsHit);
             }
             return result;
         }
