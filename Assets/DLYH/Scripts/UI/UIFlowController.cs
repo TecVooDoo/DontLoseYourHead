@@ -707,6 +707,20 @@ namespace DLYH.TableUI
 
             Debug.Log($"[UIFlowController] I am player {myPlayerNumber} in game {gameCode}");
 
+            // Check if opponent is phantom AI (has the special executioner player ID)
+            bool isPhantomAI = false;
+            int opponentPlayerNumber = myPlayerNumber == 1 ? 2 : 1;
+            foreach (var player in gameWithPlayers.Players ?? Array.Empty<SessionPlayer>())
+            {
+                if (player.PlayerNumber == opponentPlayerNumber &&
+                    player.PlayerId == DLYH.Networking.Services.PlayerService.EXECUTIONER_PLAYER_ID)
+                {
+                    isPhantomAI = true;
+                    Debug.Log($"[UIFlowController] Opponent is phantom AI (Executioner)");
+                    break;
+                }
+            }
+
             // Parse the game state JSON
             Debug.Log($"[UIFlowController] Raw StateJson: {gameWithPlayers.Session.StateJson}");
 
@@ -739,12 +753,12 @@ namespace DLYH.TableUI
                 Success = true,
                 GameCode = gameCode,
                 IsHost = myPlayerNumber == 1,
-                IsPhantomAI = false,
+                IsPhantomAI = isPhantomAI,
                 OpponentName = opponentData?.name ?? "Waiting..."
             };
 
             // Transition to gameplay with loaded state
-            TransitionToGameplayFromSavedState(gameCode, myPlayerNumber, myData, opponentData, gameState);
+            await TransitionToGameplayFromSavedStateAsync(gameCode, myPlayerNumber, myData, opponentData, gameState, isPhantomAI);
         }
 
         // NOTE: ParseGameStateJson, ParsePlayerData, ParseGameplayState moved to GameStateManager
@@ -874,6 +888,16 @@ namespace DLYH.TableUI
             // Set as player 2
             state.player2 = aiData;
 
+            // Both players are now ready - set game to playing and determine initial turn
+            state.status = "playing";
+            // Randomly determine first turn (like the local game does)
+            bool player1First = UnityEngine.Random.value >= 0.5f;
+            state.currentTurn = player1First ? "player1" : "player2";
+            state.turnNumber = 1;
+            state.updatedAt = DateTime.UtcNow.ToString("o");
+
+            Debug.Log($"[UIFlowController] Setting game {gameCode} to playing, first turn: {state.currentTurn}");
+
             // Update game state in Supabase
             bool success = await _gameSessionService.UpdateGameState(gameCode, state);
             if (success)
@@ -934,9 +958,11 @@ namespace DLYH.TableUI
                     myData.gameplayState.missLimit = _guessManager?.GetPlayerMissLimit() ?? 0;
 
                     // Convert tracked data to arrays for serialization
+                    Debug.Log($"[UIFlowController] SaveGameState - _playerGuessedLetters count: {_playerGuessedLetters.Count}, contents: [{string.Join(",", _playerGuessedLetters)}]");
                     myData.gameplayState.knownLetters = _playerGuessedLetters
                         .Select(c => c.ToString())
                         .ToArray();
+                    Debug.Log($"[UIFlowController] SaveGameState - knownLetters array length: {myData.gameplayState.knownLetters.Length}");
 
                     myData.gameplayState.solvedWordRows = _playerSolvedWords.ToArray();
 
@@ -978,15 +1004,16 @@ namespace DLYH.TableUI
 
                 // Update turn info
                 state.currentTurn = _isPlayerTurn ? (isPlayer1 ? "player1" : "player2") : (isPlayer1 ? "player2" : "player1");
-                state.turnNumber = (state.turnNumber ?? 0) + 1;
+                state.turnNumber = state.turnNumber + 1;
                 state.status = "playing";
                 state.updatedAt = DateTime.UtcNow.ToString("o");
 
                 // Save to Supabase
+                Debug.Log($"[UIFlowController] SaveGameState - About to save. myData.gameplayState.knownLetters: [{string.Join(",", myData?.gameplayState?.knownLetters ?? Array.Empty<string>())}]");
                 bool success = await _gameSessionService.UpdateGameState(_currentGameCode, state);
                 if (success)
                 {
-                    Debug.Log($"[UIFlowController] Saved game state to Supabase - turn {state.turnNumber}, player revealed {_playerRevealedCells.Count} cells");
+                    Debug.Log($"[UIFlowController] Saved game state to Supabase - turn {state.turnNumber}, player revealed {_playerRevealedCells.Count} cells, knownLetters: {myData?.gameplayState?.knownLetters?.Length ?? 0}");
                 }
                 else
                 {
@@ -1012,8 +1039,8 @@ namespace DLYH.TableUI
 
         // NOTE: CalculateMissLimit moved to GameStateManager
 
-        private void TransitionToGameplayFromSavedState(string gameCode, int myPlayerNumber,
-            DLYHPlayerData myData, DLYHPlayerData opponentData, DLYHGameState gameState)
+        private async UniTask TransitionToGameplayFromSavedStateAsync(string gameCode, int myPlayerNumber,
+            DLYHPlayerData myData, DLYHPlayerData opponentData, DLYHGameState gameState, bool isPhantomAI)
         {
             if (_gameplayManager == null)
             {
@@ -1033,6 +1060,7 @@ namespace DLYH.TableUI
             // Debug: log raw data from Supabase
             Debug.Log($"[UIFlowController] Resume raw data - myData: gridSize={myData.gridSize}, wordCount={myData.wordCount}, name={myData.name}");
             Debug.Log($"[UIFlowController] Resume raw data - opponentData: {(opponentData != null ? $"gridSize={opponentData.gridSize}, wordCount={opponentData.wordCount}, name={opponentData.name}" : "null")}");
+            Debug.Log($"[UIFlowController] Resume - isPhantomAI: {isPhantomAI}");
 
             // Calculate miss limits
             int myGridSize = myData.gridSize > 0 ? myData.gridSize : 8;
@@ -1112,8 +1140,8 @@ namespace DLYH.TableUI
             // Initialize guess manager with opponent placements for attack side
             InitializeGuessManagerWithBothSides(myMissLimit, opponentMissLimit, opponentPlacements);
 
-            // Set up word rows with my placements for defense tracking
-            SetupGameplayWordRowsFromSavedState(myWordCount, opponentWordCount, myColor, myPlacements);
+            // Set up word rows with both player and opponent placements
+            SetupGameplayWordRowsFromSavedState(myWordCount, opponentWordCount, myColor, myPlacements, opponentPlacements);
 
             // Set status message
             string statusMsg = isMyTurn ? "Your turn! Tap a letter or cell to attack." : "Opponent's turn...";
@@ -1153,10 +1181,40 @@ namespace DLYH.TableUI
             // Mark that a game is now in progress
             _hasActiveGame = true;
 
+            // Initialize AI opponent if this is a phantom AI game
+            if (isPhantomAI && opponentData != null)
+            {
+                Debug.Log($"[UIFlowController] Resume: Initializing phantom AI opponent '{opponentName}'");
+
+                // Capture player setup data for AI initialization
+                // The AI needs to know the player's grid to attack
+                _playerSetupData = new PlayerSetupData
+                {
+                    PlayerName = myData.name ?? "Player",
+                    PlayerColor = myColor,
+                    GridSize = myGridSize,
+                    WordCount = myWordCount,
+                    DifficultyLevel = myDifficulty,
+                    PlacedWords = myPlacements
+                };
+
+                // Initialize the AI opponent with opponent's grid settings
+                await InitializeOpponentAsync(opponentGridSize, opponentWordCount, myDifficulty, myColor, opponentName);
+            }
+
             // Show gameplay screen
             ShowGameplayScreen();
 
-            Debug.Log($"[UIFlowController] Resumed game {gameCode} - Turn: {(isMyTurn ? "mine" : "opponent")}, Status: {gameState.status}, PlayerMisses: {playerMissCount}, OpponentMisses: {opponentMissCount}");
+            Debug.Log($"[UIFlowController] Resumed game {gameCode} - Turn: {(isMyTurn ? "mine" : "opponent")}, Status: {gameState.status}, PlayerMisses: {playerMissCount}, OpponentMisses: {opponentMissCount}, IsPhantomAI: {isPhantomAI}");
+
+            // If it's the AI's turn on resume, trigger the AI to take its turn
+            if (isPhantomAI && !isMyTurn && _opponent != null)
+            {
+                Debug.Log($"[UIFlowController] Resume: AI's turn, triggering opponent turn");
+                // Small delay to let UI settle before AI takes turn
+                await UniTask.Delay(500);
+                TriggerOpponentTurn();
+            }
         }
 
         /// <summary>
@@ -1196,11 +1254,33 @@ namespace DLYH.TableUI
         private void RestoreGameplayStateFromSaved(DLYHPlayerData myData, DLYHPlayerData opponentData,
             Color myColor, Color opponentColor)
         {
+            Debug.Log($"[UIFlowController] RestoreGameplayStateFromSaved called");
+            Debug.Log($"[UIFlowController] myData null: {myData == null}");
+            Debug.Log($"[UIFlowController] myData.gameplayState null: {myData?.gameplayState == null}");
+            Debug.Log($"[UIFlowController] myData.gameplayState.revealedCells null: {myData?.gameplayState?.revealedCells == null}");
+            Debug.Log($"[UIFlowController] myData.gameplayState.revealedCells length: {myData?.gameplayState?.revealedCells?.Length ?? -1}");
+            Debug.Log($"[UIFlowController] myData.gameplayState.knownLetters null: {myData?.gameplayState?.knownLetters == null}");
+            Debug.Log($"[UIFlowController] myData.gameplayState.knownLetters length: {myData?.gameplayState?.knownLetters?.Length ?? -1}");
+
             // Clear tracking dictionaries before restoring
             _playerRevealedCells.Clear();
             _opponentRevealedCells.Clear();
             _playerGuessedLetters.Clear();
             _playerSolvedWords.Clear();
+
+            // Build a set of keyboard-guessed letters for quick lookup during cell restoration
+            HashSet<char> keyboardGuessedLetters = new HashSet<char>();
+            if (myData?.gameplayState?.knownLetters != null)
+            {
+                foreach (string letterStr in myData.gameplayState.knownLetters)
+                {
+                    if (!string.IsNullOrEmpty(letterStr))
+                    {
+                        keyboardGuessedLetters.Add(char.ToUpper(letterStr[0]));
+                    }
+                }
+            }
+            Debug.Log($"[UIFlowController] Keyboard guessed letters for cell restore: [{string.Join(",", keyboardGuessedLetters)}]");
 
             // Restore player's revealed cells (my attacks on opponent's grid)
             if (myData?.gameplayState?.revealedCells != null)
@@ -1218,8 +1298,21 @@ namespace DLYH.TableUI
                     // Update the attack grid visual
                     if (cell.isHit)
                     {
-                        // Hit - show the cell with player color
-                        RevealGridCellFully(cell.col, cell.row, letter);
+                        // Hit cell - check if the letter was also guessed via keyboard
+                        bool letterWasKeyboardGuessed = letter != '\0' && keyboardGuessedLetters.Contains(char.ToUpper(letter));
+
+                        if (letterWasKeyboardGuessed)
+                        {
+                            // Letter was keyboard-guessed AND coordinate was hit - show fully with letter
+                            RevealGridCellFully(cell.col, cell.row, letter);
+                            Debug.Log($"[UIFlowController] Cell ({cell.col},{cell.row}) fully revealed with '{letter}' (letter was keyboard-guessed)");
+                        }
+                        else
+                        {
+                            // Coordinate hit but letter not yet keyboard-guessed - show as yellow (Revealed state)
+                            MarkGridCellCoordinateHit(cell.col, cell.row);
+                            Debug.Log($"[UIFlowController] Cell ({cell.col},{cell.row}) shown as yellow hit (letter '{letter}' not keyboard-guessed)");
+                        }
                     }
                     else
                     {
@@ -1233,6 +1326,8 @@ namespace DLYH.TableUI
             if (myData?.gameplayState?.knownLetters != null)
             {
                 Debug.Log($"[UIFlowController] Restoring {myData.gameplayState.knownLetters.Length} guessed letters");
+                Debug.Log($"[UIFlowController] _guessManager null: {_guessManager == null}");
+                Debug.Log($"[UIFlowController] _attackWordRows null: {_attackWordRows == null}");
 
                 foreach (string letterStr in myData.gameplayState.knownLetters)
                 {
@@ -1241,11 +1336,26 @@ namespace DLYH.TableUI
                         char letter = char.ToUpper(letterStr[0]);
                         _playerGuessedLetters.Add(letter);
 
-                        // Determine keyboard state based on whether letter is a hit
-                        bool isHit = _guessManager?.IsPlayerLetterHit(letter) ?? false;
+                        // Check if letter exists in opponent's words using GetOpponentLetterPositions
+                        // (Can't use IsPlayerLetterHit because GuessManager doesn't know about previous guesses yet)
+                        List<Vector2Int> letterPositions = _guessManager?.GetOpponentLetterPositions(letter) ?? new List<Vector2Int>();
+                        bool isHit = letterPositions.Count > 0;
+                        Debug.Log($"[UIFlowController] Restoring letter '{letter}' - isHit: {isHit}, positions: {letterPositions.Count}");
+
                         if (isHit)
                         {
-                            bool allCoordsKnown = _guessManager?.AreAllLetterCoordinatesKnown(letter) ?? false;
+                            // Check if all coordinates for this letter were coordinate-guessed
+                            // Use revealed cells to determine if coords are known (since GuessManager doesn't have guess history)
+                            bool allCoordsKnown = true;
+                            foreach (Vector2Int pos in letterPositions)
+                            {
+                                if (!_playerRevealedCells.ContainsKey(pos))
+                                {
+                                    allCoordsKnown = false;
+                                    break;
+                                }
+                            }
+
                             if (allCoordsKnown)
                             {
                                 _gameplayManager?.SetKeyboardLetterState(letter, LetterKeyState.Hit);
@@ -1258,10 +1368,12 @@ namespace DLYH.TableUI
                             // Reveal letter in attack word rows
                             if (allCoordsKnown)
                             {
+                                Debug.Log($"[UIFlowController] Revealing '{letter}' in word rows as HIT (all coords known)");
                                 _attackWordRows?.RevealLetterInAllWords(letter, myColor);
                             }
                             else
                             {
+                                Debug.Log($"[UIFlowController] Revealing '{letter}' in word rows as FOUND (not all coords known)");
                                 _attackWordRows?.RevealLetterAsFoundInAllWords(letter);
                             }
                         }
@@ -1681,6 +1793,7 @@ namespace DLYH.TableUI
             if (result == GuessResult.Hit || result == GuessResult.Miss)
             {
                 _playerGuessedLetters.Add(char.ToUpper(letter));
+                Debug.Log($"[UIFlowController] Added letter '{char.ToUpper(letter)}' to _playerGuessedLetters, new count: {_playerGuessedLetters.Count}");
             }
 
             switch (result)
@@ -2188,7 +2301,12 @@ namespace DLYH.TableUI
             // Save game state to Supabase (fire and forget for performance)
             if (!string.IsNullOrEmpty(_currentGameCode) && _currentGameMode != GameMode.Solo)
             {
+                Debug.Log($"[UIFlowController] EndPlayerTurn - Saving state for game {_currentGameCode}");
                 SaveGameStateToSupabaseAsync().Forget();
+            }
+            else
+            {
+                Debug.Log($"[UIFlowController] EndPlayerTurn - Skip save (code={_currentGameCode}, mode={_currentGameMode})");
             }
 
             // Start turn switch with delay for UI feedback
@@ -5233,6 +5351,9 @@ namespace DLYH.TableUI
             // Store the result so TransitionToGameplay can use the phantom AI name
             _matchmakingResult = result;
 
+            // Store the game code for state persistence
+            _currentGameCode = result.GameCode;
+
             if (result.IsPhantomAI)
             {
                 Debug.Log($"[UIFlowController] Starting game vs phantom AI: {result.OpponentName}");
@@ -5644,8 +5765,10 @@ namespace DLYH.TableUI
             HashSet<Vector2Int> opponentPlacedPositions = new HashSet<Vector2Int>();
             List<string> opponentWords = new List<string>();
 
+            Debug.Log($"[UIFlowController] InitializeGuessManager - opponentPlacements count: {opponentPlacements?.Count ?? -1}");
             foreach (WordPlacementData wordData in opponentPlacements)
             {
+                Debug.Log($"[UIFlowController] InitializeGuessManager - opponent word: '{wordData.Word}' at ({wordData.StartCol},{wordData.StartRow}) dir({wordData.DirCol},{wordData.DirRow})");
                 opponentWords.Add(wordData.Word);
 
                 for (int i = 0; i < wordData.Word.Length; i++)
@@ -5658,6 +5781,14 @@ namespace DLYH.TableUI
                     opponentPlacedPositions.Add(pos);
                 }
             }
+
+            // Log unique letters in opponent's words for debugging
+            HashSet<char> uniqueOpponentLetters = new HashSet<char>();
+            foreach (char c in opponentPlacedLetters.Values)
+            {
+                uniqueOpponentLetters.Add(char.ToUpper(c));
+            }
+            Debug.Log($"[UIFlowController] InitializeGuessManager - opponent letters: [{string.Join(",", uniqueOpponentLetters)}]");
 
             // Initialize with both sets of data, including opponent words for word guessing
             _guessManager.Initialize(
@@ -5746,24 +5877,29 @@ namespace DLYH.TableUI
         /// Sets up gameplay word rows from saved state (for resumed games).
         /// Uses explicit placement data instead of _wordRowsContainer.
         /// </summary>
-        private void SetupGameplayWordRowsFromSavedState(int playerWordCount, int opponentWordCount, Color playerColor, List<WordPlacementData> myPlacements)
+        private void SetupGameplayWordRowsFromSavedState(int playerWordCount, int opponentWordCount, Color playerColor, List<WordPlacementData> myPlacements, List<WordPlacementData> opponentPlacements)
         {
-            // For resumed games with no opponent yet, we have no opponent placements to show
-            // Create empty attack word rows (will be populated when opponent joins)
-            int[] opponentWordLengths = new int[opponentWordCount];
-            for (int i = 0; i < opponentWordCount; i++)
+            // Sort opponent placements by word length (shortest first) to match standard word row order
+            List<WordPlacementData> sortedOpponentPlacements = new List<WordPlacementData>(opponentPlacements);
+            sortedOpponentPlacements.Sort((a, b) => a.Word.Length.CompareTo(b.Word.Length));
+
+            // Get opponent word data from sorted placements
+            int[] opponentWordLengths = new int[sortedOpponentPlacements.Count];
+            string[] opponentWords = new string[sortedOpponentPlacements.Count];
+            for (int i = 0; i < sortedOpponentPlacements.Count; i++)
             {
-                opponentWordLengths[i] = 5; // Default word length until opponent joins
+                opponentWordLengths[i] = sortedOpponentPlacements[i].Word.Length;
+                opponentWords[i] = sortedOpponentPlacements[i].Word;
             }
 
-            string[] opponentWords = new string[opponentWordCount];
-            for (int i = 0; i < opponentWordCount; i++)
+            Debug.Log($"[UIFlowController] Setting up attack word rows with {sortedOpponentPlacements.Count} opponent words");
+            for (int i = 0; i < opponentWords.Length; i++)
             {
-                opponentWords[i] = ""; // Empty until opponent joins
+                Debug.Log($"[UIFlowController] Opponent word {i}: '{opponentWords[i]}' (length {opponentWordLengths[i]})");
             }
 
-            // Create attack word rows
-            WordRowsContainer attackWordRows = new WordRowsContainer(opponentWordCount, opponentWordLengths);
+            // Create attack word rows with actual opponent words
+            WordRowsContainer attackWordRows = new WordRowsContainer(sortedOpponentPlacements.Count, opponentWordLengths);
             attackWordRows.SetPlayerColor(playerColor);
             attackWordRows.SetGameplayMode(true);
             attackWordRows.SetWordsForGameplay(opponentWords);

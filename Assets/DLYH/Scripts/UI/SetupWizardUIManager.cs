@@ -528,21 +528,12 @@ namespace DLYH.TableUI
 
         /// <summary>
         /// Reveals the appropriate next card after Profile based on game mode.
-        /// For JoinGame mode, shows Difficulty card (grid/words determined by host, but difficulty is per-player).
-        /// For other modes, shows Grid Size card.
+        /// All modes follow the same flow: Profile -> Grid Size -> Word Count -> Difficulty -> Board Setup.
         /// </summary>
         private void RevealNextCardAfterProfile()
         {
-            if (_gameMode == GameMode.JoinGame)
-            {
-                // For Join Game, skip Grid and Words - host determines those
-                // But still show Difficulty since each player chooses their own
-                RevealNextCard(_cardDifficulty);
-            }
-            else
-            {
-                RevealNextCard(_cardGridSize);
-            }
+            // All modes (Solo, Online, JoinGame) need to pick grid size next
+            RevealNextCard(_cardGridSize);
         }
 
         private void SelectGridSize(int size)
@@ -574,14 +565,7 @@ namespace DLYH.TableUI
             UpdateButtonSelection(_difficultyButtons, difficulty);
             UpdateDifficultySummary();
 
-            if (_gameMode == GameMode.JoinGame)
-            {
-                // For Join Game, collapse Profile and show Join Code card
-                CollapseCard(_cardProfile, _profileContent, _profileSummary);
-                CollapseCard(_cardDifficulty, _difficultyContent, _difficultySummary);
-                RevealNextCard(_cardJoinCode);
-            }
-            else if (_gameMode == GameMode.Online)
+            if (_gameMode == GameMode.Online)
             {
                 // For Online mode, show the online mode choice (Find Opponent vs Private Game)
                 CollapseCard(_cardWordCount, _wordsContent, _wordsSummary);
@@ -589,7 +573,7 @@ namespace DLYH.TableUI
             }
             else
             {
-                // For Solo mode, go straight to board setup
+                // For Solo and JoinGame modes, go straight to board setup
                 CollapseCard(_cardWordCount, _wordsContent, _wordsSummary);
                 RevealNextCard(_cardBoardSetup);
             }
@@ -684,22 +668,17 @@ namespace DLYH.TableUI
                 };
             }
 
-            // For JoinGame mode, hide Grid, Words, OnlineMode, and BoardSetup cards
-            // Host determines grid/words, but joiner still picks their own difficulty
+            // For JoinGame mode, only hide OnlineMode card (joiner doesn't choose Find/Private)
+            // Joiner still needs to pick grid size, word count, difficulty, and place words
             if (mode == GameMode.JoinGame)
             {
-                HideElement(_cardGridSize);
-                HideElement(_cardWordCount);
                 HideElement(_cardOnlineMode);
-                HideElement(_cardBoardSetup);
-                // Difficulty is still shown - each player picks their own
+                // Grid, Words, Difficulty, BoardSetup are all revealed progressively
             }
-            else
-            {
-                // Show all cards for Solo and Online modes
-                ShowElement(_cardProfile);
-                // Other cards are revealed progressively via the normal flow
-            }
+
+            // Show profile card - all modes start the same way
+            ShowElement(_cardProfile);
+            // Other cards are revealed progressively via the normal flow
         }
 
         // === Collapse/Expand ===
@@ -828,6 +807,26 @@ namespace DLYH.TableUI
         private void HideElement(VisualElement element)
         {
             element?.AddToClassList("hidden");
+        }
+
+        /// <summary>
+        /// Shows the join code card, hiding the placement panel.
+        /// Called by UIFlowController when JoinGame mode is ready to enter the code.
+        /// </summary>
+        public void ShowJoinCodeCard()
+        {
+            HideElement(_placementPanel);
+            ShowElement(_cardsContainer);
+
+            // Collapse all cards and show only join code
+            CollapseCard(_cardProfile, _profileContent, _profileSummary);
+            CollapseCard(_cardGridSize, _gridContent, _gridSummary);
+            CollapseCard(_cardWordCount, _wordsContent, _wordsSummary);
+            CollapseCard(_cardDifficulty, _difficultyContent, _difficultySummary);
+            CollapseCard(_cardBoardSetup, _root.Q<VisualElement>("board-setup-content"), _root.Q<VisualElement>("board-setup-summary"));
+
+            HideElement(_cardOnlineMode);
+            RevealNextCard(_cardJoinCode);
         }
 
         public void Reset()

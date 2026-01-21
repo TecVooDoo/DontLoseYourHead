@@ -159,8 +159,14 @@ namespace DLYH.Core.Utilities
         {
             if (string.IsNullOrEmpty(json)) return Array.Empty<string>();
 
+            // Try pattern without space first, then with space
             string pattern = $"\"{fieldName}\":[";
             int start = json.IndexOf(pattern);
+            if (start < 0)
+            {
+                pattern = $"\"{fieldName}\": [";
+                start = json.IndexOf(pattern);
+            }
             if (start < 0) return Array.Empty<string>();
             start += pattern.Length;
 
@@ -194,8 +200,14 @@ namespace DLYH.Core.Utilities
         {
             if (string.IsNullOrEmpty(json)) return Array.Empty<int>();
 
+            // Try pattern without space first, then with space
             string pattern = $"\"{fieldName}\":[";
             int start = json.IndexOf(pattern);
+            if (start < 0)
+            {
+                pattern = $"\"{fieldName}\": [";
+                start = json.IndexOf(pattern);
+            }
             if (start < 0) return Array.Empty<int>();
             start += pattern.Length;
 
@@ -228,8 +240,14 @@ namespace DLYH.Core.Utilities
         {
             if (string.IsNullOrEmpty(json)) return Array.Empty<(int, int)>();
 
+            // Try pattern without space first, then with space
             string pattern = $"\"{fieldName}\":[";
             int start = json.IndexOf(pattern);
+            if (start < 0)
+            {
+                pattern = $"\"{fieldName}\": [";
+                start = json.IndexOf(pattern);
+            }
             if (start < 0) return Array.Empty<(int, int)>();
             start += pattern.Length;
 
@@ -283,8 +301,16 @@ namespace DLYH.Core.Utilities
         {
             if (string.IsNullOrEmpty(json)) return Array.Empty<(int, int, string, bool)>();
 
+            // Try pattern without space first, then with space
             string pattern = $"\"{fieldName}\":[";
             int start = json.IndexOf(pattern);
+            if (start < 0)
+            {
+                // Try with space after colon (common in pretty-printed JSON)
+                pattern = $"\"{fieldName}\": [";
+                start = json.IndexOf(pattern);
+            }
+            UnityEngine.Debug.Log($"[JsonParsingUtility] ExtractRevealedCellsArray - pattern: '{pattern}', start: {start}");
             if (start < 0) return Array.Empty<(int, int, string, bool)>();
             start += pattern.Length;
 
@@ -300,6 +326,7 @@ namespace DLYH.Core.Utilities
             end--;
 
             string content = json.Substring(start, end - start);
+            UnityEngine.Debug.Log($"[JsonParsingUtility] ExtractRevealedCellsArray - content length: {content.Length}, content: '{content}'");
             if (string.IsNullOrWhiteSpace(content)) return Array.Empty<(int, int, string, bool)>();
 
             List<(int row, int col, string letter, bool isHit)> result = new List<(int, int, string, bool)>();

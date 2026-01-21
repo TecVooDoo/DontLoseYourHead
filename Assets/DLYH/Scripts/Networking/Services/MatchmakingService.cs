@@ -156,6 +156,18 @@ namespace DLYH.Networking.Services
                     };
                 }
 
+                // Add player 1 to session_players (so GetPlayerGames returns this game)
+                bool joinedAsHost = await _sessionService.JoinGame(newGame.Id, playerId, 1);
+                if (!joinedAsHost)
+                {
+                    _isMatchmaking = false;
+                    return new MatchmakingResult
+                    {
+                        Success = false,
+                        ErrorMessage = "Failed to join game as host"
+                    };
+                }
+
                 // Add to matchmaking queue
                 _currentQueueEntryId = await AddToQueueAsync(newGame.Id, playerId, gridSize, difficulty);
                 if (string.IsNullOrEmpty(_currentQueueEntryId))

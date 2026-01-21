@@ -735,6 +735,24 @@ namespace DLYH.Networking.Services
                     sb.Append(gameplay.solvedWordRows[i]);
                 }
             }
+            sb.Append("],");
+
+            // Revealed cells - full cell data for grid reconstruction
+            sb.Append("\"revealedCells\":[");
+            if (gameplay.revealedCells != null)
+            {
+                for (int i = 0; i < gameplay.revealedCells.Length; i++)
+                {
+                    if (i > 0) sb.Append(",");
+                    RevealedCellData cell = gameplay.revealedCells[i];
+                    sb.Append("{");
+                    sb.AppendFormat("\"row\":{0},", cell.row);
+                    sb.AppendFormat("\"col\":{0},", cell.col);
+                    sb.AppendFormat("\"letter\":\"{0}\",", cell.letter ?? "");
+                    sb.AppendFormat("\"isHit\":{0}", cell.isHit ? "true" : "false");
+                    sb.Append("}");
+                }
+            }
             sb.Append("]");
 
             sb.Append("}");

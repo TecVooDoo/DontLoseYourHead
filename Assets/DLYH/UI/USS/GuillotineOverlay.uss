@@ -220,12 +220,15 @@
 }
 
 /* Rope height matches blade position - shorter when blade is up, longer when down */
-/* Heights calculated: blade top% minus rope top (~14%) */
-.rope.stage-1 { height: 44%; }
-.rope.stage-2 { height: 32%; }
-.rope.stage-3 { height: 20%; }
-.rope.stage-4 { height: 8%; }
-.rope.stage-5 { height: 0%; }
+/* Rope starts at top: 46px (~14% of 320px container) */
+/* Blade positions: stage1=58%, stage2=46%, stage3=34%, stage4=22%, stage5=10% */
+/* Rope height = blade top% - rope top% (~14%) */
+/* At stage 5, blade is at 10% which is above rope start, so minimal rope */
+.rope.stage-1 { height: 44%; }  /* 58% - 14% = 44% */
+.rope.stage-2 { height: 32%; }  /* 46% - 14% = 32% */
+.rope.stage-3 { height: 20%; }  /* 34% - 14% = 20% */
+.rope.stage-4 { height: 8%; }   /* 22% - 14% = 8% */
+.rope.stage-5 { height: 0%; }   /* 10% - 14% = negative, so 0% */
 
 /* Rope extends fully when blade drops */
 .rope.dropped {
@@ -289,9 +292,9 @@
 
 .head {
     position: absolute;
-    bottom: 45px;
+    bottom: 55px;
     left: 50%;
-    margin-left: -30px;
+    margin-left: -26px;
     width: 60px;
     height: 60px;
     border-radius: 0;
@@ -663,6 +666,14 @@
 
 #opponent-lever-assembly .lever-arm {
     background-image: url("project://database/Assets/DLYH/DLYHGraphicAssets/Guillotines/Number2/Guillotine-2-lever.png");
+}
+
+#opponent-rope {
+    background-image: url("project://database/Assets/DLYH/DLYHGraphicAssets/Guillotines/Number2/Rope-4.png");
+}
+
+#opponent-basket {
+    background-image: url("project://database/Assets/DLYH/DLYHGraphicAssets/Guillotines/Number2/Basket.png");
 }
 
 /* === Responsive === */

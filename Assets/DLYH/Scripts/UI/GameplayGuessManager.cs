@@ -129,6 +129,7 @@ namespace DLYH.TableUI
             _isInitialized = true;
 
             Debug.Log($"[GameplayGuessManager] Initialized - Player limit: {playerMissLimit}, Opponent limit: {opponentMissLimit}, Words: {_opponentWords.Count}");
+            Debug.Log($"[GameplayGuessManager] Initialized - opponentPlacedLetters count: {_opponentPlacedLetters?.Count ?? -1}");
         }
 
         /// <summary>
@@ -711,16 +712,24 @@ namespace DLYH.TableUI
         public List<Vector2Int> GetOpponentLetterPositions(char letter)
         {
             List<Vector2Int> positions = new List<Vector2Int>();
-            if (_opponentPlacedLetters == null) return positions;
+            if (_opponentPlacedLetters == null)
+            {
+                Debug.Log($"[GameplayGuessManager] GetOpponentLetterPositions('{letter}') - _opponentPlacedLetters is NULL");
+                return positions;
+            }
+
+            Debug.Log($"[GameplayGuessManager] GetOpponentLetterPositions('{letter}') - _opponentPlacedLetters has {_opponentPlacedLetters.Count} entries");
 
             letter = char.ToUpper(letter);
             foreach (KeyValuePair<Vector2Int, char> kvp in _opponentPlacedLetters)
             {
-                if (kvp.Value == letter)
+                char storedLetter = char.ToUpper(kvp.Value);
+                if (storedLetter == letter)
                 {
                     positions.Add(kvp.Key);
                 }
             }
+            Debug.Log($"[GameplayGuessManager] GetOpponentLetterPositions('{letter}') - found {positions.Count} positions");
             return positions;
         }
 

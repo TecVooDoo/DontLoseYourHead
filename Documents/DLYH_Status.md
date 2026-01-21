@@ -4,7 +4,7 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `C:\Unity\DontLoseYourHead`
-**Document Version:** 77
+**Document Version:** 78
 **Last Updated:** January 20, 2026
 
 **Archive:** `DLYH_Status_Archive.md` - Historical designs, old version history, completed phase details, DAB reference patterns
@@ -29,33 +29,40 @@
 
 ## Last Session (Jan 20, 2026)
 
-Session 65 - **Phase E Session 3: Game State Persistence**
+Session 66 - **Phase E Session 3 (continued): Game State Restore Debugging**
 
-**Goal:** Save game progress to Supabase so games can be resumed with all guesses/reveals intact.
+**Goal:** Fix game resume so state looks exactly like when player quit (cells, keyboard, word rows).
 
-**Data Structures Added:**
-- `RevealedCellData` struct (GameSessionService.cs) - Serializable for Supabase storage
-- `RevealedCellInfo` struct (GameplayStateTracker.cs) - Local tracking during gameplay
-- `DLYHGameplayState.revealedCells` array field for persistence
+**Issues Identified:**
+1. **Cell C3 showing letter with player color when H was not keyboard-guessed** - Fixed by checking `keyboardGuessedLetters` HashSet before calling `RevealGridCellFully`
+2. **All keyboard letters showing as red (misses)** - Root cause: `GetOpponentLetterPositions` returning empty, possibly case-sensitivity bug
+3. **Word rows empty** - Letters not revealed because `isHit` was false for all letters
+
+**Fixes Applied:**
+- `UIFlowController.cs` - Cell restoration now checks if letter was keyboard-guessed before revealing fully
+- `UIFlowController.cs` - Build HashSet of keyboard-guessed letters at start of restore
+- `GameplayGuessManager.cs` - Fixed case-sensitivity in `GetOpponentLetterPositions` (both stored and searched letters now uppercased)
+- Added comprehensive debug logging throughout restore flow
+
+**Debug Logging Added:**
+- `InitializeGuessManagerWithBothSides`: opponent placements count, each word with coordinates, unique letters
+- `GameplayGuessManager.Initialize`: opponentPlacedLetters count
+- `GetOpponentLetterPositions`: null check, entry count, positions found
+- `RestoreGameplayStateFromSaved`: guessManager null check, attackWordRows null check, letter reveal logging
 
 **Files Modified:**
-- `GameSessionService.cs` - Added RevealedCellData struct, revealedCells to DLYHGameplayState
-- `GameplayStateTracker.cs` - Added RevealedCellInfo, PlayerRevealedCells/OpponentRevealedCells dictionaries
-- `JsonParsingUtility.cs` - Added ExtractRevealedCellsArray() method
-- `GameStateManager.cs` - Updated ParseGameplayState() to parse revealedCells
-- `GameStateSynchronizer.cs` - Added DictionaryToRevealedCellArray(), updated BuildGameplayState/ApplyRemoteStateToTracker
-- `UIFlowController.cs` - Added tracking dictionaries, SaveGameStateToSupabaseAsync(), RestoreGameplayStateFromSaved()
-- `GameplayGuessManager.cs` - Added SetInitialMissCounts() for resume without game over checks
-- `GuillotineOverlayManager.cs` - Added SetBladeStageImmediately() for visual state on resume
+- `UIFlowController.cs` - Lines ~1271-1380 (restore logic), ~5764-5800 (initialization logging)
+- `GameplayGuessManager.cs` - Lines ~711-733 (GetOpponentLetterPositions case fix + logging)
 
-**Key Implementation:**
-- State saved to Supabase after each turn ends (EndPlayerTurn/EndOpponentTurn)
-- Revealed cells tracked as Dictionary<Vector2Int, (char, bool)> during gameplay
-- On resume: grids reconstructed from revealedCells, keyboard from knownLetters, guillotine from miss counts
-- Miss counts set without triggering game over checks via SetInitialMissCounts()
-- Guillotine blade position set immediately without animation via SetBladeStageImmediately()
+**Expected Restore Flow:**
+1. Create blank grid, word rows, keyboard/tracker
+2. Fill word rows with underscores (from opponent placements)
+3. Restore revealed cells to grid (yellow for coord-only hits, red for misses)
+4. Restore keyboard letters (check opponent placements to determine hit/miss/found)
+5. If hit letter and all coords known: player color on keyboard + word rows
+6. If hit letter but not all coords: yellow (Found) on keyboard + word rows
 
-**Previous Session:** Session 64 - Art Asset Integration - Guillotine Overlay
+**Previous Session:** Session 65 - Phase E Session 3: Game State Persistence
 
 ---
 
@@ -69,14 +76,25 @@ Session 65 - **Phase E Session 3: Game State Persistence**
 |---------|-------|--------|
 | 1 | Foundation & Editor Identity | COMPLETE |
 | 2 | Phantom AI as Session Player | COMPLETE |
-| 3 | Game State Persistence | COMPLETE |
+| 3 | Game State Persistence | IN PROGRESS |
 | 4 | Opponent Join Detection | PENDING |
 | 5 | Turn Synchronization | PENDING |
 | 6 | Activity Tracking & Auto-Win | PENDING |
 | 7 | Rematch UI Integration | PENDING |
 | 8 | Code Quality & Polish | PENDING |
 
-### Current: Session 4 - Opponent Join Detection
+### Current: Session 3 - Game State Persistence (continued)
+
+- [x] Save revealed cells to Supabase
+- [x] Restore cells from saved state
+- [x] Fix cell C3 showing wrong state (letter when not keyboard-guessed)
+- [x] Fix case-sensitivity in GetOpponentLetterPositions
+- [x] Add comprehensive debug logging
+- [ ] **TEST: Verify all letters restore correctly (yellow found vs red miss)**
+- [ ] **TEST: Verify word rows show letters after restore**
+- [ ] Remove debug logging after fixes confirmed
+
+### Session 4 - Opponent Join Detection
 
 - [ ] Implement actual opponent join polling in WaitingRoom (currently stub)
 - [ ] Detect when real player joins private game
@@ -113,12 +131,12 @@ Session 65 - **Phase E Session 3: Game State Persistence**
 
 **Networking:** (See `DLYH_NetworkingPlan_Phase_E.md` for full gap analysis)
 - ~~Editor identity persistence needs verification~~ VERIFIED - PlayerPrefs works correctly
-- Opponent join detection is stub only (doesn't actually poll) - Session 3
+- Opponent join detection is stub only (doesn't actually poll) - Session 4
 - ~~Phantom AI not inserted into session_players~~ FIXED - Now creates player record and session_players row
-- 5-day auto-win not implemented (needs Supabase edge function) - Session 5
-- RematchService not wired to UI - Session 6
-- Word placement encryption is just Base64 (not secure) - Session 7
-- WebGL realtime incomplete (WebSocket bridge missing) - Session 4
+- 5-day auto-win not implemented (needs Supabase edge function) - Session 6
+- RematchService not wired to UI - Session 7
+- Word placement encryption is just Base64 (not secure) - Session 8
+- WebGL realtime incomplete (WebSocket bridge missing) - Session 5
 
 **Audio:**
 - Music crossfading/switching too frequently (should only switch at end of track)
@@ -302,6 +320,7 @@ YourDifficultyModifier: Easy=+4, Normal=+0, Hard=-4
 14. **Reuse existing systems** - create thin adapters instead of rebuilding
 15. **Prevent duplicate event handlers** - use flags like `_keyboardWiredUp`
 16. **Reset validity on clear** - SetWordValid(false) when clearing words
+17. **Case-sensitivity in char comparisons** - always ToUpper() both sides when comparing letters
 
 ---
 
@@ -316,6 +335,7 @@ YourDifficultyModifier: Easy=+4, Normal=+0, Hard=-4
 | Green cells after clear | Validity not reset | SetWordValid(false) in HandleWordCleared |
 | Old screen still visible | Only showing new | Hide ALL other screens when showing new |
 | Unicode not rendering in WebGL | Font support | Use ASCII fallbacks |
+| Letter comparison fails | Case mismatch | ToUpper() both sides in comparisons |
 
 ---
 
@@ -368,12 +388,12 @@ YourDifficultyModifier: Easy=+4, Normal=+0, Hard=-4
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 78 | Jan 20, 2026 | Session 66 - Game state restore debugging: case-sensitivity fix, cell/keyboard/word row restore logic |
 | 77 | Jan 20, 2026 | Session 65 - Phase E Session 3: Game State Persistence (revealedCells, resume state) |
 | 76 | Jan 20, 2026 | Session 64 - Art asset integration for guillotine overlay (Number1/Number2 sets) |
 | 75 | Jan 19, 2026 | Session 63 - Phase E Sessions 1 & 2: Phantom AI session_players, Join Game fix |
 | 74 | Jan 19, 2026 | Created DLYH_NetworkingPlan_Phase_E.md - 7 session implementation plan |
 | 73 | Jan 19, 2026 | Session 62 - Professional network architecture evaluation, gap analysis |
-| 68 | Jan 19, 2026 | Reorganized status doc - removed redundancy, consolidated TODO/Known Issues |
 
 **Full version history:** See `DLYH_Status_Archive.md`
 
@@ -381,12 +401,12 @@ YourDifficultyModifier: Easy=+4, Normal=+0, Hard=-4
 
 ## Session Close Checklist
 
-- [ ] Update "Last Session" with date and summary
-- [ ] Update Active TODO (mark complete, add new)
-- [ ] Add any new issues to Known Issues
-- [ ] Add new lessons to Lessons Learned if applicable
-- [ ] Update Architecture if files added/extracted
-- [ ] Increment version number
+- [x] Update "Last Session" with date and summary
+- [x] Update Active TODO (mark complete, add new)
+- [x] Add any new issues to Known Issues
+- [x] Add new lessons to Lessons Learned if applicable
+- [x] Update Architecture if files added/extracted
+- [x] Increment version number
 - [ ] Archive old version history entries (keep ~6)
 
 ---

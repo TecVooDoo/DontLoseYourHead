@@ -152,6 +152,8 @@ namespace DLYH.UI.Managers
             }
 
             string gameplayJson = playerJson.Substring(start, end - start + 1);
+            UnityEngine.Debug.Log($"[GameStateManager] ParseGameplayState - extracted JSON length: {gameplayJson.Length}");
+            UnityEngine.Debug.Log($"[GameStateManager] ParseGameplayState - gameplayJson: {gameplayJson}");
 
             DLYHGameplayState gameplay = new DLYHGameplayState();
             gameplay.misses = JsonParsingUtility.ExtractIntField(gameplayJson, "misses");
@@ -172,6 +174,7 @@ namespace DLYH.UI.Managers
             // Parse revealed cells
             (int row, int col, string letter, bool isHit)[] cellTuples =
                 JsonParsingUtility.ExtractRevealedCellsArray(gameplayJson, "revealedCells");
+            UnityEngine.Debug.Log($"[GameStateManager] ParseGameplayState - revealedCells parsed: {cellTuples.Length}");
             gameplay.revealedCells = new RevealedCellData[cellTuples.Length];
             for (int i = 0; i < cellTuples.Length; i++)
             {
@@ -180,6 +183,7 @@ namespace DLYH.UI.Managers
                     cellTuples[i].col,
                     cellTuples[i].letter,
                     cellTuples[i].isHit);
+                UnityEngine.Debug.Log($"[GameStateManager] Cell {i}: row={cellTuples[i].row}, col={cellTuples[i].col}, letter={cellTuples[i].letter}, isHit={cellTuples[i].isHit}");
             }
 
             return gameplay;
