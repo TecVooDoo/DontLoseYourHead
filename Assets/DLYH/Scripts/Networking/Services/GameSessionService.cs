@@ -753,6 +753,18 @@ namespace DLYH.Networking.Services
                     sb.Append("}");
                 }
             }
+            sb.Append("],");
+
+            // Incorrect word guesses (for Guessed Words panel)
+            sb.Append("\"incorrectWordGuesses\":[");
+            if (gameplay.incorrectWordGuesses != null)
+            {
+                for (int i = 0; i < gameplay.incorrectWordGuesses.Length; i++)
+                {
+                    if (i > 0) sb.Append(",");
+                    sb.AppendFormat("\"{0}\"", gameplay.incorrectWordGuesses[i]);
+                }
+            }
             sb.Append("]");
 
             sb.Append("}");
@@ -1007,6 +1019,7 @@ namespace DLYH.Networking.Services
         public string[] knownLetters;           // Letters guessed via keyboard
         public CoordinatePair[] guessedCoordinates;  // All coordinates that have been guessed
         public int[] solvedWordRows;            // Word indices that have been fully solved
+        public string[] incorrectWordGuesses;   // Words guessed incorrectly (for Guessed Words panel)
         public RevealedCellData[] revealedCells;    // Full cell data for grid reconstruction
     }
 

@@ -5,7 +5,7 @@
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `C:\Unity\DontLoseYourHead`
 **Supabase:** Direct MCP access available (game_sessions, session_players, players tables)
-**Document Version:** 81
+**Document Version:** 83
 **Last Updated:** January 22, 2026
 
 **Archive:** `DLYH_Status_Archive.md` - Historical designs, old version history, completed phase details, DAB reference patterns
@@ -30,47 +30,34 @@
 
 ## Last Session (Jan 22, 2026)
 
-Session 69 - **Phase E Session 3 (continued): Attack Card & Guessed Words Restore Fixes**
+Session 71 - **Phase E Session 3 (continued): Guillotine Stage Movement Debugging**
 
-**Goal:** Fix Attack card cell highlights and Guessed Words panel not restoring correctly on game resume.
+**Goal:** Fix blade/lever not moving during gameplay stages, rework stage threshold logic.
 
-**Issues Fixed:**
+**Issues Investigated:**
 
-1. **Attack Card Cell Highlights Not Restoring (FIXED)**
-   - **Problem:** Cells with letters (e.g., H at A1, B3, B4, A6) showed yellow instead of player color on resume
-   - **Root Cause:** `AreAllLetterCoordinatesKnown()` was called before `_playerRevealedCells` was fully populated
-   - **Fix:** Changed to two-pass approach - first populate all revealed cells, then apply visuals with complete data
-   - **File:** `UIFlowController.cs` lines 1320-1370
+1. **Blade Not Moving During Gameplay**
+   - **Problem:** Blade and lever not raising as miss count increases during gameplay
+   - **Observation:** Audio plays for stage transitions but blade doesn't visually move
+   - **Attempted Fix:** Changed stage thresholds from 25% increments to 20% increments
+   - **Status:** NEEDS FURTHER WORK - stage logic needs clarification
 
-2. **Opponent Guessed Letters Not Being Saved (FIXED)**
-   - **Problem:** `opponentData.gameplayState.knownLetters` was empty on save after resume
-   - **Root Cause:** GuessManager's `_opponentGuessState` wasn't populated from saved data during restore
-   - **Fix:** Added `RestoreOpponentGuessState()` method to `GameplayGuessManager.cs` and call it during restore
-   - **Files:** `GameplayGuessManager.cs` (new method), `UIFlowController.cs` (call during restore)
+2. **Stage Threshold Rework (PARTIAL)**
+   - Changed `GetStageFromPercent()` from 25/50/75% thresholds to 20/40/60/80%
+   - Intent: 5 stages with equal 20% increments during gameplay
+   - **Needs Discussion:** How many stages? When does each stage trigger? What happens at 100%?
 
-3. **Word Index Mismatch Between GuessManager and UI (FIXED)**
-   - **Problem:** Solved word indices didn't match between GuessManager and WordRowsContainer
-   - **Root Cause:** GuessManager used original word order, WordRowsContainer sorted by length
-   - **Fix:** Sort opponent placements by word length in `InitializeGuessManagerWithBothSides()` before iterating
-   - **File:** `UIFlowController.cs` lines 6171-6182
-
-4. **Incorrect Word Guesses Not Tracking (IN PROGRESS)**
-   - **Problem:** Incorrect word guesses (TAG, OFF, TAMEST) not appearing in Guessed Words panel on resume
-   - **Status:** Added debug logging to trace when word guesses are added and saved
-   - **Next Step:** Need console log from ORIGINAL game session where incorrect guesses were made to diagnose
+**Current Understanding (needs verification):**
+- Stage 1: Starting position (0% misses)
+- Stages 2-5: Progressive raises during gameplay
+- At 100% misses: Execution sequence (lever drop, blade drop)
 
 **Files Modified:**
-- `UIFlowController.cs` - Two-pass cell restore, opponent guess state restore call, word index sorting, debug logging
-- `GameplayGuessManager.cs` - Added `RestoreOpponentGuessState()` method
+- `GuillotineOverlayManager.cs` - Changed `GetStageFromPercent()` thresholds
 
-**Test Results:**
-- Attack card cell highlights: WORKING
-- Defense card: WORKING
-- Opponent guessed letters persistence: WORKING
-- Correct word guesses tracking: WORKING
-- Incorrect word guesses tracking: NEEDS FURTHER TESTING (requires original session log)
+**CARRY FORWARD:** Stage movement logic needs design discussion next session
 
-**Previous Session:** Session 68 - Defense card logic clarification
+**Previous Session:** Session 70 - Incorrect word guesses fix, guillotine visual fixes
 
 ---
 
@@ -108,7 +95,7 @@ Session 69 - **Phase E Session 3 (continued): Attack Card & Guessed Words Restor
 - [x] Fix word index mismatch between GuessManager and UI (sort by length)
 - [x] **VERIFIED: Attack card matches original game state on resume**
 - [x] **VERIFIED: Defense card matches original game state on resume**
-- [ ] **IN PROGRESS: Incorrect word guesses not tracking on resume** (need original session log)
+- [x] **FIXED: Incorrect word guesses now restore on resume** (serialization + parsing)
 - [ ] Remove debug logging after all fixes confirmed
 
 ### Session 4 - Opponent Join Detection
@@ -405,12 +392,13 @@ YourDifficultyModifier: Easy=+4, Normal=+0, Hard=-4
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 83 | Jan 22, 2026 | Session 71 - Guillotine stage movement debugging, threshold rework (needs further discussion) |
+| 82 | Jan 22, 2026 | Session 70 - Incorrect word guesses fix, guillotine blade/rope/lever visual fixes, execution timing |
 | 81 | Jan 22, 2026 | Session 69 - Attack card cell highlights fix, opponent guess state restore, word index sorting |
 | 80 | Jan 21, 2026 | Session 68 - Defense card logic clarification, word guess fix, simplified restore |
 | 79 | Jan 21, 2026 | Session 67 - Attack/Defense card restore fixes: case-sensitivity, word guess persistence, Guessed Words panel |
 | 78 | Jan 20, 2026 | Session 66 - Game state restore debugging: case-sensitivity fix, cell/keyboard/word row restore logic |
 | 77 | Jan 20, 2026 | Session 65 - Phase E Session 3: Game State Persistence (revealedCells, resume state) |
-| 76 | Jan 20, 2026 | Session 64 - Art asset integration for guillotine overlay (Number1/Number2 sets) |
 
 **Full version history:** See `DLYH_Status_Archive.md`
 

@@ -463,7 +463,9 @@ namespace DLYH.TableUI
 
         /// <summary>
         /// Converts a danger percentage to a stage number (1-5).
+        /// Each stage represents 1/5 of the travel distance.
         /// Stage 1: 0-20%, Stage 2: 20-40%, Stage 3: 40-60%, Stage 4: 60-80%, Stage 5: 80-100%
+        /// At 100% (game over), blade is at stage 5 and execution sequence plays (lever drop, blade drop).
         /// </summary>
         private int GetStageFromPercent(float percent)
         {
@@ -729,8 +731,25 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
+        /// Triggers the lever drop animation for the loser (latch release).
+        /// Call this when the hook unlock audio plays.
+        /// The lever swings down, visually releasing the blade.
+        /// </summary>
+        public void TriggerLeverDrop(bool playerLost)
+        {
+            if (playerLost)
+            {
+                _playerLeverArm?.AddToClassList("dropped");
+            }
+            else
+            {
+                _opponentLeverArm?.AddToClassList("dropped");
+            }
+        }
+
+        /// <summary>
         /// Triggers the blade drop animation for the loser.
-        /// Call this when the blade drop audio plays.
+        /// Call this when the blade drop audio plays (after lever has dropped).
         /// </summary>
         public void TriggerBladeDrop(bool playerLost)
         {
@@ -738,13 +757,11 @@ namespace DLYH.TableUI
             {
                 _playerBladeGroup?.AddToClassList("dropped");
                 _playerRope?.AddToClassList("dropped");
-                _playerLeverArm?.AddToClassList("dropped");
             }
             else
             {
                 _opponentBladeGroup?.AddToClassList("dropped");
                 _opponentRope?.AddToClassList("dropped");
-                _opponentLeverArm?.AddToClassList("dropped");
             }
         }
 

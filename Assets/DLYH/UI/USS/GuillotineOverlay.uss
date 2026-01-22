@@ -221,14 +221,13 @@
 
 /* Rope height matches blade position - shorter when blade is up, longer when down */
 /* Rope starts at top: 46px (~14% of 320px container) */
-/* Blade positions: stage1=58%, stage2=46%, stage3=34%, stage4=22%, stage5=10% */
-/* Rope height = blade top% - rope top% (~14%) */
-/* At stage 5, blade is at 10% which is above rope start, so minimal rope */
+/* Blade positions: stage1=58%, stage2=48%, stage3=38%, stage4=28%, stage5=18% */
+/* Rope height = blade top% - rope start% (~14%) */
 .rope.stage-1 { height: 44%; }  /* 58% - 14% = 44% */
-.rope.stage-2 { height: 32%; }  /* 46% - 14% = 32% */
-.rope.stage-3 { height: 20%; }  /* 34% - 14% = 20% */
-.rope.stage-4 { height: 8%; }   /* 22% - 14% = 8% */
-.rope.stage-5 { height: 0%; }   /* 10% - 14% = negative, so 0% */
+.rope.stage-2 { height: 34%; }  /* 48% - 14% = 34% */
+.rope.stage-3 { height: 24%; }  /* 38% - 14% = 24% */
+.rope.stage-4 { height: 14%; }  /* 28% - 14% = 14% */
+.rope.stage-5 { height: 4%; }   /* 18% - 14% = 4% (small visible bit) */
 
 /* Rope extends fully when blade drops */
 .rope.dropped {
@@ -252,14 +251,14 @@
 }
 
 /* Blade positions for each stage (percentage from top) */
-/* Stage 1: blade at bottom near lunette, Stage 5: blade at top */
-/* Blade starts resting just above the neck holder and rises UP with danger */
-/* Adjusted for new image dimensions */
-.blade-group.stage-1 { top: 58%; }
-.blade-group.stage-2 { top: 46%; }
-.blade-group.stage-3 { top: 34%; }
-.blade-group.stage-4 { top: 22%; }
-.blade-group.stage-5 { top: 10%; }
+/* Stages 1-4: normal gameplay (0-25%, 25-50%, 50-75%, 75-100% danger) */
+/* Stage 5: execution sequence only (final raise before blade drop) */
+/* Blade starts at lunette and rises UP as danger increases */
+.blade-group.stage-1 { top: 58%; }  /* Starting position near lunette */
+.blade-group.stage-2 { top: 48%; }  /* 25-50% danger */
+.blade-group.stage-3 { top: 38%; }  /* 50-75% danger */
+.blade-group.stage-4 { top: 28%; }  /* 75-100% danger (max during gameplay) */
+.blade-group.stage-5 { top: 18%; }  /* Execution only - at bottom of top bar */
 
 /* Wood holder on top of blade - hidden, part of blade image */
 .blade-holder {
@@ -485,21 +484,25 @@
     transform-origin: right center;
 }
 
-/* Right lever rotates: stage 1 pointing down-right (45deg), stage 5 pointing up-right (-45deg) */
+/* Right lever rotates: stage 1-4 during gameplay, stage 5 execution only */
+/* Stages 1-4: normal gameplay (0-25%, 25-50%, 50-75%, 75-100% danger) */
+/* Stage 5: execution sequence only (final raise before blade drop) */
 .lever-assembly.lever-right .lever-arm.stage-1 { rotate: 45deg; }
-.lever-assembly.lever-right .lever-arm.stage-2 { rotate: 25deg; }
+.lever-assembly.lever-right .lever-arm.stage-2 { rotate: 22.5deg; }
 .lever-assembly.lever-right .lever-arm.stage-3 { rotate: 0deg; }
-.lever-assembly.lever-right .lever-arm.stage-4 { rotate: -20deg; }
-.lever-assembly.lever-right .lever-arm.stage-5 { rotate: -40deg; }
+.lever-assembly.lever-right .lever-arm.stage-4 { rotate: -22.5deg; }
+.lever-assembly.lever-right .lever-arm.stage-5 { rotate: -45deg; }
 
-/* Left lever rotates: stage 1 pointing down-left (-45deg), stage 5 pointing up-left (45deg) */
+/* Left lever rotates: stage 1-4 during gameplay, stage 5 execution only */
+/* Stages 1-4: normal gameplay (0-25%, 25-50%, 50-75%, 75-100% danger) */
+/* Stage 5: execution sequence only (final raise before blade drop) */
 .lever-assembly.lever-left .lever-arm.stage-1 { rotate: -45deg; }
-.lever-assembly.lever-left .lever-arm.stage-2 { rotate: -25deg; }
+.lever-assembly.lever-left .lever-arm.stage-2 { rotate: -22.5deg; }
 .lever-assembly.lever-left .lever-arm.stage-3 { rotate: 0deg; }
-.lever-assembly.lever-left .lever-arm.stage-4 { rotate: 20deg; }
-.lever-assembly.lever-left .lever-arm.stage-5 { rotate: 40deg; }
+.lever-assembly.lever-left .lever-arm.stage-4 { rotate: 22.5deg; }
+.lever-assembly.lever-left .lever-arm.stage-5 { rotate: 45deg; }
 
-/* When dropped, levers swing down sharply */
+/* When dropped (after latch release), lever swings back down sharply */
 .lever-assembly.lever-right .lever-arm.dropped { rotate: 75deg; }
 .lever-assembly.lever-left .lever-arm.dropped { rotate: -75deg; }
 

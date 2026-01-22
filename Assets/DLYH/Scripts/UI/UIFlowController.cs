@@ -2546,8 +2546,15 @@ namespace DLYH.TableUI
                 IsLocalPlayer = false
             };
 
+            // Reset any lingering game over state from previous games
+            _guillotineOverlayManager?.ResetGameOverState();
+
             // Show guillotine overlay in game over state (blade starts at stage-4 for loser)
             _guillotineOverlayManager?.ShowGameOver(playerData, opponentData, playerWon);
+
+            // Wait one frame for the overlay to render with blade at stage-4 position
+            // This ensures the user sees the starting position before the raise animation
+            yield return null;
 
             // Play execution audio sequence
             // Part 1: Final raise - animate blade from stage-4 to stage-5 (peak position)
@@ -2558,12 +2565,13 @@ namespace DLYH.TableUI
             // Part 2: Dramatic pause at peak (blade fully raised, tension building)
             yield return new WaitForSeconds(PAUSE_AT_TOP);
 
-            // Part 3: Hook unlock
+            // Part 3: Hook unlock - lever drops first (releases the blade)
             yield return new WaitForSeconds(PAUSE_BEFORE_HOOK_UNLOCK);
             DLYH.Audio.GuillotineAudioManager.HookUnlock();
+            _guillotineOverlayManager?.TriggerLeverDrop(!playerWon);
             yield return new WaitForSeconds(PAUSE_AFTER_HOOK_UNLOCK);
 
-            // Part 4: Blade drop (chop) - sync animation with audio
+            // Part 4: Blade drop (chop) - blade falls after lever releases it
             DLYH.Audio.GuillotineAudioManager.FinalChop();
             _guillotineOverlayManager?.TriggerBladeDrop(!playerWon);
             yield return new WaitForSeconds(BLADE_DROP_DURATION);

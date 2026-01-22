@@ -171,6 +171,10 @@ namespace DLYH.UI.Managers
                 gameplay.guessedCoordinates[i] = new CoordinatePair(coordTuples[i].row, coordTuples[i].col);
             }
 
+            // Parse incorrect word guesses
+            gameplay.incorrectWordGuesses = JsonParsingUtility.ExtractStringArray(gameplayJson, "incorrectWordGuesses");
+            UnityEngine.Debug.Log($"[GameStateManager] ParseGameplayState - incorrectWordGuesses parsed: {gameplay.incorrectWordGuesses?.Length ?? 0}");
+
             // Parse revealed cells
             (int row, int col, string letter, bool isHit)[] cellTuples =
                 JsonParsingUtility.ExtractRevealedCellsArray(gameplayJson, "revealedCells");
