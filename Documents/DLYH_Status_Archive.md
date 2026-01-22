@@ -4,7 +4,7 @@
 
 **Related Document:** `DLYH_Status.md` (active status document)
 
-**Last Updated:** January 19, 2026
+**Last Updated:** January 22, 2026
 
 ---
 
@@ -47,10 +47,13 @@ At the end of each session, move the following to this archive:
 
 ---
 
-## Version History (Sessions 1-61)
+## Version History (Sessions 1-78)
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 78 | Jan 20, 2026 | Session 66 - Game state restore debugging: case-sensitivity fix, cell/keyboard/word row restore logic |
+| 77 | Jan 20, 2026 | Session 65 - Phase E Session 3: Game State Persistence (revealedCells, resume state) |
+| 63-76 | Jan 17-19, 2026 | Sessions 52-64 - Phase E Foundation, Phantom AI, Game State Persistence work |
 | 62 | Jan 17, 2026 | Fifty-first session - Networking UI Toolkit Overlays. Created MatchmakingOverlay, WaitingRoom, JoinCodeEntry UXML/USS. Wired phantom AI fallback. |
 | 61 | Jan 17, 2026 | Fiftieth session - Phase E started. Networking UI planning. |
 | 56-60 | Jan 16-17, 2026 | Sessions 45-50 - Various Phase E planning and initial work |

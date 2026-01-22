@@ -5,7 +5,7 @@
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `C:\Unity\DontLoseYourHead`
 **Supabase:** Direct MCP access available (game_sessions, session_players, players tables)
-**Document Version:** 83
+**Document Version:** 85
 **Last Updated:** January 22, 2026
 
 **Archive:** `DLYH_Status_Archive.md` - Historical designs, old version history, completed phase details, DAB reference patterns
@@ -30,34 +30,34 @@
 
 ## Last Session (Jan 22, 2026)
 
-Session 71 - **Phase E Session 3 (continued): Guillotine Stage Movement Debugging**
+Session 72 - **Guillotine Stage Movement Fix + Debug Cleanup**
 
-**Goal:** Fix blade/lever not moving during gameplay stages, rework stage threshold logic.
+**Goals:**
+1. Fix blade/lever not moving during gameplay stages
+2. Clean up verbose debug logging from Session 3 restore work
 
-**Issues Investigated:**
+**Guillotine Fix - Root Cause:**
+- Two duplicate stage calculation methods were out of sync
+- `GuillotineOverlayManager.GetStageFromPercent()` controlled visual display
+- `UIFlowController.GetStageFromMissCount()` controlled when audio/animation triggers
+- They used different thresholds, causing audio to play at different times than visual updates
 
-1. **Blade Not Moving During Gameplay**
-   - **Problem:** Blade and lever not raising as miss count increases during gameplay
-   - **Observation:** Audio plays for stage transitions but blade doesn't visually move
-   - **Attempted Fix:** Changed stage thresholds from 25% increments to 20% increments
-   - **Status:** NEEDS FURTHER WORK - stage logic needs clarification
+**Fixes Applied:**
 
-2. **Stage Threshold Rework (PARTIAL)**
-   - Changed `GetStageFromPercent()` from 25/50/75% thresholds to 20/40/60/80%
-   - Intent: 5 stages with equal 20% increments during gameplay
-   - **Needs Discussion:** How many stages? When does each stage trigger? What happens at 100%?
-
-**Current Understanding (needs verification):**
-- Stage 1: Starting position (0% misses)
-- Stages 2-5: Progressive raises during gameplay
-- At 100% misses: Execution sequence (lever drop, blade drop)
+1. **Synchronized Stage Thresholds** (25/50/75/100%)
+2. **Slowed Stage 5 Animation** (0.8s instead of 0.4s for dramatic effect)
+3. **Removed Verbose Debug Logging** from:
+   - `GameStateManager.cs` - Removed per-cell and JSON parsing logs
+   - `UIFlowController.cs` - Removed per-cell, per-letter restore logs
+   - `GameplayGuessManager.cs` - Removed restore count logs
 
 **Files Modified:**
-- `GuillotineOverlayManager.cs` - Changed `GetStageFromPercent()` thresholds
+- `GuillotineOverlayManager.cs`, `UIFlowController.cs`, `GuillotineOverlay.uss`
+- `GameStateManager.cs`, `GameplayGuessManager.cs`
 
-**CARRY FORWARD:** Stage movement logic needs design discussion next session
+**Session 3 Status:** COMPLETE - all game state persistence tasks done
 
-**Previous Session:** Session 70 - Incorrect word guesses fix, guillotine visual fixes
+**Previous Session:** Session 71 - Guillotine stage movement debugging (partial)
 
 ---
 
@@ -71,7 +71,7 @@ Session 71 - **Phase E Session 3 (continued): Guillotine Stage Movement Debuggin
 |---------|-------|--------|
 | 1 | Foundation & Editor Identity | COMPLETE |
 | 2 | Phantom AI as Session Player | COMPLETE |
-| 3 | Game State Persistence | IN PROGRESS |
+| 3 | Game State Persistence | COMPLETE |
 | 4 | Opponent Join Detection | PENDING |
 | 5 | Turn Synchronization | PENDING |
 | 6 | Activity Tracking & Auto-Win | PENDING |
@@ -96,7 +96,7 @@ Session 71 - **Phase E Session 3 (continued): Guillotine Stage Movement Debuggin
 - [x] **VERIFIED: Attack card matches original game state on resume**
 - [x] **VERIFIED: Defense card matches original game state on resume**
 - [x] **FIXED: Incorrect word guesses now restore on resume** (serialization + parsing)
-- [ ] Remove debug logging after all fixes confirmed
+- [x] Remove debug logging after all fixes confirmed
 
 ### Session 4 - Opponent Join Detection
 
@@ -392,13 +392,13 @@ YourDifficultyModifier: Easy=+4, Normal=+0, Hard=-4
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 85 | Jan 22, 2026 | Session 72 - Guillotine stage movement fix, debug logging cleanup, Session 3 COMPLETE |
+| 84 | Jan 22, 2026 | Session 72 - Guillotine stage movement fix (synced thresholds, slower stage 5 animation) |
 | 83 | Jan 22, 2026 | Session 71 - Guillotine stage movement debugging, threshold rework (needs further discussion) |
 | 82 | Jan 22, 2026 | Session 70 - Incorrect word guesses fix, guillotine blade/rope/lever visual fixes, execution timing |
 | 81 | Jan 22, 2026 | Session 69 - Attack card cell highlights fix, opponent guess state restore, word index sorting |
 | 80 | Jan 21, 2026 | Session 68 - Defense card logic clarification, word guess fix, simplified restore |
 | 79 | Jan 21, 2026 | Session 67 - Attack/Defense card restore fixes: case-sensitivity, word guess persistence, Guessed Words panel |
-| 78 | Jan 20, 2026 | Session 66 - Game state restore debugging: case-sensitivity fix, cell/keyboard/word row restore logic |
-| 77 | Jan 20, 2026 | Session 65 - Phase E Session 3: Game State Persistence (revealedCells, resume state) |
 
 **Full version history:** See `DLYH_Status_Archive.md`
 

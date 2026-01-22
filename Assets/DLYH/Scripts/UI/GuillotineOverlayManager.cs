@@ -22,12 +22,12 @@ namespace DLYH.TableUI
     /// Uses a 5-stage system where the blade only moves at stage transitions,
     /// not on every individual miss.
     ///
-    /// Stage thresholds:
-    /// - Stage 1: 0-20% misses (safe)
-    /// - Stage 2: 20-40% misses (getting warm)
-    /// - Stage 3: 40-60% misses (danger)
-    /// - Stage 4: 60-80% misses (high danger)
-    /// - Stage 5: 80-100% misses (critical)
+    /// Stage thresholds (25% increments during gameplay, stage 5 at execution only):
+    /// - Stage 1: 0% misses (safe)
+    /// - Stage 2: 25% misses (getting warm)
+    /// - Stage 3: 50% misses (danger)
+    /// - Stage 4: 75% misses (high danger)
+    /// - Stage 5: 100% misses (execution - game over)
     /// </summary>
     public class GuillotineOverlayManager
     {
@@ -35,8 +35,8 @@ namespace DLYH.TableUI
 
         private const int TOTAL_STAGES = 5;
 
-        // Stage thresholds as percentages
-        private static readonly float[] STAGE_THRESHOLDS = new float[] { 0f, 20f, 40f, 60f, 80f };
+        // Stage thresholds as percentages (25% increments, stage 5 only at execution)
+        private static readonly float[] STAGE_THRESHOLDS = new float[] { 0f, 25f, 50f, 75f, 100f };
 
         // Face expressions based on stage
         private static readonly string FACE_HAPPY = ":-)";
@@ -463,16 +463,16 @@ namespace DLYH.TableUI
 
         /// <summary>
         /// Converts a danger percentage to a stage number (1-5).
-        /// Each stage represents 1/5 of the travel distance.
-        /// Stage 1: 0-20%, Stage 2: 20-40%, Stage 3: 40-60%, Stage 4: 60-80%, Stage 5: 80-100%
+        /// Uses 25% increments during gameplay (stages 1-4), stage 5 only at execution (100%).
+        /// Stage 1: 0-24%, Stage 2: 25-49%, Stage 3: 50-74%, Stage 4: 75-99%, Stage 5: 100% (execution)
         /// At 100% (game over), blade is at stage 5 and execution sequence plays (lever drop, blade drop).
         /// </summary>
         private int GetStageFromPercent(float percent)
         {
-            if (percent >= 80f) return 5;
-            if (percent >= 60f) return 4;
-            if (percent >= 40f) return 3;
-            if (percent >= 20f) return 2;
+            if (percent >= 100f) return 5;
+            if (percent >= 75f) return 4;
+            if (percent >= 50f) return 3;
+            if (percent >= 25f) return 2;
             return 1;
         }
 

@@ -962,25 +962,17 @@ namespace DLYH.TableUI
                     myData.gameplayState.missLimit = _guessManager?.GetPlayerMissLimit() ?? 0;
 
                     // Convert tracked data to arrays for serialization
-                    Debug.Log($"[UIFlowController] SaveGameState - _playerGuessedLetters count: {_playerGuessedLetters.Count}, contents: [{string.Join(",", _playerGuessedLetters)}]");
                     myData.gameplayState.knownLetters = _playerGuessedLetters
                         .Select(c => c.ToString())
                         .ToArray();
-                    Debug.Log($"[UIFlowController] SaveGameState - knownLetters array length: {myData.gameplayState.knownLetters.Length}");
 
                     myData.gameplayState.solvedWordRows = _playerSolvedWords.ToArray();
 
                     // Save player's incorrect word guesses (for Guessed Words panel on resume)
-                    Debug.Log($"[UIFlowController] SaveGameState - _allWordGuesses count: {_allWordGuesses.Count}");
-                    foreach (var g in _allWordGuesses)
-                    {
-                        Debug.Log($"[UIFlowController] SaveGameState - _allWordGuesses entry: word='{g.word}' isPlayer={g.isPlayer} isCorrect={g.isCorrect}");
-                    }
                     myData.gameplayState.incorrectWordGuesses = _allWordGuesses
                         .Where(g => g.isPlayer && !g.isCorrect)
                         .Select(g => g.word)
                         .ToArray();
-                    Debug.Log($"[UIFlowController] SaveGameState - player incorrectWordGuesses: [{string.Join(",", myData.gameplayState.incorrectWordGuesses)}]");
 
                     // Convert revealed cells dictionary to array
                     myData.gameplayState.revealedCells = _playerRevealedCells
@@ -1021,7 +1013,6 @@ namespace DLYH.TableUI
                     // This is needed for defense card keyboard restoration to show missed letters in red
                     HashSet<char> opponentGuessedLetters = _guessManager?.GetOpponentGuessedLetters() ?? new HashSet<char>();
                     opponentData.gameplayState.knownLetters = opponentGuessedLetters.Select(c => c.ToString()).ToArray();
-                    Debug.Log($"[UIFlowController] SaveGameState - opponentData.gameplayState.knownLetters (all guessed): [{string.Join(",", opponentData.gameplayState.knownLetters)}]");
 
                     // Save opponent's solved word indices (defense words they've correctly guessed)
                     opponentData.gameplayState.solvedWordRows = _opponentSolvedWords.ToArray();
@@ -1031,7 +1022,6 @@ namespace DLYH.TableUI
                         .Where(g => !g.isPlayer && !g.isCorrect)
                         .Select(g => g.word)
                         .ToArray();
-                    Debug.Log($"[UIFlowController] SaveGameState - opponent incorrectWordGuesses: [{string.Join(",", opponentData.gameplayState.incorrectWordGuesses)}]");
                 }
 
                 // Update turn info
@@ -1041,11 +1031,10 @@ namespace DLYH.TableUI
                 state.updatedAt = DateTime.UtcNow.ToString("o");
 
                 // Save to Supabase
-                Debug.Log($"[UIFlowController] SaveGameState - About to save. myData.gameplayState.knownLetters: [{string.Join(",", myData?.gameplayState?.knownLetters ?? Array.Empty<string>())}]");
                 bool success = await _gameSessionService.UpdateGameState(_currentGameCode, state);
                 if (success)
                 {
-                    Debug.Log($"[UIFlowController] Saved game state to Supabase - turn {state.turnNumber}, player revealed {_playerRevealedCells.Count} cells, knownLetters: {myData?.gameplayState?.knownLetters?.Length ?? 0}");
+                    Debug.Log($"[UIFlowController] Saved game state to Supabase - turn {state.turnNumber}");
                 }
                 else
                 {
@@ -1089,19 +1078,12 @@ namespace DLYH.TableUI
             // Get difficulty setting (flat structure - no nested setupData)
             DifficultySetting myDifficulty = GetDifficultySettingFromString(myData.difficulty ?? "Normal");
 
-            // Debug: log raw data from Supabase
-            Debug.Log($"[UIFlowController] Resume raw data - myData: gridSize={myData.gridSize}, wordCount={myData.wordCount}, name={myData.name}");
-            Debug.Log($"[UIFlowController] Resume raw data - opponentData: {(opponentData != null ? $"gridSize={opponentData.gridSize}, wordCount={opponentData.wordCount}, name={opponentData.name}" : "null")}");
-            Debug.Log($"[UIFlowController] Resume - isPhantomAI: {isPhantomAI}");
-
             // Calculate miss limits
             int myGridSize = myData.gridSize > 0 ? myData.gridSize : 8;
             int myWordCount = myData.wordCount > 0 ? myData.wordCount : 5;
 
             int opponentGridSize = opponentData != null && opponentData.gridSize > 0 ? opponentData.gridSize : myGridSize;
             int opponentWordCount = opponentData != null && opponentData.wordCount > 0 ? opponentData.wordCount : myWordCount;
-
-            Debug.Log($"[UIFlowController] Resume computed sizes - myGrid={myGridSize}x{myGridSize}, opponentGrid={opponentGridSize}x{opponentGridSize}");
 
             int myMissLimit = DifficultyCalculator.CalculateMissLimitForPlayer(myDifficulty, opponentGridSize, opponentWordCount);
             DifficultySetting inverseDifficulty = GetInverseDifficulty(myDifficulty);
@@ -1292,13 +1274,7 @@ namespace DLYH.TableUI
         private void RestoreGameplayStateFromSaved(DLYHPlayerData myData, DLYHPlayerData opponentData,
             Color myColor, Color opponentColor)
         {
-            Debug.Log($"[UIFlowController] RestoreGameplayStateFromSaved called");
-            Debug.Log($"[UIFlowController] myData null: {myData == null}");
-            Debug.Log($"[UIFlowController] myData.gameplayState null: {myData?.gameplayState == null}");
-            Debug.Log($"[UIFlowController] myData.gameplayState.revealedCells null: {myData?.gameplayState?.revealedCells == null}");
-            Debug.Log($"[UIFlowController] myData.gameplayState.revealedCells length: {myData?.gameplayState?.revealedCells?.Length ?? -1}");
-            Debug.Log($"[UIFlowController] myData.gameplayState.knownLetters null: {myData?.gameplayState?.knownLetters == null}");
-            Debug.Log($"[UIFlowController] myData.gameplayState.knownLetters length: {myData?.gameplayState?.knownLetters?.Length ?? -1}");
+            Debug.Log($"[UIFlowController] RestoreGameplayStateFromSaved - cells: {myData?.gameplayState?.revealedCells?.Length ?? 0}, letters: {myData?.gameplayState?.knownLetters?.Length ?? 0}");
 
             // Clear tracking dictionaries before restoring
             _playerRevealedCells.Clear();
@@ -1320,13 +1296,11 @@ namespace DLYH.TableUI
                     }
                 }
             }
-            Debug.Log($"[UIFlowController] Keyboard guessed letters for cell restore: [{string.Join(",", keyboardGuessedLetters)}]");
 
             // Restore player's revealed cells (my attacks on opponent's grid)
             // PASS 1: Populate _playerRevealedCells dictionary first (needed for allCoordsKnown checks)
             if (myData?.gameplayState?.revealedCells != null)
             {
-                Debug.Log($"[UIFlowController] Restoring {myData.gameplayState.revealedCells.Length} player revealed cells");
 
                 foreach (RevealedCellData cell in myData.gameplayState.revealedCells)
                 {
@@ -1361,13 +1335,11 @@ namespace DLYH.TableUI
                                 }
                             }
                             RevealGridCellFully(cell.col, cell.row, letter, allCoordsKnown);
-                            Debug.Log($"[UIFlowController] Cell ({cell.col},{cell.row}) revealed with '{letter}' (allCoordsKnown={allCoordsKnown})");
                         }
                         else
                         {
                             // Coordinate hit but letter not yet keyboard-guessed - show as yellow (Revealed state)
                             MarkGridCellCoordinateHit(cell.col, cell.row);
-                            Debug.Log($"[UIFlowController] Cell ({cell.col},{cell.row}) shown as yellow hit (letter '{letter}' not keyboard-guessed)");
                         }
                     }
                     else
@@ -1381,10 +1353,6 @@ namespace DLYH.TableUI
             // Restore player's guessed letters (keyboard)
             if (myData?.gameplayState?.knownLetters != null)
             {
-                Debug.Log($"[UIFlowController] Restoring {myData.gameplayState.knownLetters.Length} guessed letters");
-                Debug.Log($"[UIFlowController] _guessManager null: {_guessManager == null}");
-                Debug.Log($"[UIFlowController] _attackWordRows null: {_attackWordRows == null}");
-
                 foreach (string letterStr in myData.gameplayState.knownLetters)
                 {
                     if (!string.IsNullOrEmpty(letterStr))
@@ -1396,7 +1364,6 @@ namespace DLYH.TableUI
                         // (Can't use IsPlayerLetterHit because GuessManager doesn't know about previous guesses yet)
                         List<Vector2Int> letterPositions = _guessManager?.GetOpponentLetterPositions(letter) ?? new List<Vector2Int>();
                         bool isHit = letterPositions.Count > 0;
-                        Debug.Log($"[UIFlowController] Restoring letter '{letter}' - isHit: {isHit}, positions: {letterPositions.Count}");
 
                         if (isHit)
                         {
@@ -1424,12 +1391,10 @@ namespace DLYH.TableUI
                             // Reveal letter in attack word rows
                             if (allCoordsKnown)
                             {
-                                Debug.Log($"[UIFlowController] Revealing '{letter}' in word rows as HIT (all coords known)");
                                 _attackWordRows?.RevealLetterInAllWords(letter, myColor);
                             }
                             else
                             {
-                                Debug.Log($"[UIFlowController] Revealing '{letter}' in word rows as FOUND (not all coords known)");
                                 _attackWordRows?.RevealLetterAsFoundInAllWords(letter);
                             }
                         }
@@ -1457,7 +1422,6 @@ namespace DLYH.TableUI
                     {
                         _gameplayManager?.AddGuessedWord(playerName, solvedWord, true, true, myColor);
                         _allWordGuesses.Add((solvedWord.ToUpper(), true, true));
-                        Debug.Log($"[UIFlowController] Restored player solved word {wordIndex}: '{solvedWord}'");
                     }
                 }
             }
@@ -1473,7 +1437,6 @@ namespace DLYH.TableUI
                     {
                         _gameplayManager?.AddGuessedWord(playerName, incorrectWord, false, true, myColor);
                         _allWordGuesses.Add((incorrectWord.ToUpper(), true, false));
-                        Debug.Log($"[UIFlowController] Restored player incorrect word guess: '{incorrectWord}'");
                     }
                 }
             }
@@ -1493,7 +1456,6 @@ namespace DLYH.TableUI
                     {
                         _gameplayManager?.AddGuessedWord(opponentName, solvedWord, true, false, opponentColor);
                         _allWordGuesses.Add((solvedWord.ToUpper(), false, true));
-                        Debug.Log($"[UIFlowController] Restored opponent solved word {wordIndex}: '{solvedWord}'");
                     }
                 }
             }
@@ -1509,7 +1471,6 @@ namespace DLYH.TableUI
                     {
                         _gameplayManager?.AddGuessedWord(opponentName, incorrectWord, false, false, opponentColor);
                         _allWordGuesses.Add((incorrectWord.ToUpper(), false, false));
-                        Debug.Log($"[UIFlowController] Restored opponent incorrect word guess: '{incorrectWord}'");
                     }
                 }
             }
@@ -1524,37 +1485,18 @@ namespace DLYH.TableUI
             // PHASE 1: DATA COLLECTION
             // -----------------------
 
-            // Debug: Show what opponent data we have
-            Debug.Log($"[UIFlowController] Defense restore - opponentData null: {opponentData == null}");
-            Debug.Log($"[UIFlowController] Defense restore - opponentData.gameplayState null: {opponentData?.gameplayState == null}");
-            Debug.Log($"[UIFlowController] Defense restore - opponentData.gameplayState.revealedCells null: {opponentData?.gameplayState?.revealedCells == null}");
-            Debug.Log($"[UIFlowController] Defense restore - opponentData.gameplayState.revealedCells count: {opponentData?.gameplayState?.revealedCells?.Length ?? 0}");
-            Debug.Log($"[UIFlowController] Defense restore - opponentData.gameplayState.knownLetters null: {opponentData?.gameplayState?.knownLetters == null}");
-            Debug.Log($"[UIFlowController] Defense restore - opponentData.gameplayState.knownLetters count: {opponentData?.gameplayState?.knownLetters?.Length ?? 0}");
-
             // 1a. Collect opponent's known letters (from knownLetters - includes keyboard guesses AND word guesses)
             // These letters should appear on keyboard/tracker and word rows
             HashSet<char> opponentKnownLetters = new HashSet<char>();
 
             if (opponentData?.gameplayState?.knownLetters != null)
             {
-                Debug.Log($"[UIFlowController] Defense restore - opponent knownLetters: [{string.Join(",", opponentData.gameplayState.knownLetters)}]");
                 foreach (string letterStr in opponentData.gameplayState.knownLetters)
                 {
                     if (!string.IsNullOrEmpty(letterStr))
                     {
                         opponentKnownLetters.Add(char.ToUpper(letterStr[0]));
                     }
-                }
-            }
-
-            // Log revealed cells for debugging
-            if (opponentData?.gameplayState?.revealedCells != null)
-            {
-                Debug.Log($"[UIFlowController] Defense restore - processing {opponentData.gameplayState.revealedCells.Length} opponent revealed cells:");
-                foreach (RevealedCellData cell in opponentData.gameplayState.revealedCells)
-                {
-                    Debug.Log($"[UIFlowController]   Cell ({cell.col},{cell.row}) letter='{cell.letter}' isHit={cell.isHit}");
                 }
             }
 
@@ -1592,27 +1534,21 @@ namespace DLYH.TableUI
                 if (positions.Count > 0)
                 {
                     bool allKnown = true;
-                    List<string> missingCoords = new List<string>();
                     foreach (Vector2Int pos in positions)
                     {
                         if (!opponentRevealedPositions.Contains(pos))
                         {
                             allKnown = false;
-                            missingCoords.Add($"({pos.x},{pos.y})");
+                            break;
                         }
                     }
                     letterAllCoordsKnown[letter] = allKnown;
-                    Debug.Log($"[UIFlowController] Defense letter '{letter}': {positions.Count} positions, allCoordsKnown={allKnown}" +
-                        (missingCoords.Count > 0 ? $", missing: {string.Join(",", missingCoords)}" : ""));
                 }
                 else
                 {
                     letterAllCoordsKnown[letter] = false; // Letter is a miss
-                    Debug.Log($"[UIFlowController] Defense letter '{letter}': no positions found (miss)");
                 }
             }
-
-            Debug.Log($"[UIFlowController] Defense data collected - {opponentKnownLetters.Count} known letters, {opponentRevealedPositions.Count} hit positions");
 
             // PHASE 2: APPLY HIGHLIGHTING
             // ---------------------------
@@ -1632,18 +1568,15 @@ namespace DLYH.TableUI
                     if (allCoordsKnown)
                     {
                         _gameplayManager?.MarkOpponentLetterHit(letter, opponentColor);
-                        Debug.Log($"[UIFlowController] Defense keyboard: '{letter}' = HIT (opponent color)");
                     }
                     else
                     {
                         _gameplayManager?.MarkOpponentLetterFound(letter);
-                        Debug.Log($"[UIFlowController] Defense keyboard: '{letter}' = FOUND (yellow)");
                     }
                 }
                 else
                 {
                     _gameplayManager?.MarkOpponentLetterMiss(letter);
-                    Debug.Log($"[UIFlowController] Defense keyboard: '{letter}' = MISS (red)");
                 }
             }
 
@@ -1660,12 +1593,10 @@ namespace DLYH.TableUI
                     if (allCoordsKnown)
                     {
                         _defenseWordRows?.RevealLetterInAllWords(letter, opponentColor);
-                        Debug.Log($"[UIFlowController] Defense word rows: '{letter}' = HIT (opponent color)");
                     }
                     else
                     {
                         _defenseWordRows?.RevealLetterAsFoundInAllWords(letter);
-                        Debug.Log($"[UIFlowController] Defense word rows: '{letter}' = FOUND (yellow)");
                     }
                 }
                 // Misses don't need highlighting in word rows - letter just stays without highlight
@@ -1693,14 +1624,11 @@ namespace DLYH.TableUI
                             // Letter was guessed - check if ALL coords for this letter are known
                             bool allCoordsKnown = letterAllCoordsKnown.ContainsKey(letter) && letterAllCoordsKnown[letter];
                             MarkDefenseGridCellHit(cell.col, cell.row, allCoordsKnown);
-                            string stateStr = allCoordsKnown ? "HIT (opponent color)" : "FOUND (yellow)";
-                            Debug.Log($"[UIFlowController] Defense grid restore: ({cell.col}, {cell.row}) letter '{letter}' was guessed, allCoordsKnown={allCoordsKnown} -> {stateStr}");
                         }
                         else
                         {
                             // Coordinate revealed but letter not guessed -> yellow (Revealed)
                             MarkDefenseGridCellRevealedByCoord(cell.col, cell.row);
-                            Debug.Log($"[UIFlowController] Defense grid restore: ({cell.col}, {cell.row}) letter '{letter}' NOT guessed -> REVEALED (yellow)");
                         }
                     }
                     else
@@ -1712,8 +1640,6 @@ namespace DLYH.TableUI
 
             // NOTE: Grid cells are ONLY highlighted if the coordinate was guessed
             // If a letter is known but the coordinate wasn't guessed, the grid cell stays unhighlighted
-
-            Debug.Log($"[UIFlowController] Defense highlighting complete");
 
             // Restore miss counts in guess manager
             if (_guessManager != null)
@@ -1727,8 +1653,6 @@ namespace DLYH.TableUI
                 // Update the miss count display in the UI
                 _gameplayManager?.SetPlayerMissCount(playerMisses, _guessManager.GetPlayerMissLimit());
                 _gameplayManager?.SetOpponentMissCount(opponentMisses, _guessManager.GetOpponentMissLimit());
-
-                Debug.Log($"[UIFlowController] Restored miss counts - Player: {playerMisses}, Opponent: {opponentMisses}");
 
                 // Restore opponent's guessed letters and coordinates to GuessManager
                 // This ensures opponent guesses are tracked for subsequent saves
@@ -2451,16 +2375,17 @@ namespace DLYH.TableUI
 
         /// <summary>
         /// Converts miss count to stage number (1-5) matching GuillotineOverlayManager.
+        /// Uses 25% increments during gameplay (stages 1-4), stage 5 only at execution (100%).
         /// </summary>
         private int GetStageFromMissCount(int missCount, int missLimit)
         {
             if (missLimit <= 0) return 1;
             float percent = Mathf.Clamp01((float)missCount / missLimit) * 100f;
 
-            if (percent >= 80f) return 5;
-            if (percent >= 60f) return 4;
-            if (percent >= 40f) return 3;
-            if (percent >= 20f) return 2;
+            if (percent >= 100f) return 5;
+            if (percent >= 75f) return 4;
+            if (percent >= 50f) return 3;
+            if (percent >= 25f) return 2;
             return 1;
         }
 

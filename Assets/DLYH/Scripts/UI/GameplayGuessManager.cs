@@ -541,13 +541,11 @@ namespace DLYH.TableUI
             if (_playerGuessState != null)
             {
                 _playerGuessState.MissCount = playerMisses;
-                Debug.Log($"[GameplayGuessManager] Restored player misses: {playerMisses}/{_playerGuessState.MissLimit}");
             }
 
             if (_opponentGuessState != null)
             {
                 _opponentGuessState.MissCount = opponentMisses;
-                Debug.Log($"[GameplayGuessManager] Restored opponent misses: {opponentMisses}/{_opponentGuessState.MissLimit}");
             }
         }
 
@@ -585,7 +583,6 @@ namespace DLYH.TableUI
                         }
                     }
                 }
-                Debug.Log($"[GameplayGuessManager] Restored {guessedLetters.Count} opponent guessed letters");
             }
 
             // Restore guessed coordinates
@@ -595,7 +592,6 @@ namespace DLYH.TableUI
                 {
                     _opponentGuessState.GuessedCoordinates.Add(kvp.Key);
                 }
-                Debug.Log($"[GameplayGuessManager] Restored {revealedCoordinates.Count} opponent guessed coordinates");
             }
         }
 

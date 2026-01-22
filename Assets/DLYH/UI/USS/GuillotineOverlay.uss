@@ -227,7 +227,7 @@
 .rope.stage-2 { height: 34%; }  /* 48% - 14% = 34% */
 .rope.stage-3 { height: 24%; }  /* 38% - 14% = 24% */
 .rope.stage-4 { height: 14%; }  /* 28% - 14% = 14% */
-.rope.stage-5 { height: 4%; }   /* 18% - 14% = 4% (small visible bit) */
+.rope.stage-5 { height: 4%; transition-duration: 0.8s; }   /* Execution only - slower final raise */
 
 /* Rope extends fully when blade drops */
 .rope.dropped {
@@ -258,7 +258,7 @@
 .blade-group.stage-2 { top: 48%; }  /* 25-50% danger */
 .blade-group.stage-3 { top: 38%; }  /* 50-75% danger */
 .blade-group.stage-4 { top: 28%; }  /* 75-100% danger (max during gameplay) */
-.blade-group.stage-5 { top: 18%; }  /* Execution only - at bottom of top bar */
+.blade-group.stage-5 { top: 18%; transition-duration: 0.8s; }  /* Execution only - slower final raise */
 
 /* Wood holder on top of blade - hidden, part of blade image */
 .blade-holder {
@@ -491,7 +491,7 @@
 .lever-assembly.lever-right .lever-arm.stage-2 { rotate: 22.5deg; }
 .lever-assembly.lever-right .lever-arm.stage-3 { rotate: 0deg; }
 .lever-assembly.lever-right .lever-arm.stage-4 { rotate: -22.5deg; }
-.lever-assembly.lever-right .lever-arm.stage-5 { rotate: -45deg; }
+.lever-assembly.lever-right .lever-arm.stage-5 { rotate: -45deg; transition-duration: 0.8s; }
 
 /* Left lever rotates: stage 1-4 during gameplay, stage 5 execution only */
 /* Stages 1-4: normal gameplay (0-25%, 25-50%, 50-75%, 75-100% danger) */
@@ -500,7 +500,7 @@
 .lever-assembly.lever-left .lever-arm.stage-2 { rotate: -22.5deg; }
 .lever-assembly.lever-left .lever-arm.stage-3 { rotate: 0deg; }
 .lever-assembly.lever-left .lever-arm.stage-4 { rotate: 22.5deg; }
-.lever-assembly.lever-left .lever-arm.stage-5 { rotate: 45deg; }
+.lever-assembly.lever-left .lever-arm.stage-5 { rotate: 45deg; transition-duration: 0.8s; }
 
 /* When dropped (after latch release), lever swings back down sharply */
 .lever-assembly.lever-right .lever-arm.dropped { rotate: 75deg; }
