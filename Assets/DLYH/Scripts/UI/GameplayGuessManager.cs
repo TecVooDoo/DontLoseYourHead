@@ -552,6 +552,54 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
+        /// Restores opponent's guessed letters and coordinates from saved state.
+        /// Call this when restoring a game to ensure opponent guesses are tracked.
+        /// </summary>
+        /// <param name="guessedLetters">Set of letters the opponent has guessed</param>
+        /// <param name="revealedCoordinates">Dictionary of revealed coordinates (position -> (letter, isHit))</param>
+        public void RestoreOpponentGuessState(HashSet<char> guessedLetters, Dictionary<Vector2Int, (char letter, bool isHit)> revealedCoordinates)
+        {
+            if (_opponentGuessState == null)
+            {
+                Debug.LogWarning("[GameplayGuessManager] Cannot restore opponent guess state - _opponentGuessState is null");
+                return;
+            }
+
+            // Restore guessed letters
+            if (guessedLetters != null)
+            {
+                foreach (char letter in guessedLetters)
+                {
+                    _opponentGuessState.GuessedLetters.Add(char.ToUpper(letter));
+
+                    // Check if this letter is a hit (exists in player's words)
+                    if (_playerPlacedLetters != null)
+                    {
+                        foreach (var kvp in _playerPlacedLetters)
+                        {
+                            if (kvp.Value == char.ToUpper(letter))
+                            {
+                                _opponentGuessState.HitLetters.Add(char.ToUpper(letter));
+                                break;
+                            }
+                        }
+                    }
+                }
+                Debug.Log($"[GameplayGuessManager] Restored {guessedLetters.Count} opponent guessed letters");
+            }
+
+            // Restore guessed coordinates
+            if (revealedCoordinates != null)
+            {
+                foreach (var kvp in revealedCoordinates)
+                {
+                    _opponentGuessState.GuessedCoordinates.Add(kvp.Key);
+                }
+                Debug.Log($"[GameplayGuessManager] Restored {revealedCoordinates.Count} opponent guessed coordinates");
+            }
+        }
+
+        /// <summary>
         /// Gets all letters the opponent has guessed (for AI state building).
         /// </summary>
         public HashSet<char> GetOpponentGuessedLetters() =>

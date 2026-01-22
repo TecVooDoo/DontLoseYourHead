@@ -5,8 +5,8 @@
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `C:\Unity\DontLoseYourHead`
 **Supabase:** Direct MCP access available (game_sessions, session_players, players tables)
-**Document Version:** 80
-**Last Updated:** January 21, 2026
+**Document Version:** 81
+**Last Updated:** January 22, 2026
 
 **Archive:** `DLYH_Status_Archive.md` - Historical designs, old version history, completed phase details, DAB reference patterns
 
@@ -28,42 +28,49 @@
 
 ---
 
-## Last Session (Jan 21, 2026)
+## Last Session (Jan 22, 2026)
 
-Session 68 - **Phase E Session 3 (continued): Defense Card Logic Clarification & Fixes**
+Session 69 - **Phase E Session 3 (continued): Attack Card & Guessed Words Restore Fixes**
 
-**Goal:** Fix Defense card restore to match original game state exactly.
+**Goal:** Fix Attack card cell highlights and Guessed Words panel not restoring correctly on game resume.
 
-**Key Clarification - Defense Card Logic:**
-- **Keyboard/Tracker & Word Rows**: Show letters known via keyboard guess OR word guess
-  - Yellow = letter known, but NOT all coordinates for that letter known
-  - Player Color = letter known AND all coordinates for that letter known
-  - Red = letter guessed but doesn't exist in words (miss)
-- **Grid Cells**: ONLY show coordinates that were guessed
-  - Yellow = coordinate guessed (hit), but letter NOT known or not all coords known
-  - Player Color = coordinate guessed (hit) AND letter known AND all coords known
-  - Red X = coordinate guessed (miss)
-- **Word Guesses**: Add letters to knownLetters, update keyboard/word rows, but do NOT directly mark grid cells
+**Issues Fixed:**
 
-**Fixes Applied:**
-1. **Word guess letters restored to knownLetters** - Word guesses like "TART" DO add T,A,R,T to known letters (was incorrectly removed)
-2. **HandleOpponentWordGuess restructured** - Now correctly:
-   - Calls `ProcessOpponentLetterGuess` for each letter
-   - Updates keyboard/tracker and word rows
-   - Only upgrades existing yellow grid cells to player color (doesn't mark new cells)
-3. **Restore logic simplified** - Uses only `knownLetters` for keyboard/word rows, `revealedCells` for grid
-4. **Removed incorrect grid cell marking** - Grid cells no longer marked just because letter is known
+1. **Attack Card Cell Highlights Not Restoring (FIXED)**
+   - **Problem:** Cells with letters (e.g., H at A1, B3, B4, A6) showed yellow instead of player color on resume
+   - **Root Cause:** `AreAllLetterCoordinatesKnown()` was called before `_playerRevealedCells` was fully populated
+   - **Fix:** Changed to two-pass approach - first populate all revealed cells, then apply visuals with complete data
+   - **File:** `UIFlowController.cs` lines 1320-1370
+
+2. **Opponent Guessed Letters Not Being Saved (FIXED)**
+   - **Problem:** `opponentData.gameplayState.knownLetters` was empty on save after resume
+   - **Root Cause:** GuessManager's `_opponentGuessState` wasn't populated from saved data during restore
+   - **Fix:** Added `RestoreOpponentGuessState()` method to `GameplayGuessManager.cs` and call it during restore
+   - **Files:** `GameplayGuessManager.cs` (new method), `UIFlowController.cs` (call during restore)
+
+3. **Word Index Mismatch Between GuessManager and UI (FIXED)**
+   - **Problem:** Solved word indices didn't match between GuessManager and WordRowsContainer
+   - **Root Cause:** GuessManager used original word order, WordRowsContainer sorted by length
+   - **Fix:** Sort opponent placements by word length in `InitializeGuessManagerWithBothSides()` before iterating
+   - **File:** `UIFlowController.cs` lines 6171-6182
+
+4. **Incorrect Word Guesses Not Tracking (IN PROGRESS)**
+   - **Problem:** Incorrect word guesses (TAG, OFF, TAMEST) not appearing in Guessed Words panel on resume
+   - **Status:** Added debug logging to trace when word guesses are added and saved
+   - **Next Step:** Need console log from ORIGINAL game session where incorrect guesses were made to diagnose
 
 **Files Modified:**
-- `UIFlowController.cs` - `HandleOpponentWordGuess()`: restored ProcessOpponentLetterGuess, fixed grid cell logic
-- `UIFlowController.cs` - `RestoreGameplayStateFromSaved()`: simplified to use knownLetters correctly
+- `UIFlowController.cs` - Two-pass cell restore, opponent guess state restore call, word index sorting, debug logging
+- `GameplayGuessManager.cs` - Added `RestoreOpponentGuessState()` method
 
-**Still Needs Testing:**
-- Verify Defense card matches original game state on resume
-- Verify opponent word guesses appear in Guessed Words panel on resume
-- Verify grid cells only highlight for coordinate guesses
+**Test Results:**
+- Attack card cell highlights: WORKING
+- Defense card: WORKING
+- Opponent guessed letters persistence: WORKING
+- Correct word guesses tracking: WORKING
+- Incorrect word guesses tracking: NEEDS FURTHER TESTING (requires original session log)
 
-**Previous Session:** Session 67 - Attack/Defense card restore fixes
+**Previous Session:** Session 68 - Defense card logic clarification
 
 ---
 
@@ -96,9 +103,13 @@ Session 68 - **Phase E Session 3 (continued): Defense Card Logic Clarification &
 - [x] Restructure defense card restore (data collection then highlighting)
 - [x] Clarify Defense card logic (keyboard/word rows vs grid cells)
 - [x] Fix word guess handling (add to knownLetters, only upgrade existing grid cells)
-- [ ] **TEST: Verify defense card matches original game state on resume**
-- [ ] **TEST: Verify opponent word guesses appear in Guessed Words panel**
-- [ ] Remove debug logging after fixes confirmed
+- [x] Fix attack card cell highlights not restoring (two-pass approach)
+- [x] Fix opponent guessed letters not persisting (RestoreOpponentGuessState)
+- [x] Fix word index mismatch between GuessManager and UI (sort by length)
+- [x] **VERIFIED: Attack card matches original game state on resume**
+- [x] **VERIFIED: Defense card matches original game state on resume**
+- [ ] **IN PROGRESS: Incorrect word guesses not tracking on resume** (need original session log)
+- [ ] Remove debug logging after all fixes confirmed
 
 ### Session 4 - Opponent Join Detection
 
@@ -394,12 +405,12 @@ YourDifficultyModifier: Easy=+4, Normal=+0, Hard=-4
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 81 | Jan 22, 2026 | Session 69 - Attack card cell highlights fix, opponent guess state restore, word index sorting |
 | 80 | Jan 21, 2026 | Session 68 - Defense card logic clarification, word guess fix, simplified restore |
 | 79 | Jan 21, 2026 | Session 67 - Attack/Defense card restore fixes: case-sensitivity, word guess persistence, Guessed Words panel |
 | 78 | Jan 20, 2026 | Session 66 - Game state restore debugging: case-sensitivity fix, cell/keyboard/word row restore logic |
 | 77 | Jan 20, 2026 | Session 65 - Phase E Session 3: Game State Persistence (revealedCells, resume state) |
 | 76 | Jan 20, 2026 | Session 64 - Art asset integration for guillotine overlay (Number1/Number2 sets) |
-| 75 | Jan 19, 2026 | Session 63 - Phase E Sessions 1 & 2: Phantom AI session_players, Join Game fix |
 
 **Full version history:** See `DLYH_Status_Archive.md`
 

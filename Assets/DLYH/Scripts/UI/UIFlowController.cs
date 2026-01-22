@@ -970,6 +970,18 @@ namespace DLYH.TableUI
 
                     myData.gameplayState.solvedWordRows = _playerSolvedWords.ToArray();
 
+                    // Save player's incorrect word guesses (for Guessed Words panel on resume)
+                    Debug.Log($"[UIFlowController] SaveGameState - _allWordGuesses count: {_allWordGuesses.Count}");
+                    foreach (var g in _allWordGuesses)
+                    {
+                        Debug.Log($"[UIFlowController] SaveGameState - _allWordGuesses entry: word='{g.word}' isPlayer={g.isPlayer} isCorrect={g.isCorrect}");
+                    }
+                    myData.gameplayState.incorrectWordGuesses = _allWordGuesses
+                        .Where(g => g.isPlayer && !g.isCorrect)
+                        .Select(g => g.word)
+                        .ToArray();
+                    Debug.Log($"[UIFlowController] SaveGameState - player incorrectWordGuesses: [{string.Join(",", myData.gameplayState.incorrectWordGuesses)}]");
+
                     // Convert revealed cells dictionary to array
                     myData.gameplayState.revealedCells = _playerRevealedCells
                         .Select(kvp => new RevealedCellData(
@@ -1005,13 +1017,21 @@ namespace DLYH.TableUI
                             kvp.Value.isHit))
                         .ToArray();
 
-                    // Save opponent's known letters (letters they've found via guessing)
-                    HashSet<char> opponentHitLetters = _guessManager?.GetOpponentHitLetters() ?? new HashSet<char>();
-                    opponentData.gameplayState.knownLetters = opponentHitLetters.Select(c => c.ToString()).ToArray();
-                    Debug.Log($"[UIFlowController] SaveGameState - opponentData.gameplayState.knownLetters: [{string.Join(",", opponentData.gameplayState.knownLetters)}]");
+                    // Save opponent's guessed letters (ALL letters they've guessed - both hits AND misses)
+                    // This is needed for defense card keyboard restoration to show missed letters in red
+                    HashSet<char> opponentGuessedLetters = _guessManager?.GetOpponentGuessedLetters() ?? new HashSet<char>();
+                    opponentData.gameplayState.knownLetters = opponentGuessedLetters.Select(c => c.ToString()).ToArray();
+                    Debug.Log($"[UIFlowController] SaveGameState - opponentData.gameplayState.knownLetters (all guessed): [{string.Join(",", opponentData.gameplayState.knownLetters)}]");
 
                     // Save opponent's solved word indices (defense words they've correctly guessed)
                     opponentData.gameplayState.solvedWordRows = _opponentSolvedWords.ToArray();
+
+                    // Save opponent's incorrect word guesses (for Guessed Words panel on resume)
+                    opponentData.gameplayState.incorrectWordGuesses = _allWordGuesses
+                        .Where(g => !g.isPlayer && !g.isCorrect)
+                        .Select(g => g.word)
+                        .ToArray();
+                    Debug.Log($"[UIFlowController] SaveGameState - opponent incorrectWordGuesses: [{string.Join(",", opponentData.gameplayState.incorrectWordGuesses)}]");
                 }
 
                 // Update turn info
@@ -1303,6 +1323,7 @@ namespace DLYH.TableUI
             Debug.Log($"[UIFlowController] Keyboard guessed letters for cell restore: [{string.Join(",", keyboardGuessedLetters)}]");
 
             // Restore player's revealed cells (my attacks on opponent's grid)
+            // PASS 1: Populate _playerRevealedCells dictionary first (needed for allCoordsKnown checks)
             if (myData?.gameplayState?.revealedCells != null)
             {
                 Debug.Log($"[UIFlowController] Restoring {myData.gameplayState.revealedCells.Length} player revealed cells");
@@ -1311,11 +1332,14 @@ namespace DLYH.TableUI
                 {
                     Vector2Int pos = new Vector2Int(cell.col, cell.row);
                     char letter = string.IsNullOrEmpty(cell.letter) ? '\0' : cell.letter[0];
-
-                    // Track in local dictionary
                     _playerRevealedCells[pos] = (letter, cell.isHit);
+                }
 
-                    // Update the attack grid visual
+                // PASS 2: Update attack grid visuals now that we have complete revealed cells data
+                foreach (RevealedCellData cell in myData.gameplayState.revealedCells)
+                {
+                    char letter = string.IsNullOrEmpty(cell.letter) ? '\0' : cell.letter[0];
+
                     if (cell.isHit)
                     {
                         // Hit cell - check if the letter was also guessed via keyboard
@@ -1323,9 +1347,21 @@ namespace DLYH.TableUI
 
                         if (letterWasKeyboardGuessed)
                         {
-                            // Letter was keyboard-guessed AND coordinate was hit - show fully with letter
-                            RevealGridCellFully(cell.col, cell.row, letter);
-                            Debug.Log($"[UIFlowController] Cell ({cell.col},{cell.row}) fully revealed with '{letter}' (letter was keyboard-guessed)");
+                            // Letter was keyboard-guessed AND coordinate was hit
+                            // Check if ALL coordinates for this letter are in our revealed cells
+                            // (Can't use GuessManager here since it doesn't have the restore data yet)
+                            List<Vector2Int> letterPositions = _guessManager?.GetOpponentLetterPositions(letter) ?? new List<Vector2Int>();
+                            bool allCoordsKnown = letterPositions.Count > 0;
+                            foreach (Vector2Int pos in letterPositions)
+                            {
+                                if (!_playerRevealedCells.ContainsKey(pos))
+                                {
+                                    allCoordsKnown = false;
+                                    break;
+                                }
+                            }
+                            RevealGridCellFully(cell.col, cell.row, letter, allCoordsKnown);
+                            Debug.Log($"[UIFlowController] Cell ({cell.col},{cell.row}) revealed with '{letter}' (allCoordsKnown={allCoordsKnown})");
                         }
                         else
                         {
@@ -1420,7 +1456,24 @@ namespace DLYH.TableUI
                     if (!string.IsNullOrEmpty(solvedWord))
                     {
                         _gameplayManager?.AddGuessedWord(playerName, solvedWord, true, true, myColor);
+                        _allWordGuesses.Add((solvedWord.ToUpper(), true, true));
                         Debug.Log($"[UIFlowController] Restored player solved word {wordIndex}: '{solvedWord}'");
+                    }
+                }
+            }
+
+            // Restore player incorrect word guesses
+            if (myData?.gameplayState?.incorrectWordGuesses != null)
+            {
+                string playerName = _playerService?.CurrentPlayerName ?? "You";
+
+                foreach (string incorrectWord in myData.gameplayState.incorrectWordGuesses)
+                {
+                    if (!string.IsNullOrEmpty(incorrectWord))
+                    {
+                        _gameplayManager?.AddGuessedWord(playerName, incorrectWord, false, true, myColor);
+                        _allWordGuesses.Add((incorrectWord.ToUpper(), true, false));
+                        Debug.Log($"[UIFlowController] Restored player incorrect word guess: '{incorrectWord}'");
                     }
                 }
             }
@@ -1439,7 +1492,24 @@ namespace DLYH.TableUI
                     if (!string.IsNullOrEmpty(solvedWord))
                     {
                         _gameplayManager?.AddGuessedWord(opponentName, solvedWord, true, false, opponentColor);
+                        _allWordGuesses.Add((solvedWord.ToUpper(), false, true));
                         Debug.Log($"[UIFlowController] Restored opponent solved word {wordIndex}: '{solvedWord}'");
+                    }
+                }
+            }
+
+            // Restore opponent incorrect word guesses
+            if (opponentData?.gameplayState?.incorrectWordGuesses != null)
+            {
+                string opponentName = _opponent?.OpponentName ?? "Opponent";
+
+                foreach (string incorrectWord in opponentData.gameplayState.incorrectWordGuesses)
+                {
+                    if (!string.IsNullOrEmpty(incorrectWord))
+                    {
+                        _gameplayManager?.AddGuessedWord(opponentName, incorrectWord, false, false, opponentColor);
+                        _allWordGuesses.Add((incorrectWord.ToUpper(), false, false));
+                        Debug.Log($"[UIFlowController] Restored opponent incorrect word guess: '{incorrectWord}'");
                     }
                 }
             }
@@ -1602,6 +1672,10 @@ namespace DLYH.TableUI
             }
 
             // 2c. Highlight GRID CELLS
+            // Grid highlighting rules now match word rows/keyboard:
+            // - Yellow (Found): coordinate was revealed AND letter was guessed, but NOT all coords for that letter known
+            // - Yellow (Revealed): coordinate was revealed but letter NOT guessed
+            // - Opponent Color (Hit): coordinate was revealed AND letter was guessed AND all coords for that letter known
             // First, handle coordinate-guessed cells (hits and misses)
             if (opponentData?.gameplayState?.revealedCells != null)
             {
@@ -1611,19 +1685,22 @@ namespace DLYH.TableUI
 
                     if (cell.isHit)
                     {
-                        // For opponent color: letter must be known AND all coords for that letter known
-                        bool letterKnown = letter != '\0' && opponentKnownLetters.Contains(letter);
-                        bool allCoordsKnown = letter != '\0' && letterAllCoordsKnown.ContainsKey(letter) && letterAllCoordsKnown[letter];
+                        // Check if the letter was guessed (is in opponentKnownLetters)
+                        bool letterWasGuessed = letter != '\0' && opponentKnownLetters.Contains(letter);
 
-                        if (letterKnown && allCoordsKnown)
+                        if (letterWasGuessed)
                         {
-                            // Letter known and all coords known -> opponent color
-                            MarkDefenseGridCellHit(cell.col, cell.row);
+                            // Letter was guessed - check if ALL coords for this letter are known
+                            bool allCoordsKnown = letterAllCoordsKnown.ContainsKey(letter) && letterAllCoordsKnown[letter];
+                            MarkDefenseGridCellHit(cell.col, cell.row, allCoordsKnown);
+                            string stateStr = allCoordsKnown ? "HIT (opponent color)" : "FOUND (yellow)";
+                            Debug.Log($"[UIFlowController] Defense grid restore: ({cell.col}, {cell.row}) letter '{letter}' was guessed, allCoordsKnown={allCoordsKnown} -> {stateStr}");
                         }
                         else
                         {
-                            // Coordinate revealed but letter not known OR not all coords known -> yellow
+                            // Coordinate revealed but letter not guessed -> yellow (Revealed)
                             MarkDefenseGridCellRevealedByCoord(cell.col, cell.row);
+                            Debug.Log($"[UIFlowController] Defense grid restore: ({cell.col}, {cell.row}) letter '{letter}' NOT guessed -> REVEALED (yellow)");
                         }
                     }
                     else
@@ -1652,6 +1729,10 @@ namespace DLYH.TableUI
                 _gameplayManager?.SetOpponentMissCount(opponentMisses, _guessManager.GetOpponentMissLimit());
 
                 Debug.Log($"[UIFlowController] Restored miss counts - Player: {playerMisses}, Opponent: {opponentMisses}");
+
+                // Restore opponent's guessed letters and coordinates to GuessManager
+                // This ensures opponent guesses are tracked for subsequent saves
+                _guessManager.RestoreOpponentGuessState(opponentKnownLetters, _opponentRevealedCells);
             }
 
             Debug.Log("[UIFlowController] Gameplay state restoration complete");
@@ -2183,6 +2264,7 @@ namespace DLYH.TableUI
 
                     // Track for saving to Supabase
                     _allWordGuesses.Add((guessedWord.ToUpper(), true, true));
+                    Debug.Log($"[UIFlowController] Added correct word guess '{guessedWord.ToUpper()}' to _allWordGuesses. Total count: {_allWordGuesses.Count}");
 
                     // Correct word guess always grants an extra turn
                     _playerExtraTurnQueue.Enqueue(wordIndex);
@@ -2199,6 +2281,7 @@ namespace DLYH.TableUI
 
                     // Track for saving to Supabase
                     _allWordGuesses.Add((guessedWord.ToUpper(), true, false));
+                    Debug.Log($"[UIFlowController] Added incorrect word guess '{guessedWord.ToUpper()}' to _allWordGuesses. Total count: {_allWordGuesses.Count}");
 
                     EndPlayerTurn(); // Wrong guess always ends turn
                     break;
@@ -2245,6 +2328,9 @@ namespace DLYH.TableUI
                         _attackWordRows?.RevealLetterInAllWords(letter, playerColor);
                         _gameplayManager?.MarkLetterHit(letter, playerColor);
                         Debug.Log($"[UIFlowController] Word guess: '{letter}' -> player color (all coords known)");
+
+                        // Upgrade ALL grid cells with this letter to Hit (player color)
+                        UpgradeAttackGridCellsToHit(letter);
                     }
                     else
                     {
@@ -2254,14 +2340,14 @@ namespace DLYH.TableUI
                         Debug.Log($"[UIFlowController] Word guess: '{letter}' -> yellow (coords not all known)");
                     }
 
-                    // Also upgrade any grid cells that are in Revealed (yellow) state to show the letter
+                    // Also upgrade any grid cells that are in Revealed (yellow, no letter) state to show the letter
                     // This ensures yellow cells get upgraded when letter is discovered via word guess
                     foreach (Vector2Int pos in letterPositions)
                     {
                         if (IsGridCellInState(pos.x, pos.y, TableCellState.Revealed))
                         {
-                            RevealGridCellFully(pos.x, pos.y, letter);
-                            Debug.Log($"[UIFlowController] Word guess: Upgraded yellow cell ({pos.x}, {pos.y}) to show '{letter}'");
+                            RevealGridCellFully(pos.x, pos.y, letter, allCoordinatesKnown);
+                            Debug.Log($"[UIFlowController] Word guess: Upgraded Revealed cell ({pos.x}, {pos.y}) to show '{letter}' (allCoordsKnown={allCoordinatesKnown})");
                         }
                     }
                 }
@@ -3034,11 +3120,18 @@ namespace DLYH.TableUI
                     }
                 }
 
-                // NOTE: Letter guesses do NOT update the grid!
-                // Grid cells only update when coordinates are guessed.
+                // NOTE: Letter guesses do NOT directly reveal grid cells!
+                // Grid cells only get highlighted when coordinates are guessed.
                 // If opponent already guessed coordinates containing this letter,
-                // those cells should upgrade from Revealed (yellow) to Hit (opponent color).
-                UpgradeDefenseGridLetterToHit(letter);
+                // those cells should be updated with appropriate state based on allCoordsKnown.
+                // Update grid cells that have been coordinate-guessed with this letter
+                MarkDefenseGridLetterFound(letter, allCoordsKnown);
+
+                // If all coords now known, also upgrade any cells that were previously Found to Hit
+                if (allCoordsKnown)
+                {
+                    UpgradeDefenseGridLetterToHit(letter);
+                }
 
                 // Update opponent keyboard with appropriate color
                 if (allCoordsKnown)
@@ -3119,8 +3212,16 @@ namespace DLYH.TableUI
 
                 if (letterAtPos.HasValue && (_guessManager?.HasOpponentGuessedLetter(letterAtPos.Value) ?? false))
                 {
-                    // Letter was already guessed via keyboard - full reveal (opponent color)
-                    MarkDefenseGridCellHit(col, row);
+                    // Letter was already guessed via keyboard
+                    // Check if ALL coordinates for this letter are now known
+                    bool allCoordsKnown = _guessManager?.AreAllPlayerLetterCoordinatesKnownByOpponent(letterAtPos.Value) ?? false;
+                    MarkDefenseGridCellHit(col, row, allCoordsKnown);
+
+                    // If all coords now known, upgrade all cells with this letter to Hit
+                    if (allCoordsKnown)
+                    {
+                        UpgradeDefenseGridLetterToHit(letterAtPos.Value);
+                    }
                 }
                 else
                 {
@@ -3249,6 +3350,7 @@ namespace DLYH.TableUI
                 // Track solved word index for saving to Supabase
                 _opponentSolvedWords.Add(wordIndex);
                 _allWordGuesses.Add((normalizedGuess, false, true));
+                Debug.Log($"[UIFlowController] Added opponent correct word guess '{normalizedGuess}' to _allWordGuesses. Total count: {_allWordGuesses.Count}");
 
                 // Track guessed word (correct - shown with opponent color background)
                 string opponentName = _opponent?.OpponentName ?? "Opponent";
@@ -3281,8 +3383,7 @@ namespace DLYH.TableUI
 
                 // Word guess does NOT directly reveal grid cells
                 // Grid cells only show what was coordinate-guessed
-                // But we need to upgrade any yellow cells (coord known, letter unknown) to player color
-                // if the letter at that position is now known AND all coords for that letter are known
+                // Update cells that were already coordinate-guessed with appropriate state
                 if (_playerSetupData?.PlacedWords != null && wordIndex < _playerSetupData.PlacedWords.Count)
                 {
                     WordPlacementData wordData = _playerSetupData.PlacedWords[wordIndex];
@@ -3292,16 +3393,13 @@ namespace DLYH.TableUI
                         int cellRow = wordData.StartRow + (i * wordData.DirRow);
                         char letterAtCell = char.ToUpper(wordData.Word[i]);
 
-                        // Only upgrade cells that were already coordinate-guessed (in _opponentRevealedCells)
+                        // Only update cells that were already coordinate-guessed (in _opponentRevealedCells)
                         Vector2Int position = new Vector2Int(cellCol, cellRow);
                         if (_opponentRevealedCells.ContainsKey(position) && _opponentRevealedCells[position].isHit)
                         {
-                            // Cell was coordinate-guessed, check if we should upgrade to player color
+                            // Cell was coordinate-guessed - update with appropriate state based on allCoordsKnown
                             bool allCoordsKnown = _guessManager?.AreAllPlayerLetterCoordinatesKnownByOpponent(letterAtCell) ?? false;
-                            if (allCoordsKnown)
-                            {
-                                MarkDefenseGridCellHit(cellCol, cellRow);
-                            }
+                            MarkDefenseGridCellHit(cellCol, cellRow, allCoordsKnown);
                         }
 
                         _opponent?.RecordOpponentHit(cellRow, cellCol);
@@ -3324,6 +3422,7 @@ namespace DLYH.TableUI
 
                 // Track incorrect word guess for saving to Supabase
                 _allWordGuesses.Add((normalizedGuess, false, false));
+                Debug.Log($"[UIFlowController] Added opponent incorrect word guess '{normalizedGuess}' to _allWordGuesses. Total count: {_allWordGuesses.Count}");
 
                 // Track guessed word (incorrect - shown with red background)
                 string opponentName = _opponent?.OpponentName ?? "Opponent";
@@ -3357,19 +3456,28 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
-        /// Marks a cell on the defense grid as fully hit by opponent (shows opponent color).
-        /// Use this only when BOTH the coordinate AND the letter are known.
+        /// Marks a cell on the defense grid with the appropriate state based on whether all coords for the letter are known.
+        /// Uses Found (yellow) if not all coords known, Hit (opponent color) if all coords known.
         /// </summary>
-        private void MarkDefenseGridCellHit(int gridCol, int gridRow)
+        /// <param name="allCoordsKnown">True if all coordinates for this letter are known by opponent</param>
+        private void MarkDefenseGridCellHit(int gridCol, int gridRow, bool allCoordsKnown = true)
         {
             if (_defenseTableModel == null || _tableLayout == null) return;
 
             (int tableRow, int tableCol) = _tableLayout.GridToTable(gridRow, gridCol);
-            _defenseTableModel.SetCellState(tableRow, tableCol, TableCellState.Hit);
-            // Set owner to Opponent so it shows in opponent color when hit
-            _defenseTableModel.SetCellOwner(tableRow, tableCol, CellOwner.Opponent);
 
-            Debug.Log($"[UIFlowController] Defense grid cell ({gridCol}, {gridRow}) marked as HIT by opponent (full reveal)");
+            // Use Hit (opponent color) only if ALL coordinates for this letter are known
+            // Otherwise use Found (yellow with letter shown)
+            TableCellState state = allCoordsKnown ? TableCellState.Hit : TableCellState.Found;
+            _defenseTableModel.SetCellState(tableRow, tableCol, state);
+
+            if (allCoordsKnown)
+            {
+                // Set owner to Opponent so it shows in opponent color when hit
+                _defenseTableModel.SetCellOwner(tableRow, tableCol, CellOwner.Opponent);
+            }
+
+            Debug.Log($"[UIFlowController] Defense grid cell ({gridCol}, {gridRow}) marked as {state} (allCoordsKnown={allCoordsKnown})");
         }
 
         /// <summary>
@@ -3425,10 +3533,11 @@ namespace DLYH.TableUI
 
         /// <summary>
         /// Updates defense grid cells when opponent guesses a letter.
-        /// - If coordinate was already guessed: upgrade to Hit (opponent color)
-        /// - If coordinate not yet guessed: mark as Revealed (yellow)
+        /// - If coordinate was already guessed AND all coords for letter known: upgrade to Hit (opponent color)
+        /// - If coordinate was already guessed but not all coords known: mark as Found (yellow with letter)
+        /// - If coordinate not yet guessed: leave as is (letter is shown but no highlight)
         /// </summary>
-        private void MarkDefenseGridLetterFound(char letter)
+        private void MarkDefenseGridLetterFound(char letter, bool allCoordsKnown)
         {
             if (_guessManager == null) return;
 
@@ -3437,14 +3546,10 @@ namespace DLYH.TableUI
             {
                 if (_guessManager.HasOpponentGuessedCoordinate(pos.x, pos.y))
                 {
-                    // Both letter AND coordinate known - full reveal (opponent color)
-                    MarkDefenseGridCellHit(pos.x, pos.y);
+                    // Coordinate was guessed - mark with appropriate state based on allCoordsKnown
+                    MarkDefenseGridCellHit(pos.x, pos.y, allCoordsKnown);
                 }
-                else
-                {
-                    // Letter known but coordinate not yet guessed - yellow
-                    MarkDefenseGridCellFound(pos.x, pos.y);
-                }
+                // If coordinate not yet guessed, the cell stays as Normal (letters are always visible on defense grid)
             }
         }
 
@@ -3454,7 +3559,7 @@ namespace DLYH.TableUI
         /// </summary>
         private void UpgradeDefenseGridLetterToHit(char letter)
         {
-            if (_guessManager == null) return;
+            if (_guessManager == null || _defenseTableModel == null || _tableLayout == null) return;
 
             List<Vector2Int> positions = _guessManager.GetPlayerLetterPositions(letter);
             foreach (Vector2Int pos in positions)
@@ -3462,7 +3567,17 @@ namespace DLYH.TableUI
                 // Only upgrade if opponent has actually guessed this coordinate
                 if (_guessManager.HasOpponentGuessedCoordinate(pos.x, pos.y))
                 {
-                    MarkDefenseGridCellHit(pos.x, pos.y);
+                    (int tableRow, int tableCol) = _tableLayout.GridToTable(pos.y, pos.x);
+                    TableCell cell = _defenseTableModel.GetCell(tableRow, tableCol);
+                    TableCellState currentState = cell.State;
+
+                    // Only upgrade cells that are in Found or Revealed state
+                    if (currentState == TableCellState.Found || currentState == TableCellState.Revealed)
+                    {
+                        _defenseTableModel.SetCellState(tableRow, tableCol, TableCellState.Hit);
+                        _defenseTableModel.SetCellOwner(tableRow, tableCol, CellOwner.Opponent);
+                        Debug.Log($"[UIFlowController] Upgraded defense grid cell ({pos.x}, {pos.y}) from {currentState} to Hit for letter '{letter}'");
+                    }
                 }
             }
         }
@@ -3667,8 +3782,8 @@ namespace DLYH.TableUI
             {
                 if (IsGridCellInState(pos.x, pos.y, TableCellState.Revealed))
                 {
-                    RevealGridCellFully(pos.x, pos.y, letter);
-                    Debug.Log($"[UIFlowController] Upgraded yellow cell ({pos.x}, {pos.y}) to show '{letter}'");
+                    RevealGridCellFully(pos.x, pos.y, letter, allCoordinatesKnown);
+                    Debug.Log($"[UIFlowController] Upgraded yellow cell ({pos.x}, {pos.y}) to show '{letter}' (allCoordsKnown={allCoordinatesKnown})");
                 }
             }
 
@@ -3737,13 +3852,13 @@ namespace DLYH.TableUI
 
             if (letterAlreadyKnown)
             {
-                // Letter already guessed - show it immediately with Hit state (player color)
-                RevealGridCellFully(position.x, position.y, letter);
-
                 // Check if ALL coordinates for this letter are now known
-                // Only upgrade keyboard and word rows to player color when all coordinates are guessed
                 List<Vector2Int> allPositions = _guessManager?.GetOpponentLetterPositions(letter) ?? new List<Vector2Int>();
                 bool allCoordinatesKnown = AreAllLetterPositionsCoordinateGuessed(letter, allPositions);
+
+                // Letter already guessed - show it with appropriate state
+                // Uses Found (yellow) if not all coords known, Hit (player color) if all coords known
+                RevealGridCellFully(position.x, position.y, letter, allCoordinatesKnown);
 
                 if (allCoordinatesKnown)
                 {
@@ -3762,6 +3877,9 @@ namespace DLYH.TableUI
                         _attackWordRows.UpgradeLetterToPlayerColorInAllWords(letter, playerColor);
                         Debug.Log($"[UIFlowController] Word rows '{letter}' -> player color (all coordinates now known)");
                     }
+
+                    // Upgrade ALL grid cells with this letter from Found to Hit
+                    UpgradeAttackGridCellsToHit(letter);
                 }
                 else
                 {
@@ -3788,6 +3906,8 @@ namespace DLYH.TableUI
         {
             if (_guessManager == null || _gameplayManager == null) return;
 
+            Color playerColor = _wizardManager?.PlayerColor ?? ColorRules.SelectableColors[0];
+
             // Only check letters that were GUESSED VIA KEYBOARD, not just hit via coordinate
             foreach (char letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
             {
@@ -3802,6 +3922,9 @@ namespace DLYH.TableUI
                         if (allCoordsKnown)
                         {
                             _gameplayManager.SetKeyboardLetterState(letter, LetterKeyState.Hit);
+                            // Also upgrade attack grid cells and word rows to player color
+                            _attackWordRows?.UpgradeLetterToPlayerColorInAllWords(letter, playerColor);
+                            UpgradeAttackGridCellsToHit(letter);
                         }
                         else
                         {
@@ -3828,20 +3951,27 @@ namespace DLYH.TableUI
         #region Grid Cell State Helpers
 
         /// <summary>
-        /// Fully reveals a grid cell with a hit letter (player color + letter shown) on the attack grid.
-        /// Used when letter is already known or when letter is guessed.
+        /// Reveals a grid cell with letter on the attack grid.
+        /// Uses Found state (yellow) if not all coords for this letter are known.
+        /// Uses Hit state (player color) if all coords for this letter are known.
         /// </summary>
-        private void RevealGridCellFully(int gridCol, int gridRow, char letter)
+        /// <param name="allCoordsKnown">True if all coordinates for this letter are known</param>
+        private void RevealGridCellFully(int gridCol, int gridRow, char letter, bool allCoordsKnown = false)
         {
             if (_attackTableModel == null || _attackTableLayout == null) return;
 
             (int tableRow, int tableCol) = _attackTableLayout.GridToTable(gridRow, gridCol);
             _attackTableModel.SetCellChar(tableRow, tableCol, letter);
-            _attackTableModel.SetCellState(tableRow, tableCol, TableCellState.Hit);
+
+            // Use Hit (player color) only if ALL coordinates for this letter are known
+            // Otherwise use Found (yellow with letter shown)
+            TableCellState state = allCoordsKnown ? TableCellState.Hit : TableCellState.Found;
+            _attackTableModel.SetCellState(tableRow, tableCol, state);
+
             // Set owner to Player1 so hit cells show in PLAYER color, not opponent color
             _attackTableModel.SetCellOwner(tableRow, tableCol, CellOwner.Player);
 
-            Debug.Log($"[UIFlowController] Fully revealed cell ({gridCol}, {gridRow}) with letter '{letter}'");
+            Debug.Log($"[UIFlowController] Revealed cell ({gridCol}, {gridRow}) with letter '{letter}' - state: {state} (allCoordsKnown={allCoordsKnown})");
         }
 
         /// <summary>
@@ -3871,6 +4001,32 @@ namespace DLYH.TableUI
             _attackTableModel.SetCellState(tableRow, tableCol, TableCellState.Miss);
 
             Debug.Log($"[UIFlowController] Marked cell ({gridCol}, {gridRow}) as miss (red)");
+        }
+
+        /// <summary>
+        /// Upgrades all attack grid cells with the given letter from Found (yellow) to Hit (player color).
+        /// Called when all coordinates for a letter become known.
+        /// </summary>
+        private void UpgradeAttackGridCellsToHit(char letter)
+        {
+            if (_attackTableModel == null || _attackTableLayout == null || _guessManager == null) return;
+
+            List<Vector2Int> positions = _guessManager.GetOpponentLetterPositions(letter);
+            foreach (Vector2Int pos in positions)
+            {
+                (int tableRow, int tableCol) = _attackTableLayout.GridToTable(pos.y, pos.x);
+                TableCell cell = _attackTableModel.GetCell(tableRow, tableCol);
+                TableCellState currentState = cell.State;
+
+                // Only upgrade cells that are in Found or Revealed state
+                if (currentState == TableCellState.Found || currentState == TableCellState.Revealed)
+                {
+                    _attackTableModel.SetCellChar(tableRow, tableCol, letter);
+                    _attackTableModel.SetCellState(tableRow, tableCol, TableCellState.Hit);
+                    _attackTableModel.SetCellOwner(tableRow, tableCol, CellOwner.Player);
+                    Debug.Log($"[UIFlowController] Upgraded attack grid cell ({pos.x}, {pos.y}) from {currentState} to Hit for letter '{letter}'");
+                }
+            }
         }
 
         /// <summary>
@@ -6022,12 +6178,17 @@ namespace DLYH.TableUI
             }
 
             // Build opponent's placed letters dictionary and word list
+            // IMPORTANT: Sort by word length to match word row ordering (shortest first)
+            // This ensures word indices in GuessManager match word row indices in UI
             Dictionary<Vector2Int, char> opponentPlacedLetters = new Dictionary<Vector2Int, char>();
             HashSet<Vector2Int> opponentPlacedPositions = new HashSet<Vector2Int>();
             List<string> opponentWords = new List<string>();
 
-            Debug.Log($"[UIFlowController] InitializeGuessManager - opponentPlacements count: {opponentPlacements?.Count ?? -1}");
-            foreach (WordPlacementData wordData in opponentPlacements)
+            List<WordPlacementData> sortedOpponentPlacements = new List<WordPlacementData>(opponentPlacements);
+            sortedOpponentPlacements.Sort((a, b) => a.Word.Length.CompareTo(b.Word.Length));
+
+            Debug.Log($"[UIFlowController] InitializeGuessManager - opponentPlacements count: {sortedOpponentPlacements?.Count ?? -1}");
+            foreach (WordPlacementData wordData in sortedOpponentPlacements)
             {
                 Debug.Log($"[UIFlowController] InitializeGuessManager - opponent word: '{wordData.Word}' at ({wordData.StartCol},{wordData.StartRow}) dir({wordData.DirCol},{wordData.DirRow})");
                 opponentWords.Add(wordData.Word);
