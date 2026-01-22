@@ -248,7 +248,7 @@ namespace DLYH.TableUI
         /// </summary>
         public void SetWord(string word)
         {
-            _word = word ?? "";
+            _word = word?.ToUpper() ?? "";
 
             // Update letter cells
             for (int i = 0; i < _wordLength; i++)

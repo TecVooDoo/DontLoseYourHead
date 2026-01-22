@@ -4,8 +4,9 @@
 **Developer:** TecVooDoo LLC / Rune (Stephen Brandon)
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `C:\Unity\DontLoseYourHead`
-**Document Version:** 78
-**Last Updated:** January 20, 2026
+**Supabase:** Direct MCP access available (game_sessions, session_players, players tables)
+**Document Version:** 80
+**Last Updated:** January 21, 2026
 
 **Archive:** `DLYH_Status_Archive.md` - Historical designs, old version history, completed phase details, DAB reference patterns
 
@@ -27,42 +28,42 @@
 
 ---
 
-## Last Session (Jan 20, 2026)
+## Last Session (Jan 21, 2026)
 
-Session 66 - **Phase E Session 3 (continued): Game State Restore Debugging**
+Session 68 - **Phase E Session 3 (continued): Defense Card Logic Clarification & Fixes**
 
-**Goal:** Fix game resume so state looks exactly like when player quit (cells, keyboard, word rows).
+**Goal:** Fix Defense card restore to match original game state exactly.
 
-**Issues Identified:**
-1. **Cell C3 showing letter with player color when H was not keyboard-guessed** - Fixed by checking `keyboardGuessedLetters` HashSet before calling `RevealGridCellFully`
-2. **All keyboard letters showing as red (misses)** - Root cause: `GetOpponentLetterPositions` returning empty, possibly case-sensitivity bug
-3. **Word rows empty** - Letters not revealed because `isHit` was false for all letters
+**Key Clarification - Defense Card Logic:**
+- **Keyboard/Tracker & Word Rows**: Show letters known via keyboard guess OR word guess
+  - Yellow = letter known, but NOT all coordinates for that letter known
+  - Player Color = letter known AND all coordinates for that letter known
+  - Red = letter guessed but doesn't exist in words (miss)
+- **Grid Cells**: ONLY show coordinates that were guessed
+  - Yellow = coordinate guessed (hit), but letter NOT known or not all coords known
+  - Player Color = coordinate guessed (hit) AND letter known AND all coords known
+  - Red X = coordinate guessed (miss)
+- **Word Guesses**: Add letters to knownLetters, update keyboard/word rows, but do NOT directly mark grid cells
 
 **Fixes Applied:**
-- `UIFlowController.cs` - Cell restoration now checks if letter was keyboard-guessed before revealing fully
-- `UIFlowController.cs` - Build HashSet of keyboard-guessed letters at start of restore
-- `GameplayGuessManager.cs` - Fixed case-sensitivity in `GetOpponentLetterPositions` (both stored and searched letters now uppercased)
-- Added comprehensive debug logging throughout restore flow
-
-**Debug Logging Added:**
-- `InitializeGuessManagerWithBothSides`: opponent placements count, each word with coordinates, unique letters
-- `GameplayGuessManager.Initialize`: opponentPlacedLetters count
-- `GetOpponentLetterPositions`: null check, entry count, positions found
-- `RestoreGameplayStateFromSaved`: guessManager null check, attackWordRows null check, letter reveal logging
+1. **Word guess letters restored to knownLetters** - Word guesses like "TART" DO add T,A,R,T to known letters (was incorrectly removed)
+2. **HandleOpponentWordGuess restructured** - Now correctly:
+   - Calls `ProcessOpponentLetterGuess` for each letter
+   - Updates keyboard/tracker and word rows
+   - Only upgrades existing yellow grid cells to player color (doesn't mark new cells)
+3. **Restore logic simplified** - Uses only `knownLetters` for keyboard/word rows, `revealedCells` for grid
+4. **Removed incorrect grid cell marking** - Grid cells no longer marked just because letter is known
 
 **Files Modified:**
-- `UIFlowController.cs` - Lines ~1271-1380 (restore logic), ~5764-5800 (initialization logging)
-- `GameplayGuessManager.cs` - Lines ~711-733 (GetOpponentLetterPositions case fix + logging)
+- `UIFlowController.cs` - `HandleOpponentWordGuess()`: restored ProcessOpponentLetterGuess, fixed grid cell logic
+- `UIFlowController.cs` - `RestoreGameplayStateFromSaved()`: simplified to use knownLetters correctly
 
-**Expected Restore Flow:**
-1. Create blank grid, word rows, keyboard/tracker
-2. Fill word rows with underscores (from opponent placements)
-3. Restore revealed cells to grid (yellow for coord-only hits, red for misses)
-4. Restore keyboard letters (check opponent placements to determine hit/miss/found)
-5. If hit letter and all coords known: player color on keyboard + word rows
-6. If hit letter but not all coords: yellow (Found) on keyboard + word rows
+**Still Needs Testing:**
+- Verify Defense card matches original game state on resume
+- Verify opponent word guesses appear in Guessed Words panel on resume
+- Verify grid cells only highlight for coordinate guesses
 
-**Previous Session:** Session 65 - Phase E Session 3: Game State Persistence
+**Previous Session:** Session 67 - Attack/Defense card restore fixes
 
 ---
 
@@ -89,9 +90,14 @@ Session 66 - **Phase E Session 3 (continued): Game State Restore Debugging**
 - [x] Restore cells from saved state
 - [x] Fix cell C3 showing wrong state (letter when not keyboard-guessed)
 - [x] Fix case-sensitivity in GetOpponentLetterPositions
-- [x] Add comprehensive debug logging
-- [ ] **TEST: Verify all letters restore correctly (yellow found vs red miss)**
-- [ ] **TEST: Verify word rows show letters after restore**
+- [x] Fix case-sensitivity in WordRowView.SetWord (uppercase word storage)
+- [x] Fix word guess letters not being saved to knownLetters
+- [x] Fix solved words not appearing in Guessed Words panel on restore
+- [x] Restructure defense card restore (data collection then highlighting)
+- [x] Clarify Defense card logic (keyboard/word rows vs grid cells)
+- [x] Fix word guess handling (add to knownLetters, only upgrade existing grid cells)
+- [ ] **TEST: Verify defense card matches original game state on resume**
+- [ ] **TEST: Verify opponent word guesses appear in Guessed Words panel**
 - [ ] Remove debug logging after fixes confirmed
 
 ### Session 4 - Opponent Join Detection
@@ -388,12 +394,12 @@ YourDifficultyModifier: Easy=+4, Normal=+0, Hard=-4
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 80 | Jan 21, 2026 | Session 68 - Defense card logic clarification, word guess fix, simplified restore |
+| 79 | Jan 21, 2026 | Session 67 - Attack/Defense card restore fixes: case-sensitivity, word guess persistence, Guessed Words panel |
 | 78 | Jan 20, 2026 | Session 66 - Game state restore debugging: case-sensitivity fix, cell/keyboard/word row restore logic |
 | 77 | Jan 20, 2026 | Session 65 - Phase E Session 3: Game State Persistence (revealedCells, resume state) |
 | 76 | Jan 20, 2026 | Session 64 - Art asset integration for guillotine overlay (Number1/Number2 sets) |
 | 75 | Jan 19, 2026 | Session 63 - Phase E Sessions 1 & 2: Phantom AI session_players, Join Game fix |
-| 74 | Jan 19, 2026 | Created DLYH_NetworkingPlan_Phase_E.md - 7 session implementation plan |
-| 73 | Jan 19, 2026 | Session 62 - Professional network architecture evaluation, gap analysis |
 
 **Full version history:** See `DLYH_Status_Archive.md`
 
