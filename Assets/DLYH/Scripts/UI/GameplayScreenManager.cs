@@ -950,6 +950,23 @@ namespace DLYH.TableUI
             UpdateOpponentMissDisplay();
         }
 
+        /// <summary>
+        /// Updates the opponent's name in the UI when they join during gameplay.
+        /// Used for private games where host starts before opponent joins.
+        /// </summary>
+        public void SetOpponentName(string name)
+        {
+            if (_opponentData != null)
+            {
+                _opponentData.Name = name;
+            }
+            if (_opponentNameLabel != null)
+            {
+                _opponentNameLabel.text = name ?? "OPPONENT";
+            }
+            Debug.Log($"[GameplayScreenManager] Updated opponent name to: {name}");
+        }
+
         private void UpdatePlayerMissDisplay()
         {
             if (_playerData == null) return;

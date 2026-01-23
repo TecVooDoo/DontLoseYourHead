@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: SupabaseConfig
   m_EditorClassIdentifier: Assembly-CSharp::DLYH.Networking.Services.SupabaseConfig
   _projectUrl: https://api.tecvoodoo.com
-  _anonKey: sb_secret_9e9pzJrDo26aRYr-YKCxAQ_mo-ffdZ7
+  _anonKey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVlbnV4ZGptc2liY2Zoemd0c2x4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MzMwOTIsImV4cCI6MjA4MjEwOTA5Mn0.cHb0tnRbkR0-E0KO3vY-dyL2kc59UC42jRIaGlpuk5E
   _gameTypeId: dlyh
   _requestTimeoutSeconds: 30
   _inactivityForfeitDays: 3

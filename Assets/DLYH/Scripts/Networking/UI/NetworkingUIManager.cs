@@ -612,15 +612,77 @@ namespace DLYH.Networking.UI
 
         private async UniTask PollForOpponentAsync(string gameCode)
         {
-            // This would poll the game session for a second player
-            // For now, just wait
+            const int POLL_INTERVAL_MS = 2000;
+
+            Debug.Log($"[NetworkingUIManager] Starting opponent polling for game {gameCode}");
+
             while (_isActive)
             {
-                await UniTask.Delay(2000);
+                await UniTask.Delay(POLL_INTERVAL_MS);
 
-                // In real implementation, check if opponent joined via GameSessionService
-                // If joined, show "Player joined!" and enable start button
+                if (!_isActive) break;
+
+                // Check if opponent has joined
+                if (_gameSessionService != null)
+                {
+                    int playerCount = await _gameSessionService.GetPlayerCount(gameCode);
+                    Debug.Log($"[NetworkingUIManager] Poll: game {gameCode} has {playerCount} players");
+
+                    if (playerCount >= 2)
+                    {
+                        // Opponent joined! Get their info
+                        GameSessionWithPlayers gameWithPlayers = await _gameSessionService.GetGameWithPlayers(gameCode);
+                        if (gameWithPlayers != null && gameWithPlayers.Players != null)
+                        {
+                            // Find player 2 (the opponent who joined)
+                            SessionPlayer opponent = null;
+                            foreach (SessionPlayer player in gameWithPlayers.Players)
+                            {
+                                if (player.PlayerNumber == 2)
+                                {
+                                    opponent = player;
+                                    break;
+                                }
+                            }
+
+                            string opponentName = opponent?.PlayerName ?? "Opponent";
+                            Debug.Log($"[NetworkingUIManager] Opponent joined: {opponentName}");
+
+                            // Update UI to show opponent joined
+                            ShowOpponentJoined(opponentName);
+                        }
+                        break;
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning("[NetworkingUIManager] GameSessionService is null - cannot poll for opponent");
+                }
             }
+        }
+
+        /// <summary>
+        /// Updates the Waiting Room UI to show that an opponent has joined.
+        /// </summary>
+        private void ShowOpponentJoined(string opponentName)
+        {
+            // Update status text
+            if (_waitingStatusText != null)
+            {
+                _waitingStatusText.text = "Opponent joined!";
+            }
+
+            // Show the joined state with opponent name
+            if (_joinedState != null)
+            {
+                _joinedState.RemoveFromClassList("hidden");
+            }
+            if (_joinedNameLabel != null)
+            {
+                _joinedNameLabel.text = opponentName;
+            }
+
+            Debug.Log($"[NetworkingUIManager] UI updated - opponent '{opponentName}' joined");
         }
 
         private void CopyCodeToClipboard(string code)

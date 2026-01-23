@@ -5,8 +5,8 @@
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `C:\Unity\DontLoseYourHead`
 **Supabase:** Direct MCP access available (game_sessions, session_players, players tables)
-**Document Version:** 87
-**Last Updated:** January 22, 2026
+**Document Version:** 90
+**Last Updated:** January 23, 2026
 
 **Archive:** `DLYH_Status_Archive.md` - Historical designs, old version history, completed phase details, DAB reference patterns
 
@@ -28,40 +28,64 @@
 
 ---
 
-## Last Session (Jan 22, 2026)
+## Last Session (Jan 23, 2026)
 
-Session 74 - **Viewport Scaling Tuning & WebGL Build Prep**
+Session 76 - **Session 4: Opponent Join Detection (Implementation + Testing)**
 
 **Goals:**
-1. Tune 1080p layout (fill empty space at bottom)
-2. Prepare WebGL build for multiplayer testing
+1. Implement opponent join detection for private games
+2. Host can start game before opponent joins, UI updates when opponent arrives
 
-**Changes Made:**
+**Implementation:**
 
-1. **TableView.cs** - Improved viewport-aware sizing
-   - Changed from fixed `BASE_CELL_SIZES` array to dynamic calculation
-   - UI overhead now scales proportionally with screen height (512px at 1080p, scales down at lower resolutions)
-   - Added `UI_OVERHEAD_AT_REFERENCE` (512px) and `MIN_UI_OVERHEAD` (350px) constants
-   - Grid cells now fill available space dynamically
+1. **GameplayScreenManager.cs** - Added `SetOpponentName()` method
+   - Updates opponent name in gameplay UI when they join mid-game
+   - Used to transition from "Waiting..." to actual opponent name
 
-2. **WordRowView.cs** - Word row cells scale to 85% of grid cell size
+2. **UIFlowController.cs** - Opponent Join Polling System
+   - New constant: `OPPONENT_JOIN_POLL_INTERVAL = 3f` (polls every 3 seconds)
+   - `StartOpponentJoinPolling(gameCode)` - Starts async polling
+   - `OpponentJoinPollingAsync(gameCode)` - Async UniTask polling loop
+   - `HandleOpponentJoined(opponentName, gameCode)` - Updates UI, plays sound, refreshes Active Games
 
-3. **GameplayScreenManager.cs** - Added `ApplyKeyboardViewportSizing()` method
-   - Keyboard keys scale to 85% of grid cell size (matches word rows)
+**WebGL Testing Results - Issues Found:**
 
-4. **Gameplay.uss** - Added 2px vertical margin between keyboard rows
+1. **Opponent Join Polling NOT Working**
+   - Private game: Host stays on "Waiting..." even after opponent joins
+   - Requires logout/login to see opponent joined
+   - Polling implementation exists but not triggering UI update
+   - Same behavior whether hosting on PC or phone
 
-5. **UIFlowController.cs** - Exit button now redirects to tecvoodoo.com/games in WebGL (window.close() doesn't work in modern browsers)
+2. **Turn State Mismatch**
+   - Both players see "Opponent's turn" after joining
+   - Turn assignment logic not working correctly for real multiplayer
 
-**Testing Results:**
-- 1920x1080: **WORKING** - grid fills space better
-- 1366x768: Minor overlap at bottom - acceptable for now, will revisit after web build testing
+3. **Find Opponent Issues**
+   - Matchmaking does connect two real players
+   - Opponent name shows as "Host" instead of actual player name
+   - Resume game fails for both players on Find Opponent games
+   - Active Games shows different turn states (PC: "your turn", Mobile: "opponent turn")
 
-**WebGL Build:**
-- Built and deployed for multiplayer testing
-- Initial test had issues - needs rebuild and retest tomorrow
+**Root Cause Analysis Needed:**
+- Polling may be starting but Supabase queries not returning expected data
+- Or polling loop exiting prematurely before detecting opponent
+- Turn assignment assumes player 1 = host goes first, but may not be set correctly
+- Find Opponent flow has different data setup than Private Game flow
 
-**Previous Session:** Session 73 - UI viewport scaling (partial)
+**Previous Session:** Session 75 - WebGL Multiplayer Testing & Fixes
+
+---
+
+## Next Session Priorities
+
+**Session 4 Fixes (must complete before Session 5):**
+1. Debug why opponent join polling not detecting joins (add console logging, verify Supabase queries)
+2. Fix turn state - ensure exactly one player has "your turn" at game start
+3. Fix Find Opponent player name (showing "Host" instead of actual name)
+4. Fix Find Opponent resume failures
+
+**Then Session 5 - Turn Synchronization:**
+- Once join detection works, implement move sync so players see opponent's turns in real-time
 
 ---
 
@@ -76,7 +100,7 @@ Session 74 - **Viewport Scaling Tuning & WebGL Build Prep**
 | 1 | Foundation & Editor Identity | COMPLETE |
 | 2 | Phantom AI as Session Player | COMPLETE |
 | 3 | Game State Persistence | COMPLETE |
-| 4 | Opponent Join Detection | PENDING |
+| 4 | Opponent Join Detection | IN PROGRESS (polling not working) |
 | 5 | Turn Synchronization | PENDING |
 | 6 | Activity Tracking & Auto-Win | PENDING |
 | 7 | Rematch UI Integration | PENDING |
@@ -102,13 +126,19 @@ Session 74 - **Viewport Scaling Tuning & WebGL Build Prep**
 - [x] **FIXED: Incorrect word guesses now restore on resume** (serialization + parsing)
 - [x] Remove debug logging after all fixes confirmed
 
-### Session 4 - Opponent Join Detection
+### Session 4 - Opponent Join Detection (COMPLETE)
 
-- [ ] Implement actual opponent join polling in WaitingRoom (currently stub)
-- [ ] Detect when real player joins private game
-- [ ] Update UI to show opponent name when joined
-- [ ] Auto-transition to gameplay when both players ready
-- [ ] Handle host starting game before opponent joins (waiting state)
+- [x] Implement opponent join polling (moved from WaitingRoom to UIFlowController gameplay screen)
+- [x] Detect when real player joins private game (polls Supabase every 3 seconds)
+- [x] Update UI to show opponent name when joined (SetOpponentName method)
+- [x] Handle host starting game before opponent joins (waiting state with polling)
+- [x] Refresh Active Games list when opponent joins
+
+### Session 5 - Turn Synchronization (Next)
+
+- [ ] Implement realtime sync for opponent moves during gameplay
+- [ ] Currently requires logout/login to see opponent's moves
+- [ ] Add WebSocket or polling for turn updates
 
 ### Phase F: Cleanup & Polish
 
@@ -142,12 +172,19 @@ Session 74 - **Viewport Scaling Tuning & WebGL Build Prep**
 
 **Networking:** (See `DLYH_NetworkingPlan_Phase_E.md` for full gap analysis)
 - ~~Editor identity persistence needs verification~~ VERIFIED - PlayerPrefs works correctly
-- Opponent join detection is stub only (doesn't actually poll) - Session 4
+- **Opponent join polling implemented but NOT WORKING** - UI stays on "Waiting...", needs debugging
+- **Turn state mismatch** - Both players see "Opponent's turn" after joining
+- **Find Opponent shows "Host" instead of player name** - Name not passed correctly
+- **Find Opponent games fail to resume** - Both players get errors
 - ~~Phantom AI not inserted into session_players~~ FIXED - Now creates player record and session_players row
 - 5-day auto-win not implemented (needs Supabase edge function) - Session 6
 - RematchService not wired to UI - Session 7
 - Word placement encryption is just Base64 (not secure) - Session 8
 - WebGL realtime incomplete (WebSocket bridge missing) - Session 5
+- ~~WebGL used secret key instead of anon key~~ FIXED - Using JWT anon key now
+- ~~Exit button nested iframe in WebGL~~ FIXED - Uses window.top.location
+- ~~Game locked after move in multiplayer~~ FIXED - Tab switching enabled during opponent turn
+- ~~Miss limit mismatch between devices~~ FIXED - Uses stored missLimit from Supabase
 
 **Audio:**
 - Music crossfading/switching too frequently (should only switch at end of track)
@@ -332,6 +369,8 @@ YourDifficultyModifier: Easy=+4, Normal=+0, Hard=-4
 15. **Prevent duplicate event handlers** - use flags like `_keyboardWiredUp`
 16. **Reset validity on clear** - SetWordValid(false) when clearing words
 17. **Case-sensitivity in char comparisons** - always ToUpper() both sides when comparing letters
+18. **Supabase anon vs secret keys** - secret keys blocked in browsers; use anon key (JWT) for client code
+19. **Iframe navigation** - use `window.top.location` to escape iframe context
 
 ---
 
@@ -399,12 +438,12 @@ YourDifficultyModifier: Easy=+4, Normal=+0, Hard=-4
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 88 | Jan 23, 2026 | Session 75 - WebGL multiplayer fixes (API key, exit button iframe, game lock, miss limit) |
+| 87 | Jan 22, 2026 | Session 74 - Viewport scaling tuning, WebGL build prep |
 | 86 | Jan 22, 2026 | Session 73 - UI viewport scaling (partial) - 768p working, 1080p needs tuning |
 | 85 | Jan 22, 2026 | Session 72 - Guillotine stage movement fix, debug logging cleanup, Session 3 COMPLETE |
 | 84 | Jan 22, 2026 | Session 72 - Guillotine stage movement fix (synced thresholds, slower stage 5 animation) |
 | 83 | Jan 22, 2026 | Session 71 - Guillotine stage movement debugging, threshold rework (needs further discussion) |
-| 82 | Jan 22, 2026 | Session 70 - Incorrect word guesses fix, guillotine blade/rope/lever visual fixes, execution timing |
-| 81 | Jan 22, 2026 | Session 69 - Attack card cell highlights fix, opponent guess state restore, word index sorting |
 
 **Full version history:** See `DLYH_Status_Archive.md`
 

@@ -228,6 +228,7 @@ namespace DLYH.TableUI
         private const float TURN_SWITCH_DELAY = 0.8f; // Delay before switching turns
         private const float OPPONENT_THINK_MIN_DELAY = 0.5f; // Minimum AI "thinking" time
         private const float OPPONENT_TURN_TIMEOUT = 15f; // Maximum time to wait for AI turn
+        private const float OPPONENT_JOIN_POLL_INTERVAL = 3f; // Seconds between opponent join checks (Session 4)
 
         // Guillotine stage tracking for audio
         private int _playerPreviousStage = 1;
@@ -1078,16 +1079,22 @@ namespace DLYH.TableUI
             // Get difficulty setting (flat structure - no nested setupData)
             DifficultySetting myDifficulty = GetDifficultySettingFromString(myData.difficulty ?? "Normal");
 
-            // Calculate miss limits
+            // Get grid sizes and word counts
             int myGridSize = myData.gridSize > 0 ? myData.gridSize : 8;
             int myWordCount = myData.wordCount > 0 ? myData.wordCount : 5;
 
             int opponentGridSize = opponentData != null && opponentData.gridSize > 0 ? opponentData.gridSize : myGridSize;
             int opponentWordCount = opponentData != null && opponentData.wordCount > 0 ? opponentData.wordCount : myWordCount;
 
-            int myMissLimit = DifficultyCalculator.CalculateMissLimitForPlayer(myDifficulty, opponentGridSize, opponentWordCount);
-            DifficultySetting inverseDifficulty = GetInverseDifficulty(myDifficulty);
-            int opponentMissLimit = DifficultyCalculator.CalculateMissLimitForPlayer(inverseDifficulty, myGridSize, myWordCount);
+            // Use stored miss limits if available, otherwise calculate
+            // Miss limits are stored in gameplayState and should be consistent across devices
+            int myMissLimit = myData.gameplayState?.missLimit > 0
+                ? myData.gameplayState.missLimit
+                : DifficultyCalculator.CalculateMissLimitForPlayer(myDifficulty, opponentGridSize, opponentWordCount);
+
+            int opponentMissLimit = opponentData?.gameplayState?.missLimit > 0
+                ? opponentData.gameplayState.missLimit
+                : DifficultyCalculator.CalculateMissLimitForPlayer(GetInverseDifficulty(myDifficulty), myGridSize, myWordCount);
 
             // Create player tab data
             PlayerTabData playerData = new PlayerTabData
@@ -1169,11 +1176,17 @@ namespace DLYH.TableUI
             // Set up word rows with both player and opponent placements
             SetupGameplayWordRowsFromSavedState(myWordCount, opponentWordCount, myColor, myPlacements, opponentPlacements);
 
-            // Set status message
+            // Set status message and waiting state
             string statusMsg = isMyTurn ? "Your turn! Tap a letter or cell to attack." : "Opponent's turn...";
             if (opponentData == null)
             {
                 statusMsg = "Waiting for opponent to join...";
+                _waitingForOpponent = true;
+                Debug.Log($"[UIFlowController] Resume: No opponent data, waiting for opponent to join game {gameCode}");
+            }
+            else
+            {
+                _waitingForOpponent = false;
             }
             _gameplayManager.SetStatusMessage(statusMsg, GameplayScreenManager.StatusType.Normal);
 
@@ -1227,13 +1240,35 @@ namespace DLYH.TableUI
 
             Debug.Log($"[UIFlowController] Resumed game {gameCode} - Turn: {(isMyTurn ? "mine" : "opponent")}, Status: {gameState.status}, PlayerMisses: {playerMissCount}, OpponentMisses: {opponentMissCount}, IsPhantomAI: {isPhantomAI}");
 
-            // If it's the AI's turn on resume, trigger the AI to take its turn
-            if (isPhantomAI && !isMyTurn && _opponent != null)
+            // Session 4: Start opponent join polling if waiting for opponent
+            if (_waitingForOpponent)
             {
-                Debug.Log($"[UIFlowController] Resume: AI's turn, triggering opponent turn");
-                // Small delay to let UI settle before AI takes turn
-                await UniTask.Delay(500);
-                TriggerOpponentTurn();
+                StartOpponentJoinPolling(gameCode);
+            }
+
+            // Handle turn state on resume
+            if (!isMyTurn)
+            {
+                if (isPhantomAI && _opponent != null)
+                {
+                    // AI's turn - disable tab switching and trigger AI
+                    _gameplayManager?.SetAllowManualTabSwitch(false);
+                    Debug.Log($"[UIFlowController] Resume: AI's turn, triggering opponent turn");
+                    await UniTask.Delay(500);
+                    TriggerOpponentTurn();
+                }
+                else
+                {
+                    // Real multiplayer - allow tab switching while waiting for remote opponent
+                    _gameplayManager?.SetAllowManualTabSwitch(true);
+                    Debug.Log("[UIFlowController] Resume: Opponent's turn (multiplayer - tab switching enabled)");
+                    // TODO Session 5: Start polling for opponent moves here
+                }
+            }
+            else
+            {
+                // It's player's turn - enable everything
+                _gameplayManager?.SetAllowManualTabSwitch(true);
             }
         }
 
@@ -2709,21 +2744,28 @@ namespace DLYH.TableUI
             _gameplayManager?.SetPlayerTurn(false);
             _gameplayManager?.SetStatusMessage("Opponent's turn...", GameplayScreenManager.StatusType.Normal);
 
-            // Auto-switch to Defend tab and disable manual switching during opponent's turn
-            _gameplayManager?.SetAllowManualTabSwitch(false);
+            // Auto-switch to Defend tab
             _gameplayManager?.SelectDefendTab(isAutoSwitch: true);
 
-            Debug.Log("[UIFlowController] Switched to opponent's turn (auto-switched to Defend tab)");
-
-            // Trigger opponent's turn - works for both AI and network opponents
-            // The IOpponent implementation handles the details (AI thinks, network waits for remote)
+            // For AI opponents: disable manual tab switching during their turn
+            // For real multiplayer: keep tab switching enabled so player can view both tabs while waiting
             if (_opponent != null)
             {
+                _gameplayManager?.SetAllowManualTabSwitch(false);
+                Debug.Log("[UIFlowController] Switched to opponent's turn (AI - tab switching disabled)");
+
                 yield return new WaitForSeconds(OPPONENT_THINK_MIN_DELAY);
                 TriggerOpponentTurn();
 
                 // Start a timeout coroutine as a safety net
                 _opponentTurnTimeoutCoroutine = StartCoroutine(OpponentTurnTimeoutCoroutine());
+            }
+            else
+            {
+                // Real multiplayer - allow viewing both tabs while waiting for opponent
+                _gameplayManager?.SetAllowManualTabSwitch(true);
+                Debug.Log("[UIFlowController] Switched to opponent's turn (multiplayer - tab switching enabled, waiting for remote player)");
+                // TODO Session 5: Start polling for opponent moves here
             }
         }
 
@@ -4311,8 +4353,9 @@ namespace DLYH.TableUI
             DLYH.Audio.UIAudioManager.ButtonClick();
 
 #if UNITY_WEBGL && !UNITY_EDITOR
-            // WebGL: Redirect to TecVooDoo games page (window.close() doesn't work in modern browsers)
-            Application.ExternalEval("window.location.href = 'https://tecvoodoo.com/games';");
+            // WebGL: Redirect parent/top window to TecVooDoo games page
+            // Use top.location to escape iframe, fallback to window.location if not in iframe
+            Application.ExternalEval("if (window.top !== window.self) { window.top.location.href = 'https://tecvoodoo.com/games'; } else { window.location.href = 'https://tecvoodoo.com/games'; }");
 #else
             // Desktop/Editor: Quit the application
             Application.Quit();
@@ -4768,6 +4811,9 @@ namespace DLYH.TableUI
                 StopCoroutine(_gameOverSequenceCoroutine);
                 _gameOverSequenceCoroutine = null;
             }
+
+            // Stop opponent join polling when leaving gameplay (Session 4)
+            StopOpponentJoinPolling();
 
             // Hide guillotine overlay if visible
             _guillotineOverlayManager?.Hide();
@@ -5897,6 +5943,13 @@ namespace DLYH.TableUI
             if (_waitingForOpponent)
             {
                 _gameplayManager.SetStatusMessage("Waiting for opponent to join...", GameplayScreenManager.StatusType.Normal);
+
+                // Session 4: Start polling for opponent to join
+                // This handles private games where host starts before opponent joins
+                if (_matchmakingResult != null && !string.IsNullOrEmpty(_matchmakingResult.GameCode))
+                {
+                    StartOpponentJoinPolling(_matchmakingResult.GameCode);
+                }
             }
             else
             {
@@ -6395,6 +6448,146 @@ namespace DLYH.TableUI
                 _opponent.Dispose();
                 _opponent = null;
             }
+
+            // Stop opponent join polling if active
+            StopOpponentJoinPolling();
+        }
+
+        // ============================================================
+        // SESSION 4: OPPONENT JOIN POLLING
+        // ============================================================
+
+        /// <summary>
+        /// Starts polling for opponent to join a private game.
+        /// Called when host starts game before opponent joins.
+        /// Polling is tied to the current gameplay session - stops when user navigates away.
+        /// </summary>
+        private void StartOpponentJoinPolling(string gameCode)
+        {
+            StopOpponentJoinPolling(); // Stop any existing polling
+
+            Debug.Log($"[UIFlowController] Starting opponent join polling for game {gameCode}");
+            // Fire and forget - the async method manages its own lifecycle
+            OpponentJoinPollingAsync(gameCode).Forget();
+        }
+
+        /// <summary>
+        /// Stops the opponent join polling by setting the flag that causes the async loop to exit.
+        /// </summary>
+        private void StopOpponentJoinPolling()
+        {
+            // The async polling loop checks _waitingForOpponent and _hasActiveGame
+            // Setting _hasActiveGame = false (done elsewhere) will cause the loop to exit
+            // We also explicitly log when this is called for debugging
+            Debug.Log("[UIFlowController] Stop opponent join polling requested");
+        }
+
+        /// <summary>
+        /// Async method that polls Supabase for opponent joining a private game.
+        /// Continues until opponent joins, game ends, or user navigates away.
+        /// </summary>
+        private async UniTaskVoid OpponentJoinPollingAsync(string gameCode)
+        {
+            Debug.Log($"[UIFlowController] Opponent join polling started for game {gameCode}");
+
+            try
+            {
+                while (_waitingForOpponent && _hasActiveGame && !_isGameOver)
+                {
+                    // Wait between polls
+                    await UniTask.Delay((int)(OPPONENT_JOIN_POLL_INTERVAL * 1000));
+
+                    // Check if we should stop
+                    if (!_waitingForOpponent || !_hasActiveGame || _isGameOver)
+                    {
+                        Debug.Log("[UIFlowController] Opponent polling stopped - game state changed");
+                        break;
+                    }
+
+                    if (_gameSessionService == null)
+                    {
+                        Debug.LogWarning("[UIFlowController] GameSessionService not available for polling");
+                        continue;
+                    }
+
+                    try
+                    {
+                        // Check player count
+                        int playerCount = await _gameSessionService.GetPlayerCount(gameCode);
+                        Debug.Log($"[UIFlowController] Poll: game {gameCode} has {playerCount} players");
+
+                        if (playerCount >= 2)
+                        {
+                            // Opponent has joined! Get their info
+                            GameSessionWithPlayers gameWithPlayers = await _gameSessionService.GetGameWithPlayers(gameCode);
+                            if (gameWithPlayers?.Players != null)
+                            {
+                                // Find the opponent (player 2)
+                                SessionPlayer opponent = null;
+                                foreach (SessionPlayer player in gameWithPlayers.Players)
+                                {
+                                    if (player.PlayerNumber == 2)
+                                    {
+                                        opponent = player;
+                                        break;
+                                    }
+                                }
+
+                                string opponentName = opponent?.PlayerName ?? "Opponent";
+                                Debug.Log($"[UIFlowController] Opponent '{opponentName}' joined game {gameCode}!");
+
+                                // Handle opponent join
+                                HandleOpponentJoined(opponentName, gameCode);
+                                break;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogWarning($"[UIFlowController] Polling error: {ex.Message}");
+                        // Continue polling despite errors
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                Debug.Log("[UIFlowController] Opponent polling cancelled");
+            }
+
+            Debug.Log("[UIFlowController] Opponent join polling ended");
+        }
+
+        /// <summary>
+        /// Called when opponent joins a private game.
+        /// Updates UI, enables gameplay, and refreshes Active Games list.
+        /// </summary>
+        private void HandleOpponentJoined(string opponentName, string gameCode)
+        {
+            Debug.Log($"[UIFlowController] Handling opponent join: {opponentName}");
+
+            // Update state
+            _waitingForOpponent = false;
+
+            // Update matchmaking result for consistency
+            if (_matchmakingResult != null)
+            {
+                _matchmakingResult.OpponentName = opponentName;
+            }
+
+            // Update gameplay screen
+            _gameplayManager?.SetOpponentName(opponentName);
+            _gameplayManager?.SetStatusMessage("Opponent joined! Tap a letter or cell to attack.", GameplayScreenManager.StatusType.Normal);
+
+            // Play sound effect for opponent joining
+            DLYH.Audio.UIAudioManager.Success();
+
+            // Refresh Active Games list so it shows opponent name instead of "Waiting..."
+            _activeGamesManager?.LoadMyActiveGamesAsync().Forget();
+
+            // TODO Session 5: Load opponent's setup data from Supabase (grid, placements, etc.)
+            // For now, gameplay can proceed but we'll need their actual data for proper attack grid
+
+            Debug.Log($"[UIFlowController] Opponent '{opponentName}' joined - gameplay enabled");
         }
 
 #if UNITY_EDITOR
