@@ -248,6 +248,20 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
+        /// Applies viewport-aware sizing to all word rows.
+        /// This overrides CSS class sizes for better viewport responsiveness.
+        /// </summary>
+        /// <param name="cellSize">Cell size in pixels (width and height)</param>
+        /// <param name="fontSize">Font size in pixels for cell labels</param>
+        public void ApplyViewportAwareSizing(int cellSize, int fontSize)
+        {
+            for (int i = 0; i < _wordCount; i++)
+            {
+                _wordRows[i].ApplyViewportAwareSizing(cellSize, fontSize);
+            }
+        }
+
+        /// <summary>
         /// Clears all words and resets state.
         /// </summary>
         public void ClearAll()

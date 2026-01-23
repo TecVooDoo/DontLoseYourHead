@@ -4311,8 +4311,8 @@ namespace DLYH.TableUI
             DLYH.Audio.UIAudioManager.ButtonClick();
 
 #if UNITY_WEBGL && !UNITY_EDITOR
-            // WebGL: Close the browser tab via JavaScript
-            Application.ExternalEval("window.close();");
+            // WebGL: Redirect to TecVooDoo games page (window.close() doesn't work in modern browsers)
+            Application.ExternalEval("window.location.href = 'https://tecvoodoo.com/games';");
 #else
             // Desktop/Editor: Quit the application
             Application.Quit();
@@ -4973,6 +4973,14 @@ namespace DLYH.TableUI
             // Sync sizes with grid cell sizes - apply to word rows and placement panel
             string sizeClass = _tableView.GetSizeClassName();
             _wordRowsContainer.SetSizeClass(sizeClass);
+
+            // Apply viewport-aware sizing (inline styles override CSS class defaults)
+            int cellSize = _tableView.GetCalculatedCellSize();
+            int fontSize = _tableView.GetCalculatedFontSize();
+            if (cellSize > 0)
+            {
+                _wordRowsContainer.ApplyViewportAwareSizing(cellSize, fontSize);
+            }
 
             // Apply size class to placement panel for keyboard/button scaling
             VisualElement placementPanel = _setupWizardScreen.Q<VisualElement>("placement-panel");
@@ -6225,6 +6233,19 @@ namespace DLYH.TableUI
             // Store reference for letter reveal updates
             _attackWordRows = attackWordRows;
 
+            // Apply viewport-aware sizing to match grid cell sizes
+            if (_tableView != null)
+            {
+                int cellSize = _tableView.GetCalculatedCellSize();
+                int fontSize = _tableView.GetCalculatedFontSize();
+                if (cellSize > 0)
+                {
+                    attackWordRows.ApplyViewportAwareSizing(cellSize, fontSize);
+                    _defenseWordRows?.ApplyViewportAwareSizing(cellSize, fontSize);
+                    _gameplayManager?.ApplyKeyboardViewportSizing(cellSize, fontSize);
+                }
+            }
+
             Debug.Log($"[UIFlowController] Set up gameplay word rows: {opponentWordCount} attack words (opponent's), {playerWordCount} defense words (player's)");
         }
 
@@ -6293,6 +6314,19 @@ namespace DLYH.TableUI
 
             // Store reference for letter reveal updates
             _attackWordRows = attackWordRows;
+
+            // Apply viewport-aware sizing to match grid cell sizes
+            if (_tableView != null)
+            {
+                int cellSize = _tableView.GetCalculatedCellSize();
+                int fontSize = _tableView.GetCalculatedFontSize();
+                if (cellSize > 0)
+                {
+                    attackWordRows.ApplyViewportAwareSizing(cellSize, fontSize);
+                    _defenseWordRows?.ApplyViewportAwareSizing(cellSize, fontSize);
+                    _gameplayManager?.ApplyKeyboardViewportSizing(cellSize, fontSize);
+                }
+            }
 
             Debug.Log($"[UIFlowController] Set up gameplay word rows from saved state: {opponentWordCount} attack words, {sortedPlacements.Count} defense words");
         }

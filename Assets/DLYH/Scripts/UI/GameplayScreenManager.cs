@@ -358,6 +358,29 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
+        /// Applies viewport-aware sizing to keyboard keys.
+        /// Keys are scaled to match word row cell size (85% of grid cell size).
+        /// </summary>
+        /// <param name="gridCellSize">The grid cell size in pixels</param>
+        /// <param name="gridFontSize">The grid font size in pixels</param>
+        public void ApplyKeyboardViewportSizing(int gridCellSize, int gridFontSize)
+        {
+            if (gridCellSize <= 0) return;
+
+            // Keyboard keys should match word row cells (85% of grid)
+            int keySize = Mathf.Max(24, (int)(gridCellSize * 0.85f));
+            int keyFontSize = Mathf.Max(10, (int)(gridFontSize * 0.85f));
+
+            foreach (KeyValuePair<char, Button> kvp in _letterKeys)
+            {
+                Button key = kvp.Value;
+                key.style.width = keySize;
+                key.style.height = keySize;
+                key.style.fontSize = keyFontSize;
+            }
+        }
+
+        /// <summary>
         /// Sets whether to use QWERTY keyboard layout.
         /// </summary>
         public void SetQwertyLayout(bool useQwerty)

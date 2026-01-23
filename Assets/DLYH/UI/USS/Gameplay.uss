@@ -4,9 +4,12 @@
 
 .gameplay-root {
     flex-grow: 1;
+    flex-shrink: 1;
     background-color: rgb(18, 18, 24);
     padding: 4px;
     align-items: center;
+    /* Ensure content can shrink to fit viewport */
+    overflow: hidden;
 }
 
 /* === Header Bar === */
@@ -16,11 +19,12 @@
     align-items: center;
     justify-content: flex-start;
     width: 100%;
-    padding: 8px 10px;
-    margin-bottom: 8px;
+    padding: 6px 10px;
+    margin-bottom: 4px;
     background-color: rgb(28, 28, 36);
     border-radius: 6px;
-    flex-shrink: 0;
+    flex-shrink: 1;
+    min-height: 36px;
 }
 
 .gameplay-hamburger-button {
@@ -79,15 +83,16 @@
     flex-direction: row;
     width: 100%;
     max-width: 600px;
-    margin-bottom: 8px;
-    flex-shrink: 0;
+    margin-bottom: 4px;
+    flex-shrink: 1;
 }
 
 .player-tab {
     flex-grow: 1;
+    flex-shrink: 1;
     flex-basis: 0;
     width: 50%;
-    padding: 10px 12px;
+    padding: 6px 10px;
     margin: 0 4px;
     background-color: rgb(32, 32, 40);
     border-radius: 8px;
@@ -223,19 +228,20 @@
 /* === Grid Area === */
 
 .grid-area {
-    flex-grow: 1;
+    flex-grow: 0;
     flex-shrink: 1;
     align-items: center;
     justify-content: center;
     width: 100%;
-    min-height: 200px;
+    /* Don't set min-height - let content determine size */
 }
 
 .grid-area .table-container {
-    margin: 4px 0;
-    padding: 8px;
+    margin: 2px 0;
+    padding: 4px;
     background-color: rgb(24, 24, 30);
     border-radius: 8px;
+    flex-shrink: 1;
 }
 
 /* === Words Section === */
@@ -244,10 +250,10 @@
     width: 100%;
     max-width: 500px;
     padding: 4px 10px;
-    margin: 4px 0;
+    margin: 2px 0;
     background-color: rgb(28, 28, 36);
     border-radius: 6px;
-    flex-shrink: 0;
+    flex-shrink: 1;
 }
 
 .words-header {
@@ -269,24 +275,25 @@
 .letter-keyboard {
     flex-direction: column;
     align-items: center;
-    margin: 4px 0;
-    flex-shrink: 0;
+    margin: 2px 0;
+    flex-shrink: 1;
 }
 
 .keyboard-row {
     flex-direction: row;
     justify-content: center;
+    margin: 2px 0;
 }
 
 .letter-key {
-    width: 44px;
-    height: 44px;
-    margin: 2px;
-    font-size: 18px;
+    width: 32px;
+    height: 32px;
+    margin: 1px;
+    font-size: 14px;
     background-color: rgb(50, 50, 62);
     border-color: rgb(70, 70, 85);
     border-width: 1px;
-    border-radius: 6px;
+    border-radius: 5px;
     color: rgb(220, 220, 230);
     align-items: center;
     justify-content: center;
@@ -328,9 +335,9 @@
 .guessed-words-button {
     width: 100%;
     max-width: 300px;
-    height: 36px;
-    margin: 4px 0;
-    font-size: 14px;
+    height: 32px;
+    margin: 2px 0;
+    font-size: 13px;
     background-color: rgb(40, 40, 50);
     border-color: rgb(60, 60, 75);
     border-width: 1px;
@@ -338,7 +345,7 @@
     color: rgb(160, 160, 180);
     transition-property: background-color, border-color;
     transition-duration: 0.15s;
-    flex-shrink: 0;
+    flex-shrink: 1;
 }
 
 .guessed-words-button:hover {
@@ -351,11 +358,12 @@
 
 .status-bar {
     width: 100%;
-    padding: 8px 12px;
+    padding: 4px 12px;
     background-color: rgb(25, 30, 35);
     border-top-width: 1px;
     border-top-color: rgb(45, 50, 55);
-    flex-shrink: 0;
+    flex-shrink: 1;
+    min-height: 24px;
 }
 
 .status-message {

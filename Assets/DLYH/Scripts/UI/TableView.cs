@@ -37,17 +37,35 @@ namespace DLYH.TableUI
 
         // Size classes - gradual scaling from 6x6 to 12x12
         private static readonly string ClassCellSizeTiny = "cell-size-tiny";         // 22px - for 12x12
-        private static readonly string ClassCellSizeXSmall = "cell-size-xsmall";     // 26px - for 11x11
-        private static readonly string ClassCellSizeSmall = "cell-size-small";       // 30px - for 10x10
-        private static readonly string ClassCellSizeMedSmall = "cell-size-med-small";// 34px - for 9x9
-        private static readonly string ClassCellSizeMedium = "cell-size-medium";     // 38px - for 8x8
-        private static readonly string ClassCellSizeMedLarge = "cell-size-med-large";// 42px - for 7x7
-        private static readonly string ClassCellSizeLarge = "cell-size-large";       // 46px - for 6x6
+        private static readonly string ClassCellSizeXSmall = "cell-size-xsmall";     // 24px - for 11x11
+        private static readonly string ClassCellSizeSmall = "cell-size-small";       // 26px - for 10x10
+        private static readonly string ClassCellSizeMedSmall = "cell-size-med-small";// 28px - for 9x9
+        private static readonly string ClassCellSizeMedium = "cell-size-medium";     // 30px - for 8x8
+        private static readonly string ClassCellSizeMedLarge = "cell-size-med-large";// 32px - for 7x7
+        private static readonly string ClassCellSizeLarge = "cell-size-large";       // 34px - for 6x6
 
         // Current size class (determined by grid dimensions)
         private string _currentSizeClass = ClassCellSizeMedium;
 
-        // State classes
+        // Calculated cell size for viewport-aware sizing (0 = use CSS class defaults)
+        private int _calculatedCellSize = 0;
+
+        // Constants for viewport-aware sizing
+        private const int CELL_MARGIN = 2;                 // 1px margin on each side (2px total per cell)
+        private const int MIN_CELL_SIZE = 18;              // Minimum readable cell size
+        private const int MAX_CELL_SIZE = 52;              // Maximum cell size (prevent oversized cells)
+
+        // Reference resolution for scaling calculations
+        private const int REFERENCE_HEIGHT = 1080;         // Design reference height (1080p)
+
+        // UI overhead at reference resolution (512px at 1080p)
+        // These scale proportionally with screen height
+        private const int UI_OVERHEAD_AT_REFERENCE = 512;  // Total UI overhead at 1080p
+
+        // Minimum overhead to prevent UI elements getting too cramped
+        private const int MIN_UI_OVERHEAD = 350;
+
+        // State classes - must match TableCellState enum order
         private static readonly string[] StateClasses = new string[]
         {
             "state-none",
@@ -65,6 +83,7 @@ namespace DLYH.TableUI
             "state-placement-second",
             "state-fog",
             "state-revealed",
+            "state-found",       // Letter known but not all coords known (yellow + letter shown)
             "state-hit",
             "state-miss",
             "state-wrong-word",
@@ -197,28 +216,81 @@ namespace DLYH.TableUI
             }
             else if (maxDimension >= 12) // 11x11 grid
             {
-                return ClassCellSizeXSmall;    // 26px cells
+                return ClassCellSizeXSmall;    // 24px cells
             }
             else if (maxDimension >= 11) // 10x10 grid
             {
-                return ClassCellSizeSmall;     // 30px cells
+                return ClassCellSizeSmall;     // 26px cells
             }
             else if (maxDimension >= 10) // 9x9 grid
             {
-                return ClassCellSizeMedSmall;  // 34px cells
+                return ClassCellSizeMedSmall;  // 28px cells
             }
             else if (maxDimension >= 9) // 8x8 grid
             {
-                return ClassCellSizeMedium;    // 38px cells
+                return ClassCellSizeMedium;    // 30px cells
             }
             else if (maxDimension >= 8) // 7x7 grid
             {
-                return ClassCellSizeMedLarge;  // 42px cells
+                return ClassCellSizeMedLarge;  // 32px cells
             }
             else // 6x6 grid and smaller
             {
-                return ClassCellSizeLarge;     // 46px cells
+                return ClassCellSizeLarge;     // 34px cells
             }
+        }
+
+        /// <summary>
+        /// Calculates the optimal cell size based on available viewport space.
+        /// Dynamically fills the available space while respecting min/max bounds.
+        /// Returns the cell size in pixels.
+        /// </summary>
+        private int CalculateViewportAwareCellSize(int gridRows)
+        {
+            // Get current screen height
+            int screenHeight = Screen.height;
+
+            // Scale UI overhead proportionally with screen height
+            // At 1080p we use 512px, at 768p we scale down proportionally
+            float scaleFactor = (float)screenHeight / REFERENCE_HEIGHT;
+            int scaledOverhead = Mathf.Max(MIN_UI_OVERHEAD, (int)(UI_OVERHEAD_AT_REFERENCE * scaleFactor));
+
+            // Calculate available height for the grid
+            int availableHeight = screenHeight - scaledOverhead;
+
+            // Ensure positive available space
+            if (availableHeight < 100)
+            {
+                availableHeight = 100;
+            }
+
+            // Grid rows includes header row, so total cells = gridRows
+            // Each cell has margin on both sides: CELL_MARGIN * 2 = 4px per cell
+            int totalMargin = gridRows * (CELL_MARGIN * 2);
+
+            // Available for actual cell content
+            int availableForCells = availableHeight - totalMargin;
+
+            // Calculate ideal cell size to fill available space
+            int idealCellSize = availableForCells / gridRows;
+
+            // Clamp to reasonable bounds
+            int finalCellSize = Mathf.Clamp(idealCellSize, MIN_CELL_SIZE, MAX_CELL_SIZE);
+
+            int gridSize = gridRows - 1;
+            Debug.Log($"[TableView] Viewport sizing: Screen {screenHeight}px (scale {scaleFactor:F2}), Overhead {scaledOverhead}px, Available {availableHeight}px, Grid {gridSize}x{gridSize} ({gridRows} rows), Ideal {idealCellSize}px -> Final {finalCellSize}px");
+
+            return finalCellSize;
+        }
+
+        /// <summary>
+        /// Gets the font size appropriate for a given cell size.
+        /// </summary>
+        private int GetFontSizeForCellSize(int cellSize)
+        {
+            // Font size roughly 40-50% of cell size, with minimum of 9px
+            int fontSize = Mathf.Max(9, (int)(cellSize * 0.45f));
+            return fontSize;
         }
 
         /// <summary>
@@ -232,8 +304,11 @@ namespace DLYH.TableUI
             int rows = _model.Rows;
             int cols = _model.Cols;
 
-            // Determine cell size based on grid dimensions
+            // Determine cell size based on grid dimensions (CSS class fallback)
             _currentSizeClass = DetermineSizeClass(rows, cols);
+
+            // Calculate viewport-aware cell size
+            _calculatedCellSize = CalculateViewportAwareCellSize(rows);
 
             _cellElements = new VisualElement[rows, cols];
             _cellLabels = new Label[rows, cols];
@@ -263,8 +338,22 @@ namespace DLYH.TableUI
             cell.AddToClassList(ClassTableCell);
             cell.AddToClassList(_currentSizeClass);
 
+            // Apply viewport-aware sizing via inline styles (overrides CSS class)
+            if (_calculatedCellSize > 0)
+            {
+                cell.style.width = _calculatedCellSize;
+                cell.style.height = _calculatedCellSize;
+            }
+
             Label label = new Label();
             label.AddToClassList(ClassCellLabel);
+
+            // Apply viewport-aware font size
+            if (_calculatedCellSize > 0)
+            {
+                label.style.fontSize = GetFontSizeForCellSize(_calculatedCellSize);
+            }
+
             cell.Add(label);
             _cellLabels[row, col] = label;
 
@@ -427,6 +516,12 @@ namespace DLYH.TableUI
                 element.style.backgroundColor = ColorRules.SystemYellow;
                 label.style.color = ColorRules.GetContrastingTextColor(ColorRules.SystemYellow);
             }
+            else if (cell.State == TableCellState.Found)
+            {
+                // Letter known but not all coordinates for this letter known - yellow with letter shown
+                element.style.backgroundColor = ColorRules.SystemYellow;
+                label.style.color = ColorRules.GetContrastingTextColor(ColorRules.SystemYellow);
+            }
             else if (cell.State == TableCellState.PlacementAnchor ||
                      cell.State == TableCellState.PlacementSecond ||
                      cell.State == TableCellState.PlacementPath)
@@ -506,6 +601,62 @@ namespace DLYH.TableUI
             if (_currentSizeClass == ClassCellSizeMedLarge) return "med-large";
             if (_currentSizeClass == ClassCellSizeLarge) return "large";
             return "medium";
+        }
+
+        /// <summary>
+        /// Gets the calculated cell size in pixels for viewport-aware sizing.
+        /// Returns 0 if using CSS class defaults.
+        /// </summary>
+        public int GetCalculatedCellSize()
+        {
+            return _calculatedCellSize;
+        }
+
+        /// <summary>
+        /// Gets the font size for the current calculated cell size.
+        /// Returns 0 if using CSS class defaults.
+        /// </summary>
+        public int GetCalculatedFontSize()
+        {
+            if (_calculatedCellSize <= 0) return 0;
+            return GetFontSizeForCellSize(_calculatedCellSize);
+        }
+
+        /// <summary>
+        /// Forces recalculation of cell sizes based on current screen dimensions.
+        /// Call this when the screen size changes.
+        /// </summary>
+        public void RecalculateSizes()
+        {
+            if (_model != null)
+            {
+                _calculatedCellSize = CalculateViewportAwareCellSize(_model.Rows);
+
+                // Update all cell sizes
+                if (_cellElements != null && _calculatedCellSize > 0)
+                {
+                    int fontSize = GetFontSizeForCellSize(_calculatedCellSize);
+
+                    for (int row = 0; row < _model.Rows; row++)
+                    {
+                        for (int col = 0; col < _model.Cols; col++)
+                        {
+                            VisualElement cell = _cellElements[row, col];
+                            if (cell != null)
+                            {
+                                cell.style.width = _calculatedCellSize;
+                                cell.style.height = _calculatedCellSize;
+                            }
+
+                            Label label = _cellLabels[row, col];
+                            if (label != null)
+                            {
+                                label.style.fontSize = fontSize;
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

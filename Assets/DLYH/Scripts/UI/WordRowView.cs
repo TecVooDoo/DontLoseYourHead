@@ -539,6 +539,45 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
+        /// Applies viewport-aware sizing to letter cells via inline styles.
+        /// This overrides CSS class sizes for better viewport responsiveness.
+        /// Word row cells are scaled to 85% of grid cell size for better visual hierarchy.
+        /// </summary>
+        /// <param name="cellSize">Grid cell size in pixels (will be scaled down for word rows)</param>
+        /// <param name="fontSize">Font size in pixels for cell labels (will be scaled down)</param>
+        public void ApplyViewportAwareSizing(int cellSize, int fontSize)
+        {
+            if (cellSize <= 0) return;
+
+            // Word row cells should be smaller than grid cells for visual hierarchy
+            // Scale to 85% of grid size, with minimum of 18px
+            int wordRowCellSize = Mathf.Max(18, (int)(cellSize * 0.85f));
+            int wordRowFontSize = Mathf.Max(9, (int)(fontSize * 0.85f));
+
+            for (int i = 0; i < _wordLength; i++)
+            {
+                if (_letterCells[i] != null)
+                {
+                    _letterCells[i].style.width = wordRowCellSize;
+                    _letterCells[i].style.height = wordRowCellSize;
+                    _letterCells[i].style.minWidth = wordRowCellSize;
+                    _letterCells[i].style.minHeight = wordRowCellSize;
+                }
+                if (_letterLabels[i] != null && wordRowFontSize > 0)
+                {
+                    _letterLabels[i].style.fontSize = wordRowFontSize;
+                }
+            }
+
+            // Also scale row number label proportionally
+            if (_rowNumberLabel != null && wordRowFontSize > 0)
+            {
+                _rowNumberLabel.style.fontSize = wordRowFontSize;
+                _rowNumberLabel.style.minWidth = wordRowCellSize;
+            }
+        }
+
+        /// <summary>
         /// Updates the enabled state of control buttons based on current state.
         /// </summary>
         private void UpdateControlState()

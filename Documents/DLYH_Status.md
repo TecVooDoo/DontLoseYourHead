@@ -5,7 +5,7 @@
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `C:\Unity\DontLoseYourHead`
 **Supabase:** Direct MCP access available (game_sessions, session_players, players tables)
-**Document Version:** 85
+**Document Version:** 87
 **Last Updated:** January 22, 2026
 
 **Archive:** `DLYH_Status_Archive.md` - Historical designs, old version history, completed phase details, DAB reference patterns
@@ -30,34 +30,38 @@
 
 ## Last Session (Jan 22, 2026)
 
-Session 72 - **Guillotine Stage Movement Fix + Debug Cleanup**
+Session 74 - **Viewport Scaling Tuning & WebGL Build Prep**
 
 **Goals:**
-1. Fix blade/lever not moving during gameplay stages
-2. Clean up verbose debug logging from Session 3 restore work
+1. Tune 1080p layout (fill empty space at bottom)
+2. Prepare WebGL build for multiplayer testing
 
-**Guillotine Fix - Root Cause:**
-- Two duplicate stage calculation methods were out of sync
-- `GuillotineOverlayManager.GetStageFromPercent()` controlled visual display
-- `UIFlowController.GetStageFromMissCount()` controlled when audio/animation triggers
-- They used different thresholds, causing audio to play at different times than visual updates
+**Changes Made:**
 
-**Fixes Applied:**
+1. **TableView.cs** - Improved viewport-aware sizing
+   - Changed from fixed `BASE_CELL_SIZES` array to dynamic calculation
+   - UI overhead now scales proportionally with screen height (512px at 1080p, scales down at lower resolutions)
+   - Added `UI_OVERHEAD_AT_REFERENCE` (512px) and `MIN_UI_OVERHEAD` (350px) constants
+   - Grid cells now fill available space dynamically
 
-1. **Synchronized Stage Thresholds** (25/50/75/100%)
-2. **Slowed Stage 5 Animation** (0.8s instead of 0.4s for dramatic effect)
-3. **Removed Verbose Debug Logging** from:
-   - `GameStateManager.cs` - Removed per-cell and JSON parsing logs
-   - `UIFlowController.cs` - Removed per-cell, per-letter restore logs
-   - `GameplayGuessManager.cs` - Removed restore count logs
+2. **WordRowView.cs** - Word row cells scale to 85% of grid cell size
 
-**Files Modified:**
-- `GuillotineOverlayManager.cs`, `UIFlowController.cs`, `GuillotineOverlay.uss`
-- `GameStateManager.cs`, `GameplayGuessManager.cs`
+3. **GameplayScreenManager.cs** - Added `ApplyKeyboardViewportSizing()` method
+   - Keyboard keys scale to 85% of grid cell size (matches word rows)
 
-**Session 3 Status:** COMPLETE - all game state persistence tasks done
+4. **Gameplay.uss** - Added 2px vertical margin between keyboard rows
 
-**Previous Session:** Session 71 - Guillotine stage movement debugging (partial)
+5. **UIFlowController.cs** - Exit button now redirects to tecvoodoo.com/games in WebGL (window.close() doesn't work in modern browsers)
+
+**Testing Results:**
+- 1920x1080: **WORKING** - grid fills space better
+- 1366x768: Minor overlap at bottom - acceptable for now, will revisit after web build testing
+
+**WebGL Build:**
+- Built and deployed for multiplayer testing
+- Initial test had issues - needs rebuild and retest tomorrow
+
+**Previous Session:** Session 73 - UI viewport scaling (partial)
 
 ---
 
@@ -113,6 +117,7 @@ Session 72 - **Guillotine Stage Movement Fix + Debug Cleanup**
 - [ ] Namespace standardization (TecVooDoo.DontLoseYourHead.* or DLYH.*)
 - [ ] Essential animations (guillotine blade drop, head fall)
 - [ ] Screen transitions
+- [ ] Character art update: selectable heads, swappable hair, hair color matches player color
 
 ### Phase G: Deploy to Playtest
 
@@ -126,8 +131,10 @@ Session 72 - **Guillotine Stage Movement Fix + Debug Cleanup**
 ## Known Issues
 
 **UI/Layout:**
-- UI elements overlap when viewport resized to smaller sizes (no CSS media queries in UI Toolkit)
-- **MOBILE BLOCKER:** Bottom buttons inaccessible on mobile - mobile play impossible until fixed
+- **PARTIALLY FIXED:** Viewport scaling now works at 1366x768 (no overlap)
+- 1920x1080 has too much empty space at bottom - needs grid/cell size tuning
+- Player tabs don't shrink to give more room for grid content
+- **MOBILE:** Needs testing after viewport scaling changes
 
 **Architecture:**
 - UIFlowController at ~5,298 lines - **Phase 3 COMPLETE** (see `Documents/Refactor/DLYH_RefactoringPlan_Phase3_01192026.md`)
@@ -392,13 +399,12 @@ YourDifficultyModifier: Easy=+4, Normal=+0, Hard=-4
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 86 | Jan 22, 2026 | Session 73 - UI viewport scaling (partial) - 768p working, 1080p needs tuning |
 | 85 | Jan 22, 2026 | Session 72 - Guillotine stage movement fix, debug logging cleanup, Session 3 COMPLETE |
 | 84 | Jan 22, 2026 | Session 72 - Guillotine stage movement fix (synced thresholds, slower stage 5 animation) |
 | 83 | Jan 22, 2026 | Session 71 - Guillotine stage movement debugging, threshold rework (needs further discussion) |
 | 82 | Jan 22, 2026 | Session 70 - Incorrect word guesses fix, guillotine blade/rope/lever visual fixes, execution timing |
 | 81 | Jan 22, 2026 | Session 69 - Attack card cell highlights fix, opponent guess state restore, word index sorting |
-| 80 | Jan 21, 2026 | Session 68 - Defense card logic clarification, word guess fix, simplified restore |
-| 79 | Jan 21, 2026 | Session 67 - Attack/Defense card restore fixes: case-sensitivity, word guess persistence, Guessed Words panel |
 
 **Full version history:** See `DLYH_Status_Archive.md`
 
