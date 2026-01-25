@@ -234,6 +234,26 @@ namespace DLYH.Networking.Services
                 return false;
             }
 
+            // AUTHORITATIVE TURN INITIALIZATION
+            // When both players have completed setup but currentTurn is null, initialize the game.
+            // This is the SINGLE source of truth for game start - prevents race conditions
+            // where different clients try to set the initial turn.
+            if (state.currentTurn == null &&
+                state.player1 != null && state.player1.setupComplete &&
+                state.player2 != null && state.player2.setupComplete)
+            {
+                state.status = "playing";
+                state.currentTurn = "player1"; // Player 1 always goes first
+                state.turnNumber = 1;
+                Debug.Log($"[GameSessionService] Authoritative game start: {gameCode} - player1 goes first");
+
+                // Also set status parameter to ensure game_sessions.status column updates
+                if (string.IsNullOrEmpty(status))
+                {
+                    status = "active";
+                }
+            }
+
             // Update timestamp
             state.updatedAt = DateTime.UtcNow.ToString("o");
 

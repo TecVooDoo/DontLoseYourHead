@@ -5852,11 +5852,39 @@ namespace DLYH.TableUI
             else if (_currentGameMode == GameMode.JoinGame && _matchmakingResult != null)
             {
                 // JoinGame mode - joiner has joined the host's game
-                // The host's data will come from Supabase
-                opponentName = "Host"; // Will be updated when we load host's data
+                // We are player 2, so the host is player 1
                 _waitingForOpponent = false; // Joiner doesn't wait - host was already there
-                Debug.Log($"[UIFlowController] JoinGame mode - joined game {_matchmakingResult.GameCode}");
-                // TODO: Load host's setup data from Supabase to get their grid, words, etc.
+
+                // Load host's name from Supabase (player 1 in this game)
+                opponentName = "Opponent"; // Default fallback
+                if (_gameSessionService != null)
+                {
+                    GameSessionWithPlayers gameWithPlayers = await _gameSessionService.GetGameWithPlayers(_matchmakingResult.GameCode);
+                    if (gameWithPlayers?.Players != null)
+                    {
+                        foreach (SessionPlayer player in gameWithPlayers.Players)
+                        {
+                            if (player.PlayerNumber == 1) // Host is player 1
+                            {
+                                // Priority: player_name (per-game nickname) > PlayerName from session
+                                opponentName = !string.IsNullOrEmpty(player.PlayerName) ? player.PlayerName : "Opponent";
+                                break;
+                            }
+                        }
+                    }
+
+                    // Also try to get name from game state if session_players didn't have it
+                    if (opponentName == "Opponent" && gameWithPlayers?.Session != null)
+                    {
+                        DLYHGameState gameState = GameStateManager.ParseGameStateJson(gameWithPlayers.Session.StateJson);
+                        if (gameState?.player1 != null && !string.IsNullOrEmpty(gameState.player1.name))
+                        {
+                            opponentName = gameState.player1.name;
+                        }
+                    }
+                }
+
+                Debug.Log($"[UIFlowController] JoinGame mode - joined game {_matchmakingResult.GameCode}, host: {opponentName}");
             }
             else if (_currentGameMode == GameMode.Online && _matchmakingResult != null && !_matchmakingResult.IsPhantomAI)
             {
@@ -5939,24 +5967,11 @@ namespace DLYH.TableUI
             // and defense view (player's words fully visible)
             SetupGameplayWordRowsWithOpponentData(playerWordCount, opponentWordCount, playerColor, opponentWordPlacements);
 
-            // Set status message and turn state
-            if (_waitingForOpponent)
-            {
-                _gameplayManager.SetStatusMessage("Waiting for opponent to join...", GameplayScreenManager.StatusType.Normal);
-
-                // Session 4: Start polling for opponent to join
-                // This handles private games where host starts before opponent joins
-                if (_matchmakingResult != null && !string.IsNullOrEmpty(_matchmakingResult.GameCode))
-                {
-                    StartOpponentJoinPolling(_matchmakingResult.GameCode);
-                }
-            }
-            else
-            {
-                _gameplayManager.SetStatusMessage("Game started! Tap a letter or cell to attack.", GameplayScreenManager.StatusType.Normal);
-            }
+            // Set turn state and game flags BEFORE starting any async operations
+            // Critical: polling loop checks these flags, so they must be set first
             _isPlayerTurn = true;
             _isGameOver = false;
+            _hasActiveGame = true;
 
             // Clear extra turn queues for new game
             _playerExtraTurnQueue.Clear();
@@ -5969,8 +5984,23 @@ namespace DLYH.TableUI
             // Reset guillotine overlay styling for new game
             _guillotineOverlayManager?.ResetGameOverState();
 
-            // Mark that a game is now in progress
-            _hasActiveGame = true;
+            // Set status message and start polling if waiting for opponent
+            if (_waitingForOpponent)
+            {
+                _gameplayManager.SetStatusMessage("Waiting for opponent to join...", GameplayScreenManager.StatusType.Normal);
+
+                // Session 4: Start polling for opponent to join
+                // This handles private games where host starts before opponent joins
+                // Note: _hasActiveGame must be true BEFORE this call (set above)
+                if (_matchmakingResult != null && !string.IsNullOrEmpty(_matchmakingResult.GameCode))
+                {
+                    StartOpponentJoinPolling(_matchmakingResult.GameCode);
+                }
+            }
+            else
+            {
+                _gameplayManager.SetStatusMessage("Game started! Tap a letter or cell to attack.", GameplayScreenManager.StatusType.Normal);
+            }
 
             // Show gameplay screen
             ShowGameplayScreen();

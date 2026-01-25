@@ -5,8 +5,8 @@
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `C:\Unity\DontLoseYourHead`
 **Supabase:** Direct MCP access available (game_sessions, session_players, players tables)
-**Document Version:** 90
-**Last Updated:** January 23, 2026
+**Document Version:** 91
+**Last Updated:** January 25, 2026
 
 **Archive:** `DLYH_Status_Archive.md` - Historical designs, old version history, completed phase details, DAB reference patterns
 
@@ -28,61 +28,55 @@
 
 ---
 
-## Last Session (Jan 23, 2026)
+## Last Session (Jan 25, 2026)
 
-Session 76 - **Session 4: Opponent Join Detection (Implementation + Testing)**
+Session 77 - **Session 4 Fixes: Root Cause Analysis & Implementation**
 
-**Goals:**
-1. Implement opponent join detection for private games
-2. Host can start game before opponent joins, UI updates when opponent arrives
+**Root Cause Analysis (with cross-AI troubleshooting):**
 
-**Implementation:**
+Identified 4 independent authority gaps causing the multiplayer issues:
 
-1. **GameplayScreenManager.cs** - Added `SetOpponentName()` method
-   - Updates opponent name in gameplay UI when they join mid-game
-   - Used to transition from "Waiting..." to actual opponent name
+1. **Polling Race Condition** - `_hasActiveGame` set 22 lines AFTER `StartOpponentJoinPolling()` was called, causing polling loop to exit immediately on first iteration
 
-2. **UIFlowController.cs** - Opponent Join Polling System
-   - New constant: `OPPONENT_JOIN_POLL_INTERVAL = 3f` (polls every 3 seconds)
-   - `StartOpponentJoinPolling(gameCode)` - Starts async polling
-   - `OpponentJoinPollingAsync(gameCode)` - Async UniTask polling loop
-   - `HandleOpponentJoined(opponentName, gameCode)` - Updates UI, plays sound, refreshes Active Games
+2. **Turn Authority Split** - Multiple places tried to initialize `currentTurn`:
+   - `GameStateSynchronizer.SetPlayerReadyAsync()` - sets it correctly
+   - `MatchmakingService` - only sets status, NOT currentTurn
+   - Result: `currentTurn == null` for real multiplayer, both players see "Opponent's turn"
 
-**WebGL Testing Results - Issues Found:**
+3. **Placeholder Name Never Updated** - `opponentName = "Host"` in JoinGame mode was a TODO that never got implemented
 
-1. **Opponent Join Polling NOT Working**
-   - Private game: Host stays on "Waiting..." even after opponent joins
-   - Requires logout/login to see opponent joined
-   - Polling implementation exists but not triggering UI update
-   - Same behavior whether hosting on PC or phone
+4. **Identity Mismatch Risk** - `isPlayer1` passed to GameStateSynchronizer could be reconstructed incorrectly on resume
 
-2. **Turn State Mismatch**
-   - Both players see "Opponent's turn" after joining
-   - Turn assignment logic not working correctly for real multiplayer
+**Fixes Implemented:**
 
-3. **Find Opponent Issues**
-   - Matchmaking does connect two real players
-   - Opponent name shows as "Host" instead of actual player name
-   - Resume game fails for both players on Find Opponent games
-   - Active Games shows different turn states (PC: "your turn", Mobile: "opponent turn")
+1. **UIFlowController.cs** - Polling Race Condition Fix (lines ~5942-5978)
+   - Moved `_isPlayerTurn`, `_isGameOver`, `_hasActiveGame` to BEFORE `StartOpponentJoinPolling()`
+   - Polling loop now sees correct flag values on first iteration
 
-**Root Cause Analysis Needed:**
-- Polling may be starting but Supabase queries not returning expected data
-- Or polling loop exiting prematurely before detecting opponent
-- Turn assignment assumes player 1 = host goes first, but may not be set correctly
-- Find Opponent flow has different data setup than Private Game flow
+2. **GameSessionService.cs** - Authoritative Turn Initialization (lines ~230-254)
+   - Added guard in `UpdateGameState()` that checks:
+     - `currentTurn == null` AND `player1.setupComplete` AND `player2.setupComplete`
+   - When all conditions met, initializes: `status = "playing"`, `currentTurn = "player1"`, `turnNumber = 1`
+   - Single source of truth for game start - no more race conditions
 
-**Previous Session:** Session 75 - WebGL Multiplayer Testing & Fixes
+3. **UIFlowController.cs** - Opponent Name Resolution (lines ~5852-5886)
+   - Replaced `"Host"` placeholder with actual Supabase lookup
+   - Fetches from `session_players.player_name` (priority) or `game_state.player1.name` (fallback)
+   - Falls back to "Opponent" only if both unavailable
+
+**Key Insight:** These weren't networking bugs - they were authority/initialization bugs that manifested as networking issues in WebGL due to timing differences.
+
+**Previous Session:** Session 76 - Opponent Join Detection (implementation + testing revealed issues)
 
 ---
 
 ## Next Session Priorities
 
-**Session 4 Fixes (must complete before Session 5):**
-1. Debug why opponent join polling not detecting joins (add console logging, verify Supabase queries)
-2. Fix turn state - ensure exactly one player has "your turn" at game start
-3. Fix Find Opponent player name (showing "Host" instead of actual name)
-4. Fix Find Opponent resume failures
+**Test Session 4 Fixes:**
+1. WebGL build and test polling race condition fix
+2. Verify turn state shows correctly for both players
+3. Verify opponent name shows correctly in JoinGame mode
+4. Test resume functionality for Find Opponent games
 
 **Then Session 5 - Turn Synchronization:**
 - Once join detection works, implement move sync so players see opponent's turns in real-time
