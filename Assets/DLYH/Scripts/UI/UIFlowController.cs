@@ -6552,7 +6552,7 @@ namespace DLYH.TableUI
                             GameSessionWithPlayers gameWithPlayers = await _gameSessionService.GetGameWithPlayers(gameCode);
                             if (gameWithPlayers?.Players != null)
                             {
-                                // Find the opponent (player 2)
+                                // Find the opponent (player 2 for host)
                                 SessionPlayer opponent = null;
                                 foreach (SessionPlayer player in gameWithPlayers.Players)
                                 {
@@ -6563,7 +6563,27 @@ namespace DLYH.TableUI
                                     }
                                 }
 
-                                string opponentName = opponent?.PlayerName ?? "Opponent";
+                                // Try to get name from multiple sources:
+                                // 1. session_players.player_name (per-game nickname)
+                                // 2. game_sessions.state.player2.name (from setup)
+                                // 3. Fallback to "Opponent"
+                                string opponentName = opponent?.PlayerName;
+
+                                if (string.IsNullOrEmpty(opponentName) && gameWithPlayers.Session != null)
+                                {
+                                    // Try to get from game state
+                                    DLYHGameState gameState = GameStateManager.ParseGameStateJson(gameWithPlayers.Session.StateJson);
+                                    if (gameState?.player2 != null && !string.IsNullOrEmpty(gameState.player2.name))
+                                    {
+                                        opponentName = gameState.player2.name;
+                                    }
+                                }
+
+                                if (string.IsNullOrEmpty(opponentName))
+                                {
+                                    opponentName = "Opponent";
+                                }
+
                                 Debug.Log($"[UIFlowController] Opponent '{opponentName}' joined game {gameCode}!");
 
                                 // Handle opponent join

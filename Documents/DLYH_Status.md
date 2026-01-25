@@ -30,7 +30,7 @@
 
 ## Last Session (Jan 25, 2026)
 
-Session 77 - **Session 4 Fixes: Root Cause Analysis & Implementation**
+Session 77 - **Session 4 Fixes: Root Cause Analysis, Implementation & Testing**
 
 **Root Cause Analysis (with cross-AI troubleshooting):**
 
@@ -47,7 +47,7 @@ Identified 4 independent authority gaps causing the multiplayer issues:
 
 4. **Identity Mismatch Risk** - `isPlayer1` passed to GameStateSynchronizer could be reconstructed incorrectly on resume
 
-**Fixes Implemented:**
+**Fixes Implemented (Round 1):**
 
 1. **UIFlowController.cs** - Polling Race Condition Fix (lines ~5942-5978)
    - Moved `_isPlayerTurn`, `_isGameOver`, `_hasActiveGame` to BEFORE `StartOpponentJoinPolling()`
@@ -59,10 +59,27 @@ Identified 4 independent authority gaps causing the multiplayer issues:
    - When all conditions met, initializes: `status = "playing"`, `currentTurn = "player1"`, `turnNumber = 1`
    - Single source of truth for game start - no more race conditions
 
-3. **UIFlowController.cs** - Opponent Name Resolution (lines ~5852-5886)
+3. **UIFlowController.cs** - Opponent Name Resolution for Joiner (lines ~5852-5886)
    - Replaced `"Host"` placeholder with actual Supabase lookup
    - Fetches from `session_players.player_name` (priority) or `game_state.player1.name` (fallback)
    - Falls back to "Opponent" only if both unavailable
+
+**WebGL Test Results:**
+- Polling fix WORKS - mobile detected PC joining (went from "Waiting..." to "Opponent joined!")
+- Turn initialization WORKS - PC (joiner) correctly shows "YOUR TURN" at game start
+- Joiner sees host name correctly - PC log shows "host: Playerlaptop"
+- Both players could take one turn each
+
+**Issues Found:**
+- Host sees "Opponent" instead of joiner's actual name (polling code only checked session_players, not game state)
+- After both take one turn, game stuck on "Opponent's turn" for both (expected - Session 5 turn sync not implemented)
+- Attack grid shows 0 word placements for joiner (expected - Session 5 will sync opponent's placements)
+
+**Fixes Implemented (Round 2):**
+
+4. **UIFlowController.cs** - Host Opponent Name Resolution (lines ~6550-6590)
+   - Updated polling code to also check `game_state.player2.name` when `session_players.player_name` is null
+   - Names are stored in game state JSON, not session_players table
 
 **Key Insight:** These weren't networking bugs - they were authority/initialization bugs that manifested as networking issues in WebGL due to timing differences.
 
@@ -72,14 +89,14 @@ Identified 4 independent authority gaps causing the multiplayer issues:
 
 ## Next Session Priorities
 
-**Test Session 4 Fixes:**
-1. WebGL build and test polling race condition fix
-2. Verify turn state shows correctly for both players
-3. Verify opponent name shows correctly in JoinGame mode
-4. Test resume functionality for Find Opponent games
+**Test Session 4 Fixes (Round 2):**
+1. Verify host sees joiner's actual name (not "Opponent")
+2. Verify joiner sees host's name (already working)
 
-**Then Session 5 - Turn Synchronization:**
-- Once join detection works, implement move sync so players see opponent's turns in real-time
+**Session 5 - Turn Synchronization:**
+- Implement polling for opponent's turn completion so game doesn't lock up
+- Sync opponent's word placements so attack grid shows their words
+- This is required for playable multiplayer
 
 ---
 
@@ -94,7 +111,7 @@ Identified 4 independent authority gaps causing the multiplayer issues:
 | 1 | Foundation & Editor Identity | COMPLETE |
 | 2 | Phantom AI as Session Player | COMPLETE |
 | 3 | Game State Persistence | COMPLETE |
-| 4 | Opponent Join Detection | IN PROGRESS (polling not working) |
+| 4 | Opponent Join Detection | IN PROGRESS (polling works, name fix pending test) |
 | 5 | Turn Synchronization | PENDING |
 | 6 | Activity Tracking & Auto-Win | PENDING |
 | 7 | Rematch UI Integration | PENDING |
