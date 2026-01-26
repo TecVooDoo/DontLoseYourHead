@@ -30,8 +30,8 @@ This plan covers the complete implementation of online multiplayer for DLYH, inc
 | 1 | Foundation & Editor Identity | COMPLETE | Jan 19, 2026 |
 | 2 | Phantom AI as Session Player | COMPLETE | Jan 20, 2026 |
 | 3 | Game State Persistence (NEW) | COMPLETE | Jan 20, 2026 |
-| 4 | Opponent Join Detection | PENDING | - |
-| 5 | Turn Synchronization | PENDING | - |
+| 4 | Opponent Join Detection | COMPLETE | Jan 26, 2026 |
+| 5 | Turn Synchronization | IN PROGRESS | Jan 26, 2026 |
 | 6 | Activity Tracking & Auto-Win | PENDING | - |
 | 7 | Rematch UI Integration | PENDING | - |
 | 8 | Code Quality & Polish | PENDING | - |
