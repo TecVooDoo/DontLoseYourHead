@@ -2,99 +2,107 @@
     <Style src="../USS/Gameplay.uss" />
     <Style src="../USS/TableView.uss" />
 
+    <!-- Debug Layout Overlay (temporary) -->
+    <ui:Label name="debug-layout" class="debug-layout" />
+
     <!-- Main Gameplay Container -->
     <ui:VisualElement name="gameplay-root" class="gameplay-root">
 
-        <!-- Header Bar -->
-        <ui:VisualElement name="header-bar" class="header-bar">
-            <ui:Button name="btn-hamburger" class="gameplay-hamburger-button">
-                <ui:Label text="=" class="gameplay-hamburger-icon" />
-            </ui:Button>
-            <ui:Label name="turn-indicator" text="YOUR TURN" class="turn-indicator" />
-            <ui:VisualElement class="header-spacer" />
-        </ui:VisualElement>
+        <!-- Scrollable content wrapper for height-starved viewports -->
+        <ui:ScrollView name="gameplay-scroll" class="gameplay-scroll">
 
-        <!-- Player Tabs (Attack/Defend) -->
-        <ui:VisualElement name="player-tabs" class="player-tabs">
+            <!-- Header Bar -->
+            <ui:VisualElement name="header-bar" class="header-bar">
+                <ui:Button name="btn-hamburger" class="gameplay-hamburger-button">
+                    <ui:Label text="=" class="gameplay-hamburger-icon" />
+                </ui:Button>
+                <ui:Label name="turn-indicator" text="YOUR TURN" class="turn-indicator" />
+                <ui:VisualElement class="header-spacer" />
+            </ui:VisualElement>
 
-            <!-- Attack Tab (Opponent's Grid) -->
-            <ui:VisualElement name="tab-attack" class="player-tab tab-active">
-                <ui:VisualElement name="tab-attack-header" class="tab-header">
-                    <ui:Label text="ATTACK:" class="tab-label" />
-                    <ui:VisualElement name="opponent-color-swatch" class="color-swatch" />
-                    <ui:Label name="opponent-name" text="EXECUTIONER" class="tab-player-name" />
+            <!-- Player Tabs (Attack/Defend) -->
+            <ui:VisualElement name="player-tabs" class="player-tabs">
+
+                <!-- Attack Tab (Opponent's Grid) -->
+                <ui:VisualElement name="tab-attack" class="player-tab tab-active">
+                    <ui:VisualElement name="tab-attack-header" class="tab-header">
+                        <ui:Label text="ATTACK:" class="tab-label" />
+                        <ui:VisualElement name="opponent-color-swatch" class="color-swatch" />
+                        <ui:Label name="opponent-name" text="EXECUTIONER" class="tab-player-name" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="tab-attack-stats" class="tab-stats">
+                        <ui:Label name="opponent-grid-size" text="12x12" class="tab-stat" />
+                        <ui:Label text="-" class="tab-stat-separator" />
+                        <ui:Label name="opponent-word-count" text="3 words" class="tab-stat" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="tab-attack-progress" class="tab-progress">
+                        <ui:Button name="btn-opponent-miss-counter" class="miss-counter-button">
+                            <ui:Label name="opponent-miss-icon" text="!" class="miss-icon" />
+                            <ui:Label name="opponent-miss-count" text="5/18" class="miss-count-text" />
+                        </ui:Button>
+                        <ui:VisualElement name="opponent-miss-bar" class="miss-bar">
+                            <ui:VisualElement name="opponent-miss-fill" class="miss-bar-fill" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
                 </ui:VisualElement>
-                <ui:VisualElement name="tab-attack-stats" class="tab-stats">
-                    <ui:Label name="opponent-grid-size" text="12x12" class="tab-stat" />
-                    <ui:Label text="-" class="tab-stat-separator" />
-                    <ui:Label name="opponent-word-count" text="3 words" class="tab-stat" />
+
+                <!-- Defend Tab (Your Grid) -->
+                <ui:VisualElement name="tab-defend" class="player-tab">
+                    <ui:VisualElement name="tab-defend-header" class="tab-header">
+                        <ui:Label text="DEFEND:" class="tab-label" />
+                        <ui:VisualElement name="player-color-swatch" class="color-swatch" />
+                        <ui:Label name="player-name" text="You" class="tab-player-name" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="tab-defend-stats" class="tab-stats">
+                        <ui:Label name="player-grid-size" text="6x6" class="tab-stat" />
+                        <ui:Label text="-" class="tab-stat-separator" />
+                        <ui:Label name="player-word-count" text="4 words" class="tab-stat" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="tab-defend-progress" class="tab-progress">
+                        <ui:Button name="btn-player-miss-counter" class="miss-counter-button">
+                            <ui:Label name="player-miss-icon" text="!" class="miss-icon" />
+                            <ui:Label name="player-miss-count" text="3/24" class="miss-count-text" />
+                        </ui:Button>
+                        <ui:VisualElement name="player-miss-bar" class="miss-bar">
+                            <ui:VisualElement name="player-miss-fill" class="miss-bar-fill" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
                 </ui:VisualElement>
-                <ui:VisualElement name="tab-attack-progress" class="tab-progress">
-                    <ui:Button name="btn-opponent-miss-counter" class="miss-counter-button">
-                        <ui:Label name="opponent-miss-icon" text="!" class="miss-icon" />
-                        <ui:Label name="opponent-miss-count" text="5/18" class="miss-count-text" />
-                    </ui:Button>
-                    <ui:VisualElement name="opponent-miss-bar" class="miss-bar">
-                        <ui:VisualElement name="opponent-miss-fill" class="miss-bar-fill" />
+
+            </ui:VisualElement>
+
+            <!-- Main Grid Area -->
+            <ui:VisualElement name="grid-area" class="grid-area">
+                <!-- Grid Table Container (TableView attaches here) -->
+                <ui:VisualElement name="table-container" class="table-container">
+                    <ui:VisualElement name="table-root" class="table-root">
+                        <!-- TableView generates grid content here -->
                     </ui:VisualElement>
                 </ui:VisualElement>
             </ui:VisualElement>
 
-            <!-- Defend Tab (Your Grid) -->
-            <ui:VisualElement name="tab-defend" class="player-tab">
-                <ui:VisualElement name="tab-defend-header" class="tab-header">
-                    <ui:Label text="DEFEND:" class="tab-label" />
-                    <ui:VisualElement name="player-color-swatch" class="color-swatch" />
-                    <ui:Label name="player-name" text="You" class="tab-player-name" />
-                </ui:VisualElement>
-                <ui:VisualElement name="tab-defend-stats" class="tab-stats">
-                    <ui:Label name="player-grid-size" text="6x6" class="tab-stat" />
-                    <ui:Label text="-" class="tab-stat-separator" />
-                    <ui:Label name="player-word-count" text="4 words" class="tab-stat" />
-                </ui:VisualElement>
-                <ui:VisualElement name="tab-defend-progress" class="tab-progress">
-                    <ui:Button name="btn-player-miss-counter" class="miss-counter-button">
-                        <ui:Label name="player-miss-icon" text="!" class="miss-icon" />
-                        <ui:Label name="player-miss-count" text="3/24" class="miss-count-text" />
-                    </ui:Button>
-                    <ui:VisualElement name="player-miss-bar" class="miss-bar">
-                        <ui:VisualElement name="player-miss-fill" class="miss-bar-fill" />
-                    </ui:VisualElement>
+            <!-- Word Rows Section (Words to Find) -->
+            <ui:VisualElement name="words-section" class="words-section">
+                <ui:Label text="WORDS TO FIND:" class="words-header" />
+                <ui:VisualElement name="word-rows-container" class="word-rows-container">
+                    <!-- WordRowsContainer generates word rows here -->
                 </ui:VisualElement>
             </ui:VisualElement>
 
-        </ui:VisualElement>
-
-        <!-- Main Grid Area -->
-        <ui:VisualElement name="grid-area" class="grid-area">
-            <!-- Grid Table Container (TableView attaches here) -->
-            <ui:VisualElement name="table-container" class="table-container">
-                <ui:VisualElement name="table-root" class="table-root">
-                    <!-- TableView generates grid content here -->
-                </ui:VisualElement>
+            <!-- Letter Keyboard -->
+            <ui:VisualElement name="letter-keyboard" class="letter-keyboard">
+                <!-- Letter buttons generated dynamically -->
             </ui:VisualElement>
-        </ui:VisualElement>
 
-        <!-- Word Rows Section (Words to Find) -->
-        <ui:VisualElement name="words-section" class="words-section">
-            <ui:Label text="WORDS TO FIND:" class="words-header" />
-            <ui:VisualElement name="word-rows-container" class="word-rows-container">
-                <!-- WordRowsContainer generates word rows here -->
+            <!-- Guessed Words Collapsible -->
+            <ui:Button name="btn-guessed-words" text="Guessed Words: 0" class="guessed-words-button" />
+
+            <!-- Status Message Bar -->
+            <ui:VisualElement name="status-bar" class="status-bar">
+                <ui:Label name="status-message" text="EXECUTIONER guessed 'R' - Hit on your board!" class="status-message" />
             </ui:VisualElement>
-        </ui:VisualElement>
 
-        <!-- Letter Keyboard -->
-        <ui:VisualElement name="letter-keyboard" class="letter-keyboard">
-            <!-- Letter buttons generated dynamically -->
-        </ui:VisualElement>
-
-        <!-- Guessed Words Collapsible -->
-        <ui:Button name="btn-guessed-words" text="Guessed Words: 0" class="guessed-words-button" />
-
-        <!-- Status Message Bar -->
-        <ui:VisualElement name="status-bar" class="status-bar">
-            <ui:Label name="status-message" text="EXECUTIONER guessed 'R' - Hit on your board!" class="status-message" />
-        </ui:VisualElement>
+        </ui:ScrollView>
 
     </ui:VisualElement>
 

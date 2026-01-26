@@ -4,9 +4,11 @@
 
 .setup-wizard-root {
     flex-grow: 1;
+    flex-shrink: 1;
     background-color: rgb(24, 24, 30);
-    padding: 20px;
+    padding: 10px;
     align-items: center;
+    overflow: hidden;
 }
 
 /* === Header === */
@@ -466,21 +468,69 @@
 /* === Placement Panel === */
 
 .placement-panel {
-    min-width: 300px;
-    padding: 8px;
-    margin: 5px;
+    min-width: 280px;
+    padding: 6px;
+    margin: 4px;
     background-color: rgb(32, 32, 40);
     border-radius: 8px;
     flex-grow: 1;
+    flex-shrink: 1;
     align-items: center;
     justify-content: flex-start;
+    overflow: hidden;
+    /* Critical for flex shrinking to work properly on mobile/WebGL */
+    min-height: 0;
+    width: 100%;
+    max-width: 100%;
+}
+
+/* === Placement ScrollView === */
+
+.placement-scroll {
+    flex-grow: 1;
+    flex-shrink: 1;
+    width: 100%;
+    /* Allow scroll when height-starved */
+    min-height: 0;
+}
+
+/* Force content viewport to fill and center */
+.placement-scroll #unity-content-viewport {
+    align-items: center;
+}
+
+/* Force content container to center its children */
+.placement-scroll #unity-content-container {
+    align-items: center;
+    flex-grow: 1;
+    padding: 4px;
+}
+
+/* Hide horizontal scrollbar - only allow vertical scroll */
+.placement-scroll .unity-scroller--horizontal {
+    display: none;
+}
+
+/* Style vertical scrollbar to be subtle */
+.placement-scroll .unity-scroller--vertical {
+    width: 6px;
+    background-color: transparent;
+}
+
+.placement-scroll .unity-scroller--vertical .unity-base-slider__dragger {
+    background-color: rgba(100, 100, 120, 0.5);
+    border-radius: 3px;
+}
+
+.placement-scroll .unity-scroller--vertical .unity-base-slider__tracker {
+    background-color: transparent;
 }
 
 .placement-header {
     flex-direction: row;
     align-items: center;
-    margin-bottom: 4px;
-    flex-shrink: 0;
+    margin-bottom: 2px;
+    flex-shrink: 1;
 }
 
 .player-color-badge {
@@ -491,45 +541,48 @@
 }
 
 .player-name-display {
-    font-size: 24px;
+    font-size: 20px;
     color: rgb(220, 220, 220);
     -unity-font-style: bold;
 }
 
 .placement-instructions {
-    font-size: 13px;
+    font-size: 12px;
     color: rgb(160, 160, 170);
-    margin-bottom: 4px;
+    margin-bottom: 2px;
     -unity-text-align: middle-center;
-    flex-shrink: 0;
+    flex-shrink: 1;
 }
 
 /* === Word Rows Container (in placement panel) === */
 
 .placement-panel .word-rows-container {
     width: 100%;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
     border-bottom-width: 1px;
     border-bottom-color: rgb(50, 50, 60);
-    padding-bottom: 4px;
-    flex-shrink: 0;
+    padding-bottom: 2px;
+    flex-shrink: 1;
 }
 
 .placement-panel .word-rows-content {
-    flex-shrink: 0;
+    flex-shrink: 1;
 }
 
 /* === Table Container === */
 
 .table-container {
     margin: 2px 0;
-    padding: 4px;
+    padding: 2px;
     background-color: rgb(24, 24, 30);
     border-radius: 8px;
     overflow: visible;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
+    flex-shrink: 1;
+    /* Critical for flex shrinking to work properly on mobile/WebGL */
+    min-height: 0;
+    min-width: 0;
 }
 
 /* Import table styles */
@@ -544,20 +597,29 @@
 .letter-keyboard {
     flex-direction: column;
     align-items: center;
-    margin: 4px 0;
-    flex-shrink: 0;
+    margin: 2px 0;
+    flex-shrink: 1;
+    /* Allow keyboard to shrink to fit viewport width */
+    width: 100%;
+    max-width: 100%;
 }
 
 .keyboard-row {
     flex-direction: row;
     justify-content: center;
+    /* Allow rows to shrink */
+    flex-shrink: 1;
+    max-width: 100%;
 }
 
 .letter-key {
-    width: 36px;
-    height: 36px;
-    margin: 2px;
-    font-size: 16px;
+    /* Use flex sizing so keys shrink proportionally */
+    width: 32px;
+    min-width: 22px;
+    height: 32px;
+    min-height: 22px;
+    margin: 1px;
+    font-size: 14px;
     background-color: rgb(50, 50, 62);
     border-color: rgb(70, 70, 85);
     border-width: 1px;
@@ -568,6 +630,8 @@
     -unity-font-style: bold;
     transition-property: background-color, border-color;
     transition-duration: 0.1s;
+    /* Allow keys to shrink when viewport is narrow */
+    flex-shrink: 1;
 }
 
 .letter-key:hover {
@@ -594,8 +658,8 @@
     flex-direction: row;
     flex-wrap: wrap;
     justify-content: center;
-    margin: 4px 0;
-    flex-shrink: 0;
+    margin: 2px 0;
+    flex-shrink: 1;
 }
 
 .placement-actions .action-button {

@@ -1,0 +1,1076 @@
+================================================================================
+DLYH Mobile WebGL UI Troubleshooting Log
+================================================================================
+
+SESSION: 2026-01-25
+ISSUE: Grid overlaps other UI elements on mobile WebGL; cascading resize loop
+
+--------------------------------------------------------------------------------
+ROUND 1 FIXES (Initial)
+--------------------------------------------------------------------------------
+
+Problem: Grid sized based on Screen.height which doesn't account for mobile
+browser chrome or flex container constraints.
+
+Changes Made:
+
+1. TableView.cs - Container-based sizing
+   - Added GeometryChangedEvent callback on container
+   - Calculate cell size from container's contentRect instead of Screen.height
+   - Consider BOTH width AND height constraints (mobile is often width-limited)
+   - Fixed CELL_MARGIN constant from 2 to 1 (was double-counting)
+
+2. Gameplay.uss - Flex shrinking fixes
+   - Added min-height: 0 and min-width: 0 to .grid-area
+   - Added min-height: 0 and min-width: 0 to .grid-area .table-container
+   - These allow flex containers to shrink below their content size
+
+3. SetupWizard.uss - Same flex fixes
+   - Added min-height: 0 to .placement-panel
+   - Added min-height: 0 and min-width: 0 to .table-container
+
+--------------------------------------------------------------------------------
+ROUND 2 FIXES (Band-aid - Later Replaced)
+--------------------------------------------------------------------------------
+
+Problem: Cascading resize loop observed in console:
+  Available 416x330px -> 23px
+  Available 325x290px -> 20px
+  Available 286x270px -> 18px
+  Available 260x254px -> 18px
+
+Temporary fixes applied:
+- Added 5% threshold guard to prevent small resize triggers
+- Added explicit _tableRoot sizing
+
+These were identified as band-aids, not root cause fixes.
+
+--------------------------------------------------------------------------------
+ROUND 3 FIXES (Proper Architectural Fix)
+--------------------------------------------------------------------------------
+
+Root Cause (identified via collaboration with ChatGPT):
+- We were measuring table-container which is CONTENT-DRIVEN (shrinks with children)
+- When cells resize smaller, container shrinks, triggering GeometryChangedEvent
+- This caused infinite cascade: resize -> shrink -> resize -> shrink...
+
+Solution: Measure from a STABLE SLOT instead of content-driven element
+- grid-area and placement-panel are sized by their PARENT (stable)
+- Their size doesn't change when children resize
+- No feedback loop possible
+
+Changes Made:
+
+1. TableView.cs - Major refactoring
+   - Renamed _tableContainer -> _measurementSlot (clarity)
+   - Added SetMeasurementSlot(VisualElement slot) method
+   - Changed guard from percentage-based to cell-size based (_lastCalculatedCellSize)
+   - Removed explicit _tableRoot sizing (no longer needed)
+   - Constructor no longer auto-detects slot - caller must set explicitly
+   - Added legacy SetContainer() method that redirects to SetMeasurementSlot()
+
+2. UIFlowController.cs - Updated both screens to pass stable slots
+
+   Setup Wizard (~line 5010):
+   ```csharp
+   VisualElement placementPanel = _setupWizardScreen.Q<VisualElement>("placement-panel");
+   _tableView = new TableView(tableContainer);
+   if (placementPanel != null)
+   {
+       _tableView.SetMeasurementSlot(placementPanel);
+   }
+
+
+Gameplay Screen (~line 6176):
+
+VisualElement gridArea = _gameplayScreen?.Q<VisualElement>("grid-area");
+if (gridArea != null)
+{
+    _tableView.SetMeasurementSlot(gridArea);
+}
+
+KEY CONCEPT: Stable Slot vs Content-Driven Element
+
+STABLE SLOT (use for measurement):
+
+grid-area, placement-panel
+
+Sized by parent via flex-grow/flex-shrink
+
+Size determined by available space, NOT by children
+
+Perfect for GeometryChangedEvent - won't cascade
+
+CONTENT-DRIVEN (don't use for measurement):
+
+table-container, table-root
+
+Size determined by children (cells)
+
+When children shrink, container shrinks
+
+Causes feedback loop if used for measurement
+
+RULE OF THUMB (UI Toolkit Layout)
+
+Never size UI Toolkit content from an element whose size is affected by that
+content. Always measure from a parent-allocated, layout-stable slot.
+
+If resizing a child can change the measured size, you are measuring the wrong
+element.
+
+HOW TO RECOGNIZE THIS BUG AGAIN
+
+This class of bug is likely present if you observe any of the following:
+
+GeometryChangedEvent fires repeatedly without user interaction
+
+Logged "available width/height" shrinks on every recalculation
+
+Layout appears stable in Editor or desktop but breaks on WebGL/mobile
+
+Fixes only work when adding clamps, thresholds, or explicit sizing
+
+UI breaks specifically on orientation change or browser chrome changes
+
+Removing explicit sizing causes infinite resize loops
+
+If two or more apply, check whether you are measuring a content-driven element.
+
+--------------------------------------------------------------------------------
+ROUND 3 TEST RESULTS (2026-01-25)
+--------------------------------------------------------------------------------
+
+Tested on mobile (Android phone) in two environments:
+1. Direct hosted site: dlyh.pages.dev
+2. Iframe embed: tecvoodoo.com/games/dlyh
+
+Screenshots analyzed:
+- Screenshot 1: dlyh.pages.dev, Attack tab, 10x10 grid with 3 words
+- Screenshot 2: dlyh.pages.dev, Defense tab, 10x10 grid
+- Screenshot 3: tecvoodoo.com iframe, Attack tab, 8x8 grid with PIE/TUCK/ARMOR/BELLOW
+- Screenshot 4: tecvoodoo.com iframe, Defense tab, 8x8 grid
+
+RESULT: **FIXES APPEAR TO BE WORKING**
+
+Grid no longer overlaps other UI elements. Both Attack and Defense grids are
+properly sized within their containers. The cascading resize loop appears to
+be fixed - grids are stable and correctly sized.
+
+Observed improvements:
+- Grid fits within available space on mobile
+- No overlap with word rows or keyboard
+- Both direct hosting and iframe embed work correctly
+- Different grid sizes (8x8, 10x10) all render properly
+
+I’m looking at your screenshots, and you’ve got two different failure modes:
+
+Hosted (dlyh.pages.dev) — the UI is tight but basically stacks correctly (grid → words → keyboard).
+
+TecVooDoo page (iframe) — the Words To Find panel and your in-game letter keyboard are fighting for the same vertical space, so the keyboard sits on top of the words panel (overlap). That’s visible in the last two screenshots.
+
+So the “grid sizing” work you tracked is still valid, but it was never going to solve the iframe case by itself, because the iframe page is effectively giving Unity less usable height (site header + whatever iframe height you set). Your own log also shows you moved to measuring a stable slot, which is good, but the layout policy still has no “what happens when there isn’t enough height?” rule. 
+
+troubleshooting
+
+What’s actually broken (based on the images)
+On the iframe page:
+
+There simply isn’t enough vertical room for:
+
+big tabs header
+
+grid
+
+words panel
+
+your in-game keyboard
+
+So something must shrink, scroll, or collapse. Right now nothing has explicit “yield” behavior, so it overlaps.
+
+Fix this in two layers (do both)
+Layer A — Fix the iframe height (website side)
+
+On the TecVooDoo page, make sure the iframe is actually filling the available viewport height, not some fixed pixel height.
+
+What you want is “iframe = viewport height minus site header”.
+
+Practical target behavior:
+
+The iframe should be tall enough that Unity sees the same kind of height it gets on the hosted page.
+
+If the page has a header/nav, don’t steal height from the iframe without compensating.
+
+Concrete change (conceptually):
+
+Parent container: height: calc(100vh - <headerHeightPx>)
+
+iframe: width: 100%; height: 100%; border: 0; display: block;
+
+If you don’t do this, Unity is playing inside a letterbox and your internal layout will keep losing.
+
+Layer B — Add a “not enough height” rule (Unity UI Toolkit side)
+
+You need an explicit policy for small heights, especially on phones:
+
+Pick what yields first:
+
+My recommendation for your screen:
+
+Words panel becomes scrollable (or collapsible)
+
+Keyboard shrinks (you already do dynamic sizing in code)
+
+Only then shrink grid further
+
+Easiest high-impact change:
+
+Make the Words section able to shrink and scroll instead of demanding its full height.
+
+Right now, if words-section is a plain VisualElement full of fixed-size stuff, it tends to “want” its space and then overlap when it can’t get it.
+
+Do this:
+
+Convert the words container into a ScrollView, or
+
+Put word-rows-container inside a ScrollView, and
+
+Ensure the words section can shrink inside a flex column:
+
+Key style ideas:
+
+flex-shrink: 1;
+
+min-height: 0; (critical in flex layouts)
+
+overflow: scroll; (or hidden + ScrollView)
+
+That way, on short viewports (like the iframe case), the words area becomes scrollable instead of getting drawn under the keyboard.
+
+One fast diagnostic that will confirm this in 30 seconds
+
+On the TecVooDoo iframe build, log these at runtime (once after layout settles):
+
+the iframe/canvas size Unity sees
+
+the resolvedStyle.height of:
+
+gameplay root
+
+grid-area (measurement slot)
+
+words-section
+
+letter-keyboard
+
+If gameplay-root height is dramatically smaller in the iframe case than the hosted case, you’ve confirmed Layer A is contributing. And if words-section resolved height is non-zero but still visually covered, you’ve confirmed Layer B is needed (no scroll/collapse rule).
+
+Why your last 3 rounds didn't "fix it"
+
+Your log shows you correctly fixed the measurement & cascade loop problem by switching to a stable measurement slot.
+
+But the screenshots show the current problem is now layout priority under height starvation, especially in the iframe scenario. That's a different class of bug.
+
+--------------------------------------------------------------------------------
+ROUND 4 FIXES (Height Starvation + Width Overflow)
+--------------------------------------------------------------------------------
+
+Problem: Elements overlap when viewport height is too small (iframe scenario).
+Also: Content exceeds viewport width on narrow screens.
+
+Root Cause:
+- words-section and letter-keyboard had flex-shrink: 1 but NO min-height: 0
+- Without min-height: 0, flex items can't shrink below content size - they overlap
+- No max-width constraints on keyboard rows
+
+Changes Made (Gameplay.uss):
+
+1. gameplay-root - Added max-width: 100%, width: 100%
+
+2. header-bar - Added max-width: 100%
+
+3. player-tabs - Added min-width: 0 (allow shrinking)
+
+4. words-section - Added min-height: 0, overflow: hidden
+   - Critical for allowing section to shrink when height-starved
+
+5. word-rows-container - Added flex-shrink: 1, min-height: 0
+   - Allow word rows to shrink inside section
+
+6. letter-keyboard - Added min-height: 0, max-width: 100%
+   - Allow keyboard to shrink and not exceed viewport width
+
+7. keyboard-row - Added flex-wrap: wrap, max-width: 100%
+   - Allow keyboard keys to wrap on narrow screens
+
+Key Insight: flex-shrink: 1 is useless without min-height: 0 in UI Toolkit.
+The element will just overlap instead of shrinking.
+
+STATUS: Ready for testing
+
+---
+What we need to see (numbers, not guesses)
+
+At runtime, on the problem phone, we need:
+
+gameplay-root resolved height
+
+grid-area resolved height
+
+words-section resolved height
+
+letter-keyboard resolved height
+
+Screen.width / Screen.height
+
+Whether words + keyboard exceed gameplay-root height
+
+Once we see that, the fix becomes obvious.
+
+Minimal Unity debug overlay (10 minutes, removable)
+1️⃣ Add a tiny debug label to your Gameplay UXML
+
+Somewhere near the root:
+
+<ui:Label name="debug-layout" class="debug-layout" />
+
+2️⃣ Add a simple USS rule (temporary)
+.debug-layout {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    background-color: rgba(0,0,0,0.7);
+    color: white;
+    font-size: 10px;
+    padding: 4px;
+    z-index: 999;
+}
+
+3️⃣ Populate it from code after layout settles
+
+In your Gameplay screen controller (after UI is built and geometry is valid):
+
+var root = _gameplayScreen;
+var debug = root.Q<Label>("debug-layout");
+
+var gridArea = root.Q<VisualElement>("grid-area");
+var words = root.Q<VisualElement>("words-section");
+var keyboard = root.Q<VisualElement>("letter-keyboard");
+
+root.schedule.Execute(() =>
+{
+    debug.text =
+        $"Screen: {Screen.width}x{Screen.height}\n" +
+        $"Root: {root.resolvedStyle.height:F0}\n" +
+        $"Grid: {gridArea.resolvedStyle.height:F0}\n" +
+        $"Words: {words.resolvedStyle.height:F0}\n" +
+        $"Keyboard: {keyboard.resolvedStyle.height:F0}\n" +
+        $"Sum (W+K): {(words.resolvedStyle.height + keyboard.resolvedStyle.height):F0}";
+}).Every(500);
+
+4️⃣ Build → test on phone → screenshot
+
+That screenshot gives us everything we need:
+
+whether height starvation is happening
+
+which element refuses to shrink
+
+whether the iframe is the trigger or Unity layout alone
+
+You can delete all of this afterward.
+
+--------------------------------------------------------------------------------
+ROUND 4 IMPLEMENTATION (Debug Overlay + Conservative Fixes)
+--------------------------------------------------------------------------------
+
+Round 4 min-height: 0 changes made display unusable on mobile.
+
+Reverted aggressive changes and added debug overlay for diagnostics:
+
+Changes Made:
+
+1. Gameplay.uxml - Added debug label
+   ```xml
+   <ui:Label name="debug-layout" class="debug-layout" />
+   ```
+
+2. Gameplay.uss - Added debug overlay styling + reverted aggressive changes
+   ```css
+   .debug-layout {
+       position: absolute;
+       top: 4px;
+       left: 4px;
+       background-color: rgba(0, 0, 0, 0.85);
+       color: rgb(0, 255, 0);
+       font-size: 10px;
+       padding: 6px;
+       border-radius: 4px;
+       white-space: normal;
+   }
+   ```
+
+   Reverted min-height changes to conservative values:
+   - words-section: min-height: 60px (instead of 0)
+   - letter-keyboard: min-height: 80px (instead of 0)
+   - Removed word-rows-container min-height: 0
+   - Removed keyboard-row flex-wrap
+
+3. UIFlowController.cs - Added SetupLayoutDebugOverlay() method
+   - Called at end of SetupGameplayTableViews()
+   - Updates every 500ms with layout metrics:
+     * Screen dimensions
+     * Root height
+     * Tabs height
+     * Grid height
+     * Words section height
+     * Keyboard height
+     * Sum of Words + Keyboard
+     * Overflow indicator (YES/no)
+
+Debug overlay will show real-time layout metrics in top-left corner.
+This data will reveal exactly what's happening with height starvation.
+
+STATUS: Build and test - screenshot the debug overlay numbers
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+LAYER A ANALYSIS: IFRAME HEIGHT ON TECVOODOO.COM
+--------------------------------------------------------------------------------
+
+File: E:\TecVooDoo\TecVooDooSite\site\games\dlyh\index.html
+
+Current iframe setup (lines 24-37):
+```css
+.game-wrapper {
+    position: fixed;
+    top: 60px;      /* <-- HARDCODED! */
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.game-wrapper iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+```
+
+PROBLEM FOUND:
+
+The nav bar actual height is ~72px:
+- Nav padding: 1rem top + 1rem bottom = 32px (at 16px base)
+- Logo image: 40px
+- Total: ~72px
+
+But game-wrapper uses `top: 60px` - this is 12px too small!
+
+On mobile with different font scaling, this mismatch could be even worse.
+
+RECOMMENDED FIX:
+
+Option 1 - Use calc with CSS variable:
+```css
+:root {
+    --nav-height: 72px;  /* Or calculate dynamically */
+}
+
+.game-wrapper {
+    position: fixed;
+    top: var(--nav-height);
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+```
+
+Option 2 - Use JavaScript to measure nav height:
+```javascript
+const nav = document.querySelector('nav');
+const wrapper = document.querySelector('.game-wrapper');
+wrapper.style.top = nav.offsetHeight + 'px';
+```
+
+Option 3 - Quick fix - just increase to 72px:
+```css
+.game-wrapper {
+    top: 72px;  /* Match actual nav height */
+}
+```
+
+STATUS: Website fix needed - update top: 60px to match actual nav height
+
+--------------------------------------------------------------------------------
+ROUND 5 FINDINGS (Environment-Specific Constraints & Debugging Reality)
+--------------------------------------------------------------------------------
+
+This round identified NON-UNITY constraints that directly affect layout behavior
+and debugging capability on mobile devices.
+
+--------------------------------------------------------------------------------
+A. SAMSUNG ANDROID USB DEBUGGING LIMITATION (IMPORTANT)
+--------------------------------------------------------------------------------
+
+Device: Samsung Galaxy S25 Ultra (One UI 7)
+
+Issue:
+- Chrome Remote Debugging via USB could not be authorized
+- Device appeared in chrome://inspect but remained OFFLINE
+- No "Allow USB debugging?" prompt ever appeared on device
+- USB file transfer (MTP) worked, but ADB authorization did not
+
+Findings:
+- This is a known Samsung / Knox / One UI security behavior
+- Auto Blocker, USB Debugging, and USB Debugging (Security Settings)
+  were ALL disabled/enabled correctly
+- Even after revoking authorizations and rebooting, ADB auth dialog
+  never appeared
+- This is NOT user error and NOT fixable reliably via settings
+
+Conclusion:
+- USB-based Chrome remote debugging CANNOT be relied upon for
+  Samsung flagship devices
+- Mobile debugging strategy must NOT depend on Chrome DevTools
+
+Actionable Rule:
+- Treat USB remote debugging as OPTIONAL
+- Always provide an in-engine debugging fallback
+
+--------------------------------------------------------------------------------
+B. REQUIRED DEBUGGING FALLBACK: IN-GAME LAYOUT OVERLAY
+--------------------------------------------------------------------------------
+
+Because mobile USB debugging is unreliable, a Unity-side debug overlay
+is now considered REQUIRED for UI layout troubleshooting.
+
+Purpose:
+- Capture layout truth from inside Unity itself
+- Works identically on:
+  - Mobile browsers
+  - WebGL
+  - iframe embeds
+  - Devices with locked-down debugging
+
+Debug Overlay Requirements:
+- Must display at runtime:
+  - Screen.width / Screen.height
+  - gameplay-root resolved height
+  - player-tabs resolved height
+  - grid-area resolved height
+  - words-section resolved height
+  - letter-keyboard resolved height
+  - Sum(words + keyboard)
+  - Overflow indicator (sum > root)
+
+Implementation:
+- Temporary Label injected into Gameplay UXML
+- Updated every ~500ms after layout settles
+- Removed after diagnosis
+
+Key Insight:
+- Layout bugs cannot be diagnosed reliably by screenshots alone
+- Numeric layout data is required to distinguish:
+  - height starvation
+  - incorrect flex priorities
+  - iframe viewport reduction
+  - engine vs browser responsibility
+
+--------------------------------------------------------------------------------
+C. IFRAME EMBED IS A SEPARATE LAYOUT ENVIRONMENT
+--------------------------------------------------------------------------------
+
+Finding:
+- The same WebGL build behaves differently when:
+  1. Hosted directly (dlyh.pages.dev)
+  2. Embedded via iframe (tecvoodoo.com/games/dlyh)
+
+Root Cause:
+- iframe environment provides LESS usable vertical space due to:
+  - Site header
+  - Page padding/margins
+  - iframe height configuration
+- Unity receives a smaller canvas height and MUST adapt
+
+Important Conclusion:
+- Grid sizing fixes alone cannot solve iframe overlap
+- iframe layout must be treated as a constrained viewport scenario
+
+Rule:
+- Every screen must define what yields FIRST when height is insufficient:
+  - Scroll
+  - Shrink
+  - Collapse
+  - Hide
+
+--------------------------------------------------------------------------------
+D. FLEXBOX RULE CLARIFICATION (UI Toolkit-Specific)
+--------------------------------------------------------------------------------
+
+Critical Rule (Confirmed):
+- flex-shrink: 1 does NOTHING without min-height: 0 (or min-width: 0)
+
+Observed Behavior:
+- Without min-height: 0:
+  - UI Toolkit elements refuse to shrink
+  - Elements overlap instead of yielding
+- This is different from web CSS expectations and must be enforced explicitly
+
+Actionable Rule:
+- Any vertically stacked container that must yield space MUST have:
+  - flex-shrink: 1
+  - min-height: 0
+
+BUT:
+- Applying min-height: 0 indiscriminately can break usability
+- Must be applied surgically, with explicit fallback behavior
+  (scroll, clamp, or minimum visible size)
+
+--------------------------------------------------------------------------------
+E. FINAL ARCHITECTURAL GUIDELINES (LOCK THESE IN)
+--------------------------------------------------------------------------------
+
+1. Measurement
+   - Only measure from STABLE, parent-allocated slots
+   - Never measure from content-driven elements
+
+2. Resizing
+   - Never resize content based on elements whose size depends on that content
+
+3. Mobile / iframe
+   - Always assume height starvation is possible
+   - Always define a yield strategy
+
+4. Debugging
+   - Assume mobile DevTools may be unavailable
+   - Always keep a reusable in-engine debug overlay pattern
+
+--------------------------------------------------------------------------------
+LAYER A FIX APPLIED (2026-01-25)
+--------------------------------------------------------------------------------
+
+File: E:\TecVooDoo\TecVooDooSite\site\games\dlyh\index.html
+
+Change Made:
+- Fixed iframe top offset from 60px to 72px
+- This matches actual nav height: 1rem padding + 40px logo + 1rem padding = ~72px
+
+Before:
+```css
+.game-wrapper {
+    position: fixed;
+    top: 60px;  /* Was 12px too short! */
+    ...
+}
+```
+
+After:
+```css
+.game-wrapper {
+    position: fixed;
+    top: 72px;  /* Match actual nav height */
+    ...
+}
+```
+
+This gives Unity an additional 12px of vertical space in the iframe embed,
+which should help reduce height starvation.
+
+STATUS:
+- Layer A iframe fix applied
+- Awaiting debug overlay metrics from mobile iframe test
+- Next fixes will be DATA-DRIVEN, not speculative
+
+Perfect — thanks for the screenshots. They’re actually more useful than remote DevTools would have been here.
+
+Below is a clean, copy-paste–ready update section you can append to your troubleshooting document. I’m not rewriting the whole file — this is an addendum that captures results + concrete recommendations based strictly on what we can see and what we know now.
+
+ROUND 6 – MOBILE VISUAL RESULTS & FINAL DIAGNOSIS
+
+Date: 2026-01-25
+Device: Samsung Galaxy S25 Ultra
+Environment:
+
+Mobile Chrome
+
+TecVooDoo iframe embed (tecvoodoo.com/games/dlyh)
+
+Unity 6.3 WebGL + UI Toolkit
+
+OBSERVED BEHAVIOR (FROM SCREENSHOTS)
+Global
+
+Debug overlay visible on all screens (Main Menu, Setup Wizard, Gameplay)
+
+Screen resolution reported: 1079 x 1791
+
+Overlay confirms Unity UI is rendering correctly, not clipped or scaled incorrectly
+
+Main Menu
+
+Layout is visually correct
+
+No overlap
+
+Buttons, sliders, and footer stack as expected
+
+Setup Wizard (Word Placement)
+
+Grid overlaps the on-screen keyboard
+
+Keyboard visually sits on top of grid cells
+
+Grid remains correctly sized relative to container
+
+Overlap occurs only once keyboard is visible
+
+Gameplay (Attack / Defense)
+
+Grid fits horizontally
+
+Vertical overlap occurs between:
+
+Grid
+
+Words-to-Find panel
+
+On-screen keyboard
+
+Overlap worsens with:
+
+Larger grid sizes (10x10, 12x12)
+
+4-word layouts vs 3-word layouts
+
+WHAT IS NOT BROKEN (CONFIRMED)
+
+The following systems are now behaving correctly and should not be revisited:
+
+✅ Grid cell size calculation (container-aware, width + height)
+
+✅ Margin math (CELL_MARGIN = 1px matches USS)
+
+✅ GeometryChanged cascade loop (stable slot measurement fixed this)
+
+✅ Flex shrinking of grid container itself
+
+✅ Desktop and hosted mobile page (dlyh.pages.dev) layout
+
+Conclusion:
+All grid math and measurement logic fixes from Rounds 1–3 are correct and working.
+
+ROOT CAUSE (CONFIRMED)
+
+This is no longer a grid sizing bug.
+
+This is height starvation with no yield policy on mobile, especially inside an iframe.
+
+Specifically:
+
+Unity receives less vertical space in the TecVooDoo iframe due to site header
+
+When total vertical demand exceeds available height:
+
+Grid
+
+Words panel
+
+On-screen keyboard
+all try to occupy fixed space
+
+No element is allowed to:
+
+Scroll
+
+Collapse
+
+Yield height
+
+Result: visual overlap, not layout failure
+
+This explains why:
+
+Desktop looks fine
+
+Hosted mobile page mostly works
+
+iframe mobile breaks consistently
+
+CONTRIBUTING FACTOR (NON-UNITY)
+TecVooDoo iframe height mismatch
+
+Site header height ≈ 72px
+
+iframe offset was previously 60px
+
+Unity lost ~12px of vertical space on mobile
+
+This was corrected:
+
+.game-wrapper {
+    position: fixed;
+    top: 72px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+
+This fix is necessary but not sufficient.
+
+FINAL DIAGNOSIS SUMMARY
+Issue	Status
+Grid measurement logic	✅ Fixed
+Resize cascade loop	✅ Fixed
+Flex shrink correctness	✅ Mostly correct
+Mobile iframe height	⚠️ Partially fixed
+Height starvation handling	❌ Missing
+Yield / scroll policy	❌ Missing
+REQUIRED DESIGN DECISION (CANNOT BE AVOIDED)
+
+On small vertical viewports, especially mobile + iframe, something must give.
+
+You must explicitly choose ONE (or more):
+
+Words panel scrolls
+
+Words panel collapses
+
+Keyboard shrinks further
+
+Keyboard scrolls
+
+Grid clamps to smaller max height
+
+Some UI hides until interaction
+
+Right now, none of these are defined — so overlap is expected behavior.
+
+RECOMMENDED NEXT STEPS (ORDERED)
+1. Add a ScrollView to the Words section (highest ROI)
+
+Words-to-Find is informational, not interactive per cell
+
+Make it the first thing that yields
+
+Implementation direction:
+
+Wrap word rows in a ScrollView
+
+Ensure parent has:
+
+flex-shrink: 1
+
+min-height: 0
+
+2. Clamp grid max height on mobile
+
+Grid should never consume 100% of remaining vertical space
+
+Add a max-height derived from container height (e.g. 55–65%)
+
+3. Treat iframe as a constrained layout class
+
+Assume reduced viewport
+
+Do not rely on “desktop-like” stacking behavior
+
+Mobile iframe should be considered worst-case
+
+DEBUGGING CONSTRAINT (IMPORTANT)
+
+USB Chrome remote debugging cannot be relied on for Samsung flagship devices (confirmed).
+
+Therefore:
+
+The in-engine debug overlay is now required tooling
+
+Numeric layout telemetry is the only reliable diagnostic method
+
+Screenshots + overlay data > DevTools for this project
+
+This is not user error and not fixable via settings.
+
+LOCKED-IN ARCHITECTURAL RULES (DO NOT BREAK)
+
+Never measure layout from content-driven elements
+
+Never resize content based on its own size
+
+Always define a yield policy for mobile height starvation
+
+Always assume iframe reduces usable viewport
+
+flex-shrink without min-height: 0 is meaningless in UI Toolkit
+
+Debug overlays are mandatory for mobile UI work
+
+CURRENT STATUS
+
+Grid math: stable
+
+Layout logic: stable
+
+Remaining issue: policy decision, not a bug
+
+Ready to implement yield behavior
+
+If you want, next we can:
+
+Pick the exact yield order (grid vs words vs keyboard)
+
+Write the minimal USS + UXML changes (no more broad refactors)
+
+Add a single mobile-only rule so desktop stays untouched
+
+--------------------------------------------------------------------------------
+ROUND 7 IMPLEMENTATION (Option C - Height Starvation Fix)
+--------------------------------------------------------------------------------
+
+Date: 2026-01-25
+
+DECISION MADE:
+User selected "Option C" - the recommended approach:
+1. Keyboard keys shrink to fit viewport width (horizontal fix)
+2. Whole content area scrolls when height-starved (vertical fix)
+3. Apply to ALL screens: Main Menu, Setup Wizard, and Gameplay
+
+IMPORTANT CONSTRAINT:
+- Grid cell sizing remains DYNAMIC (container-aware)
+- Word row sizing remains DYNAMIC (matches grid)
+- Only keyboard keys get shrink behavior
+- ScrollViews provide fallback, not primary behavior
+
+CHANGES MADE:
+
+1. SetupWizard.uss - Keyboard shrink behavior
+   - .letter-keyboard: Added width: 100%, max-width: 100%
+   - .keyboard-row: Added flex-shrink: 1, max-width: 100%
+   - .letter-key: Added min-width: 22px, min-height: 22px, flex-shrink: 1
+
+2. Gameplay.uss - Keyboard shrink behavior (same as above)
+   - .letter-keyboard: Added width: 100%, max-width: 100%
+   - .keyboard-row: Added flex-shrink: 1, max-width: 100%
+   - .letter-key: Added min-width: 22px, min-height: 22px, flex-shrink: 1
+   - Removed fixed min-height: 80px from .letter-keyboard
+
+3. SetupWizard.uxml - Added ScrollView wrapper to placement-panel
+   - Wrapped all placement content in <ui:ScrollView name="placement-scroll">
+   - Buttons remain inside scroll (user can scroll to reach them)
+
+4. SetupWizard.uss - Added placement-scroll styling
+   - flex-grow: 1, flex-shrink: 1
+   - width: 100%, align-items: center
+   - min-height: 0 (critical for scroll to activate)
+   - Hidden horizontal scrollbar
+   - Subtle vertical scrollbar styling
+
+5. Gameplay.uxml - Added ScrollView wrapper to gameplay-root
+   - Wrapped all gameplay content in <ui:ScrollView name="gameplay-scroll">
+   - Header, tabs, grid, words, keyboard all inside scroll
+
+6. Gameplay.uss - Added gameplay-scroll styling
+   - Same pattern as placement-scroll
+   - min-height: 0 for proper activation
+
+7. MainMenu.uxml - Added ScrollView wrapper to main-menu-root
+   - Wrapped menu-content in <ui:ScrollView name="menu-scroll">
+   - Footer remains OUTSIDE scroll (stays fixed at bottom)
+
+8. MainMenu.uss - Added menu-scroll styling
+   - Same pattern as other scrolls
+   - justify-content: center (keeps content centered when space available)
+
+EXPECTED BEHAVIOR:
+
+On devices with sufficient height:
+- No visible scrollbars
+- Content displays exactly as before
+- Grid and word rows size dynamically as usual
+
+On height-starved devices (mobile iframe):
+- Subtle vertical scrollbar appears
+- User can scroll to see all content
+- No element overlap
+- Keyboard keys shrink proportionally if viewport is narrow
+
+KEY INSIGHT:
+ScrollViews with min-height: 0 only activate when needed.
+When there's enough space, they behave like normal containers.
+This is a graceful degradation, not a mode change.
+
+STATUS: Ready for build and mobile testing
+
+--------------------------------------------------------------------------------
+ROUND 7 TEST RESULTS (Jan 25, 2026)
+--------------------------------------------------------------------------------
+
+TESTED ON:
+- PC: 1282x801 (Setup Wizard screenshot)
+- Mobile: 1079x1791 (Gameplay and Setup screenshots)
+- Context: tecvoodoo.com iframe
+
+PC RESULTS (Setup Wizard - Screenshot 1):
+- REGRESSION: Scrollbar now appears on PC when it didn't before
+- Content is centered correctly
+- Grid and word rows display fine
+
+MOBILE GAMEPLAY RESULTS (Screenshot 2):
+- Scrollbar appears but DOES NOT SCROLL (broken)
+- Height starvation overlap STILL PRESENT in grid, word rows, keyboard
+- Keyboard/tracker width fixed (no longer overflows horizontally)
+- Grid too small - container has unused space on sides
+- Attack card: "The Executioner" text overflows the card
+- Word rows: GUESS buttons overlap letter cells (can't see letters behind)
+- Debug overlay shows: Root=682, Tabs=98, Grid=203, Words=151, KB=110, W+K=262, Over=no
+
+MOBILE SETUP RESULTS (Screenshot 3):
+- Almost perfect layout
+- Word rows: Nav/Cancel buttons overlap letter cells (same issue as gameplay)
+- HORIZONTAL scrollbar appearing (shouldn't be there)
+- Vertical scrolling works
+
+NEW ISSUES IDENTIFIED:
+
+1. ScrollView not scrolling on mobile gameplay
+   - Scrollbar visible but content doesn't move
+   - May be a Unity UI Toolkit bug or CSS conflict
+
+2. Word row action buttons overlap letter cells
+   - Affects both Setup and Gameplay screens
+   - Buttons (GUESS, +/X, Nav) positioned over the letters
+   - Need to adjust button positioning or word row layout
+
+3. Horizontal scrollbar on Setup mobile
+   - Something is wider than viewport
+   - Need to find and constrain the overflowing element
+
+4. PC scrollbar regression
+   - Setup Wizard shows scrollbar when it shouldn't need one
+   - May need conditional scrollbar visibility
+
+5. Grid container not using full width on mobile
+   - Wasted horizontal space on sides
+   - Grid should expand to fill available width (same as tabs/cards)
+
+6. Attack card text overflow
+   - "The Executioner" name too long for card width
+   - Need text truncation or smaller font
+
+7. Grid too small on mobile
+   - Even with available space, grid cells are tiny
+   - May need minimum cell size or different scaling approach
+
+CONCLUSION:
+Option C (ScrollView wrappers) partially works but has significant issues.
+The fundamental problem may be that ScrollView alone doesn't solve the
+height starvation - elements inside still need proper flex behavior.
+
+NEXT SESSION:
+1. Fix word row button overlap (highest priority - affects usability)
+2. Debug ScrollView not scrolling on mobile
+3. Remove unwanted horizontal scrollbar
+4. Consider grid sizing approach for mobile
+5. Fix Attack card text overflow
+

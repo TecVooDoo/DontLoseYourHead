@@ -1,5 +1,20 @@
 /* Gameplay.uss - Styles for the gameplay UI */
 
+/* === Debug Layout Overlay (temporary - remove after troubleshooting) === */
+.debug-layout {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    background-color: rgba(0, 0, 0, 0.85);
+    color: rgb(0, 255, 0);
+    font-size: 10px;
+    padding: 6px;
+    border-radius: 4px;
+    white-space: normal;
+    /* Ensure overlay renders above gameplay-root */
+    z-index: 9999;
+}
+
 /* === Root Container === */
 
 .gameplay-root {
@@ -10,6 +25,50 @@
     align-items: center;
     /* Ensure content can shrink to fit viewport */
     overflow: hidden;
+    /* Prevent content from exceeding viewport */
+    max-width: 100%;
+    width: 100%;
+}
+
+/* === Gameplay ScrollView === */
+
+.gameplay-scroll {
+    flex-grow: 1;
+    flex-shrink: 1;
+    width: 100%;
+    /* Allow scroll when height-starved */
+    min-height: 0;
+}
+
+/* Force content viewport to fill and center */
+.gameplay-scroll #unity-content-viewport {
+    align-items: center;
+}
+
+/* Force content container to center its children */
+.gameplay-scroll #unity-content-container {
+    align-items: center;
+    flex-grow: 1;
+}
+
+/* Hide horizontal scrollbar - only allow vertical scroll */
+.gameplay-scroll .unity-scroller--horizontal {
+    display: none;
+}
+
+/* Style vertical scrollbar to be subtle */
+.gameplay-scroll .unity-scroller--vertical {
+    width: 6px;
+    background-color: transparent;
+}
+
+.gameplay-scroll .unity-scroller--vertical .unity-base-slider__dragger {
+    background-color: rgba(100, 100, 120, 0.5);
+    border-radius: 3px;
+}
+
+.gameplay-scroll .unity-scroller--vertical .unity-base-slider__tracker {
+    background-color: transparent;
 }
 
 /* === Header Bar === */
@@ -19,6 +78,7 @@
     align-items: center;
     justify-content: flex-start;
     width: 100%;
+    max-width: 100%;
     padding: 6px 10px;
     margin-bottom: 4px;
     background-color: rgb(28, 28, 36);
@@ -85,6 +145,8 @@
     max-width: 600px;
     margin-bottom: 4px;
     flex-shrink: 1;
+    /* Allow tabs to shrink on narrow viewports */
+    min-width: 0;
 }
 
 .player-tab {
@@ -228,12 +290,14 @@
 /* === Grid Area === */
 
 .grid-area {
-    flex-grow: 0;
+    flex-grow: 1;
     flex-shrink: 1;
     align-items: center;
     justify-content: center;
     width: 100%;
-    /* Don't set min-height - let content determine size */
+    /* Critical for flex shrinking to work properly */
+    min-height: 0;
+    min-width: 0;
 }
 
 .grid-area .table-container {
@@ -242,6 +306,9 @@
     background-color: rgb(24, 24, 30);
     border-radius: 8px;
     flex-shrink: 1;
+    /* Allow container to shrink below content size */
+    min-height: 0;
+    min-width: 0;
 }
 
 /* === Words Section === */
@@ -254,6 +321,9 @@
     background-color: rgb(28, 28, 36);
     border-radius: 6px;
     flex-shrink: 1;
+    /* Allow shrinking but maintain minimum usable height */
+    min-height: 60px;
+    overflow: hidden;
 }
 
 .words-header {
@@ -268,6 +338,7 @@
     border-bottom-width: 0;
     margin-bottom: 0;
     padding-bottom: 0;
+    flex-shrink: 1;
 }
 
 /* === Letter Keyboard === */
@@ -277,17 +348,26 @@
     align-items: center;
     margin: 2px 0;
     flex-shrink: 1;
+    /* Allow keyboard to shrink to fit viewport width */
+    width: 100%;
+    max-width: 100%;
 }
 
 .keyboard-row {
     flex-direction: row;
     justify-content: center;
     margin: 2px 0;
+    /* Allow rows to shrink */
+    flex-shrink: 1;
+    max-width: 100%;
 }
 
 .letter-key {
+    /* Use flex sizing so keys shrink proportionally */
     width: 32px;
+    min-width: 22px;
     height: 32px;
+    min-height: 22px;
     margin: 1px;
     font-size: 14px;
     background-color: rgb(50, 50, 62);
@@ -300,6 +380,8 @@
     -unity-font-style: bold;
     transition-property: background-color, border-color, opacity;
     transition-duration: 0.1s;
+    /* Allow keys to shrink when viewport is narrow */
+    flex-shrink: 1;
 }
 
 .letter-key:hover {

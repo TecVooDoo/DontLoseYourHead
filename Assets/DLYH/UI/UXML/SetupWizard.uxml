@@ -143,44 +143,49 @@
         <!-- Placement Panel (shown after settings complete) -->
         <ui:VisualElement name="placement-panel" class="placement-panel hidden">
 
-            <!-- Player Header -->
-            <ui:VisualElement name="placement-header" class="placement-header">
-                <ui:VisualElement name="player-color-badge" class="player-color-badge" />
-                <ui:Label name="player-name-display" text="PLAYER" class="player-name-display" />
-            </ui:VisualElement>
+            <!-- Scrollable content wrapper for height-starved viewports -->
+            <ui:ScrollView name="placement-scroll" class="placement-scroll">
 
-            <!-- Instructions -->
-            <ui:Label name="placement-instructions" text="Hide your words on the grid - your opponent will try to find them!" class="placement-instructions" />
-
-            <!-- Word Rows Container (WordRowsContainer attaches here) -->
-            <ui:VisualElement name="word-rows-container" class="word-rows-container">
-                <!-- WordRowsContainer generates word row content here -->
-            </ui:VisualElement>
-
-            <!-- Grid Table Container (TableView attaches here) -->
-            <ui:VisualElement name="table-container" class="table-container">
-                <ui:VisualElement name="table-root" class="table-root">
-                    <!-- TableView generates grid content here -->
+                <!-- Player Header -->
+                <ui:VisualElement name="placement-header" class="placement-header">
+                    <ui:VisualElement name="player-color-badge" class="player-color-badge" />
+                    <ui:Label name="player-name-display" text="PLAYER" class="player-name-display" />
                 </ui:VisualElement>
-            </ui:VisualElement>
 
-            <!-- Letter Keyboard -->
-            <ui:VisualElement name="letter-keyboard" class="letter-keyboard">
-                <!-- Letter buttons generated dynamically -->
-            </ui:VisualElement>
+                <!-- Instructions -->
+                <ui:Label name="placement-instructions" text="Hide your words on the grid - your opponent will try to find them!" class="placement-instructions" />
 
-            <!-- Placement Actions -->
-            <ui:VisualElement name="placement-actions" class="placement-actions">
-                <ui:Button name="btn-random-words" text="Random Words" class="action-button" />
-                <ui:Button name="btn-random-placement" text="Random Placement" class="action-button" />
-                <ui:Button name="btn-clear-placement" text="Clear" class="action-button secondary" />
-            </ui:VisualElement>
+                <!-- Word Rows Container (WordRowsContainer attaches here) -->
+                <ui:VisualElement name="word-rows-container" class="word-rows-container">
+                    <!-- WordRowsContainer generates word row content here -->
+                </ui:VisualElement>
 
-            <!-- Ready Button -->
-            <ui:Button name="btn-ready" text="READY" class="start-button" />
+                <!-- Grid Table Container (TableView attaches here) -->
+                <ui:VisualElement name="table-container" class="table-container">
+                    <ui:VisualElement name="table-root" class="table-root">
+                        <!-- TableView generates grid content here -->
+                    </ui:VisualElement>
+                </ui:VisualElement>
 
-            <!-- Back Button -->
-            <ui:Button name="btn-back-to-settings" text="Back" class="back-button" />
+                <!-- Letter Keyboard -->
+                <ui:VisualElement name="letter-keyboard" class="letter-keyboard">
+                    <!-- Letter buttons generated dynamically -->
+                </ui:VisualElement>
+
+                <!-- Placement Actions -->
+                <ui:VisualElement name="placement-actions" class="placement-actions">
+                    <ui:Button name="btn-random-words" text="Random Words" class="action-button" />
+                    <ui:Button name="btn-random-placement" text="Random Placement" class="action-button" />
+                    <ui:Button name="btn-clear-placement" text="Clear" class="action-button secondary" />
+                </ui:VisualElement>
+
+                <!-- Ready Button -->
+                <ui:Button name="btn-ready" text="READY" class="start-button" />
+
+                <!-- Back Button -->
+                <ui:Button name="btn-back-to-settings" text="Back" class="back-button" />
+
+            </ui:ScrollView>
 
         </ui:VisualElement>
 

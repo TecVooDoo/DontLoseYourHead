@@ -5,7 +5,7 @@
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `C:\Unity\DontLoseYourHead`
 **Supabase:** Direct MCP access available (game_sessions, session_players, players tables)
-**Document Version:** 91
+**Document Version:** 94
 **Last Updated:** January 25, 2026
 
 **Archive:** `DLYH_Status_Archive.md` - Historical designs, old version history, completed phase details, DAB reference patterns
@@ -29,6 +29,133 @@
 ---
 
 ## Last Session (Jan 25, 2026)
+
+Session 80 - **Mobile Layout Fix: Option C (Keyboard Shrink + ScrollView Wrappers)**
+
+**Issue:** Height starvation causes element overlap on mobile/small viewports
+- Keyboard was fixed width (wouldn't shrink below 32px per key)
+- No scrolling mechanism when content exceeds viewport height
+
+**Solution Implemented (Option C):**
+1. **Keyboard keys shrink to fit viewport width** - flex-shrink: 1 with min-width: 22px
+2. **ScrollView wrappers on all screens** - graceful scroll when height-starved
+
+**Files Changed:**
+
+**SetupWizard.uss:**
+- Letter keys: Added flex-shrink: 1, min-width: 22px, min-height: 22px
+- Added .placement-scroll styling with #unity-content-viewport and #unity-content-container targeting
+
+**Gameplay.uss:**
+- Same keyboard shrink changes as SetupWizard
+- Added .gameplay-scroll styling with ID selectors for Unity internals
+
+**MainMenu.uss:**
+- Added .menu-scroll styling with centering via ID selectors
+
+**SetupWizard.uxml:**
+- Wrapped placement-panel content in `<ui:ScrollView name="placement-scroll">`
+
+**Gameplay.uxml:**
+- Wrapped gameplay content in `<ui:ScrollView name="gameplay-scroll">`
+
+**MainMenu.uxml:**
+- Wrapped menu-content in `<ui:ScrollView name="menu-scroll">`
+- Footer stays OUTSIDE scroll (fixed at bottom)
+
+**Key CSS Fix (Round 2):**
+Initial attempt used class selectors (`.unity-scroll-view__content-viewport`) which didn't work.
+Changed to ID selectors (`#unity-content-viewport`, `#unity-content-container`) which target Unity's internal element names correctly. This fixed content centering.
+
+**Test Results:**
+- PC Unity Editor: Content centered properly
+- PC WebGL: Scrollbar appears on Setup when it shouldn't (regression)
+- Mobile Gameplay: Scrollbar visible but doesn't scroll, overlap still present
+- Mobile Setup: Almost perfect, but word row buttons overlap letters, horizontal scrollbar
+
+**New Issues Found:**
+1. ScrollView not scrolling on mobile gameplay (scrollbar visible but broken)
+2. Word row action buttons (GUESS, +/X) overlap letter cells on both screens
+3. Unwanted horizontal scrollbar on Setup mobile
+4. Grid too small on mobile - not using available container width
+5. Attack card "The Executioner" text overflows card
+6. PC scrollbar regression (shows when not needed)
+
+**Next Steps:**
+1. Fix word row button overlap (highest priority)
+2. Debug ScrollView scrolling behavior
+3. Remove unwanted horizontal scrollbar
+4. Improve grid sizing for mobile
+5. Fix Attack card text overflow
+
+**Previous Session:** Session 79 - Mobile layout debugging (debug overlay added)
+
+---
+
+## Previous Session (Jan 25, 2026)
+
+Session 79 - **Mobile Layout Debugging (Height Starvation Issue)**
+
+**Issue:** Grid cascade loop fixed, but elements still overlap on mobile iframe
+
+**Two Distinct Problems Identified:**
+1. Cascade loop (FIXED in Session 78) - measuring stable slot instead of content-driven element
+2. Height starvation overlap (NEW) - when viewport too short, elements overlap instead of yielding
+
+**Debug Overlay Added:**
+- Shows screen dimensions, root height, tabs height, grid height
+- Words section height, keyboard height, sum of both
+- Overflow indicator (YES/no)
+
+**Files Changed:**
+1. Gameplay.uxml - Added debug-layout label
+2. Gameplay.uss - Added .debug-layout styling
+3. UIFlowController.cs - Added `SetupLayoutDebugOverlay()` method
+
+**Previous Session:** Session 78 - Mobile WebGL Grid Layout Fix (cascade loop)
+
+---
+
+## Previous Session (Jan 25, 2026)
+
+Session 78 - **Mobile WebGL Grid Layout Fix**
+
+**Issue:** Grid overlaps other UI elements on mobile WebGL; cascading resize loop
+
+**Root Cause (identified via cross-AI collaboration with ChatGPT):**
+- TableView was measuring `table-container` which is CONTENT-DRIVEN (shrinks with children)
+- When cells resize smaller, container shrinks, triggering GeometryChangedEvent
+- Caused infinite cascade: resize -> shrink -> resize -> shrink...
+
+**Solution:** Measure from a STABLE SLOT instead of content-driven element
+- `grid-area` and `placement-panel` are sized by their PARENT (stable)
+- Their size doesn't change when children resize
+- No feedback loop possible
+
+**Changes Made (3 rounds of fixes):**
+
+Round 1 - Initial container-based sizing:
+- TableView.cs: GeometryChangedEvent callback, contentRect-based sizing, CELL_MARGIN fix
+- Gameplay.uss / SetupWizard.uss: Added min-height: 0, min-width: 0 for flex shrinking
+
+Round 2 - Band-aids (later replaced):
+- 5% threshold guard, explicit _tableRoot sizing
+
+Round 3 - Proper architectural fix:
+- TableView.cs: Renamed `_tableContainer` -> `_measurementSlot`, added `SetMeasurementSlot()` method
+- UIFlowController.cs: Pass `placement-panel` (setup) and `grid-area` (gameplay) as measurement slots
+- Cell-size based guard instead of percentage threshold
+- Removed explicit _tableRoot sizing
+
+**Test Results:** Grid cascade loop FIXED
+- Grid no longer triggers infinite resize loop
+- But height starvation overlap issue discovered (see Session 79)
+
+**Key Lesson Added:** Never size UI Toolkit content from an element whose size is affected by that content. Always measure from a parent-allocated, layout-stable slot.
+
+---
+
+## Previous Session (Jan 25, 2026)
 
 Session 77 - **Session 4 Fixes: Root Cause Analysis, Implementation & Testing**
 
@@ -175,7 +302,7 @@ Identified 4 independent authority gaps causing the multiplayer issues:
 - **PARTIALLY FIXED:** Viewport scaling now works at 1366x768 (no overlap)
 - 1920x1080 has too much empty space at bottom - needs grid/cell size tuning
 - Player tabs don't shrink to give more room for grid content
-- **MOBILE:** Needs testing after viewport scaling changes
+- **MOBILE:** Grid cascade loop fixed (Session 78), ScrollView approach partially working (Session 80) - scrollbar visible but not scrolling, word row button overlap, grid sizing issues
 
 **Architecture:**
 - UIFlowController at ~5,298 lines - **Phase 3 COMPLETE** (see `Documents/Refactor/DLYH_RefactoringPlan_Phase3_01192026.md`)
@@ -382,6 +509,8 @@ YourDifficultyModifier: Easy=+4, Normal=+0, Hard=-4
 17. **Case-sensitivity in char comparisons** - always ToUpper() both sides when comparing letters
 18. **Supabase anon vs secret keys** - secret keys blocked in browsers; use anon key (JWT) for client code
 19. **Iframe navigation** - use `window.top.location` to escape iframe context
+20. **UI Toolkit stable slot measurement** - never measure from content-driven elements; use parent-allocated stable slots (grid-area, placement-panel) for GeometryChangedEvent sizing
+21. **Unity UI Toolkit ScrollView internals** - use ID selectors (#unity-content-viewport, #unity-content-container) not class selectors to target internal elements
 
 ---
 
@@ -449,6 +578,10 @@ YourDifficultyModifier: Easy=+4, Normal=+0, Hard=-4
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 94 | Jan 25, 2026 | Session 80 - Option C (keyboard shrink + ScrollView wrappers on all screens) |
+| 93 | Jan 25, 2026 | Session 79 - Mobile layout debugging (height starvation, debug overlay) |
+| 92 | Jan 25, 2026 | Session 78 - Mobile WebGL grid layout fix (stable slot measurement) |
+| 91 | Jan 25, 2026 | Session 77 - Session 4 fixes (polling, turn init, opponent names) |
 | 88 | Jan 23, 2026 | Session 75 - WebGL multiplayer fixes (API key, exit button iframe, game lock, miss limit) |
 | 87 | Jan 22, 2026 | Session 74 - Viewport scaling tuning, WebGL build prep |
 | 86 | Jan 22, 2026 | Session 73 - UI viewport scaling (partial) - 768p working, 1080p needs tuning |

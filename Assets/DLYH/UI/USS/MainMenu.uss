@@ -4,9 +4,55 @@
 
 .main-menu-root {
     flex-grow: 1;
+    flex-shrink: 1;
     background-color: rgb(18, 18, 24);
     align-items: center;
     justify-content: center;
+    overflow: hidden;
+}
+
+/* === Menu ScrollView === */
+
+.menu-scroll {
+    flex-grow: 1;
+    flex-shrink: 1;
+    width: 100%;
+    /* Allow scroll when height-starved */
+    min-height: 0;
+}
+
+/* Force content viewport to fill and center */
+.menu-scroll #unity-content-viewport {
+    align-items: center;
+    justify-content: center;
+}
+
+/* Force content container to center its children */
+.menu-scroll #unity-content-container {
+    align-items: center;
+    justify-content: center;
+    flex-grow: 1;
+    padding: 8px;
+}
+
+/* Hide horizontal scrollbar - only allow vertical scroll */
+.menu-scroll .unity-scroller--horizontal {
+    display: none;
+}
+
+/* Style vertical scrollbar to be subtle */
+.menu-scroll .unity-scroller--vertical {
+    width: 6px;
+    background-color: transparent;
+}
+
+.menu-scroll .unity-scroller--vertical .unity-base-slider__dragger {
+    background-color: rgba(100, 100, 120, 0.5);
+    border-radius: 3px;
+}
+
+.menu-scroll .unity-scroller--vertical .unity-base-slider__tracker {
+    background-color: transparent;
 }
 
 /* === Menu Content (Centered) === */
@@ -31,26 +77,26 @@
 }
 
 .title-line1 {
-    font-size: 48px;
+    font-size: 40px;
     color: rgb(220, 220, 230);
 }
 
 .title-line2 {
-    font-size: 56px;
+    font-size: 48px;
     color: rgb(220, 220, 230);
-    margin-top: -6px;
+    margin-top: -4px;
 }
 
 /* === Trivia Marquee (centered, replaces old tagline) === */
 
 .trivia-marquee {
-    font-size: 16px;
+    font-size: 14px;
     color: rgb(0, 180, 150);
     -unity-font-style: italic;
     -unity-text-align: middle-center;
-    margin-bottom: 12px;
-    min-height: 20px;
-    max-width: 400px;
+    margin-bottom: 8px;
+    min-height: 18px;
+    max-width: 360px;
     white-space: normal;
 }
 
@@ -63,10 +109,10 @@
 
 .menu-button {
     width: 100%;
-    min-height: 36px;
-    margin: 4px 0;
-    padding: 8px 20px;
-    font-size: 15px;
+    min-height: 32px;
+    margin: 3px 0;
+    padding: 6px 18px;
+    font-size: 14px;
     border-radius: 8px;
     -unity-font-style: bold;
     transition-property: background-color, border-color, scale;
@@ -151,14 +197,14 @@
 /* === My Active Games Section === */
 
 .my-games-section {
-    margin-top: 16px;
-    padding: 12px 16px;
+    margin-top: 10px;
+    padding: 10px 14px;
     background-color: rgba(30, 30, 40, 0.6);
     border-radius: 8px;
     border-width: 1px;
     border-color: rgb(50, 50, 65);
-    min-width: 280px;
-    max-width: 320px;
+    min-width: 260px;
+    max-width: 300px;
 }
 
 .my-games-title {
@@ -259,13 +305,13 @@
 /* === Inline Settings Section === */
 
 .settings-section {
-    margin-top: 16px;
-    padding: 12px 20px;
+    margin-top: 10px;
+    padding: 10px 16px;
     background-color: rgba(30, 30, 40, 0.6);
     border-radius: 8px;
     border-width: 1px;
     border-color: rgb(50, 50, 65);
-    min-width: 280px;
+    min-width: 260px;
 }
 
 .settings-row {
@@ -348,9 +394,9 @@
 
 .footer {
     position: absolute;
-    bottom: 16px;
-    left: 20px;
-    right: 20px;
+    bottom: 8px;
+    left: 16px;
+    right: 16px;
     flex-direction: row;
     justify-content: space-between;
     align-items: flex-end;
