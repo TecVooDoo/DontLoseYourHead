@@ -1267,18 +1267,47 @@ namespace DLYH.TableUI
                     await UniTask.Delay(500);
                     TriggerOpponentTurn();
                 }
+                else if (!isPhantomAI && opponentData != null)
+                {
+                    // Real multiplayer with opponent - create RemotePlayerOpponent and start polling
+                    Debug.Log($"[UIFlowController] Resume: Real multiplayer detected - opponent={opponentData.name}, grid={opponentGridSize}, turnNumber={gameState.turnNumber}");
+                    _gameplayManager?.SetAllowManualTabSwitch(true);
+
+                    Color resumeOpponentColor = ParseColorFromHex(opponentData.color) ?? new Color(0.6f, 0.1f, 0.1f);
+                    Debug.Log($"[UIFlowController] Resume: Creating RemotePlayerOpponent for {opponentData.name}");
+                    await CreateRemotePlayerOpponentAsync(opponentData.name ?? "Opponent", resumeOpponentColor, opponentGridSize, opponentWordCount);
+                    Debug.Log($"[UIFlowController] Resume: RemotePlayerOpponent created, _opponent is now {(_opponent != null ? "valid" : "NULL")}");
+
+                    // Initialize turn tracking from current game state
+                    _lastKnownTurnNumber = gameState.turnNumber;
+                    Debug.Log($"[UIFlowController] Resume: Initialized _lastKnownTurnNumber={_lastKnownTurnNumber}");
+
+                    // Start polling for opponent moves
+                    StartTurnDetectionPolling();
+
+                    Debug.Log($"[UIFlowController] Resume: Real multiplayer opponent's turn - polling started, turnNumber={_lastKnownTurnNumber}");
+                }
                 else
                 {
-                    // Real multiplayer - allow tab switching while waiting for remote opponent
+                    // Waiting for opponent to join
                     _gameplayManager?.SetAllowManualTabSwitch(true);
-                    Debug.Log("[UIFlowController] Resume: Opponent's turn (multiplayer - tab switching enabled)");
-                    // TODO Session 5: Start polling for opponent moves here
+                    Debug.Log("[UIFlowController] Resume: Waiting for opponent to join");
                 }
             }
             else
             {
                 // It's player's turn - enable everything
                 _gameplayManager?.SetAllowManualTabSwitch(true);
+
+                // For real multiplayer, still need RemotePlayerOpponent for when turn switches
+                if (!isPhantomAI && opponentData != null && _opponent == null)
+                {
+                    Debug.Log($"[UIFlowController] Resume: Player's turn in real multiplayer - creating RemotePlayerOpponent for {opponentData.name}");
+                    Color resumeOpponentColor = ParseColorFromHex(opponentData.color) ?? new Color(0.6f, 0.1f, 0.1f);
+                    await CreateRemotePlayerOpponentAsync(opponentData.name ?? "Opponent", resumeOpponentColor, opponentGridSize, opponentWordCount);
+                    _lastKnownTurnNumber = gameState.turnNumber;
+                    Debug.Log($"[UIFlowController] Resume: Real multiplayer player's turn - RemotePlayerOpponent created, _lastKnownTurnNumber={_lastKnownTurnNumber}");
+                }
             }
         }
 
@@ -3681,7 +3710,32 @@ namespace DLYH.TableUI
 
         private void HandleOpponentThinkingComplete()
         {
-            Debug.Log("[UIFlowController] Opponent finished thinking");
+            Debug.Log("[UIFlowController] HandleOpponentThinkingComplete - opponent finished, switching to player turn");
+
+            // For real multiplayer, this is called when polling detects turn returned to local player
+            // Must actually switch to player turn (like EndOpponentTurn does for AI)
+            if (_isGameOver)
+            {
+                Debug.Log("[UIFlowController] HandleOpponentThinkingComplete - game is over, not switching turn");
+                return;
+            }
+
+            // Stop any timeout coroutine
+            if (_opponentTurnTimeoutCoroutine != null)
+            {
+                StopCoroutine(_opponentTurnTimeoutCoroutine);
+                _opponentTurnTimeoutCoroutine = null;
+            }
+
+            // Switch to player's turn
+            _isPlayerTurn = true;
+            _gameplayManager?.SetPlayerTurn(true);
+            _gameplayManager?.SetStatusMessage("Your turn! Tap a letter or cell.", GameplayScreenManager.StatusType.Normal);
+
+            // Auto-switch to Attack tab
+            _gameplayManager?.SelectAttackTab(isAutoSwitch: true);
+
+            Debug.Log("[UIFlowController] HandleOpponentThinkingComplete - turn switched to player");
         }
 
         #endregion
@@ -6037,7 +6091,19 @@ namespace DLYH.TableUI
                                     }
                                 }
 
-                                Debug.Log($"[UIFlowController] JoinGame mode - loaded host setup: grid={opponentGridSize}, words={opponentWordCount}, color={hostData.color}");
+                                // CRITICAL: Decrypt host's word placements for attack grid and word rows
+                                // Without this, the joiner has no opponent data to attack
+                                if (!string.IsNullOrEmpty(hostData.wordPlacementsEncrypted))
+                                {
+                                    opponentWordPlacements = GameStateManager.DecryptWordPlacements(hostData.wordPlacementsEncrypted);
+                                    Debug.Log($"[UIFlowController] JoinGame mode - decrypted {opponentWordPlacements.Count} host word placements");
+                                }
+                                else
+                                {
+                                    Debug.LogWarning("[UIFlowController] JoinGame mode - host has no word placements encrypted!");
+                                }
+
+                                Debug.Log($"[UIFlowController] JoinGame mode - loaded host setup: grid={opponentGridSize}, words={opponentWordCount}, placements={opponentWordPlacements.Count}, color={hostData.color}");
 
                                 // Create RemotePlayerOpponent for JoinGame mode (Session 5 fix)
                                 await CreateRemotePlayerOpponentAsync(opponentName, opponentColor, opponentGridSize, opponentWordCount);
@@ -6619,18 +6685,22 @@ namespace DLYH.TableUI
         /// </summary>
         private void SetupGameplayWordRowsWithOpponentData(int playerWordCount, int opponentWordCount, Color playerColor, List<WordPlacementData> opponentPlacements)
         {
-            // Get opponent's word lengths
+            // Sort opponent placements by word length (shortest first) to match standard word row order
+            List<WordPlacementData> sortedOpponentPlacements = new List<WordPlacementData>(opponentPlacements);
+            sortedOpponentPlacements.Sort((a, b) => a.Word.Length.CompareTo(b.Word.Length));
+
+            // Get opponent's word lengths from sorted placements
             int[] opponentWordLengths = new int[opponentWordCount];
-            for (int i = 0; i < opponentWordCount && i < opponentPlacements.Count; i++)
+            for (int i = 0; i < opponentWordCount && i < sortedOpponentPlacements.Count; i++)
             {
-                opponentWordLengths[i] = opponentPlacements[i].Word.Length;
+                opponentWordLengths[i] = sortedOpponentPlacements[i].Word.Length;
             }
 
-            // Get opponent's words (for display as underscores)
+            // Get opponent's words (for display as underscores) from sorted placements
             string[] opponentWords = new string[opponentWordCount];
-            for (int i = 0; i < opponentWordCount && i < opponentPlacements.Count; i++)
+            for (int i = 0; i < opponentWordCount && i < sortedOpponentPlacements.Count; i++)
             {
-                opponentWords[i] = opponentPlacements[i].Word;
+                opponentWords[i] = sortedOpponentPlacements[i].Word;
             }
 
             // Create attack word rows (opponent's words - shown as underscores)
@@ -7147,6 +7217,10 @@ namespace DLYH.TableUI
                         Debug.Log($"[UIFlowController] Creating RemotePlayerOpponent for joined opponent: {opponentName}");
                         await CreateRemotePlayerOpponentAsync(opponentName, opponentColor, opponentData.gridSize, opponentData.wordCount);
                     }
+
+                    // CRITICAL: Rebuild UI with opponent's actual setup data
+                    // The UI was built with placeholder data, now we have real opponent data
+                    await RebuildUIForOpponentJoinAsync(opponentData, opponentColor);
                 }
                 else
                 {
@@ -7165,6 +7239,87 @@ namespace DLYH.TableUI
             _activeGamesManager?.LoadMyActiveGamesAsync().Forget();
 
             Debug.Log($"[UIFlowController] Opponent '{opponentName}' joined - gameplay enabled, setup loaded: {_matchmakingResult?.OpponentSetupLoaded ?? false}");
+        }
+
+        /// <summary>
+        /// Rebuilds the gameplay UI when an opponent joins a live game.
+        /// This applies the opponent's setup data (grid size, word count, placements) to the attack grid and word rows.
+        /// </summary>
+        private async UniTask RebuildUIForOpponentJoinAsync(DLYHPlayerData opponentData, Color opponentColor)
+        {
+            if (opponentData == null || _playerSetupData == null || _gameplayManager == null)
+            {
+                Debug.LogError("[UIFlowController] Cannot rebuild UI - missing data");
+                return;
+            }
+
+            int opponentGridSize = opponentData.gridSize;
+            int opponentWordCount = opponentData.wordCount;
+
+            // Decrypt opponent word placements
+            List<WordPlacementData> opponentPlacements = !string.IsNullOrEmpty(opponentData.wordPlacementsEncrypted)
+                ? GameStateManager.DecryptWordPlacements(opponentData.wordPlacementsEncrypted)
+                : new List<WordPlacementData>();
+
+            Debug.Log($"[UIFlowController] Rebuilding UI for opponent join - grid={opponentGridSize}, words={opponentWordCount}, placements={opponentPlacements.Count}");
+
+            // Store opponent placements for end-game reveal
+            _opponentWordPlacements = opponentPlacements;
+
+            // Calculate miss limits
+            int playerMissLimit = DifficultyCalculator.CalculateMissLimitForPlayer(
+                _playerSetupData.DifficultyLevel, opponentGridSize, opponentWordCount);
+            int opponentMissLimit = DifficultyCalculator.CalculateMissLimitForPlayer(
+                GetInverseDifficulty(_playerSetupData.DifficultyLevel),
+                _playerSetupData.GridSize, _playerSetupData.WordCount);
+
+            // Update player tab data with correct opponent info
+            PlayerTabData playerTabData = new PlayerTabData
+            {
+                Name = _playerSetupData.PlayerName,
+                Color = _playerSetupData.PlayerColor,
+                GridSize = _playerSetupData.GridSize,
+                WordCount = _playerSetupData.WordCount,
+                MissCount = 0,
+                MissLimit = playerMissLimit,
+                IsLocalPlayer = true
+            };
+
+            PlayerTabData opponentTabData = new PlayerTabData
+            {
+                Name = opponentData.name ?? "Opponent",
+                Color = opponentColor,
+                GridSize = opponentGridSize,
+                WordCount = opponentWordCount,
+                MissCount = 0,
+                MissLimit = opponentMissLimit,
+                IsLocalPlayer = false
+            };
+
+            _gameplayManager.SetPlayerData(playerTabData, opponentTabData);
+            Debug.Log($"[UIFlowController] UI Rebuild: SetPlayerData called - player={playerTabData.Name} ({playerTabData.GridSize}x{playerTabData.GridSize}), opponent={opponentTabData.Name} ({opponentTabData.GridSize}x{opponentTabData.GridSize})");
+
+            // Rebuild attack model with opponent's grid
+            CreateAttackModel(opponentGridSize, opponentPlacements, opponentColor);
+            Debug.Log($"[UIFlowController] UI Rebuild: CreateAttackModel called - size={opponentGridSize}, placements={opponentPlacements.Count}");
+
+            // Rebuild table views with correct opponent grid size
+            SetupGameplayTableViews(opponentGridSize);
+            Debug.Log($"[UIFlowController] UI Rebuild: SetupGameplayTableViews called - size={opponentGridSize}");
+
+            // Reinitialize guess manager with opponent placements
+            InitializeGuessManagerWithBothSides(playerMissLimit, opponentMissLimit, opponentPlacements);
+            Debug.Log($"[UIFlowController] UI Rebuild: InitializeGuessManagerWithBothSides called - playerMissLimit={playerMissLimit}, opponentMissLimit={opponentMissLimit}");
+
+            // Rebuild word rows with opponent data
+            SetupGameplayWordRowsWithOpponentData(
+                _playerSetupData.WordCount, opponentWordCount,
+                _playerSetupData.PlayerColor, opponentPlacements);
+            Debug.Log($"[UIFlowController] UI Rebuild: SetupGameplayWordRowsWithOpponentData called - playerWords={_playerSetupData.WordCount}, opponentWords={opponentWordCount}");
+
+            Debug.Log("[UIFlowController] UI rebuilt for opponent join complete");
+
+            await UniTask.Yield(); // Ensure UI updates are applied
         }
 
         #endregion

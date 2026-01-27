@@ -479,3 +479,235 @@ Turn sync cannot work because there's no opponent data to sync against.
 | RemotePlayerOpponent creation | FIXED in Build 4 |
 | Async private game flow | Correct by design |
 | Mismatched grid sizes (12x12 vs 6x6) | Correct by design |
+
+---
+
+### Build 4 Findings - Session 84 (Verified Jan 27, 2026)
+
+**Date:** January 26, 2026
+**Domain:** Networking
+**Scope:** Live multiplayer (PC host + mobile guest)
+**Build:** 4
+
+#### Summary
+
+Turn detection and polling infrastructure is working correctly. The remaining failures are due to:
+1. UI not being rebuilt when opponent joins (data IS loaded, just not applied)
+2. Resume path missing RemotePlayerOpponent creation for real multiplayer
+3. Baseline state not initialized correctly in some paths
+
+#### What Is Confirmed Working
+
+Based on Build 4 logs and code review:
+
+- Turn ownership (`currentTurn`) updates correctly
+- `turnNumber` increments correctly
+- `_lastKnownTurnNumber` initialized in `CreateRemotePlayerOpponentAsync` (line 2947)
+- Turn polling starts and stops correctly (`TurnDetectionPollingAsync` lines 7008-7097)
+- `RemotePlayerOpponent` created in live join path (`HandleOpponentJoined` line 7148)
+- `ProcessStateUpdate()` is called when turn changes detected
+- Turn transitions complete cleanly (no infinite polling)
+
+**Conclusion:** Turn synchronization infrastructure for live join path is functional. Do not modify polling or turn logic.
+
+#### What Is Still Broken
+
+**1. UI not rebuilt when opponent joins (Engineering Bug)**
+
+`HandleOpponentJoined()` (lines 7110-7168) correctly:
+- Fetches opponent setup data from Supabase (lines 7123-7139)
+- Stores gridSize, wordCount, color in `_matchmakingResult`
+- Creates `RemotePlayerOpponent` (line 7148)
+
+But it does NOT:
+- Rebuild attack grid with opponent's grid size
+- Populate word rows with underscores for opponent's words
+- Call `SetPlayerData()` to update the gameplay tabs
+
+**Result:** Player sees opponent name change but attack grid remains wrong size, word rows empty.
+
+**2. Resume path missing RemotePlayerOpponent (Engineering Bug)**
+
+`TransitionToGameplayFromSavedStateAsync` (lines 1074-1283):
+- Creates `RemotePlayerOpponent` for phantom AI games (line 1240)
+- Has TODO at line 1275: "Session 5: Start polling for opponent moves here"
+- Does NOT create `RemotePlayerOpponent` for real multiplayer
+- Does NOT initialize `_lastKnownTurnNumber` for real multiplayer
+
+**Result:** Resuming a real multiplayer game leaves `_opponent` as null, breaking turn detection.
+
+**3. DetectOpponentAction baseline issue (Investigation Needed)**
+
+Logs showed:
+```
+DetectOpponentAction - lastRevealed=0, newRevealed=0
+```
+
+Code review confirms player selection logic IS correct (lines 157-159, 192-194):
+- If host: reads `player2.gameplayState`
+- If joiner: reads `player1.gameplayState`
+
+The zeros likely indicate `_lastOpponentGameplayState` baseline was not set correctly, NOT that wrong player data is being read.
+
+#### Updated Classification
+
+| Issue | Classification | Status |
+|-------|----------------|--------|
+| Turn polling & detection | Fixed | Working |
+| `_lastKnownTurnNumber` (live join) | Fixed | Working |
+| RemotePlayerOpponent creation (live join) | Fixed | Working |
+| UI rebuild on opponent join | Engineering Bug | **Build 5 - NEEDS TESTING** |
+| Resume path RemotePlayerOpponent | Engineering Bug | **Build 5 - NEEDS TESTING** |
+| Resume path `_lastKnownTurnNumber` | Engineering Bug | **Build 5 - NEEDS TESTING** |
+| DetectOpponentAction player selection | ~~Engineering Bug~~ | **Correct** (was misdiagnosed) |
+| Async private game flow | Correct by design | N/A |
+| Asymmetric grid sizes | Correct by design | N/A |
+
+---
+
+### Build 5 Fixes (Session 85 - Jan 27, 2026)
+
+**Files Changed:** `UIFlowController.cs`
+
+**Fix 1: UI Rebuild on Opponent Join (Host Path)**
+
+Added `RebuildUIForOpponentJoinAsync()` method that:
+- Decrypts opponent word placements from Supabase
+- Rebuilds attack model with opponent's grid size
+- Rebuilds table views with correct dimensions
+- Reinitializes guess manager with opponent placements
+- Rebuilds word rows with opponent data (underscores)
+- Updates player tab data with correct opponent info
+
+Called from `HandleOpponentJoined()` after `CreateRemotePlayerOpponentAsync`.
+
+**Fix 2: Resume Path for Real Multiplayer**
+
+Updated `TransitionToGameplayFromSavedStateAsync()` to:
+- Create `RemotePlayerOpponent` for real multiplayer games (both player's turn and opponent's turn)
+- Initialize `_lastKnownTurnNumber` from `gameState.turnNumber`
+- Start turn detection polling if it's opponent's turn
+- Handle all three cases: phantom AI, real multiplayer with opponent, waiting for opponent
+
+---
+
+### Build 5 Test Results (Session 85)
+
+**Test:** PC host (12x12, 4 words) + Mobile joiner (6x6, 3 words)
+
+**What Worked:**
+- PC (host) received Mobile's setup data correctly (6x6 grid, 3 words, underscores)
+- PC registered Mobile's move
+- Turn detection polling working
+
+**What Failed:**
+- Mobile (joiner) had EMPTY word rows and wrong attack grid
+- Mobile's moves didn't register on PC (no opponent data to compare)
+- Both locked on "Opponent's Turn"
+
+**Root Cause Found:**
+- `HandleOpponentJoined()` fix only helps the HOST (receives joiner data)
+- JoinGame path (joiner) never decrypted host's `wordPlacementsEncrypted`
+- `opponentWordPlacements` was an empty list for joiners
+- All opponent-dependent systems failed (attack model, word rows, guess manager)
+
+---
+
+### Build 5b Fix (Session 85 continued)
+
+**Fix 3: JoinGame Path Word Placements**
+
+Added decryption of host word placements in JoinGame path (lines ~6067-6078):
+```csharp
+if (!string.IsNullOrEmpty(hostData.wordPlacementsEncrypted))
+{
+    opponentWordPlacements = GameStateManager.DecryptWordPlacements(hostData.wordPlacementsEncrypted);
+}
+```
+
+This ensures the joiner has the host's word data for:
+- Building attack model correctly
+- Populating word rows with underscores
+- `DetectOpponentAction` baseline state
+
+---
+
+### Build 5b Test Results (Session 85 continued)
+
+**Test Setup:** Mobile hosted, PC joined by code
+
+**Progress:**
+- ✅ Both sides loaded opponent's setup data (partial fix worked)
+- ✅ PC (joiner) correctly showed Mobile's 6x6 grid, 3 words with word rows
+- ✅ Mobile (host) correctly showed PC's 11x11 grid, 4 words with letters
+
+**Issues Found:**
+1. **Both stuck on "Opponent's Turn"** after each took one turn
+   - PC polling shows: `turnNumber: 4, lastKnown: 4, currentTurn: player1`
+   - Mobile was player1 (host), so currentTurn=player1 means Mobile's turn
+   - But Mobile also showed "Opponent's Turn" - turn switch wasn't happening
+
+2. **Word rows not sorted ascending** by word length
+   - PC showed BUY, SHUN, WAFER - but Mobile's attack showed SHUN, BUY, WAFER order
+   - `SetupGameplayWordRowsWithOpponentData` lacked sorting that `SetupGameplayWordRowsFromSavedState` had
+
+3. **Miss counts don't match** between PC and Mobile
+   - PC: 0/27 for both attack and defend
+   - Mobile: 0/20 attack, 0/34 defend
+   - Different values for the same game - needs investigation
+
+**Root Cause Analysis:**
+
+1. **Turn Stuck Issue:** `HandleOpponentThinkingComplete()` did nothing!
+   - When polling detects turn change, it calls `RemotePlayerOpponent.ProcessStateUpdate()`
+   - ProcessStateUpdate fires `OnThinkingComplete` event
+   - `HandleOpponentThinkingComplete` only logged, didn't switch turn
+   - Player never got control back
+
+2. **Word Rows Sorting:** Missing sort in `SetupGameplayWordRowsWithOpponentData`
+   - Resume path had sorting, live join path didn't
+
+---
+
+### Build 5c Fixes (Session 85 continued)
+
+**Fix 4: HandleOpponentThinkingComplete Turn Switch** (line ~3711)
+
+Changed empty handler to actually switch turn:
+```csharp
+private void HandleOpponentThinkingComplete()
+{
+    if (_isGameOver) return;
+
+    // Stop timeout coroutine
+    if (_opponentTurnTimeoutCoroutine != null)
+    {
+        StopCoroutine(_opponentTurnTimeoutCoroutine);
+        _opponentTurnTimeoutCoroutine = null;
+    }
+
+    // Switch to player's turn
+    _isPlayerTurn = true;
+    _gameplayManager?.SetPlayerTurn(true);
+    _gameplayManager?.SetStatusMessage("Your turn! Tap a letter or cell.", GameplayScreenManager.StatusType.Normal);
+    _gameplayManager?.SelectAttackTab(isAutoSwitch: true);
+}
+```
+
+**Fix 5: Word Row Sorting** (line ~6686)
+
+Added sorting to `SetupGameplayWordRowsWithOpponentData`:
+```csharp
+List<WordPlacementData> sortedOpponentPlacements = new List<WordPlacementData>(opponentPlacements);
+sortedOpponentPlacements.Sort((a, b) => a.Word.Length.CompareTo(b.Word.Length));
+```
+
+**Verification Needed:** Deploy Build 5c to test turn switching works correctly.
+
+**Known Issue (Deferred):** Miss count mismatch between players - different values shown for same game. May be difficulty-related calculation issue.
+
+#### Key Instructions (Still Valid)
+
+1. **Do NOT modify turn polling logic** - it is working correctly
+2. **Do NOT modify DetectOpponentAction player selection** - it is correct
+3. Build 5c should enable proper turn switching in multiplayer
