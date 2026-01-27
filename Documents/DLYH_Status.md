@@ -5,14 +5,26 @@
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `C:\Unity\DontLoseYourHead`
 **Supabase:** Direct MCP access available (game_sessions, session_players, players tables)
-**Document Version:** 98
+**Document Version:** 101
 **Last Updated:** January 26, 2026
 
 **Archive:** `DLYH_Status_Archive.md` - Historical designs, old version history, completed phase details, DAB reference patterns
 
 **Completed Refactoring:** `Documents/Refactor/DLYH_RefactoringPlan_Phase3_01192026.md` - Phase 3 complete (Sessions 1-4 + Memory Audit)
 
-**Active Plan:** `Documents/DLYH_NetworkingPlan_Phase_E.md` - Networking implementation (7 sessions planned)
+**Active Plan:** `Documents/DLYH_NetworkingPlan_Phase_E_Updated.md` - Networking implementation (REVISED Jan 26, 2026)
+
+---
+
+## Build Checklist
+
+Before each build:
+1. **Update version number** in Player Settings (Edit > Project Settings > Player > Version)
+   - Current: 3.1 (last known)
+   - Format: Major.Minor (increment minor for each test build)
+2. **Debug overlay** is currently DISABLED (line 443 in UIFlowController.cs)
+   - To re-enable for layout debugging: uncomment `CreateGlobalDebugOverlay();`
+3. Version displays on main menu via `Application.version`
 
 ---
 
@@ -30,74 +42,116 @@
 
 ## Last Session (Jan 26, 2026)
 
-Session 83 - **Session 5 Analysis (Turn Synchronization)**
+Session 84 (continued) - **Multiplayer Data Loading Issue Identified**
 
-**Goal:** Analyze codebase for Session 5 implementation requirements.
+### Summary
 
-**Analysis Findings:**
+Tested Build 4 with PC (12x12, 4 words) as host and Mobile (6x6, 3 words) as joiner. **Fundamental issue discovered: opponent setup data never loads during live gameplay.**
 
-1. **State Push (5.1) - VERIFIED COMPLETE:**
-   - `SaveGameStateToSupabaseAsync()` in UIFlowController.cs (line 925) handles all state persistence
-   - Called after player turn (line 2585) and opponent turn (line 2729)
-   - Saves: `currentTurn`, `turnNumber`, `misses`, `revealedCells`, `knownLetters`, `solvedWordRows`
+### What Was Fixed (Working)
 
-2. **RemotePlayerOpponent Status:**
-   - Class exists with full turn detection logic (`DetectOpponentAction()` at line 350)
-   - Detects: coordinate guesses, letter guesses, word solves, miss increases
-   - **NOT WIRED UP** - TODO at UIFlowController.cs:5786 says "TODO: Set up RemotePlayerOpponent"
-   - Currently only phantom AI games work; real multiplayer has no turn sync
+1. **`_lastKnownTurnNumber` tracking** - Now correctly shows `turnNumber: 3, lastKnown: 2` (was 0)
+2. **`RemotePlayerOpponent` creation** - Log shows opponent object created on join
+3. **Turn change detection** - Polling correctly detects turn 2 -> 3
+4. **State processing attempted** - `ProcessStateUpdate()` is called
 
-3. **HandleOpponentJoined() Gap:**
-   - When opponent joins (line 6733), only updates name in UI
-   - TODO at line 6756: "Load opponent's setup data from Supabase (grid, placements, etc.)"
-   - Attack grid not created for real multiplayer - needs opponent's grid size/word count
+### What's Still Broken
 
-4. **State Synchronization Architecture:**
-   - `GameStateSynchronizer.PushLocalStateAsync()` exists but never called
-   - `NetworkGameManager.PushGameStateAsync()` wraps it but never called
-   - UIFlowController uses direct `SaveGameStateToSupabaseAsync()` instead (works fine)
+**Opponent data never loads on either client:**
+- PC attack tab shows 12x12 grid (should be 6x6 - Mobile's grid size)
+- Mobile attack tab shows 6x6 grid (should be 12x12 - PC's grid size)
+- Word rows empty on both (no underscores = no opponent word data)
+- Only opponent NAME transferred ("Mobile" / "pc")
+- Grid size, word count, word placements, colors - all missing
 
-**Previous Session:** Session 82 - Layout Polish (Setup + Gameplay)
+**Both clients stuck on "Opponent's Turn":**
+- Turn detection works once but `DetectOpponentAction` sees no data changes
+- Log shows: `lastRevealed=0, newRevealed=0, lastLetters=0, newLetters=0`
+- No events fire because there's no opponent data to compare against
+
+### Root Cause
+
+**Two different code paths, two different results:**
+
+| Path | Fetches Opponent Setup | Builds Correct UI | Works? |
+|------|------------------------|-------------------|--------|
+| Resume from Active Games | Yes | Yes | ✓ Works |
+| Live gameplay after join | No | No | ✗ Broken |
+
+When opponent joins a live game:
+1. `HandleOpponentJoined()` fires
+2. Opponent name is displayed
+3. `RemotePlayerOpponent` is created (Build 4 fix)
+4. **Opponent setup data is NOT fetched from Supabase**
+5. **Attack grid is NOT rebuilt with opponent's grid size**
+6. **Word rows are NOT populated with opponent's words**
+7. Player can make moves on wrong-sized grid with no word data
+
+Turn sync cannot work because there's no opponent data to sync against.
+
+### Files Changed (Build 4)
+
+- `UIFlowController.cs`:
+  - `HandleOpponentJoined()` - Made async, creates RemotePlayerOpponent
+  - `CreateRemotePlayerOpponentAsync()` - Initializes `_lastKnownTurnNumber`
+  - `SaveGameStateToSupabaseAsync()` - Updates `_lastKnownTurnNumber` after save
+
+### Critical Design Issue
+
+**Gameplay should be BLOCKED until opponent data loads.** Currently:
+- Player can click on wrong-sized grid
+- Word rows are empty but clickable
+- Moves are saved to Supabase with incorrect data
+
+**See:** `DLYH_Troubleshooting.md` for full analysis and next steps
 
 ---
 
 ## Next Session Priorities
 
-**Session 5 - Turn Synchronization (Ready to Implement):**
+### CRITICAL: Fix Opponent Data Loading (Session 5 Continued)
 
-Start from the analysis above. Key tasks in order:
+The core problem is NOT turn synchronization - it's that opponent setup data never loads during live gameplay. Turn sync can't work without opponent data.
 
-1. **5.2: Load opponent setup when they join**
-   - Modify `HandleOpponentJoined()` to fetch opponent's DLYHPlayerData
-   - Get gridSize, wordCount, color from game state
-   - Create attack grid with fog (opponent's word placements stay encrypted)
+**Priority 1: Block gameplay until opponent data loads**
+- If attack grid size is wrong OR word rows are empty → block input
+- Show "Loading opponent data..." or "Waiting for opponent setup..."
+- Do NOT allow moves on incomplete/incorrect data
+- This prevents corrupted game state
 
-2. **5.3: Wire up RemotePlayerOpponent for real multiplayer**
-   - Create RemotePlayerOpponent in `TransitionToGameplay()` when `!IsPhantomAI`
-   - Pass game code and player info to constructor
-   - Subscribe to `OnLetterGuess`, `OnCoordinateGuess`, `OnWordGuess` events
+**Priority 2: Fetch and apply opponent data when they join**
+- When `HandleOpponentJoined()` fires, it needs to:
+  1. Fetch opponent's full setup from Supabase (grid size, word count, word placements, color)
+  2. Rebuild attack grid with correct size
+  3. Populate word rows with underscores for opponent's words
+  4. Update attack card info (grid size, word count)
+- Use same logic as Resume path (which works correctly)
 
-3. **5.4: Turn detection via state diff**
-   - RemotePlayerOpponent already has `DetectOpponentAction()` logic
-   - Need to poll or subscribe to Supabase state changes
-   - Fire events when opponent's gameplay state changes
+**Priority 3: Fix DetectOpponentAction player data selection**
+- Currently reading wrong player's `revealedCells` (all zeros)
+- Need to flip player1/player2 based on `_isLocalPlayerHost`
+- This matters even after data loads correctly
 
-4. **5.5: "Waiting for opponent..." indicator**
-   - Show during opponent's turn in real multiplayer
-   - Hide when turn changes back to player
+**Key Insight:** The Resume path works because it fetches full game state. The live join path skips this fetch. The fix is to make the live join path also fetch and apply opponent data.
 
-5. **5.6: Turn number conflicts**
-   - Current implementation increments turn number on save
-   - May need optimistic locking or Supabase RPC for race conditions
+### Session 6 - Activity Tracking & Auto-Win (DEFERRED)
 
-6. **5.7: End-to-end test**
-   - Two browser windows playing against each other
+- 5-day inactivity auto-win (Supabase edge function)
+- Turn/version guarding if race conditions found
+- Activity timestamp updates
+
+**Key Files to Modify Next Session:**
+- `UIFlowController.cs`:
+  - `HandleOpponentJoined()` - Fetch opponent setup from Supabase
+  - `TransitionToGameplay()` or new method - Rebuild UI when opponent data arrives
+- `RemotePlayerOpponent.cs`:
+  - `DetectOpponentAction()` - Read correct player's data based on host/joiner role
 
 ---
 
 ## Active TODO
 
-**Full Plan:** See `Documents/DLYH_NetworkingPlan_Phase_E.md` for detailed tasks and implementation notes.
+**Full Plan:** See `Documents/DLYH_NetworkingPlan_Phase_E_Updated.md` for detailed tasks and implementation notes.
 
 ### Phase E Sessions Overview
 
@@ -107,7 +161,7 @@ Start from the analysis above. Key tasks in order:
 | 2 | Phantom AI as Session Player | COMPLETE |
 | 3 | Game State Persistence | COMPLETE |
 | 4 | Opponent Join Detection | COMPLETE |
-| 5 | Turn Synchronization | IN PROGRESS (analysis complete, implementation next) |
+| 5 | Turn Synchronization | BLOCKED (opponent data loading issue) |
 | 6 | Activity Tracking & Auto-Win | PENDING |
 | 7 | Rematch UI Integration | PENDING |
 | 8 | Code Quality & Polish | PENDING |
@@ -124,22 +178,24 @@ All game state persistence tasks completed - attack/defense cards restore correc
 - [x] Handle host starting game before opponent joins (waiting state with polling)
 - [x] Refresh Active Games list when opponent joins
 
-### Session 5 - Turn Synchronization (IN PROGRESS - Analysis Complete)
-
-**State Push (5.1):** VERIFIED - `SaveGameStateToSupabaseAsync()` saves after each turn
-
-**Key Files:**
-- `UIFlowController.cs` - Main state save logic, needs RemotePlayerOpponent wiring
-- `RemotePlayerOpponent.cs` - Has turn detection logic, not connected
-- `GameStateSynchronizer.cs` - State sync helpers (optional use)
+### Session 5 - Turn Synchronization (BLOCKED - Data Loading Issue)
 
 **Implementation Tasks:**
-- [ ] 5.2: Load opponent setup data when they join (grid size, word count, color)
-- [ ] 5.3: Create RemotePlayerOpponent for real multiplayer (not phantom AI)
-- [ ] 5.4: Wire RemotePlayerOpponent events to update local state
-- [ ] 5.5: Add "Waiting for opponent..." indicator during their turn
-- [ ] 5.6: Handle turn number conflicts (race conditions)
-- [ ] 5.7: Test full 2-player game flow
+- [x] 5.1: Extend NetworkingUIResult with opponent setup fields
+- [x] 5.2: Complete HandleOpponentJoined() - creates RemotePlayerOpponent (PARTIAL - doesn't fetch/apply data)
+- [ ] 5.2b: **NEW** - Fetch opponent setup from Supabase when they join
+- [ ] 5.2c: **NEW** - Rebuild attack grid/word rows with opponent data
+- [x] 5.3: Build attack grid using opponent setup dimensions (only works on Resume, not live join)
+- [x] 5.4: Create RemotePlayerOpponent for real multiplayer (wire events only)
+- [x] 5.5: Implement 2-second polling for turn detection
+- [x] 5.6: Add "Waiting for opponent..." indicator
+- [ ] 5.7: End-to-end test (two browser windows) - BLOCKED until 5.2b/5.2c complete
+- [ ] 5.8: **NEW** - Block gameplay until opponent data fully loads
+- [ ] 5.9: **NEW** - Fix DetectOpponentAction to read correct player's data
+
+**Root Cause:** Live join path doesn't fetch opponent setup data from Supabase. Resume path does, which is why Resume works.
+
+**Deferred to Session 6:** Turn/version guarding (not needed for async turn-based)
 
 ### Phase F: Cleanup & Polish
 
@@ -172,17 +228,21 @@ All game state persistence tasks completed - attack/defense cards restore correc
 - UIFlowController at ~5,298 lines - **Phase 3 COMPLETE** (see `Documents/Refactor/DLYH_RefactoringPlan_Phase3_01192026.md`)
 - Inconsistent namespace convention (TecVooDoo.DontLoseYourHead.* vs DLYH.*) - deferred to Phase F
 
-**Networking:** (See `DLYH_NetworkingPlan_Phase_E.md` for full gap analysis)
+**Networking:** (See `DLYH_NetworkingPlan_Phase_E_Updated.md` for full plan)
 - ~~Editor identity persistence needs verification~~ VERIFIED - PlayerPrefs works correctly
-- **Opponent join polling implemented but NOT WORKING** - UI stays on "Waiting...", needs debugging
-- **Turn state mismatch** - Both players see "Opponent's turn" after joining
-- **Find Opponent shows "Host" instead of player name** - Name not passed correctly
-- **Find Opponent games fail to resume** - Both players get errors
+- ~~Opponent join polling implemented but NOT WORKING~~ FIXED (Session 4) - UI updates correctly
+- ~~Turn state mismatch - Both players see "Opponent's turn"~~ PARTIAL FIX - Turn tracking works but data doesn't load
+- ~~Find Opponent shows "Host" instead of player name~~ FIXED (Session 4)
+- **Find Opponent games fail to resume** - Both players get errors (needs investigation)
 - ~~Phantom AI not inserted into session_players~~ FIXED - Now creates player record and session_players row
+- **CRITICAL: Opponent setup not loaded on live join** - HandleOpponentJoined() doesn't fetch/rebuild UI (Session 5)
+- ~~RemotePlayerOpponent not wired~~ FIXED - Now created in HandleOpponentJoined() (Build 4)
+- **DetectOpponentAction reads wrong player data** - Shows all zeros (Session 5)
+- **Gameplay allowed on incomplete data** - Can make moves before opponent data loads (Session 5)
 - 5-day auto-win not implemented (needs Supabase edge function) - Session 6
 - RematchService not wired to UI - Session 7
 - Word placement encryption is just Base64 (not secure) - Session 8
-- WebGL realtime incomplete (WebSocket bridge missing) - Session 5
+- WebGL realtime incomplete (WebSocket bridge missing) - using POLLING instead (Session 5)
 - ~~WebGL used secret key instead of anon key~~ FIXED - Using JWT anon key now
 - ~~Exit button nested iframe in WebGL~~ FIXED - Uses window.top.location
 - ~~Game locked after move in multiplayer~~ FIXED - Tab switching enabled during opponent turn
@@ -417,12 +477,14 @@ YourDifficultyModifier: Easy=+4, Normal=+0, Hard=-4
 
 ## AI Rules
 
-1. **Verify names exist** - search before referencing files/methods/classes
-2. **Step-by-step verification** - one step at a time, wait for confirmation
-3. **Read before editing** - always read files before modifying
-4. **ASCII only** - no smart quotes, em-dashes, or special characters
-5. **Prefer structured edits** - use script_apply_edits for method changes
-6. **Be direct** - give honest assessments, don't sugar-coat
+1. **Read DLYH_CodeReference.md first** - check existing APIs before writing new code
+2. **Working directory is C:\Unity\DontLoseYourHead** - NOT backup folders
+3. **Verify names exist** - search before referencing files/methods/classes
+4. **Step-by-step verification** - one step at a time, wait for confirmation
+5. **Read before editing** - always read files before modifying
+6. **ASCII only** - no smart quotes, em-dashes, or special characters
+7. **Prefer structured edits** - use script_apply_edits for method changes
+8. **Be direct** - give honest assessments, don't sugar-coat
 
 ---
 
@@ -430,7 +492,8 @@ YourDifficultyModifier: Easy=+4, Normal=+0, Hard=-4
 
 | Document | Path | Purpose |
 |----------|------|---------|
-| Networking Plan | `Documents/DLYH_NetworkingPlan_Phase_E.md` | Phase E implementation plan (7 sessions) |
+| **Code Reference** | `Documents/DLYH_CodeReference.md` | **READ FIRST** - Namespaces, classes, APIs, key methods |
+| Networking Plan | `Documents/DLYH_NetworkingPlan_Phase_E_Updated.md` | Phase E implementation plan (REVISED) |
 | Phase 3 Refactor | `Documents/Refactor/DLYH_RefactoringPlan_Phase3_01192026.md` | Completed architecture refactor |
 | DAB Status | `E:\TecVooDoo\Projects\Games\4 Playtesting\Dots and Boxes\Documents\DAB_Status.md` | Working async multiplayer reference |
 | TecVooDoo Web Status | `E:\TecVooDoo\Projects\Other\TecVooDooWebsite\Documents\TecVooDoo_Web_Status.md` | Supabase backend, auth |
@@ -442,10 +505,12 @@ YourDifficultyModifier: Easy=+4, Normal=+0, Hard=-4
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 101 | Jan 26, 2026 | Session 84 - Build 4 tested, opponent data loading issue identified |
+| 100 | Jan 26, 2026 | Session 84 - Turn tracking fixes (Build 4) |
+| 99 | Jan 26, 2026 | Session 84 - Networking plan review & revision |
+| 98 | Jan 26, 2026 | Session 83 - Session 5 analysis |
 | 97 | Jan 26, 2026 | Session 82 - Layout troubleshooting CLOSED, verified on PC + mobile |
 | 96 | Jan 26, 2026 | Session 82 - Layout polish (grid alignment, cell overlap, section spacing) |
-| 95 | Jan 26, 2026 | Session 81 - Content column layout refactoring |
-| 94 | Jan 25, 2026 | Session 80 - Option C (keyboard shrink + ScrollView wrappers on all screens) |
 
 **Full version history:** See `DLYH_Status_Archive.md`
 
@@ -460,6 +525,7 @@ YourDifficultyModifier: Easy=+4, Normal=+0, Hard=-4
 - [x] Update Architecture if files added/extracted
 - [x] Increment version number
 - [ ] Archive old version history entries (keep ~6)
+- [ ] **Update DLYH_CodeReference.md** if any scripts, APIs, or data models were added/changed
 
 ---
 

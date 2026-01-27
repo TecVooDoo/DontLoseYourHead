@@ -1,0 +1,77 @@
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [JsonParsingUtility] ExtractRevealedCellsArray - content length: 0, content: ''
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [JsonParsingUtility] ExtractRevealedCellsArray - pattern: '"revealedCells": [', start: 51
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [JsonParsingUtility] ExtractRevealedCellsArray - content length: 0, content: ''
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [SupabaseClient] PATCH https://api.tecvoodoo.com/rest/v1/game_sessions?id=eq.3ZSHA7 -> 200
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [GameSessionService] Updated game state: 3ZSHA7
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [UIFlowController] Saved game state to Supabase - turn 2
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [GameplayScreenManager] SelectDefendTab - Setting colors: Player RGB(0.20, 0.80, 0.30), Opponent RGB(0.60, 0.10, 0.10)
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [TableView] Container sizing: Available 600x606px, Grid 12x12 (13 rows), FromW=44.2px -> Final 44px
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [UIFlowController] Switched to opponent's turn (multiplayer - polling for remote player)
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [UIFlowController] Starting turn detection polling for game 3ZSHA7
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [UIFlowController] Opponent is thinking...
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [RemotePlayerOpponent] Now waiting for opponent's turn
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [UIFlowController] Turn detection polling started for game 3ZSHA7
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [UIFlowController] Polling turn detection - fetching state for 3ZSHA7
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/game_sessions?id=eq.3ZSHA7 -> 200
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/session_players?session_id=eq.3ZSHA7 -> 200
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [JsonParsingUtility] ExtractRevealedCellsArray - pattern: '"revealedCells": [', start: 51
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [JsonParsingUtility] ExtractRevealedCellsArray - content length: 50, content: '{"col": 0, "row": 0, "isHit": false, "letter": ""}'
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [JsonParsingUtility] ExtractRevealedCellsArray - pattern: '"revealedCells": [', start: 51
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [JsonParsingUtility] ExtractRevealedCellsArray - content length: 0, content: ''
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [UIFlowController] Poll result - turnNumber: 3, lastKnown: 2, currentTurn: player1
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [UIFlowController] Turn number changed: 2 -> 3
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [UIFlowController] Processing state update via RemotePlayerOpponent
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [RemotePlayerOpponent] DetectOpponentAction - lastRevealed=0, newRevealed=0, lastLetters=0, newLetters=0
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [RemotePlayerOpponent] Turn returned to local player
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [UIFlowController] Opponent finished thinking
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [UIFlowController] Turn detection: Local player's turn - stopping polling
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [UIFlowController] Turn detection polling ended
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [TableView] Container sizing: Available 600x606px, Grid 12x12 (13 rows), FromW=44.2px -> Final 44px
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [GameplayScreenManager] SelectDefendTab - Setting colors: Player RGB(0.20, 0.80, 0.30), Opponent RGB(0.60, 0.10, 0.10)
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [TableView] Container sizing: Available 600x606px, Grid 12x12 (13 rows), FromW=44.2px -> Final 44px
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [TableView] Container sizing: Available 600x606px, Grid 12x12 (13 rows), FromW=44.2px -> Final 44px
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [GameplayScreenManager] SelectDefendTab - Setting colors: Player RGB(0.20, 0.80, 0.30), Opponent RGB(0.60, 0.10, 0.10)
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [TableView] Container sizing: Available 600x606px, Grid 12x12 (13 rows), FromW=44.2px -> Final 44px
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [TableView] Container sizing: Available 600x606px, Grid 12x12 (13 rows), FromW=44.2px -> Final 44px
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [MusicManager] Crossfading to: A tavern, a bard, a quest
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [MusicManager] Crossfading to: The Monster Within - Mastered
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [MusicManager] Crossfading to: An Ocean of Stars - Mastered
+
+afed8810-9d9b-4861-9dad-ad32a5f7d48d:9 [MusicManager] Crossfading to: The Monster Within - Mastered

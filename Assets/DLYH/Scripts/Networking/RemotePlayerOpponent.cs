@@ -109,7 +109,110 @@ namespace DLYH.Networking
         // ============================================================
 
         /// <summary>
+        /// Lightweight initialization for use with existing services (Session 5).
+        /// Call this instead of InitializeAsync() when UIFlowController already has services.
+        /// This avoids creating duplicate SupabaseClient/GameSessionService instances.
+        /// </summary>
+        /// <param name="existingService">Existing GameSessionService from UIFlowController</param>
+        /// <param name="opponentData">Opponent setup data already loaded from Supabase</param>
+        /// <param name="missLimit">Pre-calculated miss limit for opponent</param>
+        public void InitializeWithExistingService(GameSessionService existingService, PlayerSetupData opponentData, int missLimit)
+        {
+            if (_isDisposed)
+            {
+                Debug.LogError("[RemotePlayerOpponent] Cannot initialize - already disposed");
+                return;
+            }
+
+            if (_isInitialized)
+            {
+                Debug.LogWarning("[RemotePlayerOpponent] Already initialized");
+                return;
+            }
+
+            // Use existing service (no duplicate creation)
+            _sessionService = existingService;
+
+            // Set opponent data
+            _opponentSetupData = opponentData;
+            _missLimit = missLimit;
+
+            // Mark as ready
+            _isConnected = true;
+            _isInitialized = true;
+
+            Debug.Log($"[RemotePlayerOpponent] Lightweight init complete - Opponent: {OpponentName}, Grid: {GridSize}x{GridSize}, MissLimit: {_missLimit}");
+        }
+
+        /// <summary>
+        /// Called by UIFlowController when polling detects a new game state.
+        /// Compares states and fires appropriate events.
+        /// </summary>
+        /// <param name="newState">New game state from Supabase</param>
+        public void ProcessStateUpdate(DLYHGameState newState)
+        {
+            if (_isDisposed || !_isInitialized) return;
+
+            // Get opponent's gameplay state (opponent is the OTHER player)
+            DLYHGameplayState opponentGameplayState = _isLocalPlayerHost
+                ? newState.player2?.gameplayState
+                : newState.player1?.gameplayState;
+
+            if (opponentGameplayState != null && _lastOpponentGameplayState != null)
+            {
+                // Detect what changed
+                DetectOpponentAction(opponentGameplayState);
+            }
+
+            _lastOpponentGameplayState = opponentGameplayState;
+            _lastGameState = newState;
+
+            // Check if opponent's turn is complete (turn switched back to local player)
+            string currentTurn = newState.currentTurn;
+            bool isLocalTurn = (_isLocalPlayerHost && currentTurn == "player1") ||
+                               (!_isLocalPlayerHost && currentTurn == "player2");
+
+            if (isLocalTurn && _waitingForOpponentTurn)
+            {
+                Debug.Log("[RemotePlayerOpponent] Turn returned to local player");
+                _waitingForOpponentTurn = false;
+                _isThinking = false;
+                OnThinkingComplete?.Invoke();
+            }
+        }
+
+        /// <summary>
+        /// Sets the initial game state for comparison.
+        /// Call this before starting turn detection.
+        /// </summary>
+        /// <param name="initialState">Initial game state</param>
+        public void SetInitialState(DLYHGameState initialState)
+        {
+            _lastGameState = initialState;
+            _lastOpponentGameplayState = _isLocalPlayerHost
+                ? initialState.player2?.gameplayState
+                : initialState.player1?.gameplayState;
+
+            int revealedCount = _lastOpponentGameplayState?.revealedCells?.Length ?? 0;
+            int letterCount = _lastOpponentGameplayState?.knownLetters?.Length ?? 0;
+            Debug.Log($"[RemotePlayerOpponent] Initial state set - isHost={_isLocalPlayerHost}, turnNumber={initialState?.turnNumber ?? -1}, opponentRevealed={revealedCount}, opponentLetters={letterCount}");
+        }
+
+        /// <summary>
+        /// Marks that we're waiting for opponent's turn.
+        /// Called when local player's turn ends.
+        /// </summary>
+        public void StartWaitingForOpponentTurn()
+        {
+            _waitingForOpponentTurn = true;
+            _isThinking = true;
+            OnThinkingStarted?.Invoke();
+            Debug.Log("[RemotePlayerOpponent] Now waiting for opponent's turn");
+        }
+
+        /// <summary>
         /// Initializes the remote opponent connection and waits for opponent setup data.
+        /// NOTE: Do NOT use this in UIFlowController - use InitializeWithExistingService instead.
         /// </summary>
         public async UniTask InitializeAsync(PlayerSetupData localPlayerSetup)
         {
@@ -346,20 +449,24 @@ namespace DLYH.Networking
 
         /// <summary>
         /// Detects what action the opponent took by comparing gameplay states.
+        /// Uses revealedCells (which is saved to Supabase) instead of guessedCoordinates.
         /// </summary>
         private void DetectOpponentAction(DLYHGameplayState newState)
         {
             // Initialize last state arrays if needed for comparison
-            int lastCoordCount = _lastOpponentGameplayState?.guessedCoordinates?.Length ?? 0;
+            int lastRevealedCount = _lastOpponentGameplayState?.revealedCells?.Length ?? 0;
             int lastLetterCount = _lastOpponentGameplayState?.knownLetters?.Length ?? 0;
             int lastSolvedCount = _lastOpponentGameplayState?.solvedWordRows?.Length ?? 0;
 
-            // Check for new guessed coordinates (coordinate guess)
-            if (newState.guessedCoordinates != null && newState.guessedCoordinates.Length > lastCoordCount)
+            Debug.Log($"[RemotePlayerOpponent] DetectOpponentAction - lastRevealed={lastRevealedCount}, newRevealed={newState.revealedCells?.Length ?? 0}, lastLetters={lastLetterCount}, newLetters={newState.knownLetters?.Length ?? 0}");
+
+            // Check for new revealed cells (coordinate guess)
+            // revealedCells is populated by SaveGameStateToSupabaseAsync from _playerRevealedCells
+            if (newState.revealedCells != null && newState.revealedCells.Length > lastRevealedCount)
             {
-                var lastCoord = newState.guessedCoordinates[newState.guessedCoordinates.Length - 1];
-                Debug.Log($"[RemotePlayerOpponent] Opponent guessed coordinate: ({lastCoord.row}, {lastCoord.col})");
-                OnCoordinateGuess?.Invoke(lastCoord.row, lastCoord.col);
+                RevealedCellData lastCell = newState.revealedCells[newState.revealedCells.Length - 1];
+                Debug.Log($"[RemotePlayerOpponent] Opponent guessed coordinate: ({lastCell.row}, {lastCell.col}), letter={lastCell.letter}, isHit={lastCell.isHit}");
+                OnCoordinateGuess?.Invoke(lastCell.row, lastCell.col);
                 return;
             }
 

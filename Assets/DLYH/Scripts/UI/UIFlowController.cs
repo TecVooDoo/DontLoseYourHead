@@ -229,12 +229,17 @@ namespace DLYH.TableUI
         private const float OPPONENT_THINK_MIN_DELAY = 0.5f; // Minimum AI "thinking" time
         private const float OPPONENT_TURN_TIMEOUT = 15f; // Maximum time to wait for AI turn
         private const float OPPONENT_JOIN_POLL_INTERVAL = 3f; // Seconds between opponent join checks (Session 4)
+        private const float TURN_DETECTION_POLL_INTERVAL = 2f; // Seconds between turn detection checks (Session 5)
 
         // Guillotine stage tracking for audio
         private int _playerPreviousStage = 1;
         private int _opponentPreviousStage = 1;
         private bool _isGamePausedForStageTransition = false;
         private bool _wasPlayerTurnBeforePause = true;
+
+        // Turn detection polling for real multiplayer (Session 5)
+        private bool _pollingForOpponentTurn = false;
+        private int _lastKnownTurnNumber = 0;
 
         // Hamburger menu state
         private VisualElement _hamburgerMenuContainer;
@@ -433,6 +438,9 @@ namespace DLYH.TableUI
             CreateMainMenuScreen();
             CreateFeedbackModal();
             CreateHamburgerMenu();
+
+            // DEBUG OVERLAY DISABLED - Uncomment to re-enable for layout troubleshooting
+            // CreateGlobalDebugOverlay();
 
             // Initialize networking UI manager
             InitializeNetworkingUI();
@@ -1035,6 +1043,8 @@ namespace DLYH.TableUI
                 bool success = await _gameSessionService.UpdateGameState(_currentGameCode, state);
                 if (success)
                 {
+                    // Update local turn tracking so polling detects only NEW changes
+                    _lastKnownTurnNumber = state.turnNumber;
                     Debug.Log($"[UIFlowController] Saved game state to Supabase - turn {state.turnNumber}");
                 }
                 else
@@ -2742,15 +2752,17 @@ namespace DLYH.TableUI
 
             // _isPlayerTurn already set to false in EndPlayerTurn()
             _gameplayManager?.SetPlayerTurn(false);
-            _gameplayManager?.SetStatusMessage("Opponent's turn...", GameplayScreenManager.StatusType.Normal);
 
             // Auto-switch to Defend tab
             _gameplayManager?.SelectDefendTab(isAutoSwitch: true);
 
-            // For AI opponents: disable manual tab switching during their turn
-            // For real multiplayer: keep tab switching enabled so player can view both tabs while waiting
-            if (_opponent != null)
+            // Check if this is an AI opponent (LocalAIOpponent) or remote player (RemotePlayerOpponent)
+            bool isAIOpponent = _opponent != null && _opponent.IsAI;
+
+            if (isAIOpponent)
             {
+                // AI opponent: show thinking message and disable tab switching
+                _gameplayManager?.SetStatusMessage("Opponent's turn...", GameplayScreenManager.StatusType.Normal);
                 _gameplayManager?.SetAllowManualTabSwitch(false);
                 Debug.Log("[UIFlowController] Switched to opponent's turn (AI - tab switching disabled)");
 
@@ -2762,10 +2774,13 @@ namespace DLYH.TableUI
             }
             else
             {
-                // Real multiplayer - allow viewing both tabs while waiting for opponent
+                // Real multiplayer - show waiting indicator and allow viewing both tabs
+                _gameplayManager?.SetStatusMessage("Waiting for opponent...", GameplayScreenManager.StatusType.Normal);
                 _gameplayManager?.SetAllowManualTabSwitch(true);
-                Debug.Log("[UIFlowController] Switched to opponent's turn (multiplayer - tab switching enabled, waiting for remote player)");
-                // TODO Session 5: Start polling for opponent moves here
+                Debug.Log("[UIFlowController] Switched to opponent's turn (multiplayer - polling for remote player)");
+
+                // Start polling for opponent moves (Session 5)
+                StartTurnDetectionPolling();
             }
         }
 
@@ -2852,6 +2867,107 @@ namespace DLYH.TableUI
 
             Debug.Log($"[UIFlowController] AI opponent initialized: {_opponent.OpponentName}, " +
                       $"Grid: {_opponent.GridSize}x{_opponent.GridSize}, Words: {_opponent.WordCount}");
+        }
+
+        /// <summary>
+        /// Creates a RemotePlayerOpponent for real multiplayer games.
+        /// Uses existing _gameSessionService to avoid duplicate service creation.
+        /// Session 5: Wires events only, polling handles turn detection.
+        /// </summary>
+        private async UniTask CreateRemotePlayerOpponentAsync(string opponentName, Color opponentColor, int opponentGridSize, int opponentWordCount)
+        {
+            if (_supabaseConfig == null || !_supabaseConfig.IsValid)
+            {
+                Debug.LogError("[UIFlowController] Cannot create RemotePlayerOpponent - SupabaseConfig invalid");
+                return;
+            }
+
+            if (_gameSessionService == null)
+            {
+                Debug.LogError("[UIFlowController] Cannot create RemotePlayerOpponent - GameSessionService null");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(_currentGameCode))
+            {
+                Debug.LogError("[UIFlowController] Cannot create RemotePlayerOpponent - No game code");
+                return;
+            }
+
+            // Determine if local player is host (player 1)
+            bool isHost = _matchmakingResult?.IsHost ?? true;
+
+            Debug.Log($"[UIFlowController] Creating RemotePlayerOpponent for game {_currentGameCode}, isHost={isHost}");
+
+            // Create opponent instance
+            RemotePlayerOpponent remoteOpponent = new RemotePlayerOpponent(_supabaseConfig, _currentGameCode, isHost);
+
+            // Create PlayerSetupData for the opponent
+            PlayerSetupData opponentSetupData = new PlayerSetupData
+            {
+                PlayerName = opponentName,
+                PlayerColor = opponentColor,
+                GridSize = opponentGridSize,
+                WordCount = opponentWordCount
+            };
+
+            // Calculate miss limit for opponent (based on player's grid)
+            int playerGridSize = _wizardManager?.GridSize ?? 8;
+            int playerWordCount = _wizardManager?.WordCount ?? 3;
+            DifficultySetting playerDifficulty = GetDifficultySettingFromIndex(_wizardManager?.Difficulty ?? 1);
+            DifficultySetting inverseDifficulty = GetInverseDifficulty(playerDifficulty);
+            int opponentMissLimit = DifficultyCalculator.CalculateMissLimitForPlayer(
+                inverseDifficulty, playerGridSize, playerWordCount);
+
+            // Initialize with existing service (avoids duplicate service creation)
+            remoteOpponent.InitializeWithExistingService(_gameSessionService, opponentSetupData, opponentMissLimit);
+
+            // Wire events (same as LocalAIOpponent)
+            remoteOpponent.OnLetterGuess += HandleOpponentLetterGuess;
+            remoteOpponent.OnCoordinateGuess += HandleOpponentCoordinateGuess;
+            remoteOpponent.OnWordGuess += HandleOpponentWordGuess;
+            remoteOpponent.OnThinkingStarted += HandleOpponentThinkingStarted;
+            remoteOpponent.OnThinkingComplete += HandleOpponentThinkingComplete;
+            remoteOpponent.OnDisconnected += HandleOpponentDisconnected;
+            remoteOpponent.OnReconnected += HandleOpponentReconnected;
+
+            // Set as current opponent
+            _opponent = remoteOpponent;
+
+            // Fetch initial game state for comparison baseline
+            GameSessionWithPlayers gameWithPlayers = await _gameSessionService.GetGameWithPlayers(_currentGameCode);
+            if (gameWithPlayers?.Session != null)
+            {
+                DLYHGameState initialState = GameStateManager.ParseGameStateJson(gameWithPlayers.Session.StateJson);
+                remoteOpponent.SetInitialState(initialState);
+
+                // Initialize turn tracking baseline (critical for polling to detect changes correctly)
+                if (initialState != null)
+                {
+                    _lastKnownTurnNumber = initialState.turnNumber;
+                    Debug.Log($"[UIFlowController] Initialized _lastKnownTurnNumber to {_lastKnownTurnNumber} from game state");
+                }
+            }
+
+            Debug.Log($"[UIFlowController] RemotePlayerOpponent created and wired: {opponentName}");
+        }
+
+        /// <summary>
+        /// Handles remote opponent disconnect (network only).
+        /// </summary>
+        private void HandleOpponentDisconnected()
+        {
+            Debug.LogWarning("[UIFlowController] Remote opponent disconnected");
+            _gameplayManager?.SetStatusMessage("Opponent disconnected. Waiting for reconnection...", GameplayScreenManager.StatusType.Normal);
+        }
+
+        /// <summary>
+        /// Handles remote opponent reconnect (network only).
+        /// </summary>
+        private void HandleOpponentReconnected()
+        {
+            Debug.Log("[UIFlowController] Remote opponent reconnected");
+            _gameplayManager?.SetStatusMessage("Opponent reconnected!", GameplayScreenManager.StatusType.Normal);
         }
 
         /// <summary>
@@ -4266,6 +4382,10 @@ namespace DLYH.TableUI
             _waitingForOpponent = false;
             _currentGameCode = null; // Clear game code to prevent resume conflicts
 
+            // Stop turn detection polling (Session 5)
+            StopTurnDetectionPolling();
+            _lastKnownTurnNumber = 0;
+
             // Clear extra turn queues
             _playerExtraTurnQueue.Clear();
             _opponentExtraTurnQueue.Clear();
@@ -4987,6 +5107,8 @@ namespace DLYH.TableUI
             // Find containers in the wizard's placement panel
             VisualElement wordRowsContainer = _setupWizardScreen.Q<VisualElement>("word-rows-container");
             VisualElement tableContainer = _setupWizardScreen.Q<VisualElement>("table-container");
+            VisualElement placementPanel = _setupWizardScreen.Q<VisualElement>("placement-panel");
+            VisualElement contentColumn = _setupWizardScreen.Q<VisualElement>("content-column");
 
             if (tableContainer == null)
             {
@@ -5014,6 +5136,19 @@ namespace DLYH.TableUI
             // Create table view (grid only)
             _tableView = new TableView(tableContainer);
             _tableView.SetPlayerColors(data.PlayerColor, ColorRules.SelectableColors[1]);
+
+            // Set measurement slot to content-column (the unified width constraint for word rows and grid)
+            // This ensures grid calculates cell size based on the same width as word rows
+            // Falls back to placement-panel if content-column not found
+            if (contentColumn != null)
+            {
+                _tableView.SetMeasurementSlot(contentColumn);
+            }
+            else if (placementPanel != null)
+            {
+                _tableView.SetMeasurementSlot(placementPanel);
+            }
+
             _tableView.Bind(_tableModel);
 
             // Sync sizes with grid cell sizes - apply to word rows and placement panel
@@ -5029,7 +5164,7 @@ namespace DLYH.TableUI
             }
 
             // Apply size class to placement panel for keyboard/button scaling
-            VisualElement placementPanel = _setupWizardScreen.Q<VisualElement>("placement-panel");
+            // (placementPanel already declared earlier in this method)
             if (placementPanel != null)
             {
                 placementPanel.RemoveFromClassList("size-tiny");
@@ -5765,7 +5900,7 @@ namespace DLYH.TableUI
             else
             {
                 Debug.Log($"[UIFlowController] Starting game vs real opponent: {result.OpponentName}");
-                // TODO: Set up RemotePlayerOpponent with result.GameCode
+                // RemotePlayerOpponent is created in TransitionToGameplay when opponent setup is loaded
             }
 
             // Proceed to gameplay
@@ -5855,7 +5990,7 @@ namespace DLYH.TableUI
                 // We are player 2, so the host is player 1
                 _waitingForOpponent = false; // Joiner doesn't wait - host was already there
 
-                // Load host's name from Supabase (player 1 in this game)
+                // Load host's (player 1's) setup from Supabase
                 opponentName = "Opponent"; // Default fallback
                 if (_gameSessionService != null)
                 {
@@ -5873,13 +6008,44 @@ namespace DLYH.TableUI
                         }
                     }
 
-                    // Also try to get name from game state if session_players didn't have it
-                    if (opponentName == "Opponent" && gameWithPlayers?.Session != null)
+                    // Load full opponent setup from game state (player 1 = host)
+                    if (gameWithPlayers?.Session != null)
                     {
                         DLYHGameState gameState = GameStateManager.ParseGameStateJson(gameWithPlayers.Session.StateJson);
-                        if (gameState?.player1 != null && !string.IsNullOrEmpty(gameState.player1.name))
+                        if (gameState?.player1 != null)
                         {
-                            opponentName = gameState.player1.name;
+                            DLYHPlayerData hostData = gameState.player1;
+
+                            // Get name if not already set
+                            if (opponentName == "Opponent" && !string.IsNullOrEmpty(hostData.name))
+                            {
+                                opponentName = hostData.name;
+                            }
+
+                            // Load host's setup data for attack grid
+                            if (hostData.setupComplete)
+                            {
+                                opponentGridSize = hostData.gridSize > 0 ? hostData.gridSize : opponentGridSize;
+                                opponentWordCount = hostData.wordCount > 0 ? hostData.wordCount : opponentWordCount;
+
+                                // Parse color from hex string
+                                if (!string.IsNullOrEmpty(hostData.color))
+                                {
+                                    if (ColorUtility.TryParseHtmlString(hostData.color, out Color parsedColor))
+                                    {
+                                        opponentColor = parsedColor;
+                                    }
+                                }
+
+                                Debug.Log($"[UIFlowController] JoinGame mode - loaded host setup: grid={opponentGridSize}, words={opponentWordCount}, color={hostData.color}");
+
+                                // Create RemotePlayerOpponent for JoinGame mode (Session 5 fix)
+                                await CreateRemotePlayerOpponentAsync(opponentName, opponentColor, opponentGridSize, opponentWordCount);
+                            }
+                            else
+                            {
+                                Debug.Log("[UIFlowController] JoinGame mode - host setup not yet complete");
+                            }
                         }
                     }
                 }
@@ -5888,16 +6054,32 @@ namespace DLYH.TableUI
             }
             else if (_currentGameMode == GameMode.Online && _matchmakingResult != null && !_matchmakingResult.IsPhantomAI)
             {
-                // Real online game - check if opponent has joined
+                // Real online game - check if opponent has joined and setup is loaded
                 bool hasOpponent = !string.IsNullOrEmpty(_matchmakingResult.OpponentName) &&
                                    _matchmakingResult.OpponentName != "Waiting...";
 
                 if (hasOpponent)
                 {
-                    // Opponent has joined - game can proceed
+                    // Opponent has joined - use their setup data
                     opponentName = _matchmakingResult.OpponentName;
                     _waitingForOpponent = false;
-                    Debug.Log($"[UIFlowController] Online game with opponent: {opponentName}");
+
+                    // Load opponent's setup from NetworkingUIResult (populated by HandleOpponentJoined)
+                    if (_matchmakingResult.OpponentSetupLoaded)
+                    {
+                        opponentGridSize = _matchmakingResult.OpponentGridSize;
+                        opponentWordCount = _matchmakingResult.OpponentWordCount;
+                        opponentColor = _matchmakingResult.OpponentColor;
+                        Debug.Log($"[UIFlowController] Online game with opponent: {opponentName}, grid={opponentGridSize}, words={opponentWordCount}");
+
+                        // Create RemotePlayerOpponent for real multiplayer (Session 5)
+                        await CreateRemotePlayerOpponentAsync(opponentName, opponentColor, opponentGridSize, opponentWordCount);
+                    }
+                    else
+                    {
+                        // Opponent joined but setup not yet complete - use defaults for now
+                        Debug.Log($"[UIFlowController] Online game with opponent: {opponentName}, setup not loaded - using defaults");
+                    }
                 }
                 else
                 {
@@ -5967,9 +6149,8 @@ namespace DLYH.TableUI
             // and defense view (player's words fully visible)
             SetupGameplayWordRowsWithOpponentData(playerWordCount, opponentWordCount, playerColor, opponentWordPlacements);
 
-            // Set turn state and game flags BEFORE starting any async operations
+            // Set game flags BEFORE starting any async operations
             // Critical: polling loop checks these flags, so they must be set first
-            _isPlayerTurn = true;
             _isGameOver = false;
             _hasActiveGame = true;
 
@@ -5981,10 +6162,74 @@ namespace DLYH.TableUI
             _playerPreviousStage = 1;
             _opponentPreviousStage = 1;
 
+            // Reset turn detection polling state for new game (Session 5)
+            _pollingForOpponentTurn = false;
+            _lastKnownTurnNumber = 0;
+
             // Reset guillotine overlay styling for new game
             _guillotineOverlayManager?.ResetGameOverState();
 
-            // Set status message and start polling if waiting for opponent
+            // Determine initial turn state (Session 5 fix)
+            // For real multiplayer, check currentTurn from Supabase
+            // For solo/phantom AI/waiting, local player goes first
+            bool isRealMultiplayer = (_currentGameMode == GameMode.Online || _currentGameMode == GameMode.JoinGame) &&
+                                     _matchmakingResult != null &&
+                                     !_matchmakingResult.IsPhantomAI &&
+                                     !_waitingForOpponent &&
+                                     _opponent != null &&
+                                     !_opponent.IsAI;
+
+            if (isRealMultiplayer && _gameSessionService != null && !string.IsNullOrEmpty(_currentGameCode))
+            {
+                // Fetch current turn from Supabase
+                try
+                {
+                    GameSession session = await _gameSessionService.GetGame(_currentGameCode);
+                    if (session != null)
+                    {
+                        DLYHGameState gameState = GameStateManager.ParseGameStateJson(session.StateJson);
+                        if (gameState != null)
+                        {
+                            // Determine if it's our turn
+                            bool isHost = _matchmakingResult.IsHost;
+                            string localPlayerKey = isHost ? "player1" : "player2";
+                            _isPlayerTurn = (gameState.currentTurn == localPlayerKey);
+                            _lastKnownTurnNumber = gameState.turnNumber;
+
+                            Debug.Log($"[UIFlowController] Real multiplayer turn init: currentTurn={gameState.currentTurn}, localPlayer={localPlayerKey}, isPlayerTurn={_isPlayerTurn}");
+
+                            // Set initial state for RemotePlayerOpponent comparison
+                            RemotePlayerOpponent remoteOpponent = _opponent as RemotePlayerOpponent;
+                            remoteOpponent?.SetInitialState(gameState);
+                        }
+                        else
+                        {
+                            _isPlayerTurn = true; // Fallback
+                            Debug.LogWarning("[UIFlowController] Could not parse game state - defaulting to player turn");
+                        }
+                    }
+                    else
+                    {
+                        _isPlayerTurn = true; // Fallback
+                        Debug.LogWarning("[UIFlowController] Could not fetch game session - defaulting to player turn");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _isPlayerTurn = true; // Fallback
+                    Debug.LogWarning($"[UIFlowController] Error fetching turn state: {ex.Message} - defaulting to player turn");
+                }
+            }
+            else
+            {
+                // Solo, phantom AI, or waiting for opponent - local player starts
+                _isPlayerTurn = true;
+            }
+
+            // Update UI to reflect turn state
+            _gameplayManager?.SetPlayerTurn(_isPlayerTurn);
+
+            // Set status message and start appropriate polling
             if (_waitingForOpponent)
             {
                 _gameplayManager.SetStatusMessage("Waiting for opponent to join...", GameplayScreenManager.StatusType.Normal);
@@ -5997,9 +6242,15 @@ namespace DLYH.TableUI
                     StartOpponentJoinPolling(_matchmakingResult.GameCode);
                 }
             }
+            else if (isRealMultiplayer && !_isPlayerTurn)
+            {
+                // It's opponent's turn in real multiplayer - start polling immediately (Session 5)
+                _gameplayManager.SetStatusMessage("Waiting for opponent's move...", GameplayScreenManager.StatusType.Normal);
+                StartTurnDetectionPolling();
+            }
             else
             {
-                _gameplayManager.SetStatusMessage("Game started! Tap a letter or cell to attack.", GameplayScreenManager.StatusType.Normal);
+                _gameplayManager.SetStatusMessage("Your turn! Tap a letter or cell to attack.", GameplayScreenManager.StatusType.Normal);
             }
 
             // Show gameplay screen
@@ -6165,6 +6416,14 @@ namespace DLYH.TableUI
                 Debug.Log("[UIFlowController] Reparented TableView to gameplay grid area (now showing attack grid)");
             }
 
+            // Set measurement slot to grid-area (stable layout slot, not content-driven)
+            // This prevents cascading resize loops on mobile
+            VisualElement gridArea = _gameplayScreen?.Q<VisualElement>("grid-area");
+            if (gridArea != null)
+            {
+                _tableView.SetMeasurementSlot(gridArea);
+            }
+
             _gameplayManager?.SetTableView(_tableView);
 
             // Set table models for tab switching
@@ -6172,6 +6431,99 @@ namespace DLYH.TableUI
             {
                 _gameplayManager?.SetTableModels(_attackTableModel, _defenseTableModel);
             }
+
+            // Note: Global debug overlay is now created in Initialize() via CreateGlobalDebugOverlay()
+        }
+
+        /// <summary>
+        /// Creates a global debug overlay that shows layout metrics across all screens.
+        /// TEMPORARY - remove after troubleshooting mobile layout issues.
+        /// </summary>
+        private void CreateGlobalDebugOverlay()
+        {
+            var debugLabel = new Label();
+            debugLabel.name = "global-debug-overlay";
+            debugLabel.text = "Debug loading...";
+
+            // Style it inline to avoid USS dependency
+            debugLabel.style.position = Position.Absolute;
+            debugLabel.style.top = 4;
+            debugLabel.style.left = 4;
+            debugLabel.style.backgroundColor = new Color(0, 0, 0, 0.85f);
+            debugLabel.style.color = new Color(0, 1, 0, 1); // Green
+            debugLabel.style.fontSize = 10;
+            debugLabel.style.paddingTop = 6;
+            debugLabel.style.paddingBottom = 6;
+            debugLabel.style.paddingLeft = 6;
+            debugLabel.style.paddingRight = 6;
+            debugLabel.style.borderTopLeftRadius = 4;
+            debugLabel.style.borderTopRightRadius = 4;
+            debugLabel.style.borderBottomLeftRadius = 4;
+            debugLabel.style.borderBottomRightRadius = 4;
+            debugLabel.style.whiteSpace = WhiteSpace.Normal;
+
+            // Add to root and bring to front
+            _root.Add(debugLabel);
+            debugLabel.BringToFront();
+
+            // Update every 500ms with context-aware info
+            _root.schedule.Execute(() =>
+            {
+                string currentScreen = "Unknown";
+                string screenInfo = "";
+
+                // Detect which screen is active and gather relevant metrics
+                if (_mainMenuScreen != null && _mainMenuScreen.style.display == DisplayStyle.Flex)
+                {
+                    currentScreen = "MainMenu";
+                    var menuRoot = _mainMenuScreen.Q<VisualElement>("main-menu-root");
+                    float menuH = menuRoot?.resolvedStyle.height ?? 0;
+                    screenInfo = $"MenuRoot: {menuH:F0}";
+                }
+                else if (_setupWizardScreen != null && _setupWizardScreen.style.display == DisplayStyle.Flex)
+                {
+                    currentScreen = "SetupWizard";
+                    var placementPanel = _setupWizardScreen.Q<VisualElement>("placement-panel");
+                    var wordPanel = _setupWizardScreen.Q<VisualElement>("word-entry-panel");
+                    float placeH = placementPanel?.resolvedStyle.height ?? 0;
+                    float wordH = wordPanel?.resolvedStyle.height ?? 0;
+                    screenInfo = $"Place: {placeH:F0}\nWordPanel: {wordH:F0}";
+                }
+                else if (_gameplayScreen != null && _gameplayScreen.style.display == DisplayStyle.Flex)
+                {
+                    currentScreen = "Gameplay";
+                    var gameplayRoot = _gameplayScreen.Q<VisualElement>("gameplay-root");
+                    var gridArea = _gameplayScreen.Q<VisualElement>("grid-area");
+                    var words = _gameplayScreen.Q<VisualElement>("words-section");
+                    var keyboard = _gameplayScreen.Q<VisualElement>("letter-keyboard");
+                    var tabs = _gameplayScreen.Q<VisualElement>("player-tabs");
+
+                    float rootH = gameplayRoot?.resolvedStyle.height ?? 0;
+                    float gridH = gridArea?.resolvedStyle.height ?? 0;
+                    float wordsH = words?.resolvedStyle.height ?? 0;
+                    float keyboardH = keyboard?.resolvedStyle.height ?? 0;
+                    float tabsH = tabs?.resolvedStyle.height ?? 0;
+                    float sumWK = wordsH + keyboardH;
+
+                    screenInfo = $"Root: {rootH:F0}\nTabs: {tabsH:F0}\nGrid: {gridH:F0}\nWords: {wordsH:F0}\nKB: {keyboardH:F0}\nW+K: {sumWK:F0}\nOver: {(sumWK > rootH ? "YES" : "no")}";
+                }
+
+                debugLabel.text = $"[{currentScreen}]\nScr: {Screen.width}x{Screen.height}\n{screenInfo}";
+
+                // Keep at front in case other elements were added
+                debugLabel.BringToFront();
+            }).Every(500);
+
+            UnityEngine.Debug.Log("[DEBUG] Global debug overlay created");
+        }
+
+        /// <summary>
+        /// Sets up a debug overlay showing layout metrics. TEMPORARY - remove after troubleshooting.
+        /// </summary>
+        private void SetupLayoutDebugOverlay()
+        {
+            // This method is now replaced by CreateGlobalDebugOverlay()
+            // Keeping for reference but not used
         }
 
         /// <summary>
@@ -6569,10 +6921,11 @@ namespace DLYH.TableUI
                                 // 3. Fallback to "Opponent"
                                 string opponentName = opponent?.PlayerName;
 
-                                if (string.IsNullOrEmpty(opponentName) && gameWithPlayers.Session != null)
+                                // Parse game state to get opponent setup data
+                                DLYHGameState gameState = null;
+                                if (gameWithPlayers.Session != null)
                                 {
-                                    // Try to get from game state
-                                    DLYHGameState gameState = GameStateManager.ParseGameStateJson(gameWithPlayers.Session.StateJson);
+                                    gameState = GameStateManager.ParseGameStateJson(gameWithPlayers.Session.StateJson);
                                     if (gameState?.player2 != null && !string.IsNullOrEmpty(gameState.player2.name))
                                     {
                                         opponentName = gameState.player2.name;
@@ -6586,8 +6939,9 @@ namespace DLYH.TableUI
 
                                 Debug.Log($"[UIFlowController] Opponent '{opponentName}' joined game {gameCode}!");
 
-                                // Handle opponent join
-                                HandleOpponentJoined(opponentName, gameCode);
+                                // Handle opponent join with setup data
+                                DLYHPlayerData opponentData = gameState?.player2;
+                                HandleOpponentJoined(opponentName, gameCode, opponentData);
                                 break;
                             }
                         }
@@ -6607,21 +6961,197 @@ namespace DLYH.TableUI
             Debug.Log("[UIFlowController] Opponent join polling ended");
         }
 
+        #region Turn Detection Polling (Session 5)
+
+        /// <summary>
+        /// Starts polling for opponent's turn completion in real multiplayer.
+        /// Called when local player's turn ends in a real multiplayer game.
+        /// </summary>
+        private void StartTurnDetectionPolling()
+        {
+            StopTurnDetectionPolling(); // Stop any existing polling
+
+            if (string.IsNullOrEmpty(_currentGameCode))
+            {
+                Debug.LogWarning("[UIFlowController] Cannot start turn detection - no game code");
+                return;
+            }
+
+            Debug.Log($"[UIFlowController] Starting turn detection polling for game {_currentGameCode}");
+            _pollingForOpponentTurn = true;
+
+            // Tell RemotePlayerOpponent we're waiting for opponent's turn
+            RemotePlayerOpponent remoteOpponent = _opponent as RemotePlayerOpponent;
+            remoteOpponent?.StartWaitingForOpponentTurn();
+
+            // Fire and forget - the async method manages its own lifecycle
+            TurnDetectionPollingAsync(_currentGameCode).Forget();
+        }
+
+        /// <summary>
+        /// Stops the turn detection polling.
+        /// Called when opponent's turn completes or game ends.
+        /// </summary>
+        private void StopTurnDetectionPolling()
+        {
+            if (_pollingForOpponentTurn)
+            {
+                Debug.Log("[UIFlowController] Stopping turn detection polling");
+            }
+            _pollingForOpponentTurn = false;
+        }
+
+        /// <summary>
+        /// Async method that polls Supabase for opponent's turn completion.
+        /// Continues until opponent completes their turn, game ends, or polling is stopped.
+        /// </summary>
+        private async UniTaskVoid TurnDetectionPollingAsync(string gameCode)
+        {
+            Debug.Log($"[UIFlowController] Turn detection polling started for game {gameCode}");
+
+            try
+            {
+                while (_pollingForOpponentTurn && _hasActiveGame && !_isGameOver && !_isPlayerTurn)
+                {
+                    // Wait between polls
+                    await UniTask.Delay((int)(TURN_DETECTION_POLL_INTERVAL * 1000));
+
+                    // Check if we should stop
+                    if (!_pollingForOpponentTurn || !_hasActiveGame || _isGameOver || _isPlayerTurn)
+                    {
+                        Debug.Log("[UIFlowController] Turn detection polling stopped - game state changed");
+                        break;
+                    }
+
+                    if (_gameSessionService == null)
+                    {
+                        Debug.LogWarning("[UIFlowController] GameSessionService not available for turn polling");
+                        continue;
+                    }
+
+                    try
+                    {
+                        // Fetch current game state
+                        Debug.Log($"[UIFlowController] Polling turn detection - fetching state for {gameCode}");
+                        GameSessionWithPlayers gameWithPlayers = await _gameSessionService.GetGameWithPlayers(gameCode);
+                        if (gameWithPlayers?.Session == null)
+                        {
+                            Debug.LogWarning("[UIFlowController] Could not fetch game state for turn detection");
+                            continue;
+                        }
+
+                        // Parse the game state
+                        DLYHGameState gameState = GameStateManager.ParseGameStateJson(gameWithPlayers.Session.StateJson);
+                        if (gameState == null)
+                        {
+                            Debug.LogWarning("[UIFlowController] Could not parse game state for turn detection");
+                            continue;
+                        }
+
+                        Debug.Log($"[UIFlowController] Poll result - turnNumber: {gameState.turnNumber}, lastKnown: {_lastKnownTurnNumber}, currentTurn: {gameState.currentTurn}");
+
+                        // Check if turn has changed
+                        if (gameState.turnNumber > _lastKnownTurnNumber)
+                        {
+                            Debug.Log($"[UIFlowController] Turn number changed: {_lastKnownTurnNumber} -> {gameState.turnNumber}");
+                            _lastKnownTurnNumber = gameState.turnNumber;
+
+                            // Process the state update through RemotePlayerOpponent
+                            RemotePlayerOpponent remoteOpponent = _opponent as RemotePlayerOpponent;
+                            if (remoteOpponent != null)
+                            {
+                                Debug.Log($"[UIFlowController] Processing state update via RemotePlayerOpponent");
+                                // This will detect the action and fire appropriate events
+                                remoteOpponent.ProcessStateUpdate(gameState);
+                            }
+                            else
+                            {
+                                Debug.LogWarning($"[UIFlowController] Cannot process state update - _opponent is not RemotePlayerOpponent (is {_opponent?.GetType().Name ?? "null"})");
+                            }
+
+                            // Check if it's now local player's turn
+                            bool isHost = _matchmakingResult?.IsHost ?? true;
+                            string localPlayerKey = isHost ? "player1" : "player2";
+                            if (gameState.currentTurn == localPlayerKey)
+                            {
+                                Debug.Log("[UIFlowController] Turn detection: Local player's turn - stopping polling");
+                                _pollingForOpponentTurn = false;
+                                // Turn switch will be handled by OnThinkingComplete event from RemotePlayerOpponent
+                                break;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogWarning($"[UIFlowController] Turn detection poll error: {ex.Message}");
+                        // Continue polling despite errors
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                Debug.Log("[UIFlowController] Turn detection polling cancelled");
+            }
+
+            Debug.Log("[UIFlowController] Turn detection polling ended");
+        }
+
+        #endregion
+
+        #region Opponent Join Events
+
         /// <summary>
         /// Called when opponent joins a private game.
-        /// Updates UI, enables gameplay, and refreshes Active Games list.
+        /// Updates UI, enables gameplay, loads opponent setup, and refreshes Active Games list.
         /// </summary>
-        private void HandleOpponentJoined(string opponentName, string gameCode)
+        /// <param name="opponentName">Opponent's display name</param>
+        /// <param name="gameCode">Current game code</param>
+        /// <param name="opponentData">Opponent's setup data from Supabase (may be null)</param>
+        private async void HandleOpponentJoined(string opponentName, string gameCode, DLYHPlayerData opponentData)
         {
             Debug.Log($"[UIFlowController] Handling opponent join: {opponentName}");
 
             // Update state
             _waitingForOpponent = false;
 
-            // Update matchmaking result for consistency
+            // Update matchmaking result with opponent info
             if (_matchmakingResult != null)
             {
                 _matchmakingResult.OpponentName = opponentName;
+
+                // Load opponent setup data if available
+                if (opponentData != null && opponentData.setupComplete)
+                {
+                    _matchmakingResult.OpponentGridSize = opponentData.gridSize;
+                    _matchmakingResult.OpponentWordCount = opponentData.wordCount;
+
+                    // Parse color from hex string
+                    Color opponentColor = new Color(0.6f, 0.1f, 0.1f, 1f); // Default dark red
+                    if (!string.IsNullOrEmpty(opponentData.color))
+                    {
+                        if (ColorUtility.TryParseHtmlString(opponentData.color, out Color parsedColor))
+                        {
+                            _matchmakingResult.OpponentColor = parsedColor;
+                            opponentColor = parsedColor;
+                        }
+                    }
+
+                    _matchmakingResult.OpponentSetupLoaded = true;
+                    Debug.Log($"[UIFlowController] Loaded opponent setup: grid={opponentData.gridSize}, words={opponentData.wordCount}, color={opponentData.color}");
+
+                    // CRITICAL: Create RemotePlayerOpponent now that opponent has joined and setup is complete
+                    // This is needed for turn detection polling to work
+                    // Must await to ensure _opponent is created before any turn actions
+                    if (_opponent == null && !_matchmakingResult.IsPhantomAI)
+                    {
+                        Debug.Log($"[UIFlowController] Creating RemotePlayerOpponent for joined opponent: {opponentName}");
+                        await CreateRemotePlayerOpponentAsync(opponentName, opponentColor, opponentData.gridSize, opponentData.wordCount);
+                    }
+                }
+                else
+                {
+                    Debug.Log("[UIFlowController] Opponent setup not complete yet - will be loaded when they finish setup");
+                }
             }
 
             // Update gameplay screen
@@ -6634,11 +7164,10 @@ namespace DLYH.TableUI
             // Refresh Active Games list so it shows opponent name instead of "Waiting..."
             _activeGamesManager?.LoadMyActiveGamesAsync().Forget();
 
-            // TODO Session 5: Load opponent's setup data from Supabase (grid, placements, etc.)
-            // For now, gameplay can proceed but we'll need their actual data for proper attack grid
-
-            Debug.Log($"[UIFlowController] Opponent '{opponentName}' joined - gameplay enabled");
+            Debug.Log($"[UIFlowController] Opponent '{opponentName}' joined - gameplay enabled, setup loaded: {_matchmakingResult?.OpponentSetupLoaded ?? false}");
         }
+
+        #endregion
 
 #if UNITY_EDITOR
         private void OnValidate()
