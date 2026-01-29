@@ -10,8 +10,7 @@ using Cysharp.Threading.Tasks;
 using DLYH.AI.Config;
 using DLYH.AI.Core;
 using DLYH.AI.Strategies;
-using TecVooDoo.DontLoseYourHead.Core;
-using TecVooDoo.DontLoseYourHead.UI;
+using DLYH.Core.GameState;
 
 namespace DLYH.Networking
 {

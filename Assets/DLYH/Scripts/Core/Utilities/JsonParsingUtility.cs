@@ -6,7 +6,6 @@
 // Consolidates duplicate JSON parsing code from:
 // - UIFlowController.cs
 // - GameSessionService.cs
-// - GameStateSynchronizer.cs
 // - PlayerService.cs
 
 using System;

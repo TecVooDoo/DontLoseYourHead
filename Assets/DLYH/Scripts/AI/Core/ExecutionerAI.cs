@@ -7,7 +7,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Cysharp.Threading.Tasks;
-using TecVooDoo.DontLoseYourHead.Core;
+using DLYH.Core.GameState;
 using DLYH.AI.Config;
 using DLYH.AI.Data;
 using DLYH.AI.Strategies;

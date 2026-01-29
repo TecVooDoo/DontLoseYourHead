@@ -1,5 +1,5 @@
 // AudioSettings.cs
-// Static helper for audio volume settings
+// Static helper for audio volume settings  
 // Replaces functionality from deleted SettingsPanel class
 // Developer: TecVooDoo LLC
 

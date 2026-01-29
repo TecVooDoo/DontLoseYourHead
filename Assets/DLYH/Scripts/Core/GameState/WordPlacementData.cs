@@ -3,7 +3,7 @@
 // Extracted from GuessProcessor.cs during Phase 2 refactoring
 // Developer: TecVooDoo LLC
 
-namespace TecVooDoo.DontLoseYourHead.UI
+namespace DLYH.Core.GameState
 {
     /// <summary>
     /// Represents a word placed on the game grid.

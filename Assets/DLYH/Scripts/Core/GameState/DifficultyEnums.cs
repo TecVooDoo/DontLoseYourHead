@@ -1,4 +1,4 @@
-namespace TecVooDoo.DontLoseYourHead.Core
+namespace DLYH.Core.GameState
 {
     /// <summary>
     /// Available grid sizes for gameplay (6x6 through 12x12)

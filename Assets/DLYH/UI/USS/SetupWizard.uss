@@ -1,5 +1,17 @@
 /* SetupWizard.uss - Styles for the setup wizard UI */
 
+/* === Content Column (Shared width constraint for all major sections) === */
+
+.content-column {
+    width: 100%;
+    max-width: 600px;
+    align-items: stretch;
+    align-self: center;
+    flex-grow: 0;
+    flex-shrink: 0;
+    /* Content should not shrink - triggers scroll when needed */
+}
+
 /* === Root Container === */
 
 .setup-wizard-root {
@@ -529,6 +541,7 @@
 .placement-header {
     flex-direction: row;
     align-items: center;
+    justify-content: center;
     margin-bottom: 2px;
     flex-shrink: 1;
 }
@@ -572,14 +585,16 @@
 /* === Table Container === */
 
 .table-container {
-    margin: 2px 0;
+    margin: 0;
     padding: 2px;
     background-color: rgb(24, 24, 30);
     border-radius: 8px;
     overflow: visible;
-    align-items: center;
-    justify-content: center;
+    /* Left-align grid with word rows instead of centering */
+    align-items: flex-start;
+    justify-content: flex-start;
     flex-shrink: 1;
+    width: 100%;
     /* Critical for flex shrinking to work properly on mobile/WebGL */
     min-height: 0;
     min-width: 0;
@@ -598,8 +613,8 @@
     flex-direction: column;
     align-items: center;
     margin: 2px 0;
-    flex-shrink: 1;
-    /* Allow keyboard to shrink to fit viewport width */
+    /* Prevent keyboard from shrinking - triggers scroll when needed */
+    flex-shrink: 0;
     width: 100%;
     max-width: 100%;
 }
@@ -607,16 +622,15 @@
 .keyboard-row {
     flex-direction: row;
     justify-content: center;
-    /* Allow rows to shrink */
-    flex-shrink: 1;
+    /* Prevent rows from shrinking - maintains key spacing */
+    flex-shrink: 0;
     max-width: 100%;
 }
 
 .letter-key {
-    /* Use flex sizing so keys shrink proportionally */
-    width: 32px;
+    width: 28px;
     min-width: 22px;
-    height: 32px;
+    height: 28px;
     min-height: 22px;
     margin: 1px;
     font-size: 14px;
@@ -630,8 +644,8 @@
     -unity-font-style: bold;
     transition-property: background-color, border-color;
     transition-duration: 0.1s;
-    /* Allow keys to shrink when viewport is narrow */
-    flex-shrink: 1;
+    /* Prevent keys from shrinking - use scroll instead */
+    flex-shrink: 0;
 }
 
 .letter-key:hover {

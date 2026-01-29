@@ -4,30 +4,37 @@
 
 .table-container {
     flex-grow: 0;
-    flex-shrink: 0;
+    flex-shrink: 1;
     align-items: center;
     justify-content: center;
-    padding: 10px;
-    overflow: visible;
+    padding: 4px;
+    overflow: hidden;
+    /* Critical for flex shrinking to work properly on mobile/WebGL */
+    min-height: 0;
+    min-width: 0;
 }
 
 .table-root {
     flex-direction: column;
     align-items: stretch;
     overflow: visible;
+    /* Prevent root from shrinking - triggers scroll when needed */
+    flex-shrink: 0;
 }
 
 .table-row {
     flex-direction: row;
-    align-items: stretch;
+    align-items: center;
     overflow: visible;
+    /* Prevent rows from shrinking - maintains cell spacing */
+    flex-shrink: 0;
 }
 
 /* === Base Cell === */
 
 .table-cell {
-    width: 40px;
-    height: 40px;
+    width: 34px;
+    height: 34px;
     margin: 1px;
     border-radius: 4px;
     align-items: center;
@@ -37,6 +44,8 @@
     background-color: rgba(38, 38, 46, 1);
     transition-property: background-color, border-color;
     transition-duration: 0.15s;
+    /* Prevent cells from shrinking - use scroll instead */
+    flex-shrink: 0;
 }
 
 .table-cell:hover {
@@ -44,7 +53,7 @@
 }
 
 .table-cell-label {
-    font-size: 18px;
+    font-size: 16px;
     color: rgba(220, 220, 220, 1);
     -unity-text-align: middle-center;
     -unity-font-style: bold;
@@ -199,82 +208,83 @@
 
 /* === Responsive Sizing (Gradual scaling 6x6 to 12x12) === */
 /* Working backwards: 12x12 must fit, then each smaller grid adds 2px */
+/* Reduced sizes for better viewport fit on smaller screens */
 
 /* 12x12 grid - smallest cells (baseline) */
 .cell-size-tiny {
+    width: 22px;
+    height: 22px;
+    margin: 1px;
+}
+
+.cell-size-tiny .table-cell-label {
+    font-size: 10px;
+}
+
+/* 11x11 grid - +2px from 12x12 */
+.cell-size-xsmall {
+    width: 24px;
+    height: 24px;
+    margin: 1px;
+}
+
+.cell-size-xsmall .table-cell-label {
+    font-size: 11px;
+}
+
+/* 10x10 grid - +2px */
+.cell-size-small {
     width: 26px;
     height: 26px;
     margin: 1px;
 }
 
-.cell-size-tiny .table-cell-label {
+.cell-size-small .table-cell-label {
     font-size: 12px;
 }
 
-/* 11x11 grid - +2px from 12x12 */
-.cell-size-xsmall {
+/* 9x9 grid - +2px */
+.cell-size-med-small {
     width: 28px;
     height: 28px;
     margin: 1px;
 }
 
-.cell-size-xsmall .table-cell-label {
+.cell-size-med-small .table-cell-label {
     font-size: 13px;
 }
 
-/* 10x10 grid - +2px */
-.cell-size-small {
+/* 8x8 grid - +2px */
+.cell-size-medium {
+    width: 30px;
+    height: 30px;
+    margin: 1px;
+}
+
+.cell-size-medium .table-cell-label {
+    font-size: 14px;
+}
+
+/* 7x7 grid - +2px */
+.cell-size-med-large {
     width: 32px;
     height: 32px;
     margin: 1px;
 }
 
-.cell-size-small .table-cell-label {
+.cell-size-med-large .table-cell-label {
     font-size: 15px;
 }
 
-/* 9x9 grid - +2px */
-.cell-size-med-small {
+/* 6x6 grid - largest cells +2px */
+.cell-size-large {
     width: 34px;
     height: 34px;
     margin: 1px;
 }
 
-.cell-size-med-small .table-cell-label {
-    font-size: 16px;
-}
-
-/* 8x8 grid - +2px */
-.cell-size-medium {
-    width: 36px;
-    height: 36px;
-    margin: 1px;
-}
-
-.cell-size-medium .table-cell-label {
-    font-size: 17px;
-}
-
-/* 7x7 grid - +2px */
-.cell-size-med-large {
-    width: 38px;
-    height: 38px;
-    margin: 1px;
-}
-
-.cell-size-med-large .table-cell-label {
-    font-size: 18px;
-}
-
-/* 6x6 grid - largest cells +2px */
-.cell-size-large {
-    width: 40px;
-    height: 40px;
-    margin: 1px;
-}
-
 .cell-size-large .table-cell-label {
-    font-size: 19px;
+    font-size: 16px;
 }
 
 /* === Word Rows Container === */
@@ -292,6 +302,8 @@
     flex-direction: column;
     align-items: stretch;
     width: 100%;
+    /* Prevent from shrinking - triggers scroll when needed */
+    flex-shrink: 0;
 }
 
 /* === Word Row === */
@@ -301,25 +313,36 @@
     align-items: center;
     margin: 2px 0;
     padding: 2px 0;
+    /* Prevent rows from shrinking - maintains cell spacing */
+    flex-shrink: 0;
+}
+
+/* Spacer pushes buttons to the right */
+.word-row-spacer {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 4px;
 }
 
 .word-row-number {
-    width: 28px;
-    font-size: 16px;
+    width: 22px;
+    font-size: 14px;
     color: rgba(180, 180, 190, 1);
     -unity-text-align: middle-right;
     -unity-font-style: bold;
-    margin-right: 8px;
+    margin-right: 4px;
 }
 
 .word-row-letters {
     flex-direction: row;
     align-items: center;
+    /* Prevent from shrinking */
+    flex-shrink: 0;
 }
 
 .word-row-letter-cell {
-    width: 36px;
-    height: 36px;
+    width: 30px;
+    height: 30px;
     margin: 1px;
     border-radius: 4px;
     align-items: center;
@@ -329,6 +352,8 @@
     background-color: rgba(45, 45, 55, 1);
     transition-property: background-color, border-color;
     transition-duration: 0.15s;
+    /* Prevent cells from shrinking - use scroll instead */
+    flex-shrink: 0;
 }
 
 .word-row-letter-cell:hover {
@@ -337,7 +362,7 @@
 }
 
 .word-row-letter-label {
-    font-size: 18px;
+    font-size: 14px;
     color: rgba(140, 140, 150, 1);
     -unity-text-align: middle-center;
     -unity-font-style: bold;
@@ -353,28 +378,24 @@
     color: rgba(220, 220, 220, 1);
 }
 
-/* === Word Row Spacer === */
-
-.word-row-spacer {
-    flex-grow: 1;
-    min-width: 20px;
-}
-
-/* === Word Row Control Buttons === */
+/* === Word Row Control Buttons (inline cells) === */
 
 .word-row-control-button {
-    width: 36px;
-    height: 36px;
-    margin-left: 4px;
+    width: 30px;
+    height: 30px;
+    margin: 1px;
     border-radius: 4px;
     border-width: 1px;
-    font-size: 16px;
+    font-size: 13px;
     -unity-font-style: bold;
     background-color: rgba(50, 50, 62, 1);
     border-color: rgba(70, 70, 85, 1);
     color: rgba(180, 180, 190, 1);
     transition-property: background-color, border-color;
     transition-duration: 0.15s;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
 .word-row-control-button:hover {
@@ -454,167 +475,167 @@
 }
 
 /* === Responsive Word Row Sizing (Gradual scaling 6x6 to 12x12) === */
-/* Word rows use same sizing as grid cells */
+/* Word rows use same sizing as grid cells - reduced for viewport fit */
 
-/* 12x12 - tiny (baseline 26px) */
+/* 12x12 - tiny (baseline 22px) */
 .word-row-size-tiny .word-row-letter-cell {
+    width: 22px;
+    height: 22px;
+    margin: 1px;
+}
+
+.word-row-size-tiny .word-row-letter-label {
+    font-size: 10px;
+}
+
+.word-row-size-tiny .word-row-control-button {
+    width: 22px;
+    height: 22px;
+    font-size: 9px;
+}
+
+.word-row-size-tiny .word-row-number {
+    font-size: 10px;
+    width: 16px;
+    margin-right: 2px;
+}
+
+/* 11x11 - xsmall (24px) */
+.word-row-size-xsmall .word-row-letter-cell {
+    width: 24px;
+    height: 24px;
+    margin: 1px;
+}
+
+.word-row-size-xsmall .word-row-letter-label {
+    font-size: 11px;
+}
+
+.word-row-size-xsmall .word-row-control-button {
+    width: 24px;
+    height: 24px;
+    font-size: 10px;
+}
+
+.word-row-size-xsmall .word-row-number {
+    font-size: 11px;
+    width: 17px;
+    margin-right: 2px;
+}
+
+/* 10x10 - small (26px) */
+.word-row-size-small .word-row-letter-cell {
     width: 26px;
     height: 26px;
     margin: 1px;
 }
 
-.word-row-size-tiny .word-row-letter-label {
+.word-row-size-small .word-row-letter-label {
     font-size: 12px;
 }
 
-.word-row-size-tiny .word-row-control-button {
+.word-row-size-small .word-row-control-button {
     width: 26px;
     height: 26px;
     font-size: 11px;
 }
 
-.word-row-size-tiny .word-row-number {
+.word-row-size-small .word-row-number {
     font-size: 12px;
     width: 18px;
     margin-right: 2px;
 }
 
-/* 11x11 - xsmall (28px) */
-.word-row-size-xsmall .word-row-letter-cell {
+/* 9x9 - med-small (28px) */
+.word-row-size-med-small .word-row-letter-cell {
     width: 28px;
     height: 28px;
     margin: 1px;
 }
 
-.word-row-size-xsmall .word-row-letter-label {
+.word-row-size-med-small .word-row-letter-label {
     font-size: 13px;
 }
 
-.word-row-size-xsmall .word-row-control-button {
+.word-row-size-med-small .word-row-control-button {
     width: 28px;
     height: 28px;
     font-size: 12px;
 }
 
-.word-row-size-xsmall .word-row-number {
+.word-row-size-med-small .word-row-number {
     font-size: 13px;
     width: 19px;
+    margin-right: 2px;
+}
+
+/* 8x8 - medium (30px) */
+.word-row-size-medium .word-row-letter-cell {
+    width: 30px;
+    height: 30px;
+    margin: 1px;
+}
+
+.word-row-size-medium .word-row-letter-label {
+    font-size: 14px;
+}
+
+.word-row-size-medium .word-row-control-button {
+    width: 30px;
+    height: 30px;
+    font-size: 13px;
+}
+
+.word-row-size-medium .word-row-number {
+    font-size: 14px;
+    width: 20px;
     margin-right: 3px;
 }
 
-/* 10x10 - small (32px) */
-.word-row-size-small .word-row-letter-cell {
+/* 7x7 - med-large (32px) */
+.word-row-size-med-large .word-row-letter-cell {
     width: 32px;
     height: 32px;
     margin: 1px;
 }
 
-.word-row-size-small .word-row-letter-label {
+.word-row-size-med-large .word-row-letter-label {
     font-size: 15px;
 }
 
-.word-row-size-small .word-row-control-button {
+.word-row-size-med-large .word-row-control-button {
     width: 32px;
     height: 32px;
     font-size: 14px;
 }
 
-.word-row-size-small .word-row-number {
+.word-row-size-med-large .word-row-number {
     font-size: 15px;
     width: 22px;
     margin-right: 3px;
 }
 
-/* 9x9 - med-small (34px) */
-.word-row-size-med-small .word-row-letter-cell {
+/* 6x6 - large (34px) */
+.word-row-size-large .word-row-letter-cell {
     width: 34px;
     height: 34px;
     margin: 1px;
 }
 
-.word-row-size-med-small .word-row-letter-label {
+.word-row-size-large .word-row-letter-label {
     font-size: 16px;
 }
 
-.word-row-size-med-small .word-row-control-button {
+.word-row-size-large .word-row-control-button {
     width: 34px;
     height: 34px;
     font-size: 15px;
 }
 
-.word-row-size-med-small .word-row-number {
+.word-row-size-large .word-row-number {
     font-size: 16px;
     width: 24px;
     margin-right: 3px;
-}
-
-/* 8x8 - medium (36px) */
-.word-row-size-medium .word-row-letter-cell {
-    width: 36px;
-    height: 36px;
-    margin: 1px;
-}
-
-.word-row-size-medium .word-row-letter-label {
-    font-size: 17px;
-}
-
-.word-row-size-medium .word-row-control-button {
-    width: 36px;
-    height: 36px;
-    font-size: 16px;
-}
-
-.word-row-size-medium .word-row-number {
-    font-size: 17px;
-    width: 26px;
-    margin-right: 4px;
-}
-
-/* 7x7 - med-large (38px) */
-.word-row-size-med-large .word-row-letter-cell {
-    width: 38px;
-    height: 38px;
-    margin: 1px;
-}
-
-.word-row-size-med-large .word-row-letter-label {
-    font-size: 18px;
-}
-
-.word-row-size-med-large .word-row-control-button {
-    width: 38px;
-    height: 38px;
-    font-size: 17px;
-}
-
-.word-row-size-med-large .word-row-number {
-    font-size: 18px;
-    width: 28px;
-    margin-right: 4px;
-}
-
-/* 6x6 - large (40px) */
-.word-row-size-large .word-row-letter-cell {
-    width: 40px;
-    height: 40px;
-    margin: 1px;
-}
-
-.word-row-size-large .word-row-letter-label {
-    font-size: 19px;
-}
-
-.word-row-size-large .word-row-control-button {
-    width: 40px;
-    height: 40px;
-    font-size: 18px;
-}
-
-.word-row-size-large .word-row-number {
-    font-size: 19px;
-    width: 30px;
-    margin-right: 5px;
 }
 
 /* === Word Guess Mode === */

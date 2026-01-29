@@ -1,13 +1,5 @@
 {
   "dependencies": {
-    "com.coplaydev.unity-mcp": {
-      "version": "file:E:/Unity/unity-mcp-main/MCPForUnity",
-      "depth": 0,
-      "source": "local",
-      "dependencies": {
-        "com.unity.nuget.newtonsoft-json": "3.0.2"
-      }
-    },
     "com.cysharp.unitask": {
       "version": "file:E:/Unity/DefaultUnityPackages/com.cysharp.unitask",
       "depth": 0,
@@ -15,11 +7,11 @@
       "dependencies": {}
     },
     "com.unity.2d.animation": {
-      "version": "13.0.2",
+      "version": "13.0.4",
       "depth": 0,
       "source": "registry",
       "dependencies": {
-        "com.unity.2d.common": "12.0.1",
+        "com.unity.2d.common": "12.0.2",
         "com.unity.2d.sprite": "1.0.0",
         "com.unity.collections": "2.4.3",
         "com.unity.modules.animation": "1.0.0",
@@ -41,7 +33,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.2d.common": {
-      "version": "12.0.1",
+      "version": "12.0.2",
       "depth": 1,
       "source": "registry",
       "dependencies": {
@@ -312,7 +304,7 @@
     },
     "com.unity.nuget.newtonsoft-json": {
       "version": "3.2.2",
-      "depth": 1,
+      "depth": 0,
       "source": "registry",
       "dependencies": {},
       "url": "https://packages.unity.com"

@@ -6,8 +6,7 @@
 
 using System.Collections.Generic;
 using UnityEngine;
-using TecVooDoo.DontLoseYourHead.Core;
-using TecVooDoo.DontLoseYourHead.UI;
+using DLYH.Core.GameState;
 
 namespace DLYH.AI.Core
 {

@@ -5,8 +5,8 @@
 **Platform:** Unity 6.3 (6000.0.38f1)
 **Source:** `C:\Unity\DontLoseYourHead`
 **Supabase:** Direct MCP access available (game_sessions, session_players, players tables)
-**Document Version:** 104
-**Last Updated:** January 27, 2026
+**Document Version:** 109
+**Last Updated:** January 28, 2026
 
 **Archive:** `DLYH_Status_Archive.md` - Historical designs, old version history, completed phase details, DAB reference patterns
 
@@ -40,85 +40,120 @@ Before each build:
 
 ---
 
-## Last Session (Jan 27, 2026)
+## Last Session (Jan 28, 2026)
 
-Session 85 - **Build 5, 5b, 5c: Multiplayer Turn Sync Fixes**
+Session 87 - **Session 8: Code Quality & Polish**
 
-### Summary
+### Session 8 Summary
 
-Fixed multiple issues blocking real-time multiplayer turn synchronization:
-1. Build 5: UI rebuild when opponent joins + Resume path for real multiplayer
-2. Build 5b: JoinGame path word placements decryption
-3. Build 5c: Turn switching when opponent completes turn + word row sorting
+Completed all Session 8 tasks: dead code removal, error handling polish, encryption improvements, and namespace cleanup.
 
-### Build 5c Changes (Latest)
+### 1. Dead Code Removal (~1,800+ lines removed)
 
-**File:** `UIFlowController.cs`
+Deleted obsolete files that were never used or superseded:
+- `NetworkGameManager.cs` (~435 lines) - Unused orchestration layer
+- `WaitingRoomController.cs` (~300 lines) - Replaced by UIFlowController overlays
+- `GameStateSynchronizer.cs` (~689 lines) - Never wired, UIFlowController handles state sync
+- `RematchService.cs` (~562 lines) - Session 7 deferred indefinitely
 
-**Fix 4: HandleOpponentThinkingComplete Turn Switch (line ~3711)**
-- Previous handler only logged, didn't actually switch turn
-- Now properly sets `_isPlayerTurn = true`
-- Updates UI via `SetPlayerTurn(true)` and `SelectAttackTab()`
-- Enables player to take their turn after opponent finishes
+Cleaned up `RemotePlayerOpponent.cs`:
+- Removed unused `_synchronizer` field
+- Removed full `InitializeAsync()` implementation (replaced with stub to satisfy interface)
+- Removed `WaitForOpponentSetupAsync()` (not used)
+- Removed duplicate `EncryptWordPlacements()` method
 
-**Fix 5: Word Row Sorting (line ~6686)**
-- Added sorting to `SetupGameplayWordRowsWithOpponentData`
-- Word rows now display shortest to longest (consistent with resume path)
+### 2. Error Handling Polish
 
-### Build 5b Fix
+**StatusType.Error enum** (GameplayScreenManager.cs):
+- Added `Error` status type for displaying error messages in red
+- Added `.status-error` CSS styling in `Gameplay.uss`
 
-**Fix 3: JoinGame Path Word Placements (line ~6067)**
-- JoinGame path (joiner) wasn't decrypting host's `wordPlacementsEncrypted`
-- Added decryption so joiner has opponent data for attack grid and word rows
+**Retry Logic** (UIFlowController.cs):
+- Added 2-attempt retry with 500ms delay for save failures
+- User-visible error messages on persistent failures
+- Graceful degradation instead of silent failures
 
-### Build 5 Fixes
+### 3. Word Placement Encryption
 
-**Fix 1: RebuildUIForOpponentJoinAsync() (lines 7219-7293)**
-- Rebuilds gameplay UI when opponent joins with their actual setup data
+Changed from trivial Base64 to XOR cipher with salt:
+- Salt: `"DLYH2026TecVooDoo"` + optional game code
+- Updated `EncryptWordPlacements(placements, gameCode)` signature
+- Updated `DecryptWordPlacements(encrypted, gameCode)` signature
+- Backward compatible - auto-detects legacy Base64 data
+- Updated all callers in `UIFlowController.cs` to pass game code
 
-**Fix 2: Resume Path for Real Multiplayer (lines 1259-1306)**
-- Creates `RemotePlayerOpponent` for real multiplayer resume
-- Starts turn detection polling
+### 4. Namespace Cleanup
 
-### Test Results
+Standardized to `DLYH.*` namespace pattern:
+- `TecVooDoo.DontLoseYourHead.Core` → `DLYH.Core.GameState`
+- `TecVooDoo.DontLoseYourHead.UI` → `DLYH.Core.GameState` or `DLYH.UI.Services`
+- `TecVooDoo.DontLoseYourHead.Editor` → `DLYH.Editor`
 
-**Build 5b Testing (Mobile host, PC joiner):**
-- ✅ Both sides loaded opponent setup data
-- ✅ Attack grids showed correct sizes
-- ✅ Word rows displayed (but wrong order)
-- ❌ Both stuck on "Opponent's Turn" after one turn each
-- ❌ Word rows not sorted ascending by length
+Files updated:
+- `WordPlacementData.cs`, `DifficultyEnums.cs`, `DifficultyCalculator.cs`
+- `WordListSO.cs`, `DifficultySO.cs`, `GameplayStateTracker.cs`
+- `WordValidationService.cs`, `WordBankImporter.cs`
 
-**Build 5c should fix:** Turn switching and word row sorting
+### Files Modified
 
-**Known Issue (Deferred):** Miss count values differ between players (PC shows 0/27 for both, Mobile shows 0/20 and 0/34)
+| File | Changes |
+|------|---------|
+| `GameplayScreenManager.cs` | Added StatusType.Error enum |
+| `Gameplay.uss` | Added .status-error CSS |
+| `UIFlowController.cs` | Retry logic, encryption calls updated |
+| `GameStateManager.cs` | XOR encryption with salt |
+| `RemotePlayerOpponent.cs` | Cleaned dead code |
+| 8 namespace files | Standardized namespaces |
 
-**See:** `DLYH_Troubleshooting.md` for full implementation details
+### Files Deleted
+
+- `Scripts/Networking/NetworkGameManager.cs`
+- `Scripts/Networking/WaitingRoomController.cs`
+- `Scripts/Networking/GameStateSynchronizer.cs`
+- `Scripts/Networking/RematchService.cs`
+
+### Test Plan
+
+- [ ] Build and verify no compilation errors
+- [ ] Test AI game (LocalAIOpponent path)
+- [ ] Test multiplayer game (RemotePlayerOpponent path)
+- [ ] Verify word placements encrypt/decrypt correctly
+- [ ] Verify error messages display in red on network failures
+
+---
+
+## Previous Session (Jan 28, 2026)
+
+Session 86 - **Build 6b + Session 6: Activity Tracking & Auto-Win**
+
+### Build 6b Summary ✅ VERIFIED
+
+Fixed matchmaking (Find Opponent) not loading opponent setup data. Both players save setup at roughly the same time, causing a race condition where the joiner tried to fetch before the host had saved.
+
+### Session 6: Activity Tracking & Auto-Win ✅ COMPLETE
+
+Implemented inactivity tracking and automatic forfeit system:
+- Activity timestamps already existed (`lastActivityAt`)
+- Created Supabase edge function `check-inactivity` for 5-day auto-forfeit
+- Deployed edge function and set up daily cron job via pg_cron
+- Client-side inactivity check on resume (`HandleResumeGameAsync`)
+- Version guarding in `SaveGameStateToSupabaseAsync`
+
+**Test Results:**
+- ✅ Edge function deployed and tested (200 response)
+- ✅ pg_cron scheduled for daily execution
+- ✅ Matchmaking and private games working
 
 ---
 
 ## Next Session Priorities
 
-### Build 5c Deployed - Verify Turn Switching
+### Next Session - Build and Test
 
-Build 5c adds the critical `HandleOpponentThinkingComplete` fix. **Testing required:**
-
-1. **Test Turn Switching:**
-   - Start private game (either device host)
-   - Take turns on both devices
-   - Verify turn indicator updates correctly
-   - Verify polling detects opponent moves and switches turn back
-   - Console log to verify: `HandleOpponentThinkingComplete - turn switched to player`
-
-2. **Test Word Row Order:**
-   - Verify word rows display shortest to longest on both devices
-
-3. **If turn switching works - move to Session 6:**
-   - 5-day inactivity auto-win (Supabase edge function)
-   - Investigate miss count mismatch
-   - Turn/version guarding if race conditions found
-
-### Session 6 - Activity Tracking & Auto-Win (After Build 5c Verified)
+1. **Build Unity project** and verify no compilation errors
+2. **Test AI game** to verify LocalAIOpponent path works
+3. **Test multiplayer game** to verify RemotePlayerOpponent path works
+4. **Verify encryption** - word placements encrypt/decrypt correctly
 
 ---
 
@@ -134,43 +169,28 @@ Build 5c adds the critical `HandleOpponentThinkingComplete` fix. **Testing requi
 | 2 | Phantom AI as Session Player | COMPLETE |
 | 3 | Game State Persistence | COMPLETE |
 | 4 | Opponent Join Detection | COMPLETE |
-| 5 | Turn Synchronization | **BUILD 5 - TESTING** |
-| 6 | Activity Tracking & Auto-Win | PENDING |
-| 7 | Rematch UI Integration | PENDING |
-| 8 | Code Quality & Polish | PENDING |
+| 5 | Turn Synchronization | COMPLETE |
+| 6 | Activity Tracking & Auto-Win | COMPLETE |
+| 7 | Rematch UI Integration | DEFERRED |
+| 8 | Code Quality & Polish | **COMPLETE** |
 
-### Session 3 - Game State Persistence (COMPLETE)
+### Sessions 3-6 Summary (COMPLETE)
 
-All game state persistence tasks completed - attack/defense cards restore correctly on resume.
+- **Session 3:** Game state persistence - attack/defense cards restore correctly on resume
+- **Session 4:** Opponent join detection - polling, UI updates, waiting state handling
+- **Session 5:** Turn synchronization - polling-based turn detection, RemotePlayerOpponent wired
+- **Session 6:** Activity tracking & auto-win - edge function deployed, cron scheduled
 
-### Session 4 - Opponent Join Detection (COMPLETE)
+### Session 7 - Rematch UI Integration (DEFERRED)
 
-- [x] Implement opponent join polling (moved from WaitingRoom to UIFlowController gameplay screen)
-- [x] Detect when real player joins private game (polls Supabase every 3 seconds)
-- [x] Update UI to show opponent name when joined (SetOpponentName method)
-- [x] Handle host starting game before opponent joins (waiting state with polling)
-- [x] Refresh Active Games list when opponent joins
+Deferred indefinitely. Players can start new games from main menu. Rematch flow may never be needed.
 
-### Session 5 - Turn Synchronization (Build 5 Ready for Testing)
+### Session 8 - Code Quality & Polish (COMPLETE)
 
-**Implementation Tasks:**
-- [x] 5.1: Extend NetworkingUIResult with opponent setup fields
-- [x] 5.2: Complete HandleOpponentJoined() - fetches data and creates RemotePlayerOpponent
-- [x] ~~5.2b~~ Data fetch already works - `HandleOpponentJoined` stores in `_matchmakingResult`
-- [ ] 5.2c: Rebuild attack grid/word rows when opponent joins - **IMPLEMENTED (Build 5), NEEDS TESTING**
-- [x] 5.3: Build attack grid using opponent setup dimensions (works on Resume)
-- [x] 5.4: Create RemotePlayerOpponent for real multiplayer (live join path)
-- [x] 5.5: Implement 2-second polling for turn detection
-- [x] 5.6: Add "Waiting for opponent..." indicator
-- [ ] 5.7: End-to-end test (two browser windows) - **READY FOR TESTING**
-- [ ] 5.8: Block gameplay until UI correctly built - deferred (may not be needed)
-- [x] ~~5.9~~ DetectOpponentAction player selection is CORRECT (verified in code review)
-- [ ] 5.10: Fix Resume path: create RemotePlayerOpponent - **IMPLEMENTED (Build 5), NEEDS TESTING**
-- [ ] 5.11: Fix Resume path: initialize `_lastKnownTurnNumber` - **IMPLEMENTED (Build 5), NEEDS TESTING**
-
-**Build 5 Status:** Implementation complete. Deploy and test to verify fixes work correctly.
-
-**Deferred to Session 6:** Turn/version guarding (not needed for async turn-based)
+- [x] Dead code removal (~1,800+ lines)
+- [x] Error handling polish (StatusType.Error, retry logic)
+- [x] Word placement encryption (XOR cipher with salt)
+- [x] Namespace cleanup (standardized to DLYH.*)
 
 ### Phase F: Cleanup & Polish
 
@@ -193,41 +213,16 @@ All game state persistence tasks completed - attack/defense cards restore correc
 ## Known Issues
 
 **UI/Layout:** (Sessions 78-82 troubleshooting COMPLETE - see `DLYH_Troubleshooting_Archive.md`)
-- ~~Viewport scaling~~ FIXED - content-column + flex-shrink: 0 + width-only sizing
-- ~~Mobile grid/word row/keyboard overlap~~ FIXED - vertical scroll triggers when content exceeds viewport
-- ~~Word row button overlap~~ FIXED - spacer pushes buttons right
-- ~~Grid/word row misalignment~~ FIXED - align-items: flex-start
 - Minor polish deferred to Steam_UI_Polish.md and Mobile_UI_Polish.md (future)
 
-**Architecture:**
-- UIFlowController at ~5,298 lines - **Phase 3 COMPLETE** (see `Documents/Refactor/DLYH_RefactoringPlan_Phase3_01192026.md`)
-- Inconsistent namespace convention (TecVooDoo.DontLoseYourHead.* vs DLYH.*) - deferred to Phase F
-
 **Networking:** (See `DLYH_NetworkingPlan_Phase_E_Updated.md` for full plan)
-- ~~Editor identity persistence needs verification~~ VERIFIED - PlayerPrefs works correctly
-- ~~Opponent join polling implemented but NOT WORKING~~ FIXED (Session 4) - UI updates correctly
-- ~~Turn state mismatch - Both players see "Opponent's turn"~~ FIXED (Build 4) - Turn tracking works
-- ~~Find Opponent shows "Host" instead of player name~~ FIXED (Session 4)
 - **Find Opponent games fail to resume** - Both players get errors (needs investigation)
-- ~~Phantom AI not inserted into session_players~~ FIXED - Now creates player record and session_players row
-- ~~Opponent setup not fetched on live join~~ CORRECTED - Data IS fetched, stored in `_matchmakingResult`
-- **CRITICAL: UI not rebuilt when opponent joins** - Data loaded but attack grid/word rows not updated (Session 5)
-- ~~RemotePlayerOpponent not wired~~ FIXED - Now created in HandleOpponentJoined() (Build 4)
-- ~~DetectOpponentAction reads wrong player data~~ CORRECTED - Player selection logic is correct (verified)
-- **Gameplay allowed on incomplete UI** - Can make moves before UI rebuilt with opponent data (Session 5)
-- **Resume path missing RemotePlayerOpponent** - Real multiplayer games don't create opponent object (Session 5)
-- **Resume path missing `_lastKnownTurnNumber` init** - Not initialized for real multiplayer (Session 5)
-- 5-day auto-win not implemented (needs Supabase edge function) - Session 6
-- RematchService not wired to UI - Session 7
-- Word placement encryption is just Base64 (not secure) - Session 8
 - WebGL realtime incomplete (WebSocket bridge missing) - using POLLING instead (Session 5)
-- ~~WebGL used secret key instead of anon key~~ FIXED - Using JWT anon key now
-- ~~Exit button nested iframe in WebGL~~ FIXED - Uses window.top.location
-- ~~Game locked after move in multiplayer~~ FIXED - Tab switching enabled during opponent turn
-- ~~Miss limit mismatch between devices~~ FIXED - Uses stored missLimit from Supabase
 
 **Audio:**
 - Music crossfading/switching too frequently (should only switch at end of track)
+
+**Resolved Issues (Session 87):** 20+ networking/architecture issues resolved in Sessions 4-8, archived to `DLYH_Status_Archive.md`
 
 ---
 
@@ -304,17 +299,18 @@ All game state persistence tasks completed - attack/defense cards restore correc
 
 | Namespace | Purpose |
 |-----------|---------|
-| `TecVooDoo.DontLoseYourHead.UI` | Main UI scripts |
-| `TecVooDoo.DontLoseYourHead.Core` | Game state, difficulty |
+| `DLYH.Core.GameState` | Game state, difficulty, word data |
 | `DLYH.AI.Core` | AI controllers |
 | `DLYH.AI.Strategies` | AI guess strategies |
 | `DLYH.Audio` | Audio managers |
 | `DLYH.TableUI` | UI Toolkit implementation |
 | `DLYH.UI.Managers` | Extracted UI managers (Phase 3) |
+| `DLYH.UI.Services` | Word validation service |
 | `DLYH.Core.Utilities` | Shared utilities (JsonParsingUtility) |
 | `DLYH.Networking` | Opponent abstraction |
 | `DLYH.Networking.UI` | Networking overlays |
 | `DLYH.Networking.Services` | Supabase, auth, player, realtime |
+| `DLYH.Editor` | Editor-only scripts |
 
 ### Key Folders
 
@@ -483,12 +479,12 @@ YourDifficultyModifier: Easy=+4, Normal=+0, Hard=-4
 
 | Version | Date | Summary |
 |---------|------|---------|
-| 103 | Jan 27, 2026 | Session 85 - Build 5: UI rebuild & Resume path fixes implemented |
-| 102 | Jan 27, 2026 | Session 84 - Corrected analysis: UI rebuild issue, not data fetch issue |
-| 101 | Jan 26, 2026 | Session 84 - Build 4 tested, opponent data loading issue identified |
-| 100 | Jan 26, 2026 | Session 84 - Turn tracking fixes (Build 4) |
-| 99 | Jan 26, 2026 | Session 84 - Networking plan review & revision |
-| 98 | Jan 26, 2026 | Session 83 - Session 5 analysis |
+| 109 | Jan 28, 2026 | Session 87 - Session 8: Code quality & polish (dead code, encryption, namespaces) |
+| 108 | Jan 28, 2026 | Session 86 - Session 6: Activity tracking, auto-win, version guarding |
+| 107 | Jan 28, 2026 | Session 86 - Build 6b: Matchmaking fix verified |
+| 106 | Jan 28, 2026 | Session 86 - Build 6: Matchmaking opponent data loading fix |
+| 105 | Jan 27, 2026 | Session 85 - Build 5d: Miss limit calculation using opponent difficulty |
+| 104 | Jan 27, 2026 | Session 85 - Build 5c: Turn switching + word row sorting |
 
 **Full version history:** See `DLYH_Status_Archive.md`
 

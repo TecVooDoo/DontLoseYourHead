@@ -4,8 +4,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using DLYH.Core.GameState;
 
-namespace TecVooDoo.DontLoseYourHead.Editor
+namespace DLYH.Editor
 {
     /// <summary>
     /// Editor utility to import and filter words from words_alpha.txt into WordListSO assets
@@ -191,12 +192,12 @@ namespace TecVooDoo.DontLoseYourHead.Editor
             string assetPath = OUTPUT_FOLDER + "/" + length.ToString() + "LetterWords.asset";
 
             // Try to load existing asset
-            var wordList = AssetDatabase.LoadAssetAtPath<Core.WordListSO>(assetPath);
+            WordListSO wordList = AssetDatabase.LoadAssetAtPath<WordListSO>(assetPath);
 
             if (wordList == null)
             {
                 // Create new asset
-                wordList = ScriptableObject.CreateInstance<Core.WordListSO>();
+                wordList = ScriptableObject.CreateInstance<WordListSO>();
                 AssetDatabase.CreateAsset(wordList, assetPath);
                 _statusMessage += "  Created new asset: " + assetPath + "\n";
             }

@@ -7,8 +7,9 @@ namespace DLYH.TableUI
 {
     /// <summary>
     /// Renders a single word row with variable-length letter cells and control buttons.
-    /// Structure: [row number] [letter cells...] [spacer] [placement button] [clear button]
-    /// During gameplay, control buttons become a single [GUESS] button.
+    /// Structure: [row number] [letter cells...] [spacer] [action buttons as cells]
+    /// Buttons are inline cells that size proportionally with letter cells.
+    /// During gameplay, control buttons become GUESS + typing controls.
     /// </summary>
     public class WordRowView
     {
@@ -17,7 +18,7 @@ namespace DLYH.TableUI
         private VisualElement _letterContainer;
         private VisualElement[] _letterCells;
         private Label[] _letterLabels;
-        private VisualElement _spacer;
+        private VisualElement _spacer;  // Flex spacer to push buttons right
         private Button _placementButton;
         private Button _clearButton;
         private Button _guessButton;
@@ -143,6 +144,8 @@ namespace DLYH.TableUI
 
         /// <summary>
         /// Builds the visual hierarchy for this word row.
+        /// Structure: horizontal row with [row number] [letters] [spacer] [action buttons as cells]
+        /// Buttons are inline cells sized proportionally with letter cells.
         /// </summary>
         private void BuildUI()
         {
@@ -183,12 +186,12 @@ namespace DLYH.TableUI
 
             _root.Add(_letterContainer);
 
-            // Flexible spacer
+            // Spacer to push buttons to the right
             _spacer = new VisualElement();
             _spacer.AddToClassList(ClassSpacer);
             _root.Add(_spacer);
 
-            // Setup mode controls
+            // Setup mode controls (inline as cells)
             _placementButton = new Button(() => OnPlacementRequested?.Invoke(_wordIndex));
             _placementButton.text = "+";
             _placementButton.tooltip = "Place word on grid";
@@ -539,9 +542,11 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
-        /// Applies viewport-aware sizing to letter cells via inline styles.
+        /// Applies viewport-aware sizing to letter cells and buttons via inline styles.
         /// This overrides CSS class sizes for better viewport responsiveness.
         /// Word row cells are scaled to 85% of grid cell size for better visual hierarchy.
+        /// Buttons are sized the same as letter cells to maintain proportional inline layout.
+        /// Minimum cell size is 28px for mobile tap usability.
         /// </summary>
         /// <param name="cellSize">Grid cell size in pixels (will be scaled down for word rows)</param>
         /// <param name="fontSize">Font size in pixels for cell labels (will be scaled down)</param>
@@ -550,9 +555,10 @@ namespace DLYH.TableUI
             if (cellSize <= 0) return;
 
             // Word row cells should be smaller than grid cells for visual hierarchy
-            // Scale to 85% of grid size, with minimum of 18px
-            int wordRowCellSize = Mathf.Max(18, (int)(cellSize * 0.85f));
+            // Scale to 85% of grid size, with minimum of 28px for mobile tap usability
+            int wordRowCellSize = Mathf.Max(28, (int)(cellSize * 0.85f));
             int wordRowFontSize = Mathf.Max(9, (int)(fontSize * 0.85f));
+            int buttonFontSize = Mathf.Max(10, (int)(fontSize * 0.75f));
 
             for (int i = 0; i < _wordLength; i++)
             {
@@ -569,12 +575,41 @@ namespace DLYH.TableUI
                 }
             }
 
-            // Also scale row number label proportionally
+            // Scale row number label proportionally
             if (_rowNumberLabel != null && wordRowFontSize > 0)
             {
                 _rowNumberLabel.style.fontSize = wordRowFontSize;
-                _rowNumberLabel.style.minWidth = wordRowCellSize;
+                _rowNumberLabel.style.minWidth = wordRowCellSize * 0.7f;
             }
+
+            // Scale buttons to match cell size (inline cells)
+            ApplyButtonSizing(_placementButton, wordRowCellSize, buttonFontSize);
+            ApplyButtonSizing(_clearButton, wordRowCellSize, buttonFontSize);
+            ApplyButtonSizing(_backspaceButton, wordRowCellSize, buttonFontSize);
+            ApplyButtonSizing(_acceptButton, wordRowCellSize, buttonFontSize);
+            ApplyButtonSizing(_cancelButton, wordRowCellSize, buttonFontSize);
+
+            // GUESS button is wider - spans ~2 cells
+            if (_guessButton != null)
+            {
+                _guessButton.style.height = wordRowCellSize;
+                _guessButton.style.minHeight = wordRowCellSize;
+                _guessButton.style.minWidth = wordRowCellSize * 2;
+                _guessButton.style.fontSize = buttonFontSize;
+            }
+        }
+
+        /// <summary>
+        /// Applies sizing to a button to match cell dimensions.
+        /// </summary>
+        private void ApplyButtonSizing(Button button, int size, int fontSize)
+        {
+            if (button == null) return;
+            button.style.width = size;
+            button.style.height = size;
+            button.style.minWidth = size;
+            button.style.minHeight = size;
+            button.style.fontSize = fontSize;
         }
 
         /// <summary>

@@ -1,7 +1,7 @@
 using UnityEngine;
 using Sirenix.OdinInspector;
 
-namespace TecVooDoo.DontLoseYourHead.Core
+namespace DLYH.Core.GameState
 {
     /// <summary>
     /// ScriptableObject that defines difficulty configuration for a player.

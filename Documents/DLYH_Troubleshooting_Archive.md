@@ -284,3 +284,71 @@ Private games using join codes were not synchronizing moves in real-time. When a
 
 **Closed.** January 27, 2026. Second-AI confirmation received. Verified on PC and mobile with multiple turn exchanges.
 
+---
+
+## Archive Entry: Matchmaking Does Not Load Opponent Data
+
+### Dates
+
+January 27-28, 2026 (Session 86)
+
+### Platforms Tested
+
+- Desktop (PC Chrome on tecvoodoo.com)
+
+### Summary
+
+In matchmaking (non-join-code) multiplayer, both players saw incorrect opponent data after being matched. The attack grid showed the wrong size, word rows were empty, and moves couldn't sync because opponent setup data was never loaded. Unlike private games, both players go through the "host" code path simultaneously.
+
+---
+
+### Root Cause Identified
+
+In matchmaking, both players are matched simultaneously and both take the "Online/Host" code path. Neither goes through the JoinGame path that loads opponent data.
+
+**The flow difference:**
+
+| Path | Private Games | Matchmaking |
+|------|---------------|-------------|
+| Host creates game | Yes | Yes (both) |
+| Joiner uses JoinGame path | Yes (loads host data) | No |
+| Host receives HandleOpponentJoined | Yes (loads joiner data) | No |
+| Opponent data loaded | Yes | No |
+
+---
+
+### Solution Implemented (Build 6)
+
+**New Method: `FetchOpponentSetupForMatchmakingAsync()`** at `UIFlowController.cs:~7186`
+
+1. Fetches `GameSessionWithPlayers` from Supabase
+2. Parses game state to get player data
+3. Determines opponent based on `IsHost` flag
+4. Populates `_matchmakingResult` with opponent setup data
+5. Called from `TransitionToGameplay()` when `OpponentSetupLoaded` is false
+6. Includes retry loop (5 attempts, 1 second delay) for race condition handling
+
+---
+
+### Issue Classification
+
+| Issue | Classification | Resolution |
+|-------|----------------|------------|
+| Matchmaking both players as "host" | Design limitation | Fixed (Build 6) |
+| OpponentSetupLoaded false for both | Engineering Bug | Fixed (Build 6) |
+| Race condition on simultaneous setup | Engineering Bug | Fixed (Build 6b retry loop) |
+
+---
+
+### Lessons Learned
+
+1. **Matchmaking needs explicit opponent fetch** — Cannot rely on JoinGame/HandleOpponentJoined flow
+2. **Race conditions require retry loops** — Both players save setup simultaneously; fetches may fail on first attempt
+3. **All online paths need the same data** — Resume, JoinGame, and Matchmaking must all have opponent setup before gameplay
+
+---
+
+### Status
+
+**Closed.** January 28, 2026. Verified on PC with multiple turn exchanges.
+

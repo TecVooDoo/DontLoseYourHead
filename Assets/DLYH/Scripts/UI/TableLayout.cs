@@ -9,7 +9,7 @@ namespace DLYH.TableUI
     ///   Rows 1+: Grid cells with row headers (1, 2, 3...)
     ///
     ///   TotalRows = 1 (column header) + gridSize
-    ///   TotalCols = 1 (row header) + gridSize
+    ///   TotalCols = 1 (row header) + gridSize 
     ///
     /// Word rows are managed separately via WordLengths array.
     /// Standard word lengths: word 1 = 3 letters, word 2 = 4, word 3 = 5, word 4 = 6.

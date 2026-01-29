@@ -1,5 +1,17 @@
 /* Gameplay.uss - Styles for the gameplay UI */
 
+/* === Content Column (Shared width constraint for all major sections) === */
+
+.content-column {
+    width: 100%;
+    max-width: 600px;
+    align-items: stretch;
+    align-self: center;
+    flex-grow: 0;
+    flex-shrink: 0;
+    /* Content should not shrink - triggers scroll when needed */
+}
+
 /* === Debug Layout Overlay (temporary - remove after troubleshooting) === */
 .debug-layout {
     position: absolute;
@@ -142,10 +154,10 @@
 .player-tabs {
     flex-direction: row;
     width: 100%;
-    max-width: 600px;
-    margin-bottom: 4px;
-    flex-shrink: 1;
-    /* Allow tabs to shrink on narrow viewports */
+    /* max-width inherited from content-column */
+    margin-bottom: 6px;
+    flex-shrink: 0;
+    /* Tabs should not shrink */
     min-width: 0;
 }
 
@@ -162,6 +174,9 @@
     border-color: rgb(50, 50, 60);
     transition-property: border-color, background-color;
     transition-duration: 0.2s;
+    /* Prevent content overflow */
+    overflow: hidden;
+    min-width: 0;
 }
 
 .player-tab:hover {
@@ -178,6 +193,8 @@
     flex-direction: row;
     align-items: center;
     margin-bottom: 4px;
+    overflow: hidden;
+    min-width: 0;
 }
 
 .tab-label {
@@ -199,6 +216,11 @@
     font-size: 14px;
     color: rgb(220, 220, 230);
     -unity-font-style: bold;
+    /* Prevent long names from overflowing */
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .tab-stats {
@@ -290,39 +312,36 @@
 /* === Grid Area === */
 
 .grid-area {
-    flex-grow: 1;
-    flex-shrink: 1;
-    align-items: center;
+    flex-grow: 0;
+    flex-shrink: 0;
+    align-items: stretch;
     justify-content: center;
     width: 100%;
-    /* Critical for flex shrinking to work properly */
-    min-height: 0;
-    min-width: 0;
+    /* Space below grid before word rows */
+    margin-bottom: 6px;
 }
 
 .grid-area .table-container {
-    margin: 2px 0;
+    margin: 0;
     padding: 4px;
     background-color: rgb(24, 24, 30);
     border-radius: 8px;
-    flex-shrink: 1;
-    /* Allow container to shrink below content size */
-    min-height: 0;
-    min-width: 0;
+    flex-shrink: 0;
+    width: 100%;
+    align-items: center;
 }
 
 /* === Words Section === */
 
 .words-section {
     width: 100%;
-    max-width: 500px;
+    /* max-width inherited from content-column */
     padding: 4px 10px;
-    margin: 2px 0;
+    /* Extra space below word rows - this is where grid size adjustments go */
+    margin-bottom: 8px;
     background-color: rgb(28, 28, 36);
     border-radius: 6px;
-    flex-shrink: 1;
-    /* Allow shrinking but maintain minimum usable height */
-    min-height: 60px;
+    flex-shrink: 0;
     overflow: hidden;
 }
 
@@ -346,9 +365,9 @@
 .letter-keyboard {
     flex-direction: column;
     align-items: center;
-    margin: 2px 0;
-    flex-shrink: 1;
-    /* Allow keyboard to shrink to fit viewport width */
+    margin: 0;
+    flex-shrink: 0;
+    /* Keyboard should not shrink */
     width: 100%;
     max-width: 100%;
 }
@@ -357,16 +376,16 @@
     flex-direction: row;
     justify-content: center;
     margin: 2px 0;
-    /* Allow rows to shrink */
-    flex-shrink: 1;
+    /* Rows should not shrink */
+    flex-shrink: 0;
     max-width: 100%;
 }
 
 .letter-key {
     /* Use flex sizing so keys shrink proportionally */
-    width: 32px;
+    width: 28px;
     min-width: 22px;
-    height: 32px;
+    height: 28px;
     min-height: 22px;
     margin: 1px;
     font-size: 14px;
@@ -418,7 +437,7 @@
     width: 100%;
     max-width: 300px;
     height: 32px;
-    margin: 2px 0;
+    margin: 8px 0 2px 0;
     font-size: 13px;
     background-color: rgb(40, 40, 50);
     border-color: rgb(60, 60, 75);
@@ -428,6 +447,8 @@
     transition-property: background-color, border-color;
     transition-duration: 0.15s;
     flex-shrink: 1;
+    /* Center button within content-column */
+    align-self: center;
 }
 
 .guessed-words-button:hover {
@@ -465,6 +486,11 @@
 
 .status-message.status-word-found {
     color: rgb(220, 180, 60);
+    -unity-font-style: bold;
+}
+
+.status-message.status-error {
+    color: rgb(255, 100, 100);
     -unity-font-style: bold;
 }
 

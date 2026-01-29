@@ -8,14 +8,13 @@ using System.Collections.Generic;
 using UnityEngine;
 using Cysharp.Threading.Tasks;
 using DLYH.AI.Strategies;
-using TecVooDoo.DontLoseYourHead.Core;
-using TecVooDoo.DontLoseYourHead.UI;
+using DLYH.Core.GameState;
 
 namespace DLYH.Networking
 {
     /// <summary>
     /// Setup data for a player, used during setup phase exchange.
-    /// Reuses WordPlacementData from TecVooDoo.DontLoseYourHead.UI.
+    /// Reuses WordPlacementData from DLYH.Core.GameState.
     /// </summary>
     [Serializable]
     public class PlayerSetupData

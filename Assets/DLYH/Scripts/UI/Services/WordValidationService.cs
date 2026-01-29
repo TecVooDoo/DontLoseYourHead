@@ -1,7 +1,7 @@
 using UnityEngine;
-using TecVooDoo.DontLoseYourHead.Core;
+using DLYH.Core.GameState;
 
-namespace TecVooDoo.DontLoseYourHead.UI
+namespace DLYH.UI.Services
 {
     /// <summary>
     /// Service that validates words against word bank lists.

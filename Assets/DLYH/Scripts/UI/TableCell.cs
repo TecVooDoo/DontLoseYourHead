@@ -1,7 +1,7 @@
 namespace DLYH.TableUI
 {
     /// <summary>
-    /// Represents a single cell in the table model.
+    /// Represents a single cell in the table model. 
     /// Struct for memory efficiency - no heap allocations per cell. 
     /// </summary>
     public struct TableCell

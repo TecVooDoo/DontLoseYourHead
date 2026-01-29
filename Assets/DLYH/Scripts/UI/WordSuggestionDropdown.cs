@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
-using TecVooDoo.DontLoseYourHead.Core;
+using DLYH.Core.GameState;
 
 namespace DLYH.TableUI
 {

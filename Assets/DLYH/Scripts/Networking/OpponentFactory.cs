@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using DLYH.AI.Config;
 using DLYH.Networking.Services;
-using TecVooDoo.DontLoseYourHead.Core;
+using DLYH.Core.GameState;
 
 namespace DLYH.Networking
 {

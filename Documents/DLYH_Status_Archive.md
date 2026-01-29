@@ -4,7 +4,7 @@
 
 **Related Document:** `DLYH_Status.md` (active status document)
 
-**Last Updated:** January 22, 2026
+**Last Updated:** January 26, 2026
 
 ---
 
@@ -32,7 +32,7 @@ At the end of each session, move the following to this archive:
 
 ## Table of Contents
 
-1. [Version History (Sessions 1-61)](#version-history-sessions-1-61)
+1. [Version History (Sessions 1-91)](#version-history-sessions-1-91)
 2. [Phase A Design (Complete)](#phase-a-design-complete)
 3. [Phase B Design (Complete)](#phase-b-design-complete)
 4. [Phase C Design (Complete)](#phase-c-design-complete)
@@ -47,10 +47,59 @@ At the end of each session, move the following to this archive:
 
 ---
 
-## Version History (Sessions 1-78)
+## Resolved Issues Archive (Session 87)
+
+The following issues were resolved during Sessions 4-8 of Phase E and removed from Known Issues on Jan 28, 2026:
+
+**UI/Layout (Fixed):**
+- Viewport scaling - content-column + flex-shrink: 0 + width-only sizing
+- Mobile grid/word row/keyboard overlap - vertical scroll triggers when content exceeds viewport
+- Word row button overlap - spacer pushes buttons right
+- Grid/word row misalignment - align-items: flex-start
+
+**Architecture (Fixed):**
+- Inconsistent namespace convention (Session 8) - All namespaces now use DLYH.*
+
+**Networking (Fixed):**
+- Editor identity persistence - PlayerPrefs works correctly
+- Opponent join polling (Session 4) - UI updates correctly
+- Turn state mismatch (Build 4) - Turn tracking works
+- Find Opponent shows "Host" instead of player name (Session 4)
+- Phantom AI not inserted into session_players - Now creates player record
+- Opponent setup not fetched on live join - Data IS fetched, stored in _matchmakingResult
+- UI not rebuilt when opponent joins (Build 5) - RebuildUIForOpponentJoinAsync handles this
+- RemotePlayerOpponent not wired (Build 4) - Now created in HandleOpponentJoined()
+- DetectOpponentAction reads wrong player data - Player selection logic correct
+- Gameplay allowed on incomplete UI (Build 5) - UI rebuilds before gameplay starts
+- Resume path missing RemotePlayerOpponent (Build 5) - Creates opponent object on resume
+- Resume path missing lastKnownTurnNumber init (Build 5) - Now initialized on resume
+- Matchmaking opponent data not loaded (Build 6) - FetchOpponentSetupForMatchmakingAsync added
+- 5-day auto-win not implemented (Session 6) - Edge function deployed, cron scheduled
+- RematchService not wired (Session 8) - Deferred indefinitely, code deleted
+- Word placement encryption just Base64 (Session 8) - XOR cipher with salt
+- WebGL used secret key instead of anon key - Using JWT anon key now
+- Exit button nested iframe in WebGL - Uses window.top.location
+- Game locked after move in multiplayer - Tab switching enabled during opponent turn
+- Miss limit mismatch between devices - Uses stored missLimit from Supabase
+
+---
+
+## Version History (Sessions 1-91)
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 109 | Jan 28, 2026 | Session 87 - Session 8: Code quality & polish (dead code, encryption, namespaces) |
+| 108 | Jan 28, 2026 | Session 86 - Session 6: Activity tracking, auto-win, version guarding |
+| 107-106 | Jan 28, 2026 | Session 86 - Build 6/6b: Matchmaking opponent data loading fix |
+| 105-103 | Jan 27, 2026 | Session 85 - Builds 5-5d: Miss limit, turn switching, UI rebuild fixes |
+| 91 | Jan 25, 2026 | Session 77 - Session 4 fixes (polling race, turn init, opponent names) |
+| 88 | Jan 23, 2026 | Session 75 - WebGL multiplayer fixes (API key, exit button iframe, game lock, miss limit) |
+| 87 | Jan 22, 2026 | Session 74 - Viewport scaling tuning, WebGL build prep |
+| 86 | Jan 22, 2026 | Session 73 - UI viewport scaling (partial) - 768p working, 1080p needs tuning |
+| 85 | Jan 22, 2026 | Session 72 - Guillotine stage movement fix, debug logging cleanup, Session 3 COMPLETE |
+| 84 | Jan 22, 2026 | Session 72 - Guillotine stage movement fix (synced thresholds, slower stage 5 animation) |
+| 83 | Jan 22, 2026 | Session 71 - Guillotine stage movement debugging, threshold rework |
+| 79-82 | Jan 20-22, 2026 | Sessions 67-70 - Various restore fixes, case sensitivity, word guess handling |
 | 78 | Jan 20, 2026 | Session 66 - Game state restore debugging: case-sensitivity fix, cell/keyboard/word row restore logic |
 | 77 | Jan 20, 2026 | Session 65 - Phase E Session 3: Game State Persistence (revealedCells, resume state) |
 | 63-76 | Jan 17-19, 2026 | Sessions 52-64 - Phase E Foundation, Phantom AI, Game State Persistence work |

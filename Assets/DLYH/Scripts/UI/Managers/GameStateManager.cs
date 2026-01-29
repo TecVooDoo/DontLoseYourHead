@@ -7,8 +7,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using TecVooDoo.DontLoseYourHead.Core;
-using TecVooDoo.DontLoseYourHead.UI;
+using DLYH.Core.GameState;
 using DLYH.Core.Utilities;
 using DLYH.Networking.Services;
 
@@ -192,14 +191,19 @@ namespace DLYH.UI.Managers
         // WORD PLACEMENT ENCRYPTION
         // ============================================================
 
+        // Obfuscation salt - combined with game code for XOR cipher
+        // Not cryptographically secure but prevents casual browser console inspection
+        private const string OBFUSCATION_SALT = "DLYH2026TecVooDoo";
+
         /// <summary>
         /// Encrypts word placements for storage (hides words from opponent until game end).
-        /// Format: Base64 encoded string of "WORD:row,col,dirRow,dirCol;" entries
-        /// Supports all 8 directions (horizontal, vertical, and diagonals).
+        /// Uses XOR cipher with salt to obfuscate data beyond simple Base64.
+        /// Format: Base64 encoded XOR-encrypted string of "WORD:row,col,dirRow,dirCol;" entries
         /// </summary>
         /// <param name="placements">The word placements to encrypt</param>
-        /// <returns>Base64 encoded string or empty string if no placements</returns>
-        public static string EncryptWordPlacements(List<WordPlacementData> placements)
+        /// <param name="gameCode">Optional game code for additional key entropy</param>
+        /// <returns>Obfuscated Base64 string or empty string if no placements</returns>
+        public static string EncryptWordPlacements(List<WordPlacementData> placements, string gameCode = null)
         {
             if (placements == null || placements.Count == 0)
             {
@@ -219,16 +223,28 @@ namespace DLYH.UI.Managers
                 );
             }
 
-            return Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(sb.ToString()));
+            string plaintext = sb.ToString();
+            byte[] data = System.Text.Encoding.UTF8.GetBytes(plaintext);
+
+            // XOR with salt + game code
+            string key = OBFUSCATION_SALT + (gameCode ?? "");
+            byte[] keyBytes = System.Text.Encoding.UTF8.GetBytes(key);
+            for (int i = 0; i < data.Length; i++)
+            {
+                data[i] = (byte)(data[i] ^ keyBytes[i % keyBytes.Length]);
+            }
+
+            return Convert.ToBase64String(data);
         }
 
         /// <summary>
         /// Decrypts word placements from storage format back to WordPlacementData list.
-        /// Supports both old format (H/V direction) and new format (dirRow,dirCol).
+        /// Supports XOR-obfuscated format and legacy plain Base64 format.
         /// </summary>
         /// <param name="encrypted">Base64 encoded placement string</param>
+        /// <param name="gameCode">Optional game code used during encryption</param>
         /// <returns>List of WordPlacementData (empty list on failure or empty input)</returns>
-        public static List<WordPlacementData> DecryptWordPlacements(string encrypted)
+        public static List<WordPlacementData> DecryptWordPlacements(string encrypted, string gameCode = null)
         {
             List<WordPlacementData> placements = new List<WordPlacementData>();
 
@@ -239,7 +255,23 @@ namespace DLYH.UI.Managers
 
             try
             {
-                string decoded = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(encrypted));
+                byte[] data = Convert.FromBase64String(encrypted);
+
+                // XOR decrypt with salt + game code
+                string key = OBFUSCATION_SALT + (gameCode ?? "");
+                byte[] keyBytes = System.Text.Encoding.UTF8.GetBytes(key);
+                for (int i = 0; i < data.Length; i++)
+                {
+                    data[i] = (byte)(data[i] ^ keyBytes[i % keyBytes.Length]);
+                }
+
+                string decoded = System.Text.Encoding.UTF8.GetString(data);
+
+                // If decryption failed (legacy data), try plain Base64
+                if (!decoded.Contains(":") || !decoded.Contains(";"))
+                {
+                    decoded = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(encrypted));
+                }
 
                 // New format: "WORD:row,col,dirRow,dirCol;"
                 // Old format: "WORD:row,col,H;" or "WORD:row,col,V;"

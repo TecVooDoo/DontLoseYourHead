@@ -360,6 +360,7 @@ namespace DLYH.TableUI
         /// <summary>
         /// Applies viewport-aware sizing to keyboard keys.
         /// Keys are scaled to match word row cell size (85% of grid cell size).
+        /// Minimum key size is 22px for mobile tap usability.
         /// </summary>
         /// <param name="gridCellSize">The grid cell size in pixels</param>
         /// <param name="gridFontSize">The grid font size in pixels</param>
@@ -368,7 +369,8 @@ namespace DLYH.TableUI
             if (gridCellSize <= 0) return;
 
             // Keyboard keys should match word row cells (85% of grid)
-            int keySize = Mathf.Max(24, (int)(gridCellSize * 0.85f));
+            // Minimum 22px for mobile tap usability
+            int keySize = Mathf.Max(22, (int)(gridCellSize * 0.85f));
             int keyFontSize = Mathf.Max(10, (int)(gridFontSize * 0.85f));
 
             foreach (KeyValuePair<char, Button> kvp in _letterKeys)
@@ -1092,6 +1094,7 @@ namespace DLYH.TableUI
             _statusMessage.RemoveFromClassList("status-hit");
             _statusMessage.RemoveFromClassList("status-miss");
             _statusMessage.RemoveFromClassList("status-word-found");
+            _statusMessage.RemoveFromClassList("status-error");
 
             switch (type)
             {
@@ -1104,6 +1107,9 @@ namespace DLYH.TableUI
                 case StatusType.WordFound:
                     _statusMessage.AddToClassList("status-word-found");
                     break;
+                case StatusType.Error:
+                    _statusMessage.AddToClassList("status-error");
+                    break;
             }
         }
 
@@ -1112,7 +1118,8 @@ namespace DLYH.TableUI
             Normal,
             Hit,
             Miss,
-            WordFound
+            WordFound,
+            Error
         }
 
         #endregion

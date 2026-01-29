@@ -21,48 +21,48 @@ namespace DLYH.UI.Managers
         // ============================================================
 
         private const string HELP_CONTENT = @"<b>Your Goal:</b>
-Discover all of your opponent's words AND their grid positions before they find yours!
+Discover all of your opponent's hidden words AND their grid positions before they find yours!
 
-<b>Grid Colors:</b>
-<color=#4CAF50>GREEN</color> = Hit - Letter is known
-<color=#FFC107>YELLOW</color> = Hit - Letter unknown (discovered by coordinate)
-<color=#F44336>RED</color> = Miss - Empty cell
+<b>Color Rules:</b>
+<color=#F44336>RED</color> = Miss (empty cell)
+<color=#FFC107>YELLOW</color> = Hit, but incomplete (letter OR position still unknown)
+<b>YOUR COLOR</b> = Fully known (both letter AND position confirmed)
 
 <b>Three Ways to Guess:</b>
 
 <b>1. Letter Guess</b>
-Click a letter in the keyboard (A-Z buttons)
-- If the opponent has that letter, it reveals in their words
-- Yellow cells upgrade to green when letter is discovered
-- Miss if opponent has no words with that letter
+Click a letter on the keyboard (A-Z)
+- Hit: Letter appears in word rows (yellow until all positions known)
+- Upgrades to your color when ALL positions of that letter are found
+- Miss: Opponent has no words with that letter
 
 <b>2. Coordinate Guess</b>
 Click a cell on the opponent's grid
-- Green if letter is already known
-- Yellow if you hit a letter but don't know which one
-- Red if empty (counts as a miss)
+- Hit: Cell turns yellow (you found a letter position)
+- Upgrades to your color when you also know the letter
+- Miss: Empty cell (red)
 
 <b>3. Word Guess</b>
-Click the GUESS button on a word row
+Click the GUESS button next to a word row
 - Type the full word you think it is
-- Correct guess reveals the word!
-- <color=#F44336>WRONG guess = 2 misses!</color>
+- Correct: Word is revealed + EXTRA TURN!
+- <color=#F44336>WRONG = 2 misses!</color>
 
 <b>Extra Turns:</b>
-<color=#4CAF50>Complete a word = EXTRA TURN!</color>
-- When your guess completes a word (all letters revealed), you get another turn
-- This works for letter guesses AND correct word guesses
-- Multiple words completed at once = multiple extra turns
+Complete a word = EXTRA TURN!
+- Letter guess that completes a word = extra turn
+- Correct word guess = extra turn
+- Multiple words completed = multiple extra turns (queued)
 
 <b>Win Conditions:</b>
-- Reveal ALL opponent's letters AND grid positions
+- Find ALL opponent's letters AND all their grid positions
 - OR opponent reaches their miss limit
 
 <b>Tips:</b>
-- Use letter guesses to discover common letters (E, T, A, O)
-- Coordinate guesses near hits often find more letters
-- Completing words gives extra turns - be strategic!
-- Only guess words when you're confident!";
+- Start with common letters (E, T, A, O, I, N)
+- Coordinate guesses near hits often find adjacent letters
+- Words can be placed in any of 8 directions!
+- Save word guesses for when you're confident - wrong guesses hurt!";
 
         // ============================================================
         // UI ELEMENTS

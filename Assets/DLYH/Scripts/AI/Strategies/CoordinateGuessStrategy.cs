@@ -1,5 +1,5 @@
 // CoordinateGuessStrategy.cs
-// AI strategy for guessing coordinates based on adjacency and pattern analysis
+// AI strategy for guessing coordinates based on adjacency and pattern analysis 
 // Created: December 13, 2025
 // Developer: TecVooDoo LLC
 

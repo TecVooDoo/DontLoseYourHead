@@ -16,7 +16,7 @@ namespace DLYH.Networking.Services
 {
     /// <summary>
     /// MonoBehaviour that handles OAuth callbacks from browser redirects.
-    /// Attach to a persistent GameObject (e.g., NetworkGameManager).
+    /// Attach to a persistent GameObject.
     /// </summary>
     public class AuthCallbackHandler : MonoBehaviour
     {

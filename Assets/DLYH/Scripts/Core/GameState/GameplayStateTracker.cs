@@ -7,7 +7,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace TecVooDoo.DontLoseYourHead.UI
+namespace DLYH.Core.GameState
 {
     /// <summary>
     /// Data for a revealed cell, used for reconstructing grid state on resume.

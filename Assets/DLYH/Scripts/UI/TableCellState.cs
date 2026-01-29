@@ -54,10 +54,13 @@ namespace DLYH.TableUI
         /// <summary>Cell content is hidden (fog of war).</summary>
         Fog,
 
-        /// <summary>Cell has been revealed (no letter there).</summary>
+        /// <summary>Cell has been revealed by coordinate guess (no letter shown on attack grid).</summary>
         Revealed,
 
-        /// <summary>Cell was hit (letter found).</summary>
+        /// <summary>Letter is known but not all coordinates for this letter are known yet (yellow + letter shown).</summary>
+        Found,
+
+        /// <summary>Cell was hit and all coordinates for this letter are known (player/opponent color).</summary>
         Hit,
 
         /// <summary>Coordinate guess missed (no letter).</summary>

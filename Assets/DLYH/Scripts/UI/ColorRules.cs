@@ -173,11 +173,16 @@ namespace DLYH.TableUI
                     // Coordinate hit but letter not yet guessed - yellow
                     return SystemYellow;
 
+                case TableCellState.Found:
+                    // Letter known but not all coordinates for this letter are known - yellow
+                    return SystemYellow;
+
                 case TableCellState.Miss:
                     // Coordinate miss (no letter at this position) - red
                     return SystemRed;
 
                 case TableCellState.Hit:
+                    // All coordinates for this letter are known - player/opponent color
                     return GetOwnerColor(owner, player1Color, player2Color);
 
                 case TableCellState.WrongWord:

@@ -1,10 +1,10 @@
 // ExecutionerConfigSO.cs
-// ScriptableObject containing all tunable parameters for the AI opponent
+// ScriptableObject containing all tunable parameters for the AI opponent 
 // Created: December 13, 2025
 // Developer: TecVooDoo LLC
 
 using UnityEngine;
-using TecVooDoo.DontLoseYourHead.Core;
+using DLYH.Core.GameState;
 
 namespace DLYH.AI.Config
 {

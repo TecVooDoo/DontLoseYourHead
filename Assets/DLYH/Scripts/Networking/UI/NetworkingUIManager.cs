@@ -13,9 +13,11 @@ namespace DLYH.Networking.UI
 {
     /// <summary>
     /// Result of a networking operation.
+    /// Also serves as session context for multiplayer games.
     /// </summary>
     public class NetworkingUIResult
     {
+        // Core matchmaking result
         public bool Success;
         public bool Cancelled;
         public string GameCode;
@@ -23,6 +25,13 @@ namespace DLYH.Networking.UI
         public bool IsPhantomAI;
         public string OpponentName;
         public string ErrorMessage;
+
+        // Opponent setup data (populated by HandleOpponentJoined or on resume)
+        public int OpponentGridSize;
+        public int OpponentWordCount;
+        public Color OpponentColor = Color.blue;
+        public string OpponentDifficulty; // Opponent's difficulty setting for miss limit calculation
+        public bool OpponentSetupLoaded;
     }
 
     /// <summary>

@@ -10,8 +10,7 @@ using UnityEngine;
 using Cysharp.Threading.Tasks;
 using DLYH.AI.Strategies;
 using DLYH.Networking.Services;
-using TecVooDoo.DontLoseYourHead.Core;
-using TecVooDoo.DontLoseYourHead.UI;
+using DLYH.Core.GameState;
 
 namespace DLYH.Networking
 {
@@ -55,7 +54,6 @@ namespace DLYH.Networking
         private AuthService _authService;
         private GameSessionService _sessionService;
         private GameSubscription _subscription;
-        private GameStateSynchronizer _synchronizer;
 
         // ============================================================
         // STATE
@@ -211,156 +209,12 @@ namespace DLYH.Networking
         }
 
         /// <summary>
-        /// Initializes the remote opponent connection and waits for opponent setup data.
-        /// NOTE: Do NOT use this in UIFlowController - use InitializeWithExistingService instead.
+        /// IOpponent interface requirement. Do NOT use - call InitializeWithExistingService instead.
         /// </summary>
-        public async UniTask InitializeAsync(PlayerSetupData localPlayerSetup)
+        public UniTask InitializeAsync(PlayerSetupData localPlayerSetup)
         {
-            if (_isDisposed)
-            {
-                Debug.LogError("[RemotePlayerOpponent] Cannot initialize - already disposed");
-                return;
-            }
-
-            if (_isInitialized)
-            {
-                Debug.LogWarning("[RemotePlayerOpponent] Already initialized");
-                return;
-            }
-
-            Debug.Log("[RemotePlayerOpponent] Initializing...");
-
-            // Create services
-            _supabaseClient = new SupabaseClient(_config);
-            _authService = new AuthService(_config);
-            _sessionService = new GameSessionService(_supabaseClient, _config);
-
-            // Ensure we have auth
-            var session = await _authService.EnsureValidSessionAsync();
-            if (session == null)
-            {
-                Debug.LogError("[RemotePlayerOpponent] Failed to authenticate");
-                return;
-            }
-
-            // Update client with auth token
-            _supabaseClient = new SupabaseClient(_config, session.AccessToken);
-            _sessionService = new GameSessionService(_supabaseClient, _config);
-
-            // Subscribe to game updates
-            _subscription = new GameSubscription(_config, _gameCode, session.UserId, session.AccessToken);
-
-            bool subscribed = await _subscription.StartAsync();
-            if (!subscribed)
-            {
-                Debug.LogError("[RemotePlayerOpponent] Failed to subscribe to game updates");
-                return;
-            }
-
-            // Create synchronizer
-            _synchronizer = new GameStateSynchronizer(
-                _sessionService,
-                _subscription,
-                _gameCode,
-                session.UserId,
-                _isLocalPlayerHost
-            );
-
-            // Subscribe to events
-            _subscription.OnConnectionLost += HandleConnectionLost;
-            _subscription.OnReconnected += HandleReconnection;
-            _synchronizer.OnRemoteStateReceived += HandleRemoteStateUpdate;
-
-            // Fetch current game state
-            var gameState = await _synchronizer.FetchCurrentStateAsync();
-            if (gameState == null)
-            {
-                Debug.LogError("[RemotePlayerOpponent] Failed to fetch game state");
-                return;
-            }
-
-            _lastGameState = gameState;
-
-            // Push local player setup
-            await _synchronizer.PushSetupDataAsync(
-                localPlayerSetup.PlayerName,
-                ColorToHex(localPlayerSetup.PlayerColor),
-                localPlayerSetup.GridSize,
-                localPlayerSetup.WordCount,
-                localPlayerSetup.DifficultyLevel.ToString(),
-                EncryptWordPlacements(localPlayerSetup.PlacedWords)
-            );
-
-            // Calculate miss limit based on opponent's grid
-            // (Will be set when opponent data arrives)
-            _missLimit = GameplayStateTracker.CalculateMissLimit(
-                (int)localPlayerSetup.DifficultyLevel,
-                localPlayerSetup.GridSize,
-                localPlayerSetup.WordCount
-            );
-
-            // Wait for opponent setup data
-            await WaitForOpponentSetupAsync();
-
-            _isConnected = true;
-            _isInitialized = true;
-
-            Debug.Log($"[RemotePlayerOpponent] Initialized - Opponent: {OpponentName}, Grid: {GridSize}x{GridSize}");
-        }
-
-        /// <summary>
-        /// Waits for the opponent to complete their setup.
-        /// </summary>
-        private async UniTask WaitForOpponentSetupAsync()
-        {
-            Debug.Log("[RemotePlayerOpponent] Waiting for opponent setup...");
-
-            int timeoutSeconds = 300; // 5 minute timeout
-            float startTime = Time.realtimeSinceStartup;
-
-            while (Time.realtimeSinceStartup - startTime < timeoutSeconds)
-            {
-                // Refresh game state
-                var state = await _synchronizer.FetchCurrentStateAsync();
-                if (state == null)
-                {
-                    await UniTask.Delay(1000);
-                    continue;
-                }
-
-                // Check opponent data
-                var opponentData = _isLocalPlayerHost ? state.player2 : state.player1;
-
-                if (opponentData != null && opponentData.setupComplete)
-                {
-                    // Extract opponent setup (flat structure - no nested setupData)
-                    _opponentSetupData = new PlayerSetupData
-                    {
-                        PlayerName = opponentData.name,
-                        PlayerColor = HexToColor(opponentData.color),
-                        GridSize = opponentData.gridSize > 0 ? opponentData.gridSize : 8,
-                        WordCount = opponentData.wordCount > 0 ? opponentData.wordCount : 3,
-                        DifficultyLevel = ParseDifficulty(opponentData.difficulty),
-                        PlacedWords = new List<WordPlacementData>() // Encrypted, revealed at game end
-                    };
-
-                    // Update miss limit based on opponent's actual grid
-                    _missLimit = GameplayStateTracker.CalculateMissLimit(
-                        (int)_opponentSetupData.DifficultyLevel,
-                        _opponentSetupData.GridSize,
-                        _opponentSetupData.WordCount
-                    );
-
-                    Debug.Log($"[RemotePlayerOpponent] Opponent setup received: {opponentData.name}");
-                    return;
-                }
-
-                // Check subscription for updates
-                _subscription.Tick();
-                await UniTask.Delay(2000);
-            }
-
-            Debug.LogWarning("[RemotePlayerOpponent] Timed out waiting for opponent setup");
+            Debug.LogError("[RemotePlayerOpponent] InitializeAsync should not be called - use InitializeWithExistingService instead");
+            return UniTask.CompletedTask;
         }
 
         // ============================================================
@@ -608,30 +462,6 @@ namespace DLYH.Networking
             };
         }
 
-        private string EncryptWordPlacements(List<WordPlacementData> placements)
-        {
-            // Simple base64 encoding for now - could use proper encryption
-            if (placements == null || placements.Count == 0)
-            {
-                return "";
-            }
-
-            var sb = new System.Text.StringBuilder();
-            foreach (var p in placements)
-            {
-                // DirCol=1 means horizontal, DirRow=1 means vertical
-                string direction = p.DirCol == 1 ? "H" : "V";
-                sb.AppendFormat("{0}:{1},{2},{3};",
-                    p.Word,
-                    p.StartRow,
-                    p.StartCol,
-                    direction
-                );
-            }
-
-            return Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(sb.ToString()));
-        }
-
         // ============================================================
         // DISPOSE
         // ============================================================
@@ -649,12 +479,6 @@ namespace DLYH.Networking
                 _subscription.OnReconnected -= HandleReconnection;
                 _subscription.StopAsync().Forget();
                 _subscription.Dispose();
-            }
-
-            if (_synchronizer != null)
-            {
-                _synchronizer.OnRemoteStateReceived -= HandleRemoteStateUpdate;
-                _synchronizer.Dispose();
             }
 
             Debug.Log("[RemotePlayerOpponent] Disposed");

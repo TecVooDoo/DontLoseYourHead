@@ -5,8 +5,8 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEngine.InputSystem;
-using TecVooDoo.DontLoseYourHead.Core;
-using TecVooDoo.DontLoseYourHead.UI;
+using DLYH.Core.GameState;
+using DLYH.UI.Services;
 using DLYH.Audio;
 using DLYH.Telemetry;
 using DLYH.Networking;
@@ -758,6 +758,42 @@ namespace DLYH.TableUI
                 return;
             }
 
+            // Check for game already finished (winner set)
+            if (!string.IsNullOrEmpty(gameState.winner))
+            {
+                Debug.Log($"[UIFlowController] Game {gameCode} already finished, winner: {gameState.winner}");
+                // TODO: Show game over screen with results
+                return;
+            }
+
+            // Check for opponent inactivity (client-side check for immediate feedback)
+            // Server-side edge function handles actual forfeit, but we can show a message
+            if (!isPhantomAI && opponentData != null && !string.IsNullOrEmpty(opponentData.lastActivityAt))
+            {
+                bool isOpponentTurn = (gameState.currentTurn == "player1" && myPlayerNumber == 2) ||
+                                      (gameState.currentTurn == "player2" && myPlayerNumber == 1);
+
+                if (isOpponentTurn && DateTime.TryParse(opponentData.lastActivityAt, out DateTime lastActivity))
+                {
+                    TimeSpan inactiveTime = DateTime.UtcNow - lastActivity;
+                    int inactivityDays = _supabaseConfig?.InactivityForfeitDays ?? 5;
+
+                    if (inactiveTime.TotalDays >= inactivityDays)
+                    {
+                        // Opponent has been inactive too long - claim victory
+                        Debug.Log($"[UIFlowController] Opponent inactive for {inactiveTime.TotalDays:F1} days - auto-win triggered");
+                        await ClaimInactivityVictoryAsync(gameCode, gameState, myPlayerNumber);
+                        return;
+                    }
+                    else if (inactiveTime.TotalDays >= inactivityDays - 1)
+                    {
+                        // Warn that opponent may forfeit soon
+                        double daysRemaining = inactivityDays - inactiveTime.TotalDays;
+                        Debug.Log($"[UIFlowController] Opponent may forfeit in {daysRemaining:F1} days due to inactivity");
+                    }
+                }
+            }
+
             // Store game info for networking
             _currentGameCode = gameCode;
             _currentGameMode = GameMode.Online;
@@ -808,7 +844,7 @@ namespace DLYH.TableUI
                 ready = true,
                 setupComplete = true,
                 lastActivityAt = DateTime.UtcNow.ToString("o"),
-                wordPlacementsEncrypted = GameStateManager.EncryptWordPlacements(_playerSetupData.PlacedWords),
+                wordPlacementsEncrypted = GameStateManager.EncryptWordPlacements(_playerSetupData.PlacedWords, _currentGameCode),
                 gameplayState = new DLYHGameplayState
                 {
                     misses = 0,
@@ -890,7 +926,7 @@ namespace DLYH.TableUI
                 ready = true,
                 setupComplete = true,
                 lastActivityAt = DateTime.UtcNow.ToString("o"),
-                wordPlacementsEncrypted = GameStateManager.EncryptWordPlacements(wordPlacements),
+                wordPlacementsEncrypted = GameStateManager.EncryptWordPlacements(wordPlacements, _currentGameCode),
                 gameplayState = new DLYHGameplayState
                 {
                     misses = 0,
@@ -950,6 +986,17 @@ namespace DLYH.TableUI
                 if (state == null)
                 {
                     Debug.LogError($"[UIFlowController] Cannot save game state - failed to parse state for {_currentGameCode}");
+                    return;
+                }
+
+                // Version guard: Check that turn number hasn't changed since we last read
+                // This prevents race conditions where both players try to update simultaneously
+                if (_lastKnownTurnNumber > 0 && state.turnNumber != _lastKnownTurnNumber)
+                {
+                    Debug.LogWarning($"[UIFlowController] Turn number mismatch! Expected {_lastKnownTurnNumber}, got {state.turnNumber}. " +
+                                     "State may have been modified by opponent. Skipping save to avoid conflict.");
+                    // Refresh local state from server
+                    _lastKnownTurnNumber = state.turnNumber;
                     return;
                 }
 
@@ -1039,8 +1086,20 @@ namespace DLYH.TableUI
                 state.status = "playing";
                 state.updatedAt = DateTime.UtcNow.ToString("o");
 
-                // Save to Supabase
-                bool success = await _gameSessionService.UpdateGameState(_currentGameCode, state);
+                // Save to Supabase with retry
+                const int MAX_SAVE_RETRIES = 2;
+                bool success = false;
+
+                for (int attempt = 1; attempt <= MAX_SAVE_RETRIES && !success; attempt++)
+                {
+                    success = await _gameSessionService.UpdateGameState(_currentGameCode, state);
+                    if (!success && attempt < MAX_SAVE_RETRIES)
+                    {
+                        Debug.LogWarning($"[UIFlowController] Save failed, retrying ({attempt}/{MAX_SAVE_RETRIES})...");
+                        await UniTask.Delay(500);
+                    }
+                }
+
                 if (success)
                 {
                     // Update local turn tracking so polling detects only NEW changes
@@ -1050,11 +1109,13 @@ namespace DLYH.TableUI
                 else
                 {
                     Debug.LogError($"[UIFlowController] Failed to save game state for {_currentGameCode}");
+                    _gameplayManager?.SetStatusMessage("Sync failed - turn may not save", GameplayScreenManager.StatusType.Error);
                 }
             }
             catch (Exception ex)
             {
                 Debug.LogError($"[UIFlowController] Error saving game state: {ex.Message}");
+                _gameplayManager?.SetStatusMessage("Connection error", GameplayScreenManager.StatusType.Error);
             }
         }
 
@@ -1067,6 +1128,44 @@ namespace DLYH.TableUI
             int g = Mathf.RoundToInt(color.g * 255);
             int b = Mathf.RoundToInt(color.b * 255);
             return $"#{r:X2}{g:X2}{b:X2}";
+        }
+
+        /// <summary>
+        /// Claims victory due to opponent inactivity.
+        /// Updates game state in Supabase and shows win screen.
+        /// </summary>
+        private async UniTask ClaimInactivityVictoryAsync(string gameCode, DLYHGameState gameState, int myPlayerNumber)
+        {
+            if (_gameSessionService == null)
+            {
+                Debug.LogError("[UIFlowController] Cannot claim victory - service not available");
+                return;
+            }
+
+            string winner = myPlayerNumber == 1 ? "player1" : "player2";
+            string loser = myPlayerNumber == 1 ? "player2" : "player1";
+
+            // Update game state
+            gameState.status = "finished";
+            gameState.winner = winner;
+            gameState.updatedAt = DateTime.UtcNow.ToString("o");
+
+            bool success = await _gameSessionService.UpdateGameState(gameCode, gameState);
+            if (success)
+            {
+                Debug.Log($"[UIFlowController] Claimed inactivity victory for game {gameCode}");
+
+                // Show victory message
+                // TODO: Show proper win screen with "Opponent forfeited due to inactivity" message
+                Debug.Log($"[UIFlowController] YOU WIN! Opponent forfeited due to inactivity.");
+
+                // Refresh active games list to remove this game
+                _activeGamesManager?.LoadMyActiveGamesAsync().Forget();
+            }
+            else
+            {
+                Debug.LogError($"[UIFlowController] Failed to claim inactivity victory for {gameCode}");
+            }
         }
 
         // NOTE: CalculateMissLimit moved to GameStateManager
@@ -1102,9 +1201,15 @@ namespace DLYH.TableUI
                 ? myData.gameplayState.missLimit
                 : DifficultyCalculator.CalculateMissLimitForPlayer(myDifficulty, opponentGridSize, opponentWordCount);
 
+            // For opponent's miss limit: use opponent's actual difficulty if available
+            DifficultySetting opponentDifficulty = !string.IsNullOrEmpty(opponentData?.difficulty)
+                ? GetDifficultySettingFromString(opponentData.difficulty)
+                : GetInverseDifficulty(myDifficulty);
             int opponentMissLimit = opponentData?.gameplayState?.missLimit > 0
                 ? opponentData.gameplayState.missLimit
-                : DifficultyCalculator.CalculateMissLimitForPlayer(GetInverseDifficulty(myDifficulty), myGridSize, myWordCount);
+                : DifficultyCalculator.CalculateMissLimitForPlayer(opponentDifficulty, myGridSize, myWordCount);
+
+            Debug.Log($"[UIFlowController] Resume miss limits - player={myMissLimit} (diff={myDifficulty}), opponent={opponentMissLimit} (diff={opponentDifficulty})");
 
             // Create player tab data
             PlayerTabData playerData = new PlayerTabData
@@ -1141,9 +1246,9 @@ namespace DLYH.TableUI
             _isGameOver = false;
 
             // Decrypt word placements from Supabase data (flat structure - no nested setupData)
-            List<WordPlacementData> myPlacements = GameStateManager.DecryptWordPlacements(myData.wordPlacementsEncrypted);
+            List<WordPlacementData> myPlacements = GameStateManager.DecryptWordPlacements(myData.wordPlacementsEncrypted, gameCode);
             List<WordPlacementData> opponentPlacements = !string.IsNullOrEmpty(opponentData?.wordPlacementsEncrypted)
-                ? GameStateManager.DecryptWordPlacements(opponentData.wordPlacementsEncrypted)
+                ? GameStateManager.DecryptWordPlacements(opponentData.wordPlacementsEncrypted, gameCode)
                 : new List<WordPlacementData>();
 
             Debug.Log($"[UIFlowController] Resume: My placements: {myPlacements.Count}, Opponent placements: {opponentPlacements.Count}");
@@ -5991,6 +6096,7 @@ namespace DLYH.TableUI
             int opponentWordCount = playerWordCount;
             Color opponentColor = new Color(0.6f, 0.1f, 0.1f, 1f); // Default dark red
             string opponentName = "EXECUTIONER";
+            string opponentDifficultyStr = null; // For real multiplayer - opponent's actual difficulty
             List<WordPlacementData> opponentWordPlacements = new List<WordPlacementData>();
 
             bool shouldInitAI = _currentGameMode == GameMode.Solo ||
@@ -6081,6 +6187,7 @@ namespace DLYH.TableUI
                             {
                                 opponentGridSize = hostData.gridSize > 0 ? hostData.gridSize : opponentGridSize;
                                 opponentWordCount = hostData.wordCount > 0 ? hostData.wordCount : opponentWordCount;
+                                opponentDifficultyStr = hostData.difficulty; // Capture opponent's actual difficulty
 
                                 // Parse color from hex string
                                 if (!string.IsNullOrEmpty(hostData.color))
@@ -6095,7 +6202,7 @@ namespace DLYH.TableUI
                                 // Without this, the joiner has no opponent data to attack
                                 if (!string.IsNullOrEmpty(hostData.wordPlacementsEncrypted))
                                 {
-                                    opponentWordPlacements = GameStateManager.DecryptWordPlacements(hostData.wordPlacementsEncrypted);
+                                    opponentWordPlacements = GameStateManager.DecryptWordPlacements(hostData.wordPlacementsEncrypted, _matchmakingResult.GameCode);
                                     Debug.Log($"[UIFlowController] JoinGame mode - decrypted {opponentWordPlacements.Count} host word placements");
                                 }
                                 else
@@ -6120,23 +6227,74 @@ namespace DLYH.TableUI
             }
             else if (_currentGameMode == GameMode.Online && _matchmakingResult != null && !_matchmakingResult.IsPhantomAI)
             {
-                // Real online game - check if opponent has joined and setup is loaded
-                bool hasOpponent = !string.IsNullOrEmpty(_matchmakingResult.OpponentName) &&
-                                   _matchmakingResult.OpponentName != "Waiting...";
+                // Real online game (matchmaking) - need to fetch opponent setup data
+                // Unlike private games where HandleOpponentJoined populates the data,
+                // matchmaking returns immediately with minimal info and we need to fetch setup separately
 
-                if (hasOpponent)
+                bool hasOpponent = !string.IsNullOrEmpty(_matchmakingResult.OpponentName) &&
+                                   _matchmakingResult.OpponentName != "Waiting..." &&
+                                   _matchmakingResult.OpponentName != "Opponent";
+
+                // For matchmaking, if setup not loaded, fetch it now
+                // Both players save setup at roughly the same time, so we may need to retry
+                if (!_matchmakingResult.OpponentSetupLoaded)
                 {
-                    // Opponent has joined - use their setup data
+                    Debug.Log("[UIFlowController] Online game - fetching opponent setup data from Supabase...");
+
+                    // Retry up to 5 times with 1 second delay (both players completing setup simultaneously)
+                    const int MAX_RETRIES = 5;
+                    const int RETRY_DELAY_MS = 1000;
+                    bool fetchSuccess = false;
+
+                    for (int attempt = 1; attempt <= MAX_RETRIES; attempt++)
+                    {
+                        fetchSuccess = await FetchOpponentSetupForMatchmakingAsync();
+                        if (fetchSuccess)
+                        {
+                            hasOpponent = true;
+                            Debug.Log($"[UIFlowController] Successfully fetched opponent setup on attempt {attempt}: {_matchmakingResult.OpponentName}");
+                            break;
+                        }
+
+                        if (attempt < MAX_RETRIES)
+                        {
+                            Debug.Log($"[UIFlowController] Opponent setup not ready, retrying in {RETRY_DELAY_MS}ms (attempt {attempt}/{MAX_RETRIES})...");
+                            await UniTask.Delay(RETRY_DELAY_MS);
+                        }
+                    }
+
+                    if (!fetchSuccess)
+                    {
+                        Debug.LogWarning("[UIFlowController] Failed to fetch opponent setup after all retries - opponent may not have completed setup");
+                    }
+                }
+
+                if (hasOpponent || _matchmakingResult.OpponentSetupLoaded)
+                {
+                    // Opponent data available - use their setup data
                     opponentName = _matchmakingResult.OpponentName;
                     _waitingForOpponent = false;
 
-                    // Load opponent's setup from NetworkingUIResult (populated by HandleOpponentJoined)
                     if (_matchmakingResult.OpponentSetupLoaded)
                     {
                         opponentGridSize = _matchmakingResult.OpponentGridSize;
                         opponentWordCount = _matchmakingResult.OpponentWordCount;
                         opponentColor = _matchmakingResult.OpponentColor;
-                        Debug.Log($"[UIFlowController] Online game with opponent: {opponentName}, grid={opponentGridSize}, words={opponentWordCount}");
+                        opponentDifficultyStr = _matchmakingResult.OpponentDifficulty; // Capture opponent's difficulty
+                        Debug.Log($"[UIFlowController] Online game with opponent: {opponentName}, grid={opponentGridSize}, words={opponentWordCount}, difficulty={opponentDifficultyStr}");
+
+                        // Decrypt opponent's word placements for attack grid
+                        GameSessionWithPlayers gameWithPlayers = await _gameSessionService.GetGameWithPlayers(_matchmakingResult.GameCode);
+                        if (gameWithPlayers?.Session != null)
+                        {
+                            DLYHGameState gameState = GameStateManager.ParseGameStateJson(gameWithPlayers.Session.StateJson);
+                            DLYHPlayerData opponentPlayerData = _matchmakingResult.IsHost ? gameState?.player2 : gameState?.player1;
+                            if (opponentPlayerData != null && !string.IsNullOrEmpty(opponentPlayerData.wordPlacementsEncrypted))
+                            {
+                                opponentWordPlacements = GameStateManager.DecryptWordPlacements(opponentPlayerData.wordPlacementsEncrypted, _currentGameCode);
+                                Debug.Log($"[UIFlowController] Online game - decrypted {opponentWordPlacements.Count} opponent word placements");
+                            }
+                        }
 
                         // Create RemotePlayerOpponent for real multiplayer (Session 5)
                         await CreateRemotePlayerOpponentAsync(opponentName, opponentColor, opponentGridSize, opponentWordCount);
@@ -6161,13 +6319,17 @@ namespace DLYH.TableUI
             int playerMissLimit = DifficultyCalculator.CalculateMissLimitForPlayer(
                 playerDifficulty, opponentGridSize, opponentWordCount);
 
-            // AI's miss limit is based on PLAYER's grid + inverse difficulty
-            DifficultySetting inverseDifficulty = GetInverseDifficulty(playerDifficulty);
+            // Opponent's miss limit is based on PLAYER's grid + opponent's difficulty
+            // For real multiplayer: use opponent's actual difficulty from their player data
+            // For AI/Solo: use inverse of player's difficulty (symmetric challenge)
+            DifficultySetting opponentDifficulty = !string.IsNullOrEmpty(opponentDifficultyStr)
+                ? GetDifficultySettingFromString(opponentDifficultyStr)
+                : GetInverseDifficulty(playerDifficulty);
             int opponentMissLimit = DifficultyCalculator.CalculateMissLimitForPlayer(
-                inverseDifficulty, playerGridSize, playerWordCount);
+                opponentDifficulty, playerGridSize, playerWordCount);
 
-            Debug.Log($"[UIFlowController] Miss limits - Player: {playerMissLimit} (vs {opponentGridSize}x{opponentGridSize}), " +
-                      $"AI: {opponentMissLimit} (vs {playerGridSize}x{playerGridSize})");
+            Debug.Log($"[UIFlowController] Miss limits - Player: {playerMissLimit} (difficulty={playerDifficulty}, vs {opponentGridSize}x{opponentGridSize}), " +
+                      $"Opponent: {opponentMissLimit} (difficulty={opponentDifficulty}, vs {playerGridSize}x{playerGridSize})");
 
             // Create player tab data
             PlayerTabData playerData = new PlayerTabData
@@ -7171,6 +7333,110 @@ namespace DLYH.TableUI
         #region Opponent Join Events
 
         /// <summary>
+        /// Fetches opponent setup data for matchmaking games.
+        /// Called when a real opponent is matched via Find Opponent but setup data was not included in the result.
+        /// This is different from HandleOpponentJoined which is for live join detection in private games.
+        /// </summary>
+        /// <returns>True if opponent setup was successfully loaded</returns>
+        private async UniTask<bool> FetchOpponentSetupForMatchmakingAsync()
+        {
+            if (_matchmakingResult == null || string.IsNullOrEmpty(_matchmakingResult.GameCode))
+            {
+                Debug.LogError("[UIFlowController] FetchOpponentSetupForMatchmakingAsync: No game code available");
+                return false;
+            }
+
+            string gameCode = _matchmakingResult.GameCode;
+            bool isHost = _matchmakingResult.IsHost;
+
+            Debug.Log($"[UIFlowController] Fetching opponent setup for matchmaking game {gameCode}, isHost={isHost}");
+
+            try
+            {
+                // Fetch game with players from Supabase
+                GameSessionWithPlayers gameWithPlayers = await _gameSessionService.GetGameWithPlayers(gameCode);
+                if (gameWithPlayers == null || gameWithPlayers.Session == null)
+                {
+                    Debug.LogError($"[UIFlowController] FetchOpponentSetupForMatchmakingAsync: Game {gameCode} not found");
+                    return false;
+                }
+
+                // Parse game state to get player data
+                DLYHGameState gameState = GameStateManager.ParseGameStateJson(gameWithPlayers.Session.StateJson);
+                if (gameState == null)
+                {
+                    Debug.LogError("[UIFlowController] FetchOpponentSetupForMatchmakingAsync: Failed to parse game state");
+                    return false;
+                }
+
+                // Determine which player is the opponent based on IsHost
+                // IsHost = true means we are player1, opponent is player2
+                // IsHost = false means we are player2, opponent is player1
+                DLYHPlayerData opponentData = isHost ? gameState.player2 : gameState.player1;
+
+                if (opponentData == null)
+                {
+                    Debug.LogWarning("[UIFlowController] FetchOpponentSetupForMatchmakingAsync: Opponent data not yet available in game state");
+                    return false;
+                }
+
+                if (!opponentData.setupComplete)
+                {
+                    Debug.LogWarning("[UIFlowController] FetchOpponentSetupForMatchmakingAsync: Opponent setup not complete yet");
+                    return false;
+                }
+
+                // Populate _matchmakingResult with opponent setup data
+                _matchmakingResult.OpponentGridSize = opponentData.gridSize;
+                _matchmakingResult.OpponentWordCount = opponentData.wordCount;
+                _matchmakingResult.OpponentDifficulty = opponentData.difficulty;
+
+                // Get opponent name from game state or session_players
+                if (!string.IsNullOrEmpty(opponentData.name))
+                {
+                    _matchmakingResult.OpponentName = opponentData.name;
+                }
+                else
+                {
+                    // Try to get from session_players
+                    int opponentPlayerNumber = isHost ? 2 : 1;
+                    foreach (SessionPlayer player in gameWithPlayers.Players)
+                    {
+                        if (player.PlayerNumber == opponentPlayerNumber)
+                        {
+                            _matchmakingResult.OpponentName = player.PlayerName ?? "Opponent";
+                            break;
+                        }
+                    }
+                }
+
+                // Parse opponent color
+                Color opponentColor = new Color(0.6f, 0.1f, 0.1f, 1f); // Default dark red
+                if (!string.IsNullOrEmpty(opponentData.color))
+                {
+                    if (ColorUtility.TryParseHtmlString(opponentData.color, out Color parsedColor))
+                    {
+                        opponentColor = parsedColor;
+                    }
+                }
+                _matchmakingResult.OpponentColor = opponentColor;
+
+                _matchmakingResult.OpponentSetupLoaded = true;
+
+                Debug.Log($"[UIFlowController] FetchOpponentSetupForMatchmakingAsync: Loaded opponent setup - " +
+                          $"name={_matchmakingResult.OpponentName}, grid={opponentData.gridSize}, " +
+                          $"words={opponentData.wordCount}, difficulty={opponentData.difficulty}");
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[UIFlowController] FetchOpponentSetupForMatchmakingAsync error: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Called when opponent joins a private game.
         /// Updates UI, enables gameplay, loads opponent setup, and refreshes Active Games list.
         /// </summary>
@@ -7194,6 +7460,7 @@ namespace DLYH.TableUI
                 {
                     _matchmakingResult.OpponentGridSize = opponentData.gridSize;
                     _matchmakingResult.OpponentWordCount = opponentData.wordCount;
+                    _matchmakingResult.OpponentDifficulty = opponentData.difficulty; // For miss limit calculation
 
                     // Parse color from hex string
                     Color opponentColor = new Color(0.6f, 0.1f, 0.1f, 1f); // Default dark red
@@ -7258,7 +7525,7 @@ namespace DLYH.TableUI
 
             // Decrypt opponent word placements
             List<WordPlacementData> opponentPlacements = !string.IsNullOrEmpty(opponentData.wordPlacementsEncrypted)
-                ? GameStateManager.DecryptWordPlacements(opponentData.wordPlacementsEncrypted)
+                ? GameStateManager.DecryptWordPlacements(opponentData.wordPlacementsEncrypted, _currentGameCode)
                 : new List<WordPlacementData>();
 
             Debug.Log($"[UIFlowController] Rebuilding UI for opponent join - grid={opponentGridSize}, words={opponentWordCount}, placements={opponentPlacements.Count}");
@@ -7267,11 +7534,16 @@ namespace DLYH.TableUI
             _opponentWordPlacements = opponentPlacements;
 
             // Calculate miss limits
+            // Player's miss limit = player's difficulty + opponent's grid
             int playerMissLimit = DifficultyCalculator.CalculateMissLimitForPlayer(
                 _playerSetupData.DifficultyLevel, opponentGridSize, opponentWordCount);
+            // Opponent's miss limit = opponent's actual difficulty + player's grid
+            DifficultySetting opponentDifficulty = !string.IsNullOrEmpty(opponentData.difficulty)
+                ? GetDifficultySettingFromString(opponentData.difficulty)
+                : GetInverseDifficulty(_playerSetupData.DifficultyLevel);
             int opponentMissLimit = DifficultyCalculator.CalculateMissLimitForPlayer(
-                GetInverseDifficulty(_playerSetupData.DifficultyLevel),
-                _playerSetupData.GridSize, _playerSetupData.WordCount);
+                opponentDifficulty, _playerSetupData.GridSize, _playerSetupData.WordCount);
+            Debug.Log($"[UIFlowController] UI Rebuild miss limits - player={playerMissLimit} (diff={_playerSetupData.DifficultyLevel}), opponent={opponentMissLimit} (diff={opponentDifficulty})");
 
             // Update player tab data with correct opponent info
             PlayerTabData playerTabData = new PlayerTabData

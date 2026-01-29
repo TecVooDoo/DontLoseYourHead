@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace TecVooDoo.DontLoseYourHead.Core
+namespace DLYH.Core.GameState
 {
     /// <summary>
     /// Static utility class for calculating difficulty-related values.

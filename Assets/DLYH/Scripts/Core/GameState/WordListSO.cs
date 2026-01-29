@@ -2,7 +2,7 @@ using UnityEngine;
 using Sirenix.OdinInspector;
 using System.Collections.Generic;
 
-namespace TecVooDoo.DontLoseYourHead.Core
+namespace DLYH.Core.GameState
 {
     /// <summary>
     /// ScriptableObject that holds a filtered list of words of a specific length

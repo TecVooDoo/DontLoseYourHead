@@ -14,8 +14,11 @@ namespace DLYH.TableUI
         private TableModel _model;
         private VisualElement _root;
         private VisualElement _tableRoot;
+        private VisualElement _measurementSlot; // Stable slot element for measuring available space (e.g., grid-area)
         private VisualElement[,] _cellElements;
         private Label[,] _cellLabels;
+        private bool _geometryCallbackRegistered = false;
+        private int _lastCalculatedCellSize = 0; // Track last calculated cell size to prevent unnecessary recalcs
 
         private int _lastVersion = -1;
         private Color _player1Color = ColorRules.SelectableColors[0]; // Blue default
@@ -50,20 +53,11 @@ namespace DLYH.TableUI
         // Calculated cell size for viewport-aware sizing (0 = use CSS class defaults)
         private int _calculatedCellSize = 0;
 
-        // Constants for viewport-aware sizing
-        private const int CELL_MARGIN = 2;                 // 1px margin on each side (2px total per cell)
+        // Constants for container-aware sizing
+        // IMPORTANT: CELL_MARGIN_PX must match USS margin: 1px on .table-cell
+        private const int CELL_MARGIN_PX = 1;              // Must match USS margin value
         private const int MIN_CELL_SIZE = 18;              // Minimum readable cell size
         private const int MAX_CELL_SIZE = 52;              // Maximum cell size (prevent oversized cells)
-
-        // Reference resolution for scaling calculations
-        private const int REFERENCE_HEIGHT = 1080;         // Design reference height (1080p)
-
-        // UI overhead at reference resolution (512px at 1080p)
-        // These scale proportionally with screen height
-        private const int UI_OVERHEAD_AT_REFERENCE = 512;  // Total UI overhead at 1080p
-
-        // Minimum overhead to prevent UI elements getting too cramped
-        private const int MIN_UI_OVERHEAD = 350;
 
         // State classes - must match TableCellState enum order
         private static readonly string[] StateClasses = new string[]
@@ -127,6 +121,85 @@ namespace DLYH.TableUI
                 _tableRoot.AddToClassList("table-root");
                 _root.Add(_tableRoot);
             }
+
+            // Don't auto-detect measurement slot here - caller should set it explicitly
+            // via SetMeasurementSlot() to ensure we measure from a stable layout slot
+            _measurementSlot = null;
+        }
+
+        /// <summary>
+        /// Sets the stable slot element used for measuring available space.
+        /// IMPORTANT: Pass a layout-stable element like 'grid-area' that is sized by its parent,
+        /// NOT a content-driven element like 'table-container' that shrinks with its children.
+        /// This prevents cascading resize loops.
+        /// </summary>
+        public void SetMeasurementSlot(VisualElement slot)
+        {
+            if (slot == null) return;
+
+            // Unregister old callback if needed
+            if (_geometryCallbackRegistered && _measurementSlot != null)
+            {
+                _measurementSlot.UnregisterCallback<GeometryChangedEvent>(OnSlotGeometryChanged);
+                _geometryCallbackRegistered = false;
+            }
+
+            _measurementSlot = slot;
+
+            // Reset so first real resize is not skipped
+            _lastCalculatedCellSize = 0;
+
+            // Register geometry callback on new slot
+            RegisterGeometryCallback();
+        }
+
+        /// <summary>
+        /// Legacy method - redirects to SetMeasurementSlot.
+        /// </summary>
+        public void SetContainer(VisualElement container)
+        {
+            SetMeasurementSlot(container);
+        }
+
+        /// <summary>
+        /// Registers the GeometryChangedEvent callback on the measurement slot.
+        /// </summary>
+        private void RegisterGeometryCallback()
+        {
+            if (_measurementSlot != null && !_geometryCallbackRegistered)
+            {
+                _measurementSlot.RegisterCallback<GeometryChangedEvent>(OnSlotGeometryChanged);
+                _geometryCallbackRegistered = true;
+            }
+        }
+
+        /// <summary>
+        /// Called when the measurement slot's geometry changes (resize, orientation change, etc.)
+        /// Because we measure a stable slot (not content-driven), this won't cascade.
+        /// </summary>
+        private void OnSlotGeometryChanged(GeometryChangedEvent evt)
+        {
+            // Only recalculate if we have a model bound
+            if (_model == null || _cellElements == null) return;
+
+            // Get slot dimensions
+            float availW = _measurementSlot.contentRect.width;
+            float availH = _measurementSlot.contentRect.height;
+
+            if (availW <= 0 || availH <= 0) return;
+
+            // Calculate what the new cell size would be
+            int newCellSize = CalculateContainerAwareCellSize(_model.Rows, _model.Cols, availW, availH);
+
+            // Guard: only apply if cell size actually changed (avoids unnecessary layout thrash)
+            if (newCellSize == _lastCalculatedCellSize)
+            {
+                return;
+            }
+
+            _lastCalculatedCellSize = newCellSize;
+            _calculatedCellSize = newCellSize;
+            ApplyCellSizes(newCellSize);
         }
 
         /// <summary>
@@ -143,6 +216,9 @@ namespace DLYH.TableUI
             _model = model ?? throw new ArgumentNullException(nameof(model));
             _model.OnCellChanged += HandleCellChanged;
             _model.OnCleared += HandleModelCleared;
+
+            // Reset so first resize is not skipped
+            _lastCalculatedCellSize = 0;
 
             GenerateCells();
             RefreshAll();
@@ -241,46 +317,42 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
-        /// Calculates the optimal cell size based on available viewport space.
-        /// Dynamically fills the available space while respecting min/max bounds.
+        /// Calculates the optimal cell size based on the container's actual resolved dimensions.
+        /// Uses WIDTH only - vertical overflow triggers scroll.
         /// Returns the cell size in pixels.
         /// </summary>
-        private int CalculateViewportAwareCellSize(int gridRows)
+        private int CalculateContainerAwareCellSize(int rows, int cols, float availableWidth, float availableHeight)
         {
-            // Get current screen height
-            int screenHeight = Screen.height;
+            // Each cell occupies (cellSize + margin on both sides)
+            float perCellMargin = CELL_MARGIN_PX * 2f;
 
-            // Scale UI overhead proportionally with screen height
-            // At 1080p we use 512px, at 768p we scale down proportionally
-            float scaleFactor = (float)screenHeight / REFERENCE_HEIGHT;
-            int scaledOverhead = Mathf.Max(MIN_UI_OVERHEAD, (int)(UI_OVERHEAD_AT_REFERENCE * scaleFactor));
+            // Calculate max cell size that fits width constraint only
+            // Height overflow is handled by scroll view
+            float sizeFromWidth = (availableWidth / cols) - perCellMargin;
 
-            // Calculate available height for the grid
-            int availableHeight = screenHeight - scaledOverhead;
-
-            // Ensure positive available space
-            if (availableHeight < 100)
-            {
-                availableHeight = 100;
-            }
-
-            // Grid rows includes header row, so total cells = gridRows
-            // Each cell has margin on both sides: CELL_MARGIN * 2 = 4px per cell
-            int totalMargin = gridRows * (CELL_MARGIN * 2);
-
-            // Available for actual cell content
-            int availableForCells = availableHeight - totalMargin;
-
-            // Calculate ideal cell size to fill available space
-            int idealCellSize = availableForCells / gridRows;
+            int idealCellSize = Mathf.FloorToInt(sizeFromWidth);
 
             // Clamp to reasonable bounds
             int finalCellSize = Mathf.Clamp(idealCellSize, MIN_CELL_SIZE, MAX_CELL_SIZE);
 
-            int gridSize = gridRows - 1;
-            Debug.Log($"[TableView] Viewport sizing: Screen {screenHeight}px (scale {scaleFactor:F2}), Overhead {scaledOverhead}px, Available {availableHeight}px, Grid {gridSize}x{gridSize} ({gridRows} rows), Ideal {idealCellSize}px -> Final {finalCellSize}px");
+            int gridSize = rows - 1; // rows includes header
+            Debug.Log($"[TableView] Container sizing: Available {availableWidth:F0}x{availableHeight:F0}px, Grid {gridSize}x{gridSize} ({rows} rows), " +
+                      $"FromW={sizeFromWidth:F1}px -> Final {finalCellSize}px");
 
             return finalCellSize;
+        }
+
+        /// <summary>
+        /// Fallback calculation using Screen dimensions when container size is not yet available.
+        /// Uses a conservative estimate for the grid area.
+        /// </summary>
+        private int CalculateFallbackCellSize(int rows, int cols)
+        {
+            // Use screen dimensions as fallback, with conservative estimates
+            float availableWidth = Screen.width * 0.9f;  // Assume 90% of screen width
+            float availableHeight = Screen.height * 0.5f; // Assume 50% of screen height for grid
+
+            return CalculateContainerAwareCellSize(rows, cols, availableWidth, availableHeight);
         }
 
         /// <summary>
@@ -307,8 +379,19 @@ namespace DLYH.TableUI
             // Determine cell size based on grid dimensions (CSS class fallback)
             _currentSizeClass = DetermineSizeClass(rows, cols);
 
-            // Calculate viewport-aware cell size
-            _calculatedCellSize = CalculateViewportAwareCellSize(rows);
+            // Try to calculate cell size from measurement slot, fall back to screen-based estimate
+            if (_measurementSlot != null && _measurementSlot.resolvedStyle.width > 0 && _measurementSlot.resolvedStyle.height > 0)
+            {
+                float availW = _measurementSlot.contentRect.width;
+                float availH = _measurementSlot.contentRect.height;
+                _calculatedCellSize = CalculateContainerAwareCellSize(rows, cols, availW, availH);
+            }
+            else
+            {
+                // Slot not yet laid out, use fallback
+                _calculatedCellSize = CalculateFallbackCellSize(rows, cols);
+            }
+            _lastCalculatedCellSize = _calculatedCellSize;
 
             _cellElements = new VisualElement[rows, cols];
             _cellLabels = new Label[rows, cols];
@@ -327,6 +410,12 @@ namespace DLYH.TableUI
 
                 _tableRoot.Add(rowElement);
             }
+
+            // Note: We do NOT set explicit size on _tableRoot anymore.
+            // Since we measure from a stable slot (grid-area), there's no feedback loop.
+
+            // Register geometry callback to recalculate when slot resizes
+            RegisterGeometryCallback();
         }
 
         /// <summary>
@@ -580,6 +669,13 @@ namespace DLYH.TableUI
         /// </summary>
         public void Unbind()
         {
+            // Unregister geometry callback
+            if (_geometryCallbackRegistered && _measurementSlot != null)
+            {
+                _measurementSlot.UnregisterCallback<GeometryChangedEvent>(OnSlotGeometryChanged);
+                _geometryCallbackRegistered = false;
+            }
+
             if (_model != null)
             {
                 _model.OnCellChanged -= HandleCellChanged;
@@ -623,40 +719,85 @@ namespace DLYH.TableUI
         }
 
         /// <summary>
-        /// Forces recalculation of cell sizes based on current screen dimensions.
-        /// Call this when the screen size changes.
+        /// Forces recalculation of cell sizes based on container dimensions.
+        /// Automatically called on GeometryChangedEvent.
         /// </summary>
         public void RecalculateSizes()
         {
-            if (_model != null)
+            RecalculateSizesFromContainer();
+        }
+
+        /// <summary>
+        /// Recalculates cell sizes using the measurement slot's actual resolved dimensions.
+        /// This is the preferred method - uses real layout measurements instead of Screen size.
+        /// </summary>
+        private void RecalculateSizesFromContainer()
+        {
+            if (_model == null || _cellElements == null) return;
+
+            int rows = _model.Rows;
+            int cols = _model.Cols;
+
+            // Get slot dimensions
+            float availW = 0;
+            float availH = 0;
+
+            if (_measurementSlot != null && _measurementSlot.resolvedStyle.width > 0)
             {
-                _calculatedCellSize = CalculateViewportAwareCellSize(_model.Rows);
+                availW = _measurementSlot.contentRect.width;
+                availH = _measurementSlot.contentRect.height;
+            }
 
-                // Update all cell sizes
-                if (_cellElements != null && _calculatedCellSize > 0)
+            // If slot size is valid, use it; otherwise use fallback
+            int newCellSize;
+            if (availW > 0 && availH > 0)
+            {
+                newCellSize = CalculateContainerAwareCellSize(rows, cols, availW, availH);
+            }
+            else
+            {
+                newCellSize = CalculateFallbackCellSize(rows, cols);
+            }
+
+            // Only apply if size actually changed
+            if (newCellSize != _lastCalculatedCellSize)
+            {
+                _lastCalculatedCellSize = newCellSize;
+                _calculatedCellSize = newCellSize;
+                ApplyCellSizes(newCellSize);
+            }
+        }
+
+        /// <summary>
+        /// Applies the calculated cell size to all cells.
+        /// </summary>
+        private void ApplyCellSizes(int cellSize)
+        {
+            if (_cellElements == null || cellSize <= 0) return;
+
+            int fontSize = GetFontSizeForCellSize(cellSize);
+
+            for (int row = 0; row < _model.Rows; row++)
+            {
+                for (int col = 0; col < _model.Cols; col++)
                 {
-                    int fontSize = GetFontSizeForCellSize(_calculatedCellSize);
-
-                    for (int row = 0; row < _model.Rows; row++)
+                    VisualElement cell = _cellElements[row, col];
+                    if (cell != null)
                     {
-                        for (int col = 0; col < _model.Cols; col++)
-                        {
-                            VisualElement cell = _cellElements[row, col];
-                            if (cell != null)
-                            {
-                                cell.style.width = _calculatedCellSize;
-                                cell.style.height = _calculatedCellSize;
-                            }
+                        cell.style.width = cellSize;
+                        cell.style.height = cellSize;
+                    }
 
-                            Label label = _cellLabels[row, col];
-                            if (label != null)
-                            {
-                                label.style.fontSize = fontSize;
-                            }
-                        }
+                    Label label = _cellLabels[row, col];
+                    if (label != null)
+                    {
+                        label.style.fontSize = fontSize;
                     }
                 }
             }
+
+            // Note: We do NOT set explicit size on _tableRoot anymore.
+            // Since we measure from a stable slot, there's no feedback loop.
         }
     }
 }
