@@ -14,6 +14,7 @@ namespace DLYH.TableUI
         public Color Color;
         public int MissCount;
         public int MissLimit;
+        public int HeadIndex;
         public bool IsLocalPlayer;
     }
 
@@ -38,14 +39,6 @@ namespace DLYH.TableUI
         // Stage thresholds as percentages (25% increments, stage 5 only at execution)
         private static readonly float[] STAGE_THRESHOLDS = new float[] { 0f, 25f, 50f, 75f, 100f };
 
-        // Face expressions based on stage
-        private static readonly string FACE_HAPPY = ":-)";
-        private static readonly string FACE_NEUTRAL = ":-|";
-        private static readonly string FACE_WORRIED = ":-/";
-        private static readonly string FACE_SCARED = ":-O";
-        private static readonly string FACE_HORROR = "X-O";
-        private static readonly string FACE_EVIL = ">:-)";
-
         // Flavor text by stage
         private static readonly string[][] STAGE_FLAVOR = new string[][]
         {
@@ -67,6 +60,9 @@ namespace DLYH.TableUI
         private Button _closeButton;
         private Label _titleLabel;
 
+        // Head character data for layered head textures
+        private HeadCharacterData _headData;
+
         // Player guillotine elements
         private VisualElement _playerPanel;
         private VisualElement _playerColorBadge;
@@ -74,7 +70,10 @@ namespace DLYH.TableUI
         private VisualElement _playerBladeGroup;
         private VisualElement _playerRope;
         private VisualElement _playerHead;
-        private Label _playerHeadFace;
+        private VisualElement _playerHeadHairBack;
+        private VisualElement _playerHeadBase;
+        private VisualElement _playerHeadFaceLayer;
+        private VisualElement _playerHeadHair;
         private Label _playerMissLabel;
         private VisualElement _playerDangerFill;
         private Label _playerFlavorText;
@@ -89,7 +88,10 @@ namespace DLYH.TableUI
         private VisualElement _opponentBladeGroup;
         private VisualElement _opponentRope;
         private VisualElement _opponentHead;
-        private Label _opponentHeadFace;
+        private VisualElement _opponentHeadHairBack;
+        private VisualElement _opponentHeadBase;
+        private VisualElement _opponentHeadFaceLayer;
+        private VisualElement _opponentHeadHair;
         private Label _opponentMissLabel;
         private VisualElement _opponentDangerFill;
         private Label _opponentFlavorText;
@@ -120,9 +122,10 @@ namespace DLYH.TableUI
         /// <summary>
         /// Initializes the guillotine overlay manager with the given root element.
         /// </summary>
-        public void Initialize(VisualElement root)
+        public void Initialize(VisualElement root, HeadCharacterData headData = null)
         {
             _root = root ?? throw new ArgumentNullException(nameof(root));
+            _headData = headData;
 
             _overlayRoot = _root.Q<VisualElement>("guillotine-overlay-root");
 
@@ -153,7 +156,10 @@ namespace DLYH.TableUI
             _playerBladeGroup = _overlayRoot.Q<VisualElement>("player-blade-group");
             _playerRope = _overlayRoot.Q<VisualElement>("player-rope");
             _playerHead = _overlayRoot.Q<VisualElement>("player-head");
-            _playerHeadFace = _overlayRoot.Q<Label>("player-head-face");
+            _playerHeadHairBack = _overlayRoot.Q<VisualElement>("player-head-hair-back");
+            _playerHeadBase = _overlayRoot.Q<VisualElement>("player-head-base");
+            _playerHeadFaceLayer = _overlayRoot.Q<VisualElement>("player-head-face");
+            _playerHeadHair = _overlayRoot.Q<VisualElement>("player-head-hair");
             _playerMissLabel = _overlayRoot.Q<Label>("player-miss-label");
             _playerDangerFill = _overlayRoot.Q<VisualElement>("player-danger-fill");
             _playerFlavorText = _overlayRoot.Q<Label>("player-flavor-text");
@@ -181,7 +187,10 @@ namespace DLYH.TableUI
             _opponentBladeGroup = _overlayRoot.Q<VisualElement>("opponent-blade-group");
             _opponentRope = _overlayRoot.Q<VisualElement>("opponent-rope");
             _opponentHead = _overlayRoot.Q<VisualElement>("opponent-head");
-            _opponentHeadFace = _overlayRoot.Q<Label>("opponent-head-face");
+            _opponentHeadHairBack = _overlayRoot.Q<VisualElement>("opponent-head-hair-back");
+            _opponentHeadBase = _overlayRoot.Q<VisualElement>("opponent-head-base");
+            _opponentHeadFaceLayer = _overlayRoot.Q<VisualElement>("opponent-head-face");
+            _opponentHeadHair = _overlayRoot.Q<VisualElement>("opponent-head-hair");
             _opponentMissLabel = _overlayRoot.Q<Label>("opponent-miss-label");
             _opponentDangerFill = _overlayRoot.Q<VisualElement>("opponent-danger-fill");
             _opponentFlavorText = _overlayRoot.Q<Label>("opponent-flavor-text");
@@ -241,6 +250,10 @@ namespace DLYH.TableUI
         {
             _playerData = playerData;
             _opponentData = opponentData;
+
+            // Set head textures from HeadCharacterData
+            SetHeadTextures(true, playerData.HeadIndex, playerData.Color);
+            SetHeadTextures(false, opponentData.HeadIndex, opponentData.Color);
 
             UpdatePlayerDisplay(initialPlayerStage);
             UpdateOpponentDisplay(initialOpponentStage);
@@ -349,11 +362,8 @@ namespace DLYH.TableUI
             // Lever position (uses stage class) - may use initial stage for delayed animation
             UpdateLeverPosition(_playerLeverArm, bladeStage);
 
-            // Face expression
-            if (_playerHeadFace != null)
-            {
-                _playerHeadFace.text = GetFaceExpression(stage, false);
-            }
+            // Face expression (stage 1-4 maps to face 0-3)
+            UpdateFaceExpression(true, _playerData.HeadIndex, GetFaceIndexFromStage(stage));
 
             // Flavor text
             if (_playerFlavorText != null)
@@ -422,11 +432,8 @@ namespace DLYH.TableUI
             // Lever position (uses stage class) - may use initial stage for delayed animation
             UpdateLeverPosition(_opponentLeverArm, bladeStage);
 
-            // Face expression
-            if (_opponentHeadFace != null)
-            {
-                _opponentHeadFace.text = GetFaceExpression(stage, true);
-            }
+            // Face expression (stage 1-4 maps to face 0-3)
+            UpdateFaceExpression(false, _opponentData.HeadIndex, GetFaceIndexFromStage(stage));
 
             // Flavor text
             if (_opponentFlavorText != null)
@@ -454,6 +461,83 @@ namespace DLYH.TableUI
         #endregion
 
         #region Helper Methods
+
+        /// <summary>
+        /// Sets the layered head textures (hair-back, base, hair) for a player or opponent guillotine head.
+        /// Hair layers are tinted with the player's color. Face is set separately via UpdateFaceExpression.
+        /// </summary>
+        private void SetHeadTextures(bool isPlayer, int headIndex, Color hairTint)
+        {
+            if (_headData == null || _headData.Characters == null || _headData.Characters.Length == 0)
+                return;
+
+            int clampedIndex = Mathf.Clamp(headIndex, 0, _headData.Characters.Length - 1);
+            HeadCharacter character = _headData.Characters[clampedIndex];
+
+            VisualElement hairBackLayer = isPlayer ? _playerHeadHairBack : _opponentHeadHairBack;
+            VisualElement baseLayer = isPlayer ? _playerHeadBase : _opponentHeadBase;
+            VisualElement hairLayer = isPlayer ? _playerHeadHair : _opponentHeadHair;
+
+            if (hairBackLayer != null)
+            {
+                if (character.HairBackTexture != null)
+                {
+                    hairBackLayer.style.backgroundImage = new StyleBackground(character.HairBackTexture);
+                    hairBackLayer.style.unityBackgroundImageTintColor = hairTint;
+                }
+                else
+                {
+                    hairBackLayer.style.backgroundImage = StyleKeyword.None;
+                }
+            }
+
+            if (baseLayer != null && character.HeadTexture != null)
+            {
+                baseLayer.style.backgroundImage = new StyleBackground(character.HeadTexture);
+            }
+
+            if (hairLayer != null && character.HairTexture != null)
+            {
+                hairLayer.style.backgroundImage = new StyleBackground(character.HairTexture);
+                hairLayer.style.unityBackgroundImageTintColor = hairTint;
+            }
+
+            // Set initial face (neutral)
+            UpdateFaceExpression(isPlayer, headIndex, 0);
+        }
+
+        /// <summary>
+        /// Updates the face expression texture based on face index.
+        /// Face indices: 0=Neutral, 1=Worried, 2=Scared, 3=Horrified, 4=Dead(loser), 5=Evil(winner)
+        /// </summary>
+        private void UpdateFaceExpression(bool isPlayer, int headIndex, int faceIndex)
+        {
+            if (_headData == null || _headData.Characters == null || _headData.Characters.Length == 0)
+                return;
+
+            int clampedHead = Mathf.Clamp(headIndex, 0, _headData.Characters.Length - 1);
+            HeadCharacter character = _headData.Characters[clampedHead];
+
+            if (character.FaceTextures == null || character.FaceTextures.Length == 0)
+                return;
+
+            int clampedFace = Mathf.Clamp(faceIndex, 0, character.FaceTextures.Length - 1);
+            VisualElement faceLayer = isPlayer ? _playerHeadFaceLayer : _opponentHeadFaceLayer;
+
+            if (faceLayer != null && character.FaceTextures[clampedFace] != null)
+            {
+                faceLayer.style.backgroundImage = new StyleBackground(character.FaceTextures[clampedFace]);
+            }
+        }
+
+        /// <summary>
+        /// Maps a guillotine stage (1-5) to a face index (0-3).
+        /// Stages 1-4 map to faces 0-3. Stage 5 is handled by game over logic (face 4 or 5).
+        /// </summary>
+        private int GetFaceIndexFromStage(int stage)
+        {
+            return Mathf.Clamp(stage - 1, 0, 3);
+        }
 
         private float GetDangerPercent(GuillotineData data)
         {
@@ -602,34 +686,6 @@ namespace DLYH.TableUI
             }
         }
 
-        private string GetFaceExpression(int stage, bool isOpponent)
-        {
-            // For opponent, we're happy when they're in danger
-            if (isOpponent)
-            {
-                switch (stage)
-                {
-                    case 5: return FACE_EVIL;
-                    case 4: return FACE_HAPPY;
-                    case 3: return FACE_NEUTRAL;
-                    case 2: return FACE_WORRIED;
-                    default: return FACE_WORRIED;
-                }
-            }
-            else
-            {
-                // For player, we're scared when in danger
-                switch (stage)
-                {
-                    case 5: return FACE_HORROR;
-                    case 4: return FACE_SCARED;
-                    case 3: return FACE_WORRIED;
-                    case 2: return FACE_NEUTRAL;
-                    default: return FACE_NEUTRAL;
-                }
-            }
-        }
-
         private string GetFlavorText(int stage)
         {
             int index = Mathf.Clamp(stage - 1, 0, STAGE_FLAVOR.Length - 1);
@@ -695,16 +751,16 @@ namespace DLYH.TableUI
                 _opponentPanel?.RemoveFromClassList("loser");
             }
 
-            // Update face expressions for game over
+            // Face 4 = Dead (loser), Face 5 = Evil smile (winner)
             if (playerWon)
             {
-                if (_playerHeadFace != null) _playerHeadFace.text = FACE_HAPPY;
-                if (_opponentHeadFace != null) _opponentHeadFace.text = FACE_HORROR;
+                UpdateFaceExpression(true, playerData.HeadIndex, 5);
+                UpdateFaceExpression(false, opponentData.HeadIndex, 4);
             }
             else
             {
-                if (_playerHeadFace != null) _playerHeadFace.text = FACE_HORROR;
-                if (_opponentHeadFace != null) _opponentHeadFace.text = FACE_EVIL;
+                UpdateFaceExpression(true, playerData.HeadIndex, 4);
+                UpdateFaceExpression(false, opponentData.HeadIndex, 5);
             }
         }
 

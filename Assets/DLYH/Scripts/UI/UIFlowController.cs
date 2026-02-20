@@ -68,6 +68,9 @@ namespace DLYH.TableUI
         [Header("Networking Backend")]
         [SerializeField] private SupabaseConfig _supabaseConfig;
 
+        [Header("Character Data")]
+        [SerializeField] private HeadCharacterData _headCharacterData;
+
         [Header("Word Lists")]
         [SerializeField] private WordListSO _threeLetterWords;
         [SerializeField] private WordListSO _fourLetterWords;
@@ -221,6 +224,8 @@ namespace DLYH.TableUI
         [SerializeField] private List<WordListSO> _wordLists;
         private IOpponent _opponent;
         private PlayerSetupData _playerSetupData;
+        private int _playerHeadIndex;
+        private int _opponentHeadIndex;
         private List<WordPlacementData> _opponentWordPlacements; // Stored for end-game reveal
         private Coroutine _turnDelayCoroutine;
         private Coroutine _opponentTurnTimeoutCoroutine;
@@ -841,6 +846,7 @@ namespace DLYH.TableUI
                 gridSize = _playerSetupData.GridSize,
                 wordCount = _playerSetupData.WordCount,
                 difficulty = _playerSetupData.DifficultyLevel.ToString(),
+                headIndex = _playerSetupData.HeadIndex,
                 ready = true,
                 setupComplete = true,
                 lastActivityAt = DateTime.UtcNow.ToString("o"),
@@ -1184,6 +1190,10 @@ namespace DLYH.TableUI
             Color opponentColor = opponentData != null
                 ? (ParseColorFromHex(opponentData.color) ?? new Color(0.6f, 0.1f, 0.1f))
                 : new Color(0.4f, 0.4f, 0.4f); // Gray for waiting opponent
+
+            // Parse head indexes
+            _playerHeadIndex = myData.headIndex;
+            _opponentHeadIndex = opponentData?.headIndex ?? 0;
 
             // Get difficulty setting (flat structure - no nested setupData)
             DifficultySetting myDifficulty = GetDifficultySettingFromString(myData.difficulty ?? "Normal");
@@ -2053,7 +2063,7 @@ namespace DLYH.TableUI
             _root.Add(_setupWizardScreen);
 
             // Create the wizard UI manager (plain C# class, not MonoBehaviour)
-            _wizardManager = new SetupWizardUIManager(_setupWizardScreen);
+            _wizardManager = new SetupWizardUIManager(_setupWizardScreen, _headCharacterData);
             _wizardManager.OnSetupComplete += HandleSetupComplete;
             _wizardManager.OnQuickSetupRequested += HandleQuickSetup;
             _wizardManager.OnJoinCodeSubmitted += HandleJoinCodeSubmitted;
@@ -2120,7 +2130,7 @@ namespace DLYH.TableUI
 
             // Initialize guillotine overlay manager
             _guillotineOverlayManager = new GuillotineOverlayManager();
-            _guillotineOverlayManager.Initialize(_gameplayScreen);
+            _guillotineOverlayManager.Initialize(_gameplayScreen, _headCharacterData);
             _guillotineOverlayManager.OnClosed += HandleGuillotineOverlayClosed;
 
             // Set QWERTY preference
@@ -2638,6 +2648,7 @@ namespace DLYH.TableUI
                 Color = playerTabData?.Color ?? _wizardManager?.PlayerColor ?? ColorRules.SelectableColors[0],
                 MissCount = playerTabData?.MissCount ?? 0,
                 MissLimit = playerTabData?.MissLimit ?? 20,
+                HeadIndex = _playerHeadIndex,
                 IsLocalPlayer = true
             };
 
@@ -2647,6 +2658,7 @@ namespace DLYH.TableUI
                 Color = opponentTabData?.Color ?? ColorRules.SelectableColors[1],
                 MissCount = opponentTabData?.MissCount ?? 0,
                 MissLimit = opponentTabData?.MissLimit ?? 18,
+                HeadIndex = _opponentHeadIndex,
                 IsLocalPlayer = false
             };
 
@@ -4435,6 +4447,7 @@ namespace DLYH.TableUI
                 Color = playerTabData?.Color ?? _wizardManager?.PlayerColor ?? ColorRules.SelectableColors[0],
                 MissCount = playerTabData?.MissCount ?? 0,
                 MissLimit = playerTabData?.MissLimit ?? 20,
+                HeadIndex = _playerHeadIndex,
                 IsLocalPlayer = true
             };
 
@@ -4444,6 +4457,7 @@ namespace DLYH.TableUI
                 Color = opponentTabData?.Color ?? ColorRules.SelectableColors[1],
                 MissCount = opponentTabData?.MissCount ?? 0,
                 MissLimit = opponentTabData?.MissLimit ?? 18,
+                HeadIndex = _opponentHeadIndex,
                 IsLocalPlayer = false
             };
 
@@ -4472,6 +4486,7 @@ namespace DLYH.TableUI
                 Color = playerTabData?.Color ?? _wizardManager?.PlayerColor ?? ColorRules.SelectableColors[0],
                 MissCount = playerTabData?.MissCount ?? 0,
                 MissLimit = playerTabData?.MissLimit ?? 20,
+                HeadIndex = _playerHeadIndex,
                 IsLocalPlayer = true
             };
 
@@ -4481,6 +4496,7 @@ namespace DLYH.TableUI
                 Color = opponentTabData?.Color ?? ColorRules.SelectableColors[1],
                 MissCount = opponentTabData?.MissCount ?? 0,
                 MissLimit = opponentTabData?.MissLimit ?? 18,
+                HeadIndex = _opponentHeadIndex,
                 IsLocalPlayer = false
             };
 
@@ -6079,8 +6095,10 @@ namespace DLYH.TableUI
             int difficultyIndex = _wizardManager.Difficulty;
             DifficultySetting playerDifficulty = GetDifficultySettingFromIndex(difficultyIndex);
 
+            int playerHeadIndex = _wizardManager.SelectedHeadIndex;
+
             // Capture player's word placements BEFORE transitioning
-            CapturePlayerSetupData(playerName, playerColor, playerGridSize, playerWordCount, playerDifficulty);
+            CapturePlayerSetupData(playerName, playerColor, playerGridSize, playerWordCount, playerDifficulty, playerHeadIndex);
 
             // For all online games (including phantom AI) and JoinGame mode, save player setup to Supabase
             // Phantom AI games are stored in session_players and can be resumed, so they need state saved too
@@ -6096,6 +6114,8 @@ namespace DLYH.TableUI
             int opponentWordCount = playerWordCount;
             Color opponentColor = new Color(0.6f, 0.1f, 0.1f, 1f); // Default dark red
             string opponentName = "EXECUTIONER";
+            // AI gets a random head different from player's
+            _opponentHeadIndex = (_playerHeadIndex + UnityEngine.Random.Range(1, _headCharacterData != null ? _headCharacterData.Characters.Length : 6)) % (_headCharacterData != null ? _headCharacterData.Characters.Length : 6);
             string opponentDifficultyStr = null; // For real multiplayer - opponent's actual difficulty
             List<WordPlacementData> opponentWordPlacements = new List<WordPlacementData>();
 
@@ -6490,8 +6510,9 @@ namespace DLYH.TableUI
         /// <summary>
         /// Captures player's word placements from the placement adapter.
         /// </summary>
-        private void CapturePlayerSetupData(string playerName, Color playerColor, int gridSize, int wordCount, DifficultySetting difficulty)
+        private void CapturePlayerSetupData(string playerName, Color playerColor, int gridSize, int wordCount, DifficultySetting difficulty, int headIndex)
         {
+            _playerHeadIndex = headIndex;
             _playerSetupData = new PlayerSetupData
             {
                 PlayerName = playerName,
@@ -6499,6 +6520,7 @@ namespace DLYH.TableUI
                 GridSize = gridSize,
                 WordCount = wordCount,
                 DifficultyLevel = difficulty,
+                HeadIndex = headIndex,
                 WordLengths = TableLayout.GetStandardWordLengths(wordCount),
                 PlacedWords = new List<WordPlacementData>()
             };

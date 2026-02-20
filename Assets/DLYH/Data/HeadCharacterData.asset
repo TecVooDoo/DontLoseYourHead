@@ -1,0 +1,81 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 83aca15e59e707349ac1fc4a859870be, type: 3}
+  m_Name: HeadCharacterData
+  m_EditorClassIdentifier:
+  Characters:
+  - Name: Man 1
+    HeadTexture: {fileID: 2800000, guid: e8203998367f38e439212ade4479cf93, type: 3}
+    HairTexture: {fileID: 2800000, guid: f2107eadc02c10e40bf4a8dfb3767056, type: 3}
+    HairBackTexture: {fileID: 0}
+    FaceTextures:
+    - {fileID: 2800000, guid: 3a38325ac1d71034a84dd8c1cf0bcb87, type: 3}
+    - {fileID: 2800000, guid: 4abb639375c525945b937803008c0fa0, type: 3}
+    - {fileID: 2800000, guid: c895102e908db0d408f63c2d83984bc5, type: 3}
+    - {fileID: 2800000, guid: c826b38d7b1c2d24290af101c267fce9, type: 3}
+    - {fileID: 2800000, guid: b5435feda4730074fbc8886895a582bd, type: 3}
+    - {fileID: 2800000, guid: 73de7b3980310f947a22eca405b66c53, type: 3}
+  - Name: Man 2
+    HeadTexture: {fileID: 2800000, guid: 2802f59b61acc3c4882264fa2492397b, type: 3}
+    HairTexture: {fileID: 2800000, guid: cc635e25091ab1847a37a1195505ffe8, type: 3}
+    HairBackTexture: {fileID: 0}
+    FaceTextures:
+    - {fileID: 2800000, guid: 2376badb95465c149b94e164b33a5063, type: 3}
+    - {fileID: 2800000, guid: 242ca2704b6f94040a74c893a1c11261, type: 3}
+    - {fileID: 2800000, guid: 5d482ee895453384e9056381d719ce75, type: 3}
+    - {fileID: 2800000, guid: e614383458bb5de4fbb653a7ccc247cd, type: 3}
+    - {fileID: 2800000, guid: 57d2dab114a74d74aa0a3cc8451b0647, type: 3}
+    - {fileID: 2800000, guid: be7fbdefbdcadab43806193c16631a1b, type: 3}
+  - Name: Man 3
+    HeadTexture: {fileID: 2800000, guid: a3cd0a5c26e7f1a4fb7ee529db922c32, type: 3}
+    HairTexture: {fileID: 2800000, guid: 1ebbcf8f8fa37f34cbd6dc0ce16beb31, type: 3}
+    HairBackTexture: {fileID: 0}
+    FaceTextures:
+    - {fileID: 2800000, guid: 2805f09a74fcb52408717dbed2a61a28, type: 3}
+    - {fileID: 2800000, guid: 380ef75f5b6614942ae54db795c6f8f3, type: 3}
+    - {fileID: 2800000, guid: 5c7c1c9628a37eb4daf4a15c9cb79752, type: 3}
+    - {fileID: 2800000, guid: c58196d424ec1884f8c575da06665124, type: 3}
+    - {fileID: 2800000, guid: 047afa2defc76bf408d6b5c3a6ee1439, type: 3}
+    - {fileID: 2800000, guid: 0638380ac4f5d3749a882bb8252f475a, type: 3}
+  - Name: Woman 1
+    HeadTexture: {fileID: 2800000, guid: b7fa26217058b7a409e0b9ad36bbb1c1, type: 3}
+    HairTexture: {fileID: 2800000, guid: 1ca50583b378ca74a816e32f5fdfd12b, type: 3}
+    HairBackTexture: {fileID: 2800000, guid: a40818e3dd7344a4e81b154bdb2c0c0a, type: 3}
+    FaceTextures:
+    - {fileID: 2800000, guid: 699bcf2d4eba54e45bece207a0502b3d, type: 3}
+    - {fileID: 2800000, guid: afb0d7a2c65b899488ea424ede9f70b0, type: 3}
+    - {fileID: 2800000, guid: a5fae73207fc9304588c6d20ddf1db68, type: 3}
+    - {fileID: 2800000, guid: a8d3d91492fa6834294e899865583e7a, type: 3}
+    - {fileID: 2800000, guid: 7bcb8fb06a6204f42b14e185a5276af5, type: 3}
+    - {fileID: 2800000, guid: af43400d4efca494d8cbe1a36990ad17, type: 3}
+  - Name: Woman 2
+    HeadTexture: {fileID: 2800000, guid: 5b8b0a3538653cb43ab659a5d85dbc6d, type: 3}
+    HairTexture: {fileID: 2800000, guid: 3215df1632cbe3c4a8c707bbcba9f566, type: 3}
+    HairBackTexture: {fileID: 0}
+    FaceTextures:
+    - {fileID: 2800000, guid: 058f8f1fe0f0a274ea95d54c12d446dc, type: 3}
+    - {fileID: 2800000, guid: b7eebf91178d3a248a86d53ea3ef123d, type: 3}
+    - {fileID: 2800000, guid: 9d60bce66b3ace54ebb576c66063ac68, type: 3}
+    - {fileID: 2800000, guid: 12b56790012cfdb4ab18cd3e8612943f, type: 3}
+    - {fileID: 2800000, guid: 3684ab4db58cd82459ce599c658401d3, type: 3}
+    - {fileID: 2800000, guid: bd2ee04e733506f47aef3ca21f9a7e65, type: 3}
+  - Name: Woman 3
+    HeadTexture: {fileID: 2800000, guid: 6546de404024e1d4e870b6e28017e9c9, type: 3}
+    HairTexture: {fileID: 2800000, guid: cef0e6d1aaa4894498c0ab1614eb4d4f, type: 3}
+    HairBackTexture: {fileID: 0}
+    FaceTextures:
+    - {fileID: 2800000, guid: 6a90a28a3ddb55a4f8455b958f6dae79, type: 3}
+    - {fileID: 2800000, guid: 9d7d5cc3803fc6949b320687ce355894, type: 3}
+    - {fileID: 2800000, guid: 516a2df1f57a61a45883b20840946a66, type: 3}
+    - {fileID: 2800000, guid: 57375de0872de6f42bab692ce63e560e, type: 3}
+    - {fileID: 2800000, guid: bbcfbfd53a7175148adab0ac84cc15f3, type: 3}
+    - {fileID: 2800000, guid: 6481c8243a8e0b144907ae753cb96db6, type: 3}

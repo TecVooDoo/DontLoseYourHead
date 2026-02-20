@@ -148,9 +148,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 162e66fbda3ef594792f50828ad64fc6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DLYH.Networking.NetworkGameManager
-  _supabaseConfig: {fileID: 0}
-  _disconnectGracePeriodSeconds: 60
-  _inactivityTimeoutSeconds: 259200
 --- !u!4 &216002025
 Transform:
   m_ObjectHideFlags: 0
@@ -412,6 +409,7 @@ MonoBehaviour:
   _waitingRoomUss: {fileID: 7433441132597879392, guid: f948e4502a081a444aae0e8f5d2932ac, type: 3}
   _joinCodeEntryUss: {fileID: 7433441132597879392, guid: cdd3baf3de3d99e44b5810872c41ff1a, type: 3}
   _supabaseConfig: {fileID: 11400000, guid: 94b62ffe5f4cca74abc7df134a4f32ca, type: 2}
+  _headCharacterData: {fileID: 11400000, guid: 420968f3c9abda343899c1e9083be467, type: 2}
   _threeLetterWords: {fileID: 11400000, guid: 06114520cd18e54439e47522617dbaa7, type: 2}
   _fourLetterWords: {fileID: 11400000, guid: 83e7ad5863c5046469a403a9dab4ec0c, type: 2}
   _fiveLetterWords: {fileID: 11400000, guid: d210015902afad641bbdd412067539a2, type: 2}

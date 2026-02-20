@@ -25,6 +25,20 @@
                         <ui:Label text="What should we call you?" class="section-label" />
                         <ui:TextField name="player-name-input" value="Player" class="text-input" />
                     </ui:VisualElement>
+                    <ui:VisualElement name="head-section" class="card-section">
+                        <ui:Label text="Choose Your Head" class="section-label" />
+                        <ui:VisualElement name="head-picker" class="head-picker">
+                            <ui:Button name="btn-head-prev" text="&lt;" class="head-nav-button" />
+                            <ui:VisualElement name="head-preview" class="head-preview">
+                                <ui:VisualElement name="hair-back-layer" class="head-layer" />
+                                <ui:VisualElement name="head-layer" class="head-layer" />
+                                <ui:VisualElement name="face-layer" class="head-layer" />
+                                <ui:VisualElement name="hair-layer" class="head-layer" />
+                            </ui:VisualElement>
+                            <ui:Button name="btn-head-next" text="&gt;" class="head-nav-button" />
+                        </ui:VisualElement>
+                        <ui:Label name="head-name-label" text="" class="head-name-label" />
+                    </ui:VisualElement>
                     <ui:VisualElement name="color-section" class="card-section">
                         <ui:Label text="Your Color" class="section-label" />
                         <ui:VisualElement name="color-picker" class="color-picker">

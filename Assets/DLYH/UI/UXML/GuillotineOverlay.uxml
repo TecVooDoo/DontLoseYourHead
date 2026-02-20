@@ -59,9 +59,12 @@
                             <ui:VisualElement class="lunette-divider" />
                         </ui:VisualElement>
 
-                        <!-- Head -->
+                        <!-- Head (layered: hair-back -> base -> face -> hair) -->
                         <ui:VisualElement name="player-head" class="head">
-                            <ui:Label name="player-head-face" text=":-|" class="head-face" />
+                            <ui:VisualElement name="player-head-hair-back" class="guillotine-head-layer" />
+                            <ui:VisualElement name="player-head-base" class="guillotine-head-layer" />
+                            <ui:VisualElement name="player-head-face" class="guillotine-head-layer" />
+                            <ui:VisualElement name="player-head-hair" class="guillotine-head-layer" />
                         </ui:VisualElement>
 
                         <!-- Basket -->
@@ -131,9 +134,12 @@
                             <ui:VisualElement class="lunette-divider" />
                         </ui:VisualElement>
 
-                        <!-- Head -->
+                        <!-- Head (layered: hair-back -> base -> face -> hair) -->
                         <ui:VisualElement name="opponent-head" class="head">
-                            <ui:Label name="opponent-head-face" text=":-|" class="head-face" />
+                            <ui:VisualElement name="opponent-head-hair-back" class="guillotine-head-layer" />
+                            <ui:VisualElement name="opponent-head-base" class="guillotine-head-layer" />
+                            <ui:VisualElement name="opponent-head-face" class="guillotine-head-layer" />
+                            <ui:VisualElement name="opponent-head-hair" class="guillotine-head-layer" />
                         </ui:VisualElement>
 
                         <!-- Basket -->

@@ -220,10 +220,12 @@ namespace DLYH.AI.Core
                 // Make decision
                 GuessRecommendation recommendation = DecideGuess(gameState);
 
-                OnThinkingComplete?.Invoke();
-
-                // Execute the guess
+                // Execute the guess BEFORE signaling thinking complete,
+                // because HandleOpponentThinkingComplete sets _isPlayerTurn = true
+                // and the guess handlers guard on !_isPlayerTurn
                 ExecuteGuess(recommendation);
+
+                OnThinkingComplete?.Invoke();
             }
             finally
             {

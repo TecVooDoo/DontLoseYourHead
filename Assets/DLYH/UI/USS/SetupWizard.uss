@@ -241,6 +241,55 @@
     border-color: rgb(70, 70, 85);
 }
 
+/* === Head Picker === */
+
+.head-picker {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    margin-top: 8px;
+}
+
+.head-preview {
+    width: 120px;
+    height: 158px;
+    position: relative;
+    margin: 0 12px;
+}
+
+.head-layer {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.head-nav-button {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+    -unity-text-align: middle-center;
+    border-radius: 20px;
+    background-color: rgb(50, 50, 60);
+    border-width: 1px;
+    border-color: rgb(70, 70, 85);
+    color: rgb(200, 200, 210);
+    transition-property: background-color, scale;
+    transition-duration: 0.15s;
+}
+
+.head-nav-button:hover {
+    background-color: rgb(70, 70, 85);
+    scale: 1.1;
+}
+
+.head-name-label {
+    -unity-text-align: middle-center;
+    font-size: 14px;
+    color: rgb(200, 200, 210);
+    margin-top: 4px;
+}
+
 /* === Color Picker === */
 
 .color-picker {

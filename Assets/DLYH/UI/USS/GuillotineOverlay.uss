@@ -298,17 +298,17 @@
     height: 60px;
     border-radius: 0;
     background-color: transparent;
-    background-image: url("project://database/Assets/DLYH/DLYHGraphicAssets/Guillotines/Number1/Head-1-neutral.png");
-    background-size: contain;
-    -unity-background-scale-mode: scale-to-fit;
     align-items: center;
     justify-content: center;
     border-width: 0;
 }
 
-.head-face {
-    /* Hidden - using image now */
-    display: none;
+/* Layered head textures (base -> face -> hair) set via code */
+.guillotine-head-layer {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    -unity-background-scale-mode: scale-to-fit;
 }
 
 /* === Basket === */
@@ -661,10 +661,6 @@
 
 #opponent-blade {
     background-image: url("project://database/Assets/DLYH/DLYHGraphicAssets/Guillotines/Number2/Guillotine-2--blade.png");
-}
-
-#opponent-head {
-    background-image: url("project://database/Assets/DLYH/DLYHGraphicAssets/Guillotines/Number2/Head-2-neutral.png");
 }
 
 #opponent-lever-assembly .lever-arm {

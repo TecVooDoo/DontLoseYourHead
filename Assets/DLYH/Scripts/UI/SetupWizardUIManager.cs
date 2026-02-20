@@ -35,6 +35,7 @@ namespace DLYH.TableUI
             public GameMode GameMode;
             public OnlineMode OnlineMode;
             public bool UseQuickSetup;
+            public int SelectedHeadIndex;
         }
 
         // Defaults
@@ -45,6 +46,7 @@ namespace DLYH.TableUI
 
         // Settings constants (duplicate from UIFlowController for access)
         private const string PREFS_QWERTY_KEYBOARD = "DLYH_QwertyKeyboard";
+        private const string PREFS_SELECTED_HEAD = "DLYH_SelectedHead";
 
         // Root element
         private VisualElement _root;
@@ -80,6 +82,17 @@ namespace DLYH.TableUI
         private TextField _playerNameInput;
         private VisualElement _colorPicker;
 
+        // Head picker
+        private HeadCharacterData _headData;
+        private int _selectedHeadIndex = 0;
+        private VisualElement _hairBackLayer;
+        private VisualElement _headLayer;
+        private VisualElement _faceLayer;
+        private VisualElement _hairLayer;
+        private Label _headNameLabel;
+        private Button _btnHeadPrev;
+        private Button _btnHeadNext;
+
         // State
         private string _playerName = DEFAULT_PLAYER_NAME;
         private Color _playerColor;
@@ -96,6 +109,7 @@ namespace DLYH.TableUI
         public int WordCount => _wordCount;
         public int Difficulty => _difficulty;
         public bool UseQuickSetup => _useQuickSetup;
+        public int SelectedHeadIndex => _selectedHeadIndex;
         public GameMode CurrentGameMode => _gameMode;
         public OnlineMode SelectedOnlineMode => _onlineMode;
 
@@ -122,9 +136,13 @@ namespace DLYH.TableUI
         private Label _wordsSummaryText;
         private Label _difficultySummaryText;
 
-        public SetupWizardUIManager(VisualElement root)
+        public SetupWizardUIManager(VisualElement root, HeadCharacterData headData)
         {
             _root = root;
+            _headData = headData;
+            _selectedHeadIndex = PlayerPrefs.GetInt(PREFS_SELECTED_HEAD, 0);
+            if (_headData != null && _headData.Characters.Length > 0)
+                _selectedHeadIndex = Mathf.Clamp(_selectedHeadIndex, 0, _headData.Characters.Length - 1);
             _playerColor = ColorRules.SelectableColors[0];
             Initialize();
         }
@@ -132,6 +150,7 @@ namespace DLYH.TableUI
         private void Initialize()
         {
             CacheElements();
+            SetupHeadPicker();
             SetupColorPicker();
             SetupGridSizeButtons();
             SetupWordCountButtons();
@@ -227,6 +246,77 @@ namespace DLYH.TableUI
             }
 
             SelectColor(0);
+        }
+
+        private void SetupHeadPicker()
+        {
+            _hairBackLayer = _root.Q<VisualElement>("hair-back-layer");
+            _headLayer = _root.Q<VisualElement>("head-layer");
+            _faceLayer = _root.Q<VisualElement>("face-layer");
+            _hairLayer = _root.Q<VisualElement>("hair-layer");
+            _headNameLabel = _root.Q<Label>("head-name-label");
+            _btnHeadPrev = _root.Q<Button>("btn-head-prev");
+            _btnHeadNext = _root.Q<Button>("btn-head-next");
+
+            if (_btnHeadPrev != null)
+            {
+                _btnHeadPrev.clicked += () =>
+                {
+                    if (_headData == null || _headData.Characters.Length == 0) return;
+                    _selectedHeadIndex = (_selectedHeadIndex - 1 + _headData.Characters.Length) % _headData.Characters.Length;
+                    PlayerPrefs.SetInt(PREFS_SELECTED_HEAD, _selectedHeadIndex);
+                    UpdateHeadPreview();
+                };
+            }
+            if (_btnHeadNext != null)
+            {
+                _btnHeadNext.clicked += () =>
+                {
+                    if (_headData == null || _headData.Characters.Length == 0) return;
+                    _selectedHeadIndex = (_selectedHeadIndex + 1) % _headData.Characters.Length;
+                    PlayerPrefs.SetInt(PREFS_SELECTED_HEAD, _selectedHeadIndex);
+                    UpdateHeadPreview();
+                };
+            }
+
+            UpdateHeadPreview();
+        }
+
+        private void UpdateHeadPreview()
+        {
+            if (_headData == null || _headData.Characters.Length == 0) return;
+
+            HeadCharacter character = _headData.Characters[_selectedHeadIndex];
+
+            // Hair back layer (optional, only Woman 1 uses this)
+            if (_hairBackLayer != null)
+            {
+                if (character.HairBackTexture != null)
+                {
+                    _hairBackLayer.style.backgroundImage = new StyleBackground(character.HairBackTexture);
+                    _hairBackLayer.style.unityBackgroundImageTintColor = _playerColor;
+                }
+                else
+                {
+                    _hairBackLayer.style.backgroundImage = StyleKeyword.None;
+                }
+            }
+
+            if (_headLayer != null && character.HeadTexture != null)
+                _headLayer.style.backgroundImage = new StyleBackground(character.HeadTexture);
+
+            // Face - use first expression (neutral) for preview
+            if (_faceLayer != null && character.FaceTextures != null && character.FaceTextures.Length > 0)
+                _faceLayer.style.backgroundImage = new StyleBackground(character.FaceTextures[0]);
+
+            if (_hairLayer != null && character.HairTexture != null)
+            {
+                _hairLayer.style.backgroundImage = new StyleBackground(character.HairTexture);
+                _hairLayer.style.unityBackgroundImageTintColor = _playerColor;
+            }
+
+            if (_headNameLabel != null)
+                _headNameLabel.text = character.Name;
         }
 
         private void SetupGridSizeButtons()
@@ -513,6 +603,7 @@ namespace DLYH.TableUI
                 }
             }
 
+            UpdateHeadPreview();
             _playerName = _playerNameInput?.value ?? DEFAULT_PLAYER_NAME;
             RevealNextCardAfterProfile();
         }
@@ -636,7 +727,8 @@ namespace DLYH.TableUI
                 Difficulty = _difficulty,
                 GameMode = _gameMode,
                 OnlineMode = _onlineMode,
-                UseQuickSetup = _useQuickSetup
+                UseQuickSetup = _useQuickSetup,
+                SelectedHeadIndex = _selectedHeadIndex
             };
             OnSetupComplete?.Invoke(data);
 
@@ -838,6 +930,7 @@ namespace DLYH.TableUI
             _useQuickSetup = true;
             _onlineMode = OnlineMode.FindOpponent;
             _selectedColorIndex = 0;
+            _selectedHeadIndex = 0;
             _playerColor = ColorRules.SelectableColors[0];
 
             if (_playerNameInput != null) _playerNameInput.value = DEFAULT_PLAYER_NAME;
@@ -876,6 +969,8 @@ namespace DLYH.TableUI
                         _colorSwatches[i].RemoveFromClassList("selected");
                 }
             }
+
+            UpdateHeadPreview();
         }
 
         public SetupData GetCurrentSetup()
@@ -889,7 +984,8 @@ namespace DLYH.TableUI
                 Difficulty = _difficulty,
                 GameMode = _gameMode,
                 OnlineMode = _onlineMode,
-                UseQuickSetup = _useQuickSetup
+                UseQuickSetup = _useQuickSetup,
+                SelectedHeadIndex = _selectedHeadIndex
             };
         }
     }

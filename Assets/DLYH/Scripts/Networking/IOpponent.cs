@@ -24,6 +24,7 @@ namespace DLYH.Networking
         public int GridSize;
         public int WordCount;
         public DifficultySetting DifficultyLevel;
+        public int HeadIndex;
         public int[] WordLengths;
         public List<WordPlacementData> PlacedWords;
 

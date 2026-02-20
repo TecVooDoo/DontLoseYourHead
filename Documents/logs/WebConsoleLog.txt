@@ -1,0 +1,145 @@
+First Test:
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [JsonParsingUtility] ExtractRevealedCellsArray - pattern: '"revealedCells": [', start: 51
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [JsonParsingUtility] ExtractRevealedCellsArray - content length: 50, content: '{"col": 0, "row": 0, "isHit": true, "letter": "C"}'
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [JsonParsingUtility] ExtractRevealedCellsArray - pattern: '"revealedCells": [', start: 54
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [JsonParsingUtility] ExtractRevealedCellsArray - content length: 50, content: '{"col": 0, "row": 2, "isHit": true, "letter": "A"}'
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [UIFlowController] Poll result - turnNumber: 7, lastKnown: 6, currentTurn: player1
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [UIFlowController] Turn number changed: 6 -> 7
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [UIFlowController] Processing state update via RemotePlayerOpponent
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [RemotePlayerOpponent] DetectOpponentAction - lastRevealed=1, newRevealed=1, lastLetters=0, newLetters=1
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [RemotePlayerOpponent] Opponent guessed letter: A
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [UIFlowController] Opponent guesses letter: A
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [GameplayGuessManager] HIT! Letter 'A' found at 1 position(s)
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [RefreshOpponentKeyboard] Letter 'A': letterKnown=True, allCoordsKnown=False, positions=1
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [RefreshOpponentKeyboard] 'A' -> YELLOW (letter known, coords incomplete)
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [RemotePlayerOpponent] Turn returned to local player
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [UIFlowController] HandleOpponentThinkingComplete - opponent finished, switching to player turn
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [TableView] Container sizing: Available 440x440px, Grid 7x7 (8 rows), FromW=53.0px -> Final 52px
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [UIFlowController] HandleOpponentThinkingComplete - turn switched to player
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [UIFlowController] Turn detection: Local player's turn - stopping polling
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [UIFlowController] Turn detection polling ended
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/game_sessions?id=eq.6UF7HV -> 200
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [JsonParsingUtility] ExtractRevealedCellsArray - pattern: '"revealedCells": [', start: 51
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [JsonParsingUtility] ExtractRevealedCellsArray - content length: 50, content: '{"col": 0, "row": 0, "isHit": true, "letter": "C"}'
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [JsonParsingUtility] ExtractRevealedCellsArray - pattern: '"revealedCells": [', start: 54
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [JsonParsingUtility] ExtractRevealedCellsArray - content length: 50, content: '{"col": 0, "row": 2, "isHit": true, "letter": "A"}'
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [SupabaseClient] PATCH https://api.tecvoodoo.com/rest/v1/game_sessions?id=eq.6UF7HV -> 200
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [GameSessionService] Updated game state: 6UF7HV
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [UIFlowController] Saved game state to Supabase - turn 8
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [UIFlowController] Switched to player's turn (auto-switched to Attack tab)
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 Trying to get length of sound which is not loaded yet.
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [MusicManager] Crossfading to: A tavern, a bard, a quest
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [GameplayScreenManager] SelectDefendTab - Setting colors: Player RGB(0.90, 0.40, 0.60), Opponent RGB(0.20, 0.70, 0.70)
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [TableView] Container sizing: Available 440x440px, Grid 11x11 (12 rows), FromW=34.7px -> Final 34px
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [TableView] Container sizing: Available 440x440px, Grid 7x7 (8 rows), FromW=53.0px -> Final 52px
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 Trying to get length of sound which is not loaded yet.
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [MusicManager] Crossfading to: An Ocean of Stars - Mastered
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [MusicManager] Crossfading to: The Monster Within - Mastered
+
+2357bedc-6d38-4f7a-a2ee-8d0a60328d17:9 [MusicManager] Crossfading to: A tavern, a bard, a quest
+
+Second test: 
+a5117213-1263-4112-9907-16f7bccc39db:9 [SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/session_players?session_id=eq.YAP2BW&player_id=neq.66da8bcf-a779-49f6-868a-612b72c66d44&select=player_id,player_name -> 200
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/game_sessions?id=eq.DP8N8U -> 200
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/session_players?session_id=eq.DP8N8U&player_id=neq.66da8bcf-a779-49f6-868a-612b72c66d44&select=player_id,player_name -> 200
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/game_sessions?id=eq.6UF7HV -> 200
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/session_players?session_id=eq.6UF7HV&player_id=neq.66da8bcf-a779-49f6-868a-612b72c66d44&select=player_id,player_name -> 200
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/players?id=eq.72819768-b6d9-4aa0-9dba-7b17569300f0&select=display_name -> 200
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/game_sessions?id=eq.N7JP2W -> 200
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/session_players?session_id=eq.N7JP2W&player_id=neq.66da8bcf-a779-49f6-868a-612b72c66d44&select=player_id,player_name -> 200
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [SupabaseClient] GET https://api.tecvoodoo.com/rest/v1/players?id=eq.72819768-b6d9-4aa0-9dba-7b17569300f0&select=display_name -> 200
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [GameSessionService] Found 21 active games for player 66da8bcf-a779-49f6-868a-612b72c66d44
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [ActiveGamesManager] Game R83D7Y vs Player: hidden=True
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [ActiveGamesManager] Game 4HS8FJ vs Cameron: hidden=True
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [ActiveGamesManager] Game B8CRM9 vs Player: hidden=True
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [ActiveGamesManager] Game CV2PF2 vs Player: hidden=True
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [ActiveGamesManager] Game 3YKVHJ vs Player: hidden=True
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [ActiveGamesManager] Game M9F96U vs Player: hidden=True
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [ActiveGamesManager] Game BGCX4V vs Player: hidden=True
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [ActiveGamesManager] Game 23WGMA vs Player: hidden=True
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [ActiveGamesManager] Game 3ZSHA7 vs Player: hidden=True
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [ActiveGamesManager] Game RD5G9S vs Player: hidden=True
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [ActiveGamesManager] Game DDGBTZ vs Player: hidden=True
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [ActiveGamesManager] Game D3QEQH vs Player: hidden=True
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [ActiveGamesManager] Game 2W7TQW vs Player: hidden=True
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [ActiveGamesManager] Game ARMVMD vs Player: hidden=True
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [ActiveGamesManager] Game 3WV32B vs Player: hidden=True
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [ActiveGamesManager] Game 9AXQ7B vs Cameron: hidden=True
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [ActiveGamesManager] Game AC2FQ2 vs Player: hidden=True
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [ActiveGamesManager] Game YAP2BW vs Sam: hidden=True
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [ActiveGamesManager] Game DP8N8U vs Alex: hidden=True
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [ActiveGamesManager] Game 6UF7HV vs Player: hidden=True
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [ActiveGamesManager] Game N7JP2W vs Player: hidden=False
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [ActiveGamesManager] Found 21 games, 1 visible after filtering
+
+a5117213-1263-4112-9907-16f7bccc39db:9 [ActiveGamesManager] Showing 1 active games
+
+a5117213-1263-4112-9907-16f7bccc39db:9 Trying to get length of sound which is not loaded yet.
+a5117213-1263-4112-9907-16f7bccc39db:9 [MusicManager] Crossfading to: A tavern, a bard, a quest
+
+a5117213-1263-4112-9907-16f7bccc39db:9 Trying to get length of sound which is not loaded yet.
+a5117213-1263-4112-9907-16f7bccc39db:9 [MusicManager] Crossfading to: The Monster Within - Mastered

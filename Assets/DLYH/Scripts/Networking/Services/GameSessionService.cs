@@ -1018,6 +1018,7 @@ namespace DLYH.Networking.Services
         public int gridSize;
         public int wordCount;
         public string difficulty;
+        public int headIndex;
 
         // Dynamic state (only in JSONB)
         public bool ready;                      // Player has confirmed ready to play
