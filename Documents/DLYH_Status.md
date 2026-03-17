@@ -1,7 +1,7 @@
 # DLYH - Project Status
 
 **Project:** Don't Lose Your Head (DLYH)
-**Platform:** Unity 6.3 (6000.0.38f1), UI Toolkit
+**Platform:** Unity 6.3 (6000.3.11f1), UI Toolkit
 **DLYH Root:** `Assets/DLYH/`
 **Scene:** NetworkingScene.unity
 **Codebase:** ~65 scripts, ~33,000 lines, 15 namespaces
